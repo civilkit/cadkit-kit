@@ -50,7 +50,13 @@ function startNow(s: CentreArcState): { at: Pt; pointId?: string } | null {
   return { at: s.cursor };
 }
 
-function view(state: CentreArcState, draft: SketchDraft, settings: ToolSettings, hint?: string): ToolOutput<CentreArcState> {
+/** The pick the tool waits for, as an i18n key: shown whenever there is no refusal to report. */
+export function centreArcStepHint(state: CentreArcState): string {
+  return !state.centre ? 'app.sketch.hint.arcC.centre' : !state.start ? 'app.sketch.hint.arcC.start' : 'app.sketch.hint.arcC.end';
+}
+
+function view(state: CentreArcState, draft: SketchDraft, settings: ToolSettings, refusal?: string): ToolOutput<CentreArcState> {
+  const hint = refusal ?? centreArcStepHint(state);
   if (!state.centre || !state.cursor) return { state, draft, preview: [], fields: [], hint };
   const c = state.centre.at;
   const s = state.start ?? startNow(state);

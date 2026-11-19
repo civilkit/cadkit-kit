@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   FULL_ROUND_FACES, chamferTypeOf, endAllowsDraft, endAllowsTwist, filletFullRound, patchFilletFullRound, patchEndScale, endAllowsEndScale, endScaleOf, patchTwist, patchTwistCentre, twistCentreOf, endNeedsDepth, endNeedsObject, endsFor, filletProfileOf, hasOptions, managedPaths, objectRefChoices, objectRefLabel, objectRefPatch,
   objectRefValue, patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, patchStart, radiiOf, startAllowed, startOf,
+  bothWaysOf, endHasBothWays, patchBothWays, cutMissOffers,
 } from './optionRules';
 import {
   addStop, centreLineOf, centreLinePatch, connectorPatch, connectorsOf, patchStop, patchThickenAxis, patchThickenVariable, removeStop, stopsOf, thickenAxisOf, thickenVariable,
@@ -175,5 +176,30 @@ describe('To object references', () => {
     expect(objectRefLabel(doc as never, { kind: 'vertex', faces: ['A', 'B', 'C'], at: [1, 2, 3] })).toBe('Corner at (1, 2, 3)');
     expect(objectRefLabel(doc as never, { kind: 'sketchPoint', sketch: 'F1', point: 'p3' })).toBe('Point p3 of F1');
     expect(objectRefLabel(doc as never, null)).toBe('');
+  });
+});
+
+describe('through all, both directions', () => {
+  it('the Both directions box is for Through all only, and ticked for a through-both end', () => {
+    expect(['blind', 'mid', 'through', 'throughBoth', 'upToNext', 'toObject'].filter(endHasBothWays)).toEqual(['through', 'throughBoth']);
+    expect(bothWaysOf({ end: 'throughBoth' })).toBe(true);
+    expect(bothWaysOf({ end: 'through' })).toBe(false);
+    expect(bothWaysOf({})).toBe(false);
+  });
+  it('ticking it makes the end through-both and drops the flip and the draft (the kernel refuses a drafted through-both); unticking goes back to one way', () => {
+    expect(patchBothWays({ end: 'through', flip: true, draft: 3 }, true)).toMatchObject({ end: 'throughBoth', flip: null, draft: null, draftOut: null, depth: null });
+    expect(patchBothWays({ end: 'throughBoth' }, false)).toMatchObject({ end: 'through', depth: null });
+  });
+  it('a cut that misses: Flip when the body may lie the other way, and Both directions too for Through all', () => {
+    expect(cutMissOffers({ end: 'through' }, 'away')).toEqual({ flip: true, both: true });
+    expect(cutMissOffers({ end: 'blind' }, 'away')).toEqual({ flip: true, both: false });
+    expect(cutMissOffers({ end: 'upToNext' }, 'both')).toEqual({ flip: true, both: false });
+    expect(cutMissOffers({ end: 'through' }, null)).toEqual({ flip: true, both: true });
+    // the whole body is on the side the cut already goes: flipping would cut air
+    expect(cutMissOffers({ end: 'through' }, 'toward')).toEqual({ flip: false, both: false });
+    // no direction to flip
+    expect(cutMissOffers({ end: 'throughBoth' }, 'away')).toEqual({ flip: false, both: false });
+    expect(cutMissOffers({ end: 'mid' }, 'away')).toEqual({ flip: false, both: false });
+    expect(cutMissOffers({ end: 'toObject' }, 'away')).toEqual({ flip: false, both: false });
   });
 });

@@ -41,7 +41,7 @@ export function sectionSpec(s: SectionState, normal: V3 | null): SectionSpec | n
 
 /** All the state of the Inspect tab: mass properties, measure, interference and section. It lives at the app level so the
  *  section and the measurement stay when the drawer shows another tab. */
-export function useInspect(host: InspectHost, store: Store, getView: () => InspectView | null, openPanel: () => void, measureActive: MutableRef<boolean>) {
+export function useInspect(host: InspectHost, store: Store, getView: () => InspectView | null, openPanel: () => void, measureActive: MutableRef<boolean>, editing = false) {
   const rev = host.revision;
   const material = host.document()?.material ?? '';
   const known = densityOf(material);
@@ -110,9 +110,9 @@ export function useInspect(host: InspectHost, store: Store, getView: () => Inspe
   useEffect(() => { getView()?.setSection(spec); }, [specKey]);
   const setSection = (patch: Partial<SectionState>) => setSectionState((s) => ({ ...s, ...patch }));
   /** Start or change the cut. A standard plane begins through the middle of the part; a face begins on the face. */
-  const cutOn = (plane: SectionState['plane']) => {
+  const cutOn = (plane: SectionState['plane'], faceArg?: string) => {
     if (plane === 'face') {
-      const id = [...store.selection.value].reverse().find((n) => faces?.faceIds.includes(n) && facePlane(faces, n)?.flat);
+      const id = faceArg && faces?.faceIds.includes(faceArg) && facePlane(faces, faceArg)?.flat ? faceArg : [...store.selection.value].reverse().find((n) => faces?.faceIds.includes(n) && facePlane(faces, n)?.flat);
       if (!id || !faces) { store.notify(t('inspect.section.pickFace'), 'warn'); return; }
       const pl = facePlane(faces, id)!;
       setSectionState((s) => ({ ...s, on: true, plane, faceId: id, offset: pl.normal.reduce((a, x, i) => a + x * pl.point[i], 0) }));
@@ -122,7 +122,18 @@ export function useInspect(host: InspectHost, store: Store, getView: () => Inspe
     const r = box ? boxRange(box, n) : [0, 0];
     setSectionState((s) => ({ ...s, on: true, plane, faceId: null, offset: (r[0] + r[1]) / 2 }));
   };
-  const toggleSection = () => { if (section.on) setSection({ on: false }); else { cutOn(section.plane === 'face' ? 'front' : section.plane); openPanel(); } };
+  // A cut made while a feature panel is open is temporary: it goes when the panel closes. One made from the Inspect panel, or
+  // already on when the panel opened, is the user's own and stays.
+  const temp = useRef(false);
+  const wasEditing = useRef(editing);
+  useEffect(() => {
+    if (wasEditing.current && !editing && temp.current) { temp.current = false; setSectionState((s) => ({ ...s, on: false })); }
+    wasEditing.current = editing;
+  }, [editing]);
+  const sectionOff = () => { temp.current = false; setSection({ on: false }); };
+  const toggleSection = () => { if (section.on) sectionOff(); else { temp.current = editing; cutOn(section.plane === 'face' ? 'front' : section.plane); if (!editing) openPanel(); } };
+  /** The viewport's Section control: pick the plane (a standard one, or a given flat face), keeping the temporary mark of a cut that is already on. */
+  const cutPlane = (plane: SectionState['plane'], faceId?: string) => { if (!section.on) temp.current = editing; cutOn(plane, faceId); };
 
   const props: InspectProps = {
     material, density, densityKnown: known !== null, onDensity: (d) => { if (Number.isFinite(d) && d >= 0) setDensity(d); },
@@ -135,10 +146,10 @@ export function useInspect(host: InspectHost, store: Store, getView: () => Inspe
     onInterference: () => void runInterference(),
     onPair: (a, b) => { store.mode.value = 'face'; store.select([a, b]); getView()?.frameNames([a, b]); },
     section, sectionRange: range,
-    onSectionPlane: cutOn,
+    onSectionPlane: (p) => { temp.current = false; cutOn(p); },
     onSection: (patch) => setSection(patch),
-    onSectionOff: () => setSection({ on: false }),
+    onSectionOff: sectionOff,
     onVisible: () => { if (hasSolid() && (!raw || raw.revision !== rev)) void runMass(); },
   };
-  return { props, toggleMeasure, measuring, runMass, runInterference, toggleSection, sectionOn: section.on, copy, copyMeasure: () => outcome && copy(copyText(outcome.out.rows, (id) => t('measure.' + id))) };
+  return { props, toggleMeasure, measuring, runMass, runInterference, toggleSection, cutPlane, sectionOff, section, sectionRange: range, setSection, sectionOn: section.on, copy, copyMeasure: () => outcome && copy(copyText(outcome.out.rows, (id) => t('measure.' + id))) };
 }

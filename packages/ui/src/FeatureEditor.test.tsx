@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/preact';
-import { FeatureEditor, sectionsOf } from './FeatureEditor';
+import { FeatureEditor, sectionsOf, enterConfirms } from './FeatureEditor';
 
 afterEach(cleanup);
 
@@ -105,6 +105,21 @@ describe('FeatureEditor', () => {
     expect(confirms.length).toBe(1);
     fireEvent.keyDown(container.querySelector('.fedit')!, { key: 'Escape' });
     expect(cancelled).toBe(1);
+  });
+
+  it('Enter on a select does not confirm, Ctrl+Enter does', () => {
+    const confirms: unknown[] = [];
+    const { container } = render(<FeatureEditor feature={EXTRUDE} onDraft={() => {}} onConfirm={(v) => confirms.push(v)} onCancel={() => {}} />);
+    const sel = container.querySelector('.fedit select');
+    if (sel) {
+      fireEvent.keyDown(sel, { key: 'Enter' });
+      expect(confirms.length).toBe(0);
+      fireEvent.keyDown(sel, { key: 'Enter', ctrlKey: true });
+      expect(confirms.length).toBe(1);
+    }
+    expect(enterConfirms({ target: document.createElement('select') })).toBe(false);
+    expect(enterConfirms({ target: document.createElement('input') })).toBe(true);
+    expect(enterConfirms({ target: document.createElement('select'), metaKey: true })).toBe(true);
   });
 
   it('reference fields show a picking state while pickingPath names them', () => {

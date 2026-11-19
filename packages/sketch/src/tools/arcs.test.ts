@@ -317,3 +317,17 @@ describe('tangent arc tool', () => {
     expect(o.state.from).toBeUndefined();
   });
 });
+
+describe('arc pick prompts', () => {
+  it('3-point arc names the pick it waits for', () => {
+    expect(run(threePointArcTool, [move(0, 0)]).hint).toBe('app.sketch.hint.arc3.start');
+    expect(run(threePointArcTool, [click(0, 0)]).hint).toBe('app.sketch.hint.arc3.through');
+    expect(run(threePointArcTool, [click(0, 0), click(5, 5)]).hint).toBe('app.sketch.hint.arc3.end');
+    expect(run(threePointArcTool, [click(10, 0), click(0, 10), click(-10, 0)]).hint).toBe('app.sketch.hint.arc3.start');
+  });
+  it('centre arc names the pick it waits for', () => {
+    expect(run(centreArcTool, [move(0, 0)]).hint).toBe('app.sketch.hint.arcC.centre');
+    expect(run(centreArcTool, [click(0, 0)]).hint).toBe('app.sketch.hint.arcC.start');
+    expect(run(centreArcTool, [click(0, 0), click(5, 0)]).hint).toBe('app.sketch.hint.arcC.end');
+  });
+});

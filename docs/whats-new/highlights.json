@@ -1,4 +1,26 @@
 {
+  "0.8.4": [
+    {
+      "id": "show-freedom",
+      "title": "Show freedom: see what can still move in a sketch",
+      "blurb": "Amber marks the points and radii that are not fully defined, says in which direction they can move and offers chips that pin them; Show constraints draws every glyph and dimension and lists what is attached on hover."
+    },
+    {
+      "id": "hole-tool",
+      "title": "A Hole tool that starts from a face",
+      "blurb": "Pick the flat face, type the centres, set a diameter that is remembered for the next hole, and choose Blind or Through."
+    },
+    {
+      "id": "typed-point",
+      "title": "Type a first point as x,y",
+      "blurb": "Start a circle, line, point, rectangle or arc by typing its position; the point is dimensioned from the origin and expressions stay linked to variables."
+    },
+    {
+      "id": "junction-fillet",
+      "title": "Fillet the junction after a boss",
+      "blurb": "After a new boss a prompt offers to fillet the edges where it meets the body, and a Section control clips the part while you edit."
+    }
+  ],
   "0.8.3": [
     {
       "id": "fillet-overhang",

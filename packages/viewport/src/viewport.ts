@@ -39,7 +39,7 @@ import { DEFAULT_ANALYSIS, sanitizeAnalysis, type AnalysisOptions, type Legend }
 import { markerSegments, markerColor, MARKER_HALF_PX, ANCHOR_HALF_PX, type MarkerStyle } from './snapMarks';
 import { cursorFor, type CursorContext } from './cursorPolicy';
 import { adaptiveGrid } from './gridSpacing';
-import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchEditFit, sketchPointWorld, lookAngleDeg } from './sketchedit';
+import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchEditFit, sketchPointWorld, lookAngleDeg, keepsSketchDrag } from './sketchedit';
 
 export interface ViewFrame {
   o: number[];
@@ -103,6 +103,8 @@ export interface ViewportOptions {
   onPlaneFeaturePick?(id: string, additive: boolean): void;
   /** A sketch point is being dragged: plane coordinates of the pointer. */
   onSketchMove?(pointId: string, u: number, v: number): void;
+  /** The point drag ended: the pointer went up, the press was cancelled, or the sketch went away under it. */
+  onSketchDragEnd?(pointId: string): void;
   /** A sketch tool is active: the pointer in plane coordinates (and in host pixels, for placing fields). */
   onSketchPointer?(ev: SketchPointerEvent): void;
   /** Select mode (no tool): a click that did not hit a point or start a drag, in plane coordinates. */
@@ -279,6 +281,8 @@ export class Viewport {
   private sketchDefLines: Array<THREE.LineSegments | LineSegments2 | THREE.Points> = [];
   /** Curves and points a conflicting constraint names: drawn in the conflict colour whatever the colouring setting. */
   private sketchConflict: { entities: Set<string>; points: Set<string> } | null = null;
+  /** Curves and points that can still move (the Show freedom highlight): amber. */
+  private sketchFree: { entities: Set<string>; points: Set<string> } | null = null;
   private sketchTool = false;
   private sketchPreviewGroup: THREE.Group | null = null;
   private sketchPreviewShapes: SketchPreviewShape[] = [];
@@ -489,6 +493,12 @@ export class Viewport {
   private onTouchEnd = (e: PointerEvent): void => this.touch.end(e);
   /** The system took the pointer (a scroll or a palm, a call coming in, the finger left the screen): there will be no pointerup. */
   private onCancel = (): void => { this.suppressUp = false; this.cancelGesture(); };
+  /** Let go of the point being dragged (if any) and say so: the app takes the drop (or the refusal) as one step. */
+  private endSketchDrag(): void {
+    const id = this.sketchDrag;
+    this.sketchDrag = null;
+    if (id) this.opts.onSketchDragEnd?.(id);
+  }
   /** Abandon the press in progress: no click, no rubber band, no point drag, no box, and the orbit controls back on. */
   cancelGesture(): void {
     this.down = null;
@@ -498,7 +508,7 @@ export class Viewport {
       this.rubber = null;
       if (moved) this.opts.onSketchBox?.({ phase: 'cancel', x0: 0, y0: 0, x1: 0, y1: 0, crossing: false, u0: 0, v0: 0, u1: 0, v1: 0, mods: { shift: false, ctrl: false, alt: false } } as never);
     }
-    this.sketchDrag = null;
+    this.endSketchDrag();
     this.modPan = null;
     this.midZoom = null;
     if (this.boxDrag) {
@@ -617,8 +627,9 @@ export class Viewport {
     if (!v) { this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; this.sketchDef = null; this.sketchConflict = null; }
     this.sketchDefLines = [];
     const leaving = !v && !!this.sketchEdit;
+    // a drag goes on through the solver's new frames of the same sketch; it ends when the sketch or its point goes away
+    if (!keepsSketchDrag(this.sketchDrag, this.sketchEdit, v)) this.endSketchDrag();
     this.sketchEdit = v;
-    this.sketchDrag = null;
     this.applySketchButtons();
     if (leaving) {
       // the sketch turned the camera's up to its own Y (a sketch on the top plane: the model's Z). Back to the up axis of the view, or the
@@ -691,18 +702,24 @@ export class Viewport {
     this.rebuildSketchDef();
   }
 
+  /** Draw the curves and points that still have freedom in amber (what Show freedom lists). Null or empty clears. */
+  setSketchFreedom(c: { entities: string[]; points: string[] } | null): void {
+    this.sketchFree = c && (c.entities.length || c.points.length) ? { entities: new Set(c.entities), points: new Set(c.points) } : null;
+    this.rebuildSketchDef();
+  }
+
   private rebuildSketchDef(): void {
     for (const l of this.sketchDefLines) { l.parent?.remove(l); l.geometry.dispose(); const m = l.material as THREE.Material; this.fatMaterials = this.fatMaterials.filter((x) => x !== (m as unknown)); m.dispose(); }
     this.sketchDefLines = [];
-    const v = this.sketchEdit, group = this.sketchOverlay, map = this.sketchDef, bad = this.sketchConflict;
+    const v = this.sketchEdit, group = this.sketchOverlay, map = this.sketchDef, bad = this.sketchConflict, free = this.sketchFree;
     this.dirty = true;
-    if (!v || !group || (!map && !bad)) return;
+    if (!v || !group || (!map && !bad && !free)) return;
     const bg = getComputedStyle(this.host).getPropertyValue('--vp-bottom').trim() || '#e6eaf0';
     const c = new THREE.Color(bg);
     const dark = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b < 0.4;
-    const colours = { full: dark ? 0xf2f2f2 : 0x151515, over: 0xe03131 } as const;
-    const stateOf = (id: string): 'under' | 'full' | 'over' | undefined => (bad?.entities.has(id) ? 'over' : map?.[id]);
-    for (const state of ['full', 'over'] as const) {
+    const colours = { full: dark ? 0xf2f2f2 : 0x151515, over: 0xe03131, free: 0xf59f00 } as const;
+    const stateOf = (id: string): 'under' | 'full' | 'over' | 'free' | undefined => (bad?.entities.has(id) ? 'over' : free?.entities.has(id) ? 'free' : map?.[id]);
+    for (const state of ['full', 'free', 'over'] as const) {
       const ents = v.sketch.entities.filter((e) => stateOf(e.id) === state && e.construction !== true);
       if (!ents.length) continue;
       const seg = this.segmentsOf(sketchEditPolylines({ ...v.sketch, entities: ents }, v.frame as never, 'solid'));
@@ -712,18 +729,18 @@ export class Viewport {
       group.add(lines);
       this.sketchDefLines.push(lines);
     }
-    if (bad?.points.size) {
-      const world = sketchPointWorld(v.sketch.points.filter((p) => bad.points.has(p.id)), v.frame as never);
-      if (world.length) {
-        const pos = new Float32Array(world.length * 3);
-        world.forEach((p, i) => { pos[i * 3] = p.xyz[0]; pos[i * 3 + 1] = p.xyz[1]; pos[i * 3 + 2] = p.xyz[2]; });
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-        const dots = new THREE.Points(geo, new THREE.PointsMaterial({ color: colours.over, size: 7, sizeAttenuation: false }));
-        dots.renderOrder = 11;
-        group.add(dots);
-        this.sketchDefLines.push(dots);
-      }
+    for (const [set, colour, size] of [[free?.points, colours.free, 9], [bad?.points, colours.over, 7]] as const) {
+      if (!set?.size) continue;
+      const world = sketchPointWorld(v.sketch.points.filter((p) => set.has(p.id)), v.frame as never);
+      if (!world.length) continue;
+      const pos = new Float32Array(world.length * 3);
+      world.forEach((p, i) => { pos[i * 3] = p.xyz[0]; pos[i * 3 + 1] = p.xyz[1]; pos[i * 3 + 2] = p.xyz[2]; });
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const dots = new THREE.Points(geo, new THREE.PointsMaterial({ color: colour, size, sizeAttenuation: false }));
+      dots.renderOrder = 11;
+      group.add(dots);
+      this.sketchDefLines.push(dots);
     }
   }
 
@@ -731,7 +748,7 @@ export class Viewport {
    *  no longer orbits (right button rotates, middle pans, the wheel zooms). */
   setSketchTool(on: boolean): void {
     this.sketchTool = on;
-    this.sketchDrag = null;
+    this.endSketchDrag();
     this.dom.style.cursor = on ? 'crosshair' : '';
     this.applySketchButtons();
     if (!on) this.setSketchPreview([]);
@@ -2753,7 +2770,7 @@ export class Viewport {
       this.dom.style.cursor = '';
       if (moved) {   // the drag was a pan: it is neither a tool click nor a rubber band
         if (this.rubber) { this.rubber = null; this.opts.onSketchBox?.({ phase: 'cancel', x0: 0, y0: 0, x1: 0, y1: 0, crossing: false, u0: 0, v0: 0, u1: 0, v1: 0, mods: { shift: false, ctrl: false, alt: false } } as never); }
-        this.sketchDrag = null;
+        this.endSketchDrag();
         this.controls.enabled = true;
         return;
       }
@@ -2795,7 +2812,7 @@ export class Viewport {
       const wasDrag = !!this.sketchDrag;
       if (!wasDrag && d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.emitSketchPointer('click', e, this.opts.onSketchSelect);
       if (this.sketchDrag) {
-        this.sketchDrag = null;
+        this.endSketchDrag();
         this.controls.enabled = true;
         this.dom.releasePointerCapture(e.pointerId);
       }

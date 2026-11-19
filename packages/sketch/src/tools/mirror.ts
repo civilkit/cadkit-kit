@@ -20,10 +20,14 @@
  *  - the Enter key reaches this tool because the selection is always drawn highlighted (the app routes keys to a
  *    tool that has something on show; otherwise Enter confirms the sketch);
  *  - the mirror line itself is never mirrored, and constraints of the originals are not copied.
+ * In the line step the key X or Y mirrors about the origin's X or Y axis (a fixed construction line on the axis is added, or reused: `axisLine`).
+ * Live: the copies are always linked (symmetric / equal constraints, see above), so editing an original moves its copy; to get
+ * a plain copy, delete the constraints. The kernel has no single "mirror" constraint, so one constraint per point pair is the limit.
  * Escape drops the selection, then the whole operation.
  */
 import type { DraftEntity, SketchDraft } from '../index';
 import { entityShape } from '../select';
+import { AXIS_KEYS, axisLine } from './axisLine';
 import { arcSweep, distToLine, reflect, sample, TOL, type CurveG } from './edit-geom';
 import { curveOf, entityOf, entityPoints, ptOf, withConstraint, withEntity, withPoint } from './edit-draft';
 import type { PreviewShape, Tool, ToolEnv, ToolOutput, ToolSettings } from './types';
@@ -42,7 +46,9 @@ export function mirrorEntities(draft: SketchDraft, ids: string[], lineId: string
   if (!axis || axis.type !== 'line') return { ok: false, hint: 'app.sketch.hint.pickLine' };
   const a = ptOf(draft, String(axis.p1)), b = ptOf(draft, String(axis.p2));
   if (!a || !b || Math.hypot(b.x - a.x, b.y - a.y) < TOL) return { ok: false, hint: 'app.sketch.hint.degenerate' };
-  const src = ids.filter((i) => i !== lineId).map((i) => entityOf(draft, i)).filter((e): e is DraftEntity => !!e && MIRRORABLE.has(String(e.type)));
+  const onAxis = (e: DraftEntity) => { const ps = entityPoints(e).map((q) => ptOf(draft, q)); return ps.length > 0 && ps.every((q) => !!q && distToLine(q, a, b) <= TOL); };
+  // an entity lying on the mirror line is its own mirror image: not duplicated (a circle is never "on" a line)
+  const src = ids.filter((i) => i !== lineId).map((i) => entityOf(draft, i)).filter((e): e is DraftEntity => !!e && MIRRORABLE.has(String(e.type)) && !(e.type === 'line' && onAxis(e)));
   if (!src.length) return { ok: false, hint: 'app.sketch.hint.nothingToMirror' };
 
   let d = draft;
@@ -164,6 +170,12 @@ export const mirrorTool: Tool<MirrorState> = {
       case 'key': {
         if (ev.key === 'Enter' && state.phase === 'select') {
           return state.selected.length ? view({ ...state, phase: 'line' }, draft, settings) : view(state, draft, settings, 'app.sketch.hint.nothingToMirror');
+        }
+        const ax = state.phase === 'line' ? AXIS_KEYS[ev.key.toLowerCase()] : undefined;
+        if (ax) {
+          const made = axisLine(draft, ax);
+          const r = mirrorEntities(made.draft, state.selected, made.id);
+          return r.ok ? view({ phase: 'select', selected: [] }, r.draft, settings) : view(state, draft, settings, r.hint);
         }
         if (ev.key === 'Escape') return state.selected.length ? view({ phase: 'select', selected: [] }, draft, settings) : view(state, draft, settings);
         return view(state, draft, settings);

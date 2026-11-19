@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { constrainsFromGuides, escapeCancelsSketch, lookChipNeeded, DEFAULT_SKETCH_PREFS, loadSketchPrefs, sanitizeSketchPrefs, saveSketchPrefs, toToolSettings } from './sketchPrefs';
+import { constrainsFromGuides, escapeCancelsSketch, lookChipNeeded, reopenNeedsOrient, DEFAULT_SKETCH_PREFS, loadSketchPrefs, sanitizeSketchPrefs, saveSketchPrefs, toToolSettings } from './sketchPrefs';
 
 describe('keep view when entering a sketch', () => {
   it('is on by default, can be turned off, ignores junk', () => {
@@ -59,6 +59,12 @@ describe('sketch preferences', () => {
     expect(sanitizeSketchPrefs({ constraintMarkers: 'off' }).constraintMarkers).toBe('off');
     expect(sanitizeSketchPrefs({ constraintMarkers: 'some' }).constraintMarkers).toBe('hover');
   });
+  it('Show constraints is not chosen until the user toggles it, and is remembered once chosen', () => {
+    expect(DEFAULT_SKETCH_PREFS.showConstraints).toBeNull();
+    expect(sanitizeSketchPrefs({ showConstraints: true }).showConstraints).toBe(true);
+    expect(sanitizeSketchPrefs({ showConstraints: false }).showConstraints).toBe(false);
+    expect(sanitizeSketchPrefs({ showConstraints: 'yes' }).showConstraints).toBeNull();
+  });
   it('round-trips through storage, and survives broken or missing storage', () => {
     const mem: Record<string, string> = {};
     const store = { getItem: (k: string) => mem[k] ?? null, setItem: (k: string, v: string) => { mem[k] = v; } };
@@ -113,5 +119,16 @@ describe('typed angles and right angles', () => {
     expect(sanitizeSketchPrefs({ typedAngleDims: false, rightAngleSquare: false })).toMatchObject({ typedAngleDims: false, rightAngleSquare: false });
     expect(sanitizeSketchPrefs({ typedAngleDims: 'no' }).typedAngleDims).toBe(true);
     expect(toToolSettings({ ...DEFAULT_SKETCH_PREFS, typedAngleDims: false }).typedAngleDims).toBe(false);
+  });
+});
+
+describe('re-opening a sketch', () => {
+  it('orients when edge-on or the view is not kept', () => {
+    expect(reopenNeedsOrient(true, 90)).toBe(true);
+    expect(reopenNeedsOrient(true, 61)).toBe(true);
+    expect(reopenNeedsOrient(true, 60)).toBe(false);
+    expect(reopenNeedsOrient(true, 20)).toBe(false);
+    expect(reopenNeedsOrient(true, null)).toBe(false);
+    expect(reopenNeedsOrient(false, 0)).toBe(true);
   });
 });

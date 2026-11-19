@@ -29,8 +29,8 @@ function view(state: CircleState, draft: SketchDraft, settings: ToolSettings, hi
   const r = radiusOf(state);
   const lockedKind = state.locked?.kind;
   const fields: FieldSpec[] = settings.onViewValues === 'off' ? [] : [
-    { id: 'radius', label: 'app.sketch.field.radius', value: r, locked: lockedKind === 'radius', unit: 'length' },
-    { id: 'diameter', label: 'app.sketch.field.diameter', value: r * 2, locked: lockedKind === 'diameter', unit: 'length' },
+    { id: 'radius', label: 'app.sketch.field.radius', tip: 'app.sketch.field.radiusTip', value: r, locked: lockedKind === 'radius', unit: 'length' },
+    { id: 'diameter', label: 'app.sketch.field.diameter', tip: 'app.sketch.field.diameterTip', value: r * 2, locked: lockedKind === 'diameter', unit: 'length' },
   ];
   return { state, draft, preview: r > 0 ? [{ kind: 'circle', c: state.centre.at, r }] : [], fields, hint };
 }

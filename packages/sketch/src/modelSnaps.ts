@@ -107,6 +107,13 @@ export function buildModelSnaps(frame: PlaneFrame3, edges: BodyEdge[], opts: Mod
     } else {
       push('modelEndpoint', 'modelEndpoint', c.pts[0]); push('modelEndpoint', 'modelEndpoint', c.pts[c.pts.length - 1]);
       extentPts.push(...c.pts);
+      // an outline walked as one edge (a lobe joined to its neighbours) is not one arc, but it is made of them: each still has a centre and a middle
+      for (const a of arcRuns(flat.pts)) {
+        push('modelCenter', 'modelCenter', a.c);
+        const a0 = Math.atan2(a.p1.y - a.c.y, a.p1.x - a.c.x), tm = a0 + a.sweep / 2;
+        push('modelMidpoint', 'modelMidpoint', { x: a.c.x + a.r * Math.cos(tm), y: a.c.y + a.r * Math.sin(tm) });
+        if (curves.length < max) curves.push({ kind: 'arc', c: a.c, r: a.r, p1: a.p1, p2: a.p2 });
+      }
     }
     const g = toG(c);
     if (g && curves.length < max) curves.push(g);
@@ -142,6 +149,44 @@ export function buildModelSnaps(frame: PlaneFrame3, edges: BodyEdge[], opts: Mod
 }
 
 interface LineInfo { a: Pt; b: Pt }
+
+/** The circular arcs a polyline is made of: maximal runs of vertices that lie on one circle (to 1e-4 of its radius), at least 5 vertices and 20 degrees. */
+export function arcRuns(pts: Pt[]): Array<{ c: Pt; r: number; p1: Pt; p2: Pt; sweep: number }> {
+  const out: Array<{ c: Pt; r: number; p1: Pt; p2: Pt; sweep: number }> = [];
+  const n = pts.length;
+  if (n < 5 || n > 4000) return out;
+  const fit = (i: number, j: number): { c: Pt; r: number } | null => {
+    const a = pts[i], b = pts[Math.floor((i + j) / 2)], d = pts[j];
+    const k = 2 * (a.x * (b.y - d.y) + b.x * (d.y - a.y) + d.x * (a.y - b.y));
+    if (Math.abs(k) < 1e-12) return null;
+    const a2 = a.x * a.x + a.y * a.y, b2 = b.x * b.x + b.y * b.y, d2 = d.x * d.x + d.y * d.y;
+    const c = { x: (a2 * (b.y - d.y) + b2 * (d.y - a.y) + d2 * (a.y - b.y)) / k, y: (a2 * (d.x - b.x) + b2 * (a.x - d.x) + d2 * (b.x - a.x)) / k };
+    const r = dist(c, a);
+    for (let q = i; q <= j; q++) if (Math.abs(dist(c, pts[q]) - r) > 1e-4 * r) return null;
+    return { c, r };
+  };
+  let i = 0;
+  while (i + 4 < n) {
+    let best: { j: number; c: Pt; r: number } | null = null;
+    for (let j = i + 4; j < n; j++) {
+      const f = fit(i, j);
+      if (!f) { if (best) break; else if (j > i + 6) break; else continue; }
+      best = { j, ...f };
+    }
+    if (!best) { i++; continue; }
+    let sweep = 0;
+    for (let q = i + 1; q <= best.j; q++) {
+      let da = Math.atan2(pts[q].y - best.c.y, pts[q].x - best.c.x) - Math.atan2(pts[q - 1].y - best.c.y, pts[q - 1].x - best.c.x);
+      if (da > Math.PI) da -= Math.PI * 2; else if (da < -Math.PI) da += Math.PI * 2;
+      sweep += da;
+    }
+    if (Math.abs(sweep) >= Math.PI / 9) {
+      out.push(sweep > 0 ? { ...best, p1: pts[i], p2: pts[best.j], sweep } : { ...best, p1: pts[best.j], p2: pts[i], sweep: -sweep });
+      i = best.j;
+    } else i++;
+  }
+  return out;
+}
 
 /** For each direction with lines at two or more offsets, the line half way between the outermost two. */
 function parallelMids(lines: LineInfo[]): ModelLine[] {
@@ -217,6 +262,15 @@ export function modelPointAt(m: ModelSnaps, at: Pt, q: ModelSnapQuery): SnapHit 
     if (d <= q.tolerance && (!best || d < best.d - 1e-6)) best = { d, p };
   }
   if (best) return { kind: best.p.kind, at: best.p.at, model: best.p.tag };
+  // a centre is not on the drawn outline, so the pointer is rarely right on it: it is caught from twice as far when nothing nearer claimed the pointer
+  if (q.on('modelCenter')) {
+    for (const p of m.points) {
+      if (p.tag !== 'modelCenter') continue;
+      const d = dist(p.at, at);
+      if (d <= q.tolerance * 2 && (!best || d < best.d - 1e-6)) best = { d, p };
+    }
+    if (best) return { kind: best.p.kind, at: best.p.at, model: best.p.tag };
+  }
   return undefined;
 }
 

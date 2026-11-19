@@ -101,7 +101,8 @@ export function HoleEditor(p: HoleEditorProps): JSX.Element {
   const threaded = p.threads !== undefined && th !== null;
   const choice = sizeChoice(eff);
   const custom = choice === CUSTOM;
-  const end = (HOLE_ENDS as string[]).includes(String(eff.end)) ? String(eff.end) : 'through';
+  const end = (HOLE_ENDS as string[]).includes(String(eff.end)) || eff.end === 'upToNext' ? String(eff.end) : 'through';
+  const ends: HoleEnd[] = (HOLE_ENDS as string[]).includes(end) ? HOLE_ENDS : [...HOLE_ENDS, end as HoleEnd];   // an end the menu no longer offers stays visible
   const dia = holeDiameter(eff);
   const sizes: Array<[string, string]> = ISO_SIZES.map((s) => [s, s]);
   if (!ISO_SIZES.includes(choice) && choice !== CUSTOM) sizes.unshift([choice, choice]);   // keep an unknown size visible (the kernel reports it)
@@ -150,7 +151,7 @@ export function HoleEditor(p: HoleEditorProps): JSX.Element {
       {threaded && th ? <Section id="thread" title={t('hole.section.thread')} summary={threadOptionsSummary(th)}><HoleThreadOptions s={ts} /></Section> : null}
 
       <Section id="end" title={t('hole.section.end')}>
-        <Select name="end" label={t('hole.end')} value={end} options={HOLE_ENDS.map((e) => [e, t('hole.end.' + e)])} onChange={(v) => change(patchEnd(eff, v as HoleEnd))} />
+        <Select name="end" label={t('hole.end')} value={end} options={ends.map((e) => [e, t('hole.end.' + e)])} onChange={(v) => change(patchEnd(eff, v as HoleEnd))} />
         {end === 'blind' ? <Num name="depth" label={t('hole.depth')} value={eff.depth} unit="mm" onChange={(v) => change({ depth: v })} /> : null}
       </Section>
 

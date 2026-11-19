@@ -163,7 +163,7 @@ export function sketchRibbonGroups(p: {
     { id: 'Constrain', entries: slotsFor('constrain', tools).map(cell) },
     { id: 'Modify', entries: edit.filter((sl) => !isRef(sl)).map(cell) },
     { id: 'Reference', entries: [...edit.filter(isRef).map(cell), ...(c ? [node('sk-construction', <SketchConstruction construction={c.construction} onConstruction={c.onConstruction} onToggleSelected={c.onToggleSelected} />)] : [])] },
-    { id: 'Status', entries: c ? [node('sk-status', <SketchStatus status={c.status} busy={c.busy} prefs={c.prefs} onPrefs={c.onPrefs} onFullyDefine={c.onFullyDefine} list={c.list} onLookNormal={c.onLookNormal} lookChip={c.lookChip} onReport={c.onReport} reportOpen={c.reportOpen} />)] : [] },
+    { id: 'Status', pinned: 'end', entries: c ? [node('sk-status', <SketchStatus status={c.status} busy={c.busy} prefs={c.prefs} onPrefs={c.onPrefs} onFullyDefine={c.onFullyDefine} list={c.list} showFree={c.showFree} onShowFree={c.onShowFree} showConstraints={c.showConstraints} onShowConstraints={c.onShowConstraints} onLookNormal={c.onLookNormal} lookChip={c.lookChip} onReport={c.onReport} reportOpen={c.reportOpen} />)] : [] },
   ];
   return groups.filter((g) => g.entries.length);
 }

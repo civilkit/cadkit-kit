@@ -5,6 +5,7 @@ import { absoluteAngle, lineTool, setRelativeAngle, turnAngle } from './line';
 import { rectangleTool } from './rectangle';
 import { centerRectangleTool } from './center-rectangle';
 import { splineTool } from './spline';
+import { circleTool } from './circle';
 
 const M: Modifiers = { shift: false, ctrl: false, alt: false };
 const empty = (): SketchDraft => ({ id: 'F1', plane: { kind: 'std', id: 'front' }, points: [], entities: [], constraints: [], temp: [] });
@@ -322,5 +323,13 @@ describe('line tool: a typed angle becomes an angle dimension', () => {
     expect(tri.state.last).toBeUndefined();
     expect(angles(tri)).toHaveLength(1);
     expect(tri.hint).toBe('app.sketch.hint.angleSkipped');
+  });
+});
+
+describe('circle tool fields', () => {
+  it('after the centre click both the radius and the diameter field show, each with a tooltip name', () => {
+    let o: ToolOutput<unknown> = { state: circleTool.start(), draft: empty(), preview: [], fields: [] };
+    o = circleTool.step(o.state as never, { type: 'click', at: { x: 0, y: 0 }, mods: M }, o.draft, DEFAULT_SETTINGS);
+    expect(o.fields.map((f) => [f.id, f.tip])).toEqual([['radius', 'app.sketch.field.radiusTip'], ['diameter', 'app.sketch.field.diameterTip']]);
   });
 });

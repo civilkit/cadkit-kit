@@ -7,6 +7,12 @@ import { DisplayMenu, DISPLAY_LAYERS } from './DisplayMenu';
 afterEach(cleanup);
 
 describe('DisplayMenu', () => {
+  it('carries the Section chip in its own column, after the Display button', () => {
+    const { container } = render(<DisplayMenu display={DEFAULT_DISPLAY} onToggle={() => {}}><div data-testid="chip" /></DisplayMenu>);
+    const col = container.querySelector('.display-menu')!;
+    expect(col.children[0].classList.contains('display-btn')).toBe(true);
+    expect(col.children[1].getAttribute('data-testid')).toBe('chip');
+  });
   it('is closed until the button is pressed, then lists every layer with its state', () => {
     render(<DisplayMenu display={{ ...DEFAULT_DISPLAY, planes: false }} onToggle={() => {}} />);
     expect(screen.queryByText('Sketches')).toBeNull();

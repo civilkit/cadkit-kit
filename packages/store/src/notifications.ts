@@ -18,7 +18,11 @@ export interface Notice {
   rev: number;
   /** a button on the toast, e.g. Undo or Show feature */
   action?: { label: string; run(): void };
+  /** how long the toast stays, in ms, when it is not the level's default (a hint that is stale a few seconds later) */
+  ttl?: number;
 }
+
+export interface NotifyOptions { ttl?: number }
 
 export const HISTORY_MAX = 50;
 /** The most toasts alive at once; older ones go to the history only. */
@@ -45,7 +49,7 @@ export interface Notifications {
   /** messages raised since the history was last read */
   unread: ReadonlySignal<number>;
   unreadErrors: ReadonlySignal<number>;
-  notify(text: string, level?: NoticeLevelInput, action?: Notice['action']): number;
+  notify(text: string, level?: NoticeLevelInput, action?: Notice['action'], opts?: NotifyOptions): number;
   dismiss(id: number): void;
   /** dismisses the newest live toast; false when there is none */
   dismissNewest(): boolean;
@@ -62,13 +66,14 @@ export function createNotifications(now: () => number = Date.now): Notifications
   const unread = computed(() => unreadList.value.length);
   const unreadErrors = computed(() => unreadList.value.filter((n) => n.level === 'error').length);
 
-  const notify = (text: string, levelIn?: NoticeLevelInput, action?: Notice['action']): number => {
+  const notify = (text: string, levelIn?: NoticeLevelInput, action?: Notice['action'], opts?: NotifyOptions): number => {
+    const ttl = opts?.ttl;
     const level = normaliseLevel(levelIn), at = now(), id = seq++;
     // history: an identical message right after itself folds into one entry
     const h = history.value, last = h.at(-1);
     history.value = last && last.text === text && last.level === level && !action && !last.action
       ? [...h.slice(0, -1), { ...last, id, at, count: last.count + 1 }]
-      : [...h, { id, text, level, at, count: 1, rev: 0, ...(action ? { action } : {}) }].slice(-HISTORY_MAX);
+      : [...h, { id, text, level, at, count: 1, rev: 0, ...(action ? { action } : {}), ...(ttl ? { ttl } : {}) }].slice(-HISTORY_MAX);
     // live: the same text and level merges into the toast already showing (an action toast never merges)
     const live = notices.value;
     const i = action ? -1 : live.findIndex((n) => n.text === text && n.level === level && !n.action);
@@ -77,7 +82,7 @@ export function createNotifications(now: () => number = Date.now): Notifications
       notices.value = next;
       return live[i].id;
     }
-    notices.value = [...live, { id, text, level, at, count: 1, rev: 0, ...(action ? { action } : {}) }].slice(-LIVE_MAX);
+    notices.value = [...live, { id, text, level, at, count: 1, rev: 0, ...(action ? { action } : {}), ...(ttl ? { ttl } : {}) }].slice(-LIVE_MAX);
     return id;
   };
   return {

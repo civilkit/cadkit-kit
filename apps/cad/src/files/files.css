@@ -39,7 +39,9 @@
 .lib-manage-view .lib-addbtn { align-self: flex-start; }
 
 .recover-list { max-height: 50vh; overflow: auto; display: grid; gap: 6px; }
-.recover-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.recover-row { display: flex; align-items: center; gap: 12px; }
+.recover-what { flex: 1; }
+.recover-thumb { flex: none; width: 80px; height: 60px; border-radius: 4px; background: var(--bg-sunken, rgba(127,127,127,.12)); object-fit: contain; }
 
 /* import report: one row per part of the file */
 .import-report { max-width: min(640px, 94vw); }

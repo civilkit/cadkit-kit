@@ -10,8 +10,8 @@ export interface Command { id: string; label: string; tab: string; group: string
 export type RibbonEntry = string | { slot: string; ids: string[]; /** The button opens the list instead of running a command. */ menu?: boolean; /** Keep the list open after a command runs (toggles). */ keepOpen?: boolean; /** The commands are choices of one setting (see Slot). */ radio?: boolean; /** The button always runs the first command (the list's other commands are not remembered). */ fixed?: boolean; icon?: string; title?: string };
 /** A ready-made element in a group (the contextual Sketch tab draws its tools this way). */
 export interface RibbonNode { node: JSX.Element; key: string }
-/** `pinned`: a group that stays at the left edge while the rest of the strip scrolls (the Sketch tab's Select and Finish). */
-export interface RibbonGroup { id: string; entries: Array<RibbonEntry | RibbonNode>; pinned?: boolean }
+/** `pinned`: a group that stays at the left edge while the rest of the strip scrolls (the Sketch tab's Select and Finish). `pinned: 'end'` keeps a group at the right edge instead (the Sketch tab's Status). */
+export interface RibbonGroup { id: string; entries: Array<RibbonEntry | RibbonNode>; pinned?: boolean | 'end' }
 /** Tab name to its titled groups, in display order. */
 export type RibbonLayout = Record<string, RibbonGroup[]>;
 
@@ -24,7 +24,7 @@ export function resolveLayout(commands: Command[], layout?: RibbonLayout, hidden
   for (const [tab, groups] of Object.entries(layout ?? {})) {
     out[tab] = groups.map((g) => ({
       id: g.id,
-      ...(g.pinned ? { pinned: true } : {}),
+      ...(g.pinned ? { pinned: g.pinned } : {}),
       entries: g.entries.flatMap((e): Array<RibbonEntry | RibbonNode> => {
         if (typeof e === 'string') { if (!ids.has(e)) return []; placed.add(e); return [e]; }
         if ('node' in e) return [e];
@@ -107,11 +107,14 @@ export function Ribbon(p: {
       let x = 8;
       for (const k of el.querySelectorAll<HTMLElement>(':scope > .rb-pinned')) { k.style.left = x + 'px'; x += k.offsetWidth; }
       stripRef.current?.style.setProperty('--pin-w', x > 8 ? x + 'px' : '0px');
+      let ex = 0;
+      for (const k of el.querySelectorAll<HTMLElement>(':scope > .rb-pinned-end')) ex += k.offsetWidth;
+      stripRef.current?.style.setProperty('--pin-end-w', ex ? ex + 'px' : '0px');
     };
     place();
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(place); ro.observe(el);
-    for (const k of el.querySelectorAll(':scope > .rb-pinned')) ro.observe(k);
+    for (const k of el.querySelectorAll(':scope > .rb-pinned, :scope > .rb-pinned-end')) ro.observe(k);
     return () => ro.disconnect();
   }, [sig, fit, auto]);
   const [edges, setEdges] = useState({ left: false, right: false });
@@ -141,8 +144,10 @@ export function Ribbon(p: {
   const step = (dir: -1 | 1) => {
     const el = row.current;
     if (!el) return;
-    const starts = [...el.querySelectorAll<HTMLElement>(':scope > .rb-group')].map((k) => k.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft);
-    el.scrollTo({ left: stepScroll(metrics(el), starts, dir), behavior: 'smooth' });
+    const pinW = parseFloat(stripRef.current?.style.getPropertyValue('--pin-w') ?? '') || 0;
+    // only the groups that scroll: a sticky one reports its stuck position, not its place in the content
+    const starts = [...el.querySelectorAll<HTMLElement>(':scope > .rb-group:not(.rb-pinned):not(.rb-pinned-end)')].map((k) => k.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft);
+    el.scrollTo({ left: stepScroll(metrics(el), starts, dir, pinW), behavior: 'smooth' });
   };
   const shownGroups = fit === null || fit >= groups.length ? groups : groups.slice(0, fit);
   const hidden = fit === null || fit >= groups.length ? [] : groups.slice(fit);
@@ -170,7 +175,7 @@ export function Ribbon(p: {
       <div ref={stripRef} class={'rb-strip' + (edges.left ? ' edge-l' : '') + (edges.right ? ' edge-r' : '')}>
       <div class="rb-groups" ref={row}>
         {shownGroups.map((g, gi) => (
-          <div class={'rb-group' + (g.pinned ? ' rb-pinned' : '')} key={g.id} role="group" aria-label={t('group.' + g.id, undefined, g.id)}>
+          <div class={'rb-group' + (g.pinned === 'end' ? ' rb-pinned-end' : g.pinned ? ' rb-pinned' : '')} key={g.id} role="group" aria-label={t('group.' + g.id, undefined, g.id)}>
             <div class="rb-items">{g.entries.map((e, ei) => entry(e, gi, ei))}</div>
             {iconsOnly ? null : <div class="rb-gtitle">{t('group.' + g.id, undefined, g.id)}</div>}
           </div>

@@ -21,6 +21,15 @@ export function planeTouchesBox(frame: PlaneFrame | null, box: Box | null, tol =
   return Math.abs(d) <= reach + tol;
 }
 
+/** Where the body's bounding box lies from a cut on this plane: `toward` the way the cut goes (a cut goes against the plane normal,
+ *  `flip` reverses it), `away` on the other side, `both` when the plane passes through it; null when either is not known. */
+export function cutBodySide(frame: PlaneFrame | null, box: Box | null, flip: boolean, tol = 1e-6): 'toward' | 'away' | 'both' | null {
+  if (!frame || !box) return null;
+  if (planeTouchesBox(frame, box, tol)) return 'both';
+  const d = [0, 1, 2].reduce((s, i) => s + ((box.min[i] + box.max[i]) / 2 - frame.o[i]) * frame.z[i], 0);
+  return (d > 0) === flip ? 'toward' : 'away';
+}
+
 export function defaultExtrudeOp(o: { explicitCut?: boolean; touchesBody: boolean; supportsNew?: boolean }): ExtrudeOp {
   if (o.explicitCut) return 'cut';
   if (o.touchesBody) return 'add';

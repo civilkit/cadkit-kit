@@ -22,6 +22,16 @@ export function focusSketchField(doc: Document = document): boolean {
   return true;
 }
 
+/** Tab (Shift+Tab) with a tool's value boxes on screen and none focused: focus the first (last) box, selected, so Tab walks the boxes. Returns false when there are none. */
+export function tabIntoFields(shift: boolean, doc: Document = document): boolean {
+  const inputs = Array.from(doc.querySelectorAll<HTMLInputElement>('.sketch-fields input'));
+  const input = shift ? inputs[inputs.length - 1] : inputs[0];
+  if (!input) return false;
+  input.focus();
+  input.select();
+  return true;
+}
+
 /** The value field a tool is about to show does not exist yet when the finger lifts (the fields render a moment later), so the focus goes to a hidden box that is
  *  always in the page, inside the gesture; the field takes it over as soon as it appears (focus moving from box to box keeps the keyboard up). If no field appears the box lets go.
  *  Only on a touch or pen lift: with a mouse the field's own effect is enough. */
@@ -49,6 +59,19 @@ export function KeyboardPrimer() {
   return <input id={PRIMER_ID} class="kb-primer" type="text" inputMode="decimal" enterKeyHint="done" tabIndex={-1} aria-hidden="true" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck={false} />;
 }
 
+/** Letter keys a tool reads itself while it has a shape in progress (they stay commands, they do not start a variable name). */
+const TOOL_LETTER_KEYS: Record<string, string> = { line: 'mat', polygon: 'm', offset: 'f' };
+
+/** With a tool busy and no field focused, does this key start typing into the first field? Digits and the sign/point always do; a letter or underscore does too (a variable name:
+ *  `var1`, `w`), unless the tool keeps that letter as its own command (`TOOL_LETTER_KEYS`) or the first field lists it in `keys`. */
+export function seedsField(key: string, tool: string | null, fieldKeys?: string[], mod: { ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean } = {}): boolean {
+  if (mod.ctrlKey || mod.metaKey || mod.altKey) return false;
+  if (/^[0-9.\-]$/.test(key)) return true;
+  if (!/^[A-Za-z_]$/.test(key)) return false;
+  const k = key.toLowerCase();
+  return !(tool && (TOOL_LETTER_KEYS[tool] ?? '').includes(k)) && !fieldKeys?.includes(k);
+}
+
 const round = (v: number) => String(Math.round(v * 100) / 100);
 /** Typed text to a number: a comma counts as the decimal point; anything else that is not a number is null. */
 export const parseTyped = (text: string): number | null => {
@@ -65,10 +88,19 @@ export function stepText(text: string, dir: 1 | -1, mod: { shift?: boolean; alt?
   return String(Math.round((n + dir * step) * 1e9) / 1e9);
 }
 
+/** A lone command key (`FieldSpec.keys`) pressed in a field with nothing typed (empty, or its text wholly selected): it is a command for the tool, not text. */
+export function isFieldCommandKey(keys: string[] | undefined, e: { key: string; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean }, el: { value: string; selectionStart: number | null; selectionEnd: number | null }): boolean {
+  if (!keys?.length || e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1 || !keys.includes(e.key.toLowerCase())) return false;
+  return el.value === '' || (el.selectionStart === 0 && el.selectionEnd === el.value.length);
+}
+
+/** The unit a variable defined from a field takes: the field's own (mm for a length, degrees for an angle); a count has none. */
+export const fieldVarUnit = (u: string | undefined): string | undefined => (u === 'length' ? 'mm' : u === 'angle' ? '°' : undefined);
+
 /** One field. Takes a number or an expression (`=w*2`, a variable name): while it has focus it shows exactly what was typed;
  *  the evaluated value drives the live preview and, on Enter or Tab, the expression is kept with the dimension.
  *  `name = value` defines the parameter `name` (when the owner takes `onDefine`) and links the field to it. */
-function FieldInput(p: { f: FieldSpec; index: number; last: boolean; seed?: { n: number; text: string | null }; target: boolean; onField(id: string, value: number | null, commit: boolean, expr?: string): void; onDefine?(name: string, expr: string): Promise<boolean> }) {
+function FieldInput(p: { f: FieldSpec; index: number; last: boolean; seed?: { n: number; text: string | null }; target: boolean; onField(id: string, value: number | null, commit: boolean, expr?: string): void; onDefine?(name: string, expr: string, unit?: string): Promise<boolean>; onKey?(key: string): void; onTab?(dir: 1 | -1): void }) {
   const { f } = p;
   const scope = useScope();
   const emit = (value: number | null, commit: boolean, expr?: string): void => { if (expr !== undefined) p.onField(f.id, value, commit, expr); else p.onField(f.id, value, commit); };
@@ -97,14 +129,18 @@ function FieldInput(p: { f: FieldSpec; index: number; last: boolean; seed?: { n:
       onFocusIn={(e) => { const el = e.target as HTMLInputElement; if (el.select) el.select(); }}
       onKeyDown={(e) => {
         const el = e.target as HTMLInputElement;
+        // text typed in a value box belongs to the box: no single-key shortcut (a tool letter, a view key) may see it
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) e.stopPropagation();
+        if (p.onKey && isFieldCommandKey(f.keys, e, el)) { e.preventDefault(); e.stopPropagation(); p.onKey(e.key); return; }
         if (e.key === 'Enter' || e.keyCode === 13 || e.key === 'Tab') {   // a phone's check key may send keyCode 13 under another key name
           e.preventDefault();
           e.stopPropagation();
+          if (e.key === 'Tab' && p.onTab) p.onTab(e.shiftKey ? -1 : 1);   // the owner chains to another box once the commit below has been applied
           const asg = p.onDefine ? parseAssignment(el.value) : null;
           const val = asg ? evalExpr(asg.expr, scope.values) : null;
           if (asg && val?.ok) {
             const next = el.closest('.sketch-fields')?.querySelectorAll<HTMLInputElement>('input')[p.index + 1];
-            void p.onDefine!(asg.name, asg.expr).then((ok) => { if (ok) emit(val.value, true, asg.name); });
+            void (fieldVarUnit(f.unit) ? p.onDefine!(asg.name, asg.expr, fieldVarUnit(f.unit)) : p.onDefine!(asg.name, asg.expr)).then((ok) => { if (ok) emit(val.value, true, asg.name); });
             latest.current = null;
             if (e.key === 'Tab' && next) { next.focus(); next.select(); } else el.blur();
             return;
@@ -147,7 +183,7 @@ function FieldInput(p: { f: FieldSpec; index: number; last: boolean; seed?: { n:
 
 /** The typed-value fields that follow the pointer while a tool draws (length, angle, radius ...).
  *  Typing changes a live preview; Tab or Enter locks the value as a driving dimension. */
-export function SketchFields(p: { fields: FieldSpec[]; x: number; y: number; cls?: string; /** typing that started with no field focused: the first field takes `text` (bump `n` for each new key) */ seed?: { n: number; text: string | null }; onField(id: string, value: number | null, commit: boolean, expr?: string): void; /** define the parameter a `name = value` entry names; resolves false when it was refused */ onDefine?(name: string, expr: string): Promise<boolean> }) {
+export function SketchFields(p: { fields: FieldSpec[]; x: number; y: number; cls?: string; /** typing that started with no field focused: the first field takes `text` (bump `n` for each new key) */ seed?: { n: number; text: string | null }; onField(id: string, value: number | null, commit: boolean, expr?: string): void; /** define the parameter a `name = value` entry names; resolves false when it was refused */ onDefine?(name: string, expr: string, unit?: string): Promise<boolean>; /** a command key pressed in an empty field (`FieldSpec.keys`) */ onKey?(key: string): void; /** Tab (+1) or Shift+Tab (-1) pressed in a box: called just before the value is committed */ onTab?(dir: 1 | -1): void }) {
   const box = useRef<HTMLDivElement>(null);
   // the row follows the pointer; near the right or bottom edge of the drawing (a finger, a docked panel) it moves back inside, or its keys would be cut off
   useLayoutEffect(() => {
@@ -161,9 +197,9 @@ export function SketchFields(p: { fields: FieldSpec[]; x: number; y: number; cls
   return (
     <div ref={box} class={'sketch-fields ' + (p.cls ?? '')} style={{ left: p.x + 16 + 'px', top: p.y + 16 + 'px' }} onPointerDown={(e) => e.stopPropagation()}>
       {p.fields.map((f, i) => (
-        <label key={f.id} class={f.locked ? 'locked' : ''}>
+        <label key={f.id} class={f.locked ? 'locked' : ''} title={f.tip ? t(f.tip) : undefined}>
           <span>{t(f.label)}</span>
-          <FieldInput f={f} index={i} last={i === p.fields.length - 1} onField={p.onField} onDefine={p.onDefine} seed={p.seed} target={i === 0} />
+          <FieldInput f={f} index={i} last={i === p.fields.length - 1} onField={p.onField} onDefine={p.onDefine} onKey={p.onKey} onTab={p.onTab} seed={p.seed} target={i === 0} />
           {f.toggle ? <button type="button" class={'fld-toggle' + (f.toggle.on ? ' on' : '')} data-testid={'field-' + f.toggle.id} aria-pressed={f.toggle.on} aria-label={t(f.toggle.tip)} title={t(f.toggle.tip)}
             onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.preventDefault(); p.onField(f.toggle!.id, f.toggle!.on ? 0 : 1, false); }}>{t(f.toggle.label)}</button> : null}
         </label>

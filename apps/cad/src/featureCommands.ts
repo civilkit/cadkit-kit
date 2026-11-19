@@ -13,6 +13,8 @@ export { axisLine } from './revolveAxis';
 import { newHole, type HolePrefs } from './holeData';
 import { cylindersOfFaces, sameSizeFaces } from './threadData';
 import { chainSelection, rememberRoundPick } from './roundChain';
+import { junctionEdgeKeys } from './junction';
+import { rememberedChamfer, rememberedRadius, rememberedThickness } from './featureMemory';
 
 export interface Box { min: number[]; max: number[] }
 export interface EdgeRef { faces: string[]; at: number[] }
@@ -84,11 +86,20 @@ export function faceEdgeRefs(faces: string[], edges: ViewEdge[]): EdgeRef[] {
   return out;
 }
 
-/** What a fillet or chamfer rounds for this selection: the selected edges (edge mode), else the edges shared by the selected faces (two or more). */
+/** One selected face stands for its boundary edges (SolidWorks: pick a face, Fillet rounds all its edges); the tangent chain applies to them as to picked edges. */
+export function faceBoundaryRefs(face: string, edges: ViewEdge[], chain: boolean): EdgeRef[] {
+  const own = edges.filter((e) => e.faces?.length === 2 && e.faces[0] !== e.faces[1] && e.faces.includes(face) && e.mid);
+  const keys = own.map((e) => e.key).filter((k): k is string => !!k);
+  const refs = keys.length === own.length ? chainedEdgeRefs(keys, edges, chain) : [];
+  return refs.length ? refs : own.map((e) => ({ faces: [...e.faces!], at: [...e.mid!] }));
+}
+
+/** What a fillet or chamfer rounds for this selection: the selected edges (edge mode), else the edges shared by the selected faces (two or more), else all edges of the one selected face. */
 export function roundTargets(c: Ctx): { edges: EdgeRef[]; viaFaces: boolean } {
   const direct = c.mode === 'edge' || c.mode === 'vertex' ? chainedEdgeRefs(c.selection, c.edges, !!c.tangentChain) : [];
   if (direct.length) return { edges: direct, viaFaces: false };
   const faces = faceNames(c.selection);
+  if (faces.length === 1) return { edges: faceBoundaryRefs(faces[0], c.edges, !!c.tangentChain), viaFaces: false };
   return faces.length >= 2 ? { edges: faceEdgeRefs(faces, c.edges), viaFaces: true } : { edges: [], viaFaces: false };
 }
 
@@ -160,7 +171,7 @@ export interface Ctx {
 
 const feats = (doc: PartDoc | null): Feat[] => (doc?.features ?? []) as unknown as Feat[];
 
-/** Fillet and chamfer take selected edges, or two or more selected faces (then the edges they share; if there are none the command says so). */
+/** Fillet and chamfer take selected edges, one selected face (all its edges), or two or more selected faces (then the edges they share; if there are none the command says so). */
 export const canFillet = (c: Ctx): boolean => !!c.doc && (roundTargets(c).edges.length > 0 || faceNames(c.selection).length >= 2);
 /** Why Fillet / Chamfer is disabled (a sentence for the tooltip), or undefined when it is enabled. */
 export function filletWhy(c: Ctx): string | undefined {
@@ -175,16 +186,19 @@ export const canShell = (c: Ctx): boolean => !!c.doc && c.mode === 'face' && fac
 export const hasPointEntities = (f: { type: string; entities?: unknown }): boolean => f.type === 'sketch' && ((f.entities as Array<{ type: string }> | undefined) ?? []).some((e) => e.type === 'point');
 const hasSolid = (c: Ctx): boolean => !!c.box;
 
-/** A sketch of points made earlier: the selected one in the tree, else the last. */
+/** A sketch of points made earlier: the selected one in the tree, else the last one no hole drills yet. */
 export function pointSketch(c: Ctx): Feat | null {
-  const list = feats(c.doc).filter(hasPointEntities);
-  return list.find((f) => f.id === c.selectedId) ?? list[list.length - 1] ?? null;
+  const all = feats(c.doc);
+  const list = all.filter(hasPointEntities);
+  const used = new Set(all.filter((f) => f.type === 'hole').map((f) => (f as { sketch?: unknown }).sketch));
+  return list.find((f) => f.id === c.selectedId) ?? list.filter((f) => !used.has(f.id)).at(-1) ?? null;
 }
 /** A thread goes on each of the selected cylindrical faces (the wall of a hole, a shaft) of a body: judged from the circular edges the view has. */
 export const canThread = (c: Ctx): boolean => !!c.doc && hasSolid(c) && c.mode === 'face' && cylindersOfFaces(faceNames(c.selection), c.edges) !== null;
 /** "Select same size" needs one or more cylinder faces; it selects every cylinder of the same diameter and kind. */
 export const canSelectSame = canThread;
-export const canHole = (c: Ctx): boolean => !!c.doc && hasSolid(c) && ((c.mode === 'face' && faceNames(c.selection).length === 1) || pointSketch(c) !== null);
+/** Hole needs a body: with a face selected it sketches the centres there, with a point sketch it drills that, else it asks for a face. */
+export const canHole = (c: Ctx): boolean => !!c.doc && hasSolid(c);
 
 /** The sketch to revolve: the one selected in the tree, else the last sketch of the document. */
 export function revolveSketch(c: Ctx): Feat | null {
@@ -205,17 +219,17 @@ export const canPattern = (c: Ctx): boolean => !!c.doc && patternSeed(c) !== nul
 export function filletOps(c: Ctx): EditOp[] | null {
   const { edges } = roundTargets(c);
   if (!edges.length) return null;
-  return [{ op: 'add', feature: { type: 'fillet', radius: niceSize(c.box), edges } }];
+  return [{ op: 'add', feature: { type: 'fillet', radius: rememberedRadius(niceSize(c.box)), edges } }];
 }
 export function chamferOps(c: Ctx): EditOp[] | null {
   const { edges } = roundTargets(c);
   if (!edges.length) return null;
-  return [{ op: 'add', feature: { type: 'chamfer', chamferType: 'equal', distance: niceSize(c.box), edges } }];
+  return [{ op: 'add', feature: { type: 'chamfer', ...rememberedChamfer(niceSize(c.box)), edges } }];
 }
 export function shellOps(c: Ctx): EditOp[] | null {
   const faces = faceNames(c.selection);
   if (!faces.length) return null;
-  return [{ op: 'add', feature: { type: 'shell', faces, thickness: defaultShellThickness(c.box) } }];
+  return [{ op: 'add', feature: { type: 'shell', faces, thickness: rememberedThickness(defaultShellThickness(c.box)) } }];
 }
 /** A hole from a sketch of points. `flip` comes from the sketch's plane against the body (see Controller.extrudeFlip). The type, size and fit are the last ones used (default: simple M6 normal, through). */
 export function holeOps(sketchId: string, flip: boolean, prefs?: HolePrefs): EditOp[] {
@@ -250,12 +264,16 @@ export interface FeatureActions {
   create(ops: EditOp[]): void;
   /** Start a sketch on a face in the Point tool; when it is confirmed, add a hole from it. */
   holeOnFace(face: string): void;
+  /** Nothing to drill yet: ask for the face (or plane) to place the hole centres on, then go on as holeOnFace. */
+  holePickFace?(): void;
   /** The flip a hole from this sketch needs so it drills into the body. */
   holeFlip(sketchId: string): boolean;
   /** Add a thread on this cylindrical face (needs the thread tables, so it is async) and open the Thread editor. */
   addThread(faces: string[]): void;
   /** Replace the selection (the "Select same size" action). */
   select?(names: string[]): void;
+  /** Switch to edge picking and select these edges ("Select junction edges"). */
+  selectEdges?(keys: string[]): void;
   notify(text: string, level?: 'error' | 'warn' | 'info'): void;
 }
 
@@ -275,6 +293,7 @@ export function featureCommands(a: FeatureActions): Command[] {
       if (face.length === 1) { a.holeOnFace(face[0]); return; }
       const sk = pointSketch(ctx);
       if (sk) a.create(holeOps(sk.id, a.holeFlip(sk.id)));
+      else a.holePickFace?.();
     }),
     cmd('add-thread', canThread, () => { const f = faceNames(c().selection); if (f.length) a.addThread(f); }),
     cmd('select-same-size', canSelectSame, () => {
@@ -282,6 +301,7 @@ export function featureCommands(a: FeatureActions): Command[] {
       const all = faceNames(ctx.selection).flatMap((f) => sameSizeFaces(f, ctx.edges));
       a.select?.([...new Set(all)]);
     }),
+    cmd('select-junction', (x) => !!x.selectedId && junctionEdgeKeys(x.selectedId, x.edges).length > 0, () => { const x = c(); if (x.selectedId) a.selectEdges?.(junctionEdgeKeys(x.selectedId, x.edges)); }, (x) => (x.selectedId ? t('why.junction.none') : t('why.junction.pick'))),
     cmd('add-revolve', canRevolve, () => {
       const sk = revolveSketch(c());
       const ops = sk ? revolveOps(sk) : null;

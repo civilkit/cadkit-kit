@@ -1,0 +1,20 @@
+// Strings of Show freedom (freedomText.ts, SketchFreedom.tsx) and Show constraints (SketchBar.tsx, the hover tooltip).
+export const sketchFreedomStrings: Record<string, string | Record<string, string>> = {
+  'app.sketch.free.title': 'Still free',
+  'app.sketch.free.show': 'Show what is free',
+  'app.sketch.free.button': 'Show freedom',
+  'app.sketch.free.button.tip': 'Highlight in amber what can still move, and say how to pin it',
+  'app.sketch.free.type.line': 'Line', 'app.sketch.free.type.circle': 'Circle', 'app.sketch.free.type.arc': 'Arc', 'app.sketch.free.type.point': 'Point', 'app.sketch.free.type.ellipse': 'Ellipse', 'app.sketch.free.type.shape': 'Shape',
+  'app.sketch.free.role.centre': 'centre', 'app.sketch.free.role.start': 'start', 'app.sketch.free.role.end': 'end',
+  'app.sketch.free.axes.x': 'x', 'app.sketch.free.axes.y': 'y', 'app.sketch.free.axes.xy': 'x and y',
+  'app.sketch.free.move': '{what} can move in {axes}',
+  'app.sketch.free.radius': '{what} radius can change',
+  'app.sketch.free.sug.radius': 'Radius {value}', 'app.sketch.free.sug.length': 'Length {value}', 'app.sketch.free.sug.hdist': 'X from origin {value}', 'app.sketch.free.sug.vdist': 'Y from origin {value}',
+  'app.sketch.free.sug.fix': 'Fix position', 'app.sketch.free.sug.origin': 'At origin',
+  'app.sketch.free.sug.tip': 'Add this constraint (a dimension opens its value box)',
+  'app.sketch.statusMore': 'More sketch tools',
+  'app.sketch.showConstraints': 'Show constraints',
+  'app.sketch.showConstraints.tip': 'Draw every constraint symbol and dimension (Shift+C)',
+  'app.sketch.contip.driving': 'driving', 'app.sketch.contip.reference': 'reference',
+  'app.sketch.contip.tip': 'Click to select it (Delete removes it)',
+};

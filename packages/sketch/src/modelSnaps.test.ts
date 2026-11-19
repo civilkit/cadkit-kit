@@ -83,3 +83,36 @@ describe('attachModelSnap', () => {
     expect(attachModelSnap(empty, after, undefined)).toBe(after);
   });
 });
+
+describe('projected lobes: centres and midpoints', () => {
+  const arcPts = (cx: number, cy: number, r: number, a0: number, a1: number, n = 24): number[][] => Array.from({ length: n + 1 }, (_, i) => { const t = a0 + ((a1 - a0) * i) / n; return [cx + r * Math.cos(t), cy + r * Math.sin(t), 0]; });
+  const flat = { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
+  it('a lobe arc edge offers its centre (-30, 0) and the middle of its arc', () => {
+    const lobe: BodyEdge = { pts: arcPts(-30, 0, 20, Math.PI / 2, (3 * Math.PI) / 2) };
+    const m = buildModelSnaps(flat, [lobe]);
+    const c = modelPointAt(m, { x: -30.2, y: 0.1 }, { tolerance: 0.5, on });
+    expect(c?.model).toBe('modelCenter');
+    expect(c?.at.x).toBeCloseTo(-30, 6);
+    expect(c?.at.y).toBeCloseTo(0, 6);
+  });
+  it('a whole outline as ONE closed edge (two lobes joined by straight runs) still offers both lobe centres', () => {
+    // two d40 lobes 60 apart, each swept 270 degrees, walked as one closed polyline: classifyCurve cannot call that one arc
+    const right = arcPts(30, 0, 20, -0.75 * Math.PI, 0.75 * Math.PI, 40);
+    const left = arcPts(-30, 0, 20, 0.25 * Math.PI, 1.75 * Math.PI, 40);
+    const m = buildModelSnaps(flat, [{ pts: [...right, ...left, right[0]] }]);
+    expect(modelPointAt(m, { x: 30.1, y: 0.1 }, { tolerance: 0.5, on })?.model).toBe('modelCenter');
+    expect(modelPointAt(m, { x: -29.9, y: -0.1 }, { tolerance: 0.5, on })?.model).toBe('modelCenter');
+  });
+  it('a centre wins over the mid-extent guide when the pointer is a little off it (twice the pick radius)', () => {
+    const lobe: BodyEdge = { pts: arcPts(-30, 0, 20, Math.PI / 2, (3 * Math.PI) / 2) };
+    const m = buildModelSnaps(flat, [lobe, { pts: arcPts(30, 0, 20, -Math.PI / 2, Math.PI / 2) }]);
+    const h = snapAt(empty, { x: -30 + 0.8, y: 0.3 }, { tolerance: 0.5, model: m });
+    expect(h?.kind).toBe('modelCenter');
+    expect(h?.at.x).toBeCloseTo(-30, 6);
+  });
+  it('the middle of a straight edge is offered', () => {
+    const m = buildModelSnaps(flat, [{ pts: [[0, 0, 0], [40, 0, 0]] }]);
+    const h = modelPointAt(m, { x: 20.1, y: 0.1 }, { tolerance: 0.5, on });
+    expect(h?.model).toBe('modelMidpoint');
+  });
+});

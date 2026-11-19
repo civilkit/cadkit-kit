@@ -34,7 +34,8 @@ describe('Look normal', () => {
     const { container, props } = bar(st({}), { lookChip: true });
     const btns = container.querySelectorAll('[data-action="look-normal"]');
     expect(btns.length).toBe(1);
-    expect(btns[0].textContent).toBe('Look normal (N)');
+    expect(btns[0].textContent).toBe('');
+    expect(btns[0].getAttribute('aria-label')).toMatch(/^Look normal: .*\(N\)$|^Look normal: .*press N/);
     expect(btns[0].classList.contains('look-hint')).toBe(true);
     fireEvent.click(btns[0]);
     expect(props.onLookNormal).toHaveBeenCalled();
@@ -215,18 +216,8 @@ describe('constraint glyph chips and value chips', () => {
   });
 });
 
-describe('the constraint list is reachable without the ribbon', () => {
-  it('the status-bar notes carry the definition badge, which opens the list upward', () => {
-    const { container } = render(<SketchNotes hint={null} selected={0} onClearSelection={() => {}} status={st({})} list={<div class="the-list">list</div>} />);
-    const chip = container.querySelector('.dof-chip[data-where="status"]') as HTMLElement;
-    expect(chip.textContent).toBe('3 DOF');
-    expect(document.querySelector('.the-list')).toBeNull();
-    fireEvent.click(chip);
-    expect(document.querySelector('.sb-list .the-list')).not.toBeNull();
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(document.querySelector('.the-list')).toBeNull();
-  });
-  it('without a status or list the notes show no badge (the floating bar keeps its own)', () => {
+describe('the constraint list', () => {
+  it('the definition badge lives once, in the ribbon Status group: the status-bar notes do not repeat it', () => {
     const { container } = render(<SketchNotes hint="x" selected={0} onClearSelection={() => {}} />);
     expect(container.querySelector('.dof-chip')).toBeNull();
   });

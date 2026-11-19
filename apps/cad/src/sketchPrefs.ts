@@ -36,6 +36,8 @@ export interface SketchPrefs {
   cursorLabel: boolean;
   /** Constraint markers (the small glyph chips): always, only for what is hovered or selected (default; conflicts always show), or off. */
   constraintMarkers: MarkMode;
+  /** The Show constraints toggle: true draws every constraint glyph and every dimension, false only those of what is hovered; null (not chosen yet) draws glyphs while the sketch is small. */
+  showConstraints: boolean | null;
 }
 
 /** The four show toggles the viewport Display menu offers while sketching. */
@@ -55,7 +57,7 @@ export interface SketchShow {
 }
 export const DEFAULT_SHOW: SketchShow = { dimensions: true, relations: true, reference: true, colours: true, panel: true };
 
-export const DEFAULT_SKETCH_PREFS: SketchPrefs = { autoConstraints: true, guideConstraints: false, keepView: true, autoLookNormal: true, arcSwitch: 'hover', onViewValues: 'dimensions', gridSnap: true, snapOn: true, gridSpacing: 0, snaps: ALL_SNAPS, show: DEFAULT_SHOW, dimDisplay: 'all', typedAngleDims: true, rightAngleSquare: true, cursorLabel: true, constraintMarkers: 'hover' };
+export const DEFAULT_SKETCH_PREFS: SketchPrefs = { autoConstraints: true, guideConstraints: false, keepView: true, autoLookNormal: true, arcSwitch: 'hover', onViewValues: 'dimensions', gridSnap: true, snapOn: true, gridSpacing: 0, snaps: ALL_SNAPS, show: DEFAULT_SHOW, dimDisplay: 'all', typedAngleDims: true, rightAngleSquare: true, cursorLabel: true, constraintMarkers: 'hover', showConstraints: null };
 
 const pick = <T extends string>(v: unknown, ok: readonly T[], fallback: T): T => ((ok as readonly unknown[]).includes(v) ? (v as T) : fallback);
 
@@ -86,6 +88,7 @@ export function sanitizeSketchPrefs(raw: unknown): SketchPrefs {
     rightAngleSquare: typeof r.rightAngleSquare === 'boolean' ? r.rightAngleSquare : DEFAULT_SKETCH_PREFS.rightAngleSquare,
     cursorLabel: typeof r.cursorLabel === 'boolean' ? r.cursorLabel : DEFAULT_SKETCH_PREFS.cursorLabel,
     constraintMarkers: pick(r.constraintMarkers, MARK_MODES, DEFAULT_SKETCH_PREFS.constraintMarkers),
+    showConstraints: typeof r.showConstraints === 'boolean' ? r.showConstraints : null,
   };
 }
 
@@ -95,6 +98,10 @@ export const constrainsFromGuides = (p: Pick<SketchPrefs, 'autoConstraints' | 'g
 /** Offer the Look normal chip when the camera is more than this many degrees off the sketch plane's normal. */
 export const LOOK_CHIP_DEG = 5;
 export const lookChipNeeded = (angleDeg: number | null): boolean => angleDeg !== null && angleDeg > LOOK_CHIP_DEG;
+
+/** Re-opening an existing sketch squares the view up when it is not kept, or when the camera is further than this many degrees from looking at the plane (an edge-on view shows the sketch as a line). */
+export const REOPEN_ORIENT_DEG = 60;
+export const reopenNeedsOrient = (keepView: boolean, angleDeg: number | null): boolean => !keepView || (angleDeg !== null && angleDeg > REOPEN_ORIENT_DEG);
 
 export const toToolSettings = (p: SketchPrefs): ToolSettings => ({ autoConstraints: p.autoConstraints, arcSwitch: p.arcSwitch, onViewValues: p.onViewValues, typedAngleDims: p.typedAngleDims });
 

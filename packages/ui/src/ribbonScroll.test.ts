@@ -28,4 +28,12 @@ describe('ribbon strip scrolling', () => {
     expect(stepScroll(m(100), starts, -1)).toBe(0);
     expect(stepScroll(m(0), starts, -1)).toBe(0);
   });
+  it('lands groups after the pinned ones', () => {
+    // pinned groups take 150px at the left; scrolling groups start at 150, 350, 600 in content coordinates
+    const starts = [150, 350, 600];
+    expect(stepScroll(m(0), starts, 1, 150)).toBe(200);       // group 2 lands at the pin edge
+    expect(stepScroll(m(200), starts, 1, 150)).toBe(450);
+    expect(stepScroll(m(450), starts, -1, 150)).toBe(200);
+    expect(stepScroll(m(200), starts, -1, 150)).toBe(0);
+  });
 });

@@ -85,3 +85,19 @@ describe('a D-shaped profile drawn with the arc flip is valid for the real kerne
     expect(r.body!.sketches[0].status?.conflicts).toEqual([]);
   });
 });
+
+describe('line tool: mode changes are announced, and Tab never changes the mode', () => {
+  it('A enters the tangent arc and says so; L goes back and says so', () => {
+    const a = run([click(0, 0), click(10, 0), key('a')]);
+    expect(a.mode).toBe('arc');
+    expect(a.hint).toBe('app.sketch.hint.lineArcMode');
+    const l = lineTool.step(a.state, key('l'), a.draft, DEFAULT_SETTINGS);
+    expect(l.mode).toBe('line');
+    expect(l.hint).toBe('app.sketch.hint.lineLineMode');
+  });
+  it('Tab in the middle of a chain leaves the line a line', () => {
+    const o = run([click(0, 0), click(10, 0), move(12, 3), key('Tab')]);
+    expect(o.mode).toBe('line');
+    expect(o.hint).not.toBe('app.sketch.hint.lineArcMode');
+  });
+});

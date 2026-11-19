@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
-import { KeyboardPrimer, PRIMER_ID, SketchFields, armKeyboardPrime, focusSketchField, primeSketchKeyboard, parseTyped, stepText } from './SketchFields';
+import { KeyboardPrimer, PRIMER_ID, SketchFields, seedsField, isFieldCommandKey, armKeyboardPrime, focusSketchField, primeSketchKeyboard, parseTyped, stepText, tabIntoFields } from './SketchFields';
 import './i18n';
 
 afterEach(cleanup);
@@ -57,7 +57,7 @@ describe('SketchFields', () => {
     fireEvent.input(input, { target: { value: 'w = 4*2' } });
     expect(onField).not.toHaveBeenCalled();
     fireEvent.keyDown(input, { key: 'Enter' });
-    expect(onDefine).toHaveBeenCalledWith('w', '=4*2');
+    expect(onDefine).toHaveBeenCalledWith('w', '=4*2', 'mm');
     await Promise.resolve(); await Promise.resolve();
     expect(onField).toHaveBeenLastCalledWith('len', 8, true, 'w');
   });
@@ -69,6 +69,14 @@ describe('SketchFields', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
     await Promise.resolve(); await Promise.resolve();
     expect(onField).not.toHaveBeenCalled();
+  });
+});
+
+describe('SketchFields: tooltip', () => {
+  it('a field with a tip names itself with the unit in the tooltip of its label', () => {
+    render(<SketchFields fields={[{ ...field, id: 'radius', label: 'app.sketch.field.radius', tip: 'app.sketch.field.radiusTip' }, { ...field, id: 'diameter', label: 'app.sketch.field.diameter', tip: 'app.sketch.field.diameterTip' }]} x={0} y={0} onField={vi.fn()} />);
+    const titles = Array.from(document.querySelectorAll('.sketch-fields label')).map((l) => l.getAttribute('title'));
+    expect(titles).toEqual(['Radius (mm): half the width of the circle', 'Diameter (mm): the full width of the circle']);
   });
 });
 
@@ -230,4 +238,55 @@ describe('the keyboard after a finger or pen lift (iOS only raises it for a focu
     expect(el.getAttribute('aria-hidden')).toBe('true');
     expect(el.getAttribute('autocorrect')).toBe('off');
   });
+});
+
+describe('typing a variable name with no field focused', () => {
+  const rad = { id: 'rad', label: 'app.sketch.field.radius', value: 0, locked: false, unit: 'length' as const };
+  it('letters and underscores seed the first field like digits, so a name is not dropped', () => {
+    for (const k of ['v', 'a', 'r', '1', '_', 'W']) expect(seedsField(k, 'arc-centre')).toBe(true);
+    expect(seedsField('+', 'circle')).toBe(false);
+    expect(seedsField('Enter', 'circle')).toBe(false);
+    expect(seedsField('v', 'circle', undefined, { metaKey: true })).toBe(false);
+  });
+  it('a letter the tool reads as its own command still goes to the tool', () => {
+    expect(seedsField('m', 'polygon')).toBe(false);
+    expect(seedsField('a', 'line')).toBe(false);
+    expect(seedsField('r', 'dimension', ['h', 'v', 'a', 'r'])).toBe(false);
+    expect(seedsField('d', 'circle', ['r'])).toBe(true);
+  });
+  it('a seeded name passes through the field as an expression', () => {
+    const onField = vi.fn();
+    const { rerender } = render(<SketchFields fields={[rad]} x={0} y={0} onField={onField} seed={{ n: 0, text: '' }} />);
+    for (const [n, text] of [[1, 'v'], [2, 'va'], [3, 'var'], [4, 'var1']] as const) rerender(<SketchFields fields={[rad]} x={0} y={0} onField={onField} seed={{ n, text }} />);
+    expect((screen.getByLabelText('rad') as HTMLInputElement).value).toBe('var1');
+  });
+  it('a key typed in a focused field does not reach shortcut handlers above it', () => {
+    const seen = vi.fn();
+    addEventListener('keydown', seen);
+    render(<SketchFields fields={[rad]} x={0} y={0} onField={() => {}} />);
+    const input = screen.getByLabelText('rad');
+    fireEvent.keyDown(input, { key: 'r' });
+    fireEvent.keyDown(input, { key: '_' });
+    expect(seen).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: 'z', metaKey: true });   // a chord is not text: it may still reach undo
+    expect(seen).toHaveBeenCalledTimes(1);
+    removeEventListener('keydown', seen);
+  });
+});
+
+describe('Tab with value boxes on screen and none focused', () => {
+  const two = [field, { ...field, id: 'ang', label: 'app.sketch.field.angle' }];
+  it('Tab focuses the first box, Shift+Tab the last; Tab inside a box moves to the next one', () => {
+    render(<SketchFields fields={two} x={0} y={0} onField={vi.fn()} />);
+    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('.sketch-fields input'));
+    expect(tabIntoFields(false)).toBe(true);
+    expect(document.activeElement).toBe(inputs[0]);
+    inputs[0].blur();
+    expect(tabIntoFields(true)).toBe(true);
+    expect(document.activeElement).toBe(inputs[1]);
+    inputs[0].focus();
+    fireEvent.keyDown(inputs[0], { key: 'Tab' });
+    expect(document.activeElement).toBe(inputs[1]);
+  });
+  it('with no boxes it reports false', () => { expect(tabIntoFields(false)).toBe(false); });
 });

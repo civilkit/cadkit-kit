@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { edgeRuns, chainRefs, chainSelection, roundPickOf, rememberRoundPick, setTangentChain, tangentChainOn } from './roundChain';
+import { edgeRuns, noRoundEdges, chainRefs, chainSelection, roundPickOf, rememberRoundPick, setTangentChain, tangentChainOn } from './roundChain';
 
 beforeEach(() => { try { localStorage.clear(); } catch { /* */ } });
 const ed = (key: string, faces: string[], a: number[], b: number[]) => ({ key, faces, pts: [a, b] });
@@ -61,5 +61,14 @@ describe('roundChain', () => {
     expect(edgeRuns(refs, body, false)).toEqual([[0], [1], [2], [3], [4]]);   // chain off: every edge is its own item
     expect(edgeRuns(refs, null)).toEqual([[0], [1], [2], [3], [4]]);
     expect(edgeRuns(undefined, body)).toEqual([]);
+  });
+
+  it('noRoundEdges: only a fillet or chamfer whose edge list was emptied is the pick-edges state', () => {
+    expect(noRoundEdges('fillet', { edges: [] })).toBe(true);
+    expect(noRoundEdges('chamfer', { edges: [] })).toBe(true);
+    expect(noRoundEdges('fillet', { edges: [{ faces: ['A', 'B'], at: [0, 0, 0] }] })).toBe(false);
+    expect(noRoundEdges('fillet', { radius: 1 })).toBe(false);   // edges not in the draft: not emptied
+    expect(noRoundEdges('shell', { edges: [] })).toBe(false);
+    expect(noRoundEdges(undefined, { edges: [] })).toBe(false);
   });
 });

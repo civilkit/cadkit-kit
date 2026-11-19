@@ -83,11 +83,21 @@ export function pickSpline(draft: SketchDraft, at: Pt, tolerance: number): strin
 /** Sketch tools whose clicks pick a whole curve of the sketch, not a point: the curve under the pointer is added to the snap as `entityId`. */
 export const ENTITY_PICK_TOOLS: ReadonlySet<string | null> = new Set<string | null>(['offset', 'spline-add']);
 
+/** The constraint tools (ids are their kinds): they pick sketch points and curves only. */
+export const CONSTRAINT_PICK_TOOLS: ReadonlySet<string> = new Set(['horizontal', 'vertical', 'coincident', 'equal', 'parallel', 'perpendicular', 'collinear', 'midpoint', 'tangent', 'symmetric', 'fix', 'concentric']);
+
 /**
  * The snap a curve-picking tool receives. Offset takes the nearest line, circle or arc; Add spline point takes only a fit spline, at
  * the pointer itself (the tool finds the place on the curve), so a snap to some other curve cannot send it elsewhere. Other tools: unchanged.
  */
-export function withPickedEntity<S extends { kind: string; at: Pt; entityId?: string }>(toolId: string | null, draft: SketchDraft, at: Pt, tolerance: number, snap: S | undefined): S | { kind: 'grid'; at: Pt; entityId: string } | undefined {
+export function withPickedEntity<S extends { kind: string; at: Pt; entityId?: string; pointId?: string; model?: string }>(toolId: string | null, draft: SketchDraft, at: Pt, tolerance: number, snap: S | undefined): S | { kind: 'grid'; at: Pt; entityId: string } | undefined {
+  if (toolId && CONSTRAINT_PICK_TOOLS.has(toolId)) {
+    // a constraint acts on real sketch points and curves: a snap to the body (mid-extent, model ends ...) is no target, and a curve under the pointer counts even when a grid or alignment snap won
+    const own = snap && !snap.model ? snap : undefined;
+    if (own?.pointId || own?.entityId) return own;
+    const entityId = pickEntity(draft, at, tolerance);
+    return entityId ? { kind: 'grid', at, entityId } : own;
+  }
   if (!ENTITY_PICK_TOOLS.has(toolId)) return snap;
   if (toolId === 'spline-add') {
     const id = pickSpline(draft, at, tolerance);

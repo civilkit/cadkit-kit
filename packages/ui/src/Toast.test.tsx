@@ -32,6 +32,13 @@ describe('Toast', () => {
     expect(container.querySelectorAll('.toast').length).toBe(1);
     expect(container.querySelector('.toast-count')!.textContent).toBe('×3');
   });
+  it('a warning with its own lifetime goes away after it, long before the level default', () => {
+    vi.useFakeTimers();
+    const { container, fire, wait, a } = mount();
+    fire(() => { a.notify('Every sketch is used', 'warn', undefined, { ttl: 6000 }); });
+    wait(5000); expect(container.querySelectorAll('.toast').length).toBe(1);
+    wait(1500); expect(container.querySelector('.toast')).toBeNull();
+  });
   it('the close button dismisses a toast', () => {
     const { container, fire, a } = mount();
     fire(() => { a.notify('Hello'); });

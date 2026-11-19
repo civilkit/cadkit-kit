@@ -17,8 +17,8 @@ function ToastItem(p: { n: Notice; onDismiss(id: number): void }): JSX.Element {
   const [paused, setPaused] = useState(false);
   const text = useRef<HTMLSpanElement>(null);
   // The timer: it runs only while nothing hovers or focuses the toast, resumes with what is left, and restarts when an identical message merges in (rev).
-  const left = useRef(noticeDuration(n.level, n.text, !!n.action));
-  useEffect(() => { left.current = noticeDuration(n.level, n.text, !!n.action); }, [n.rev, n.level, n.text, !!n.action]);
+  const left = useRef((n.ttl ?? noticeDuration(n.level, n.text, !!n.action)));
+  useEffect(() => { left.current = (n.ttl ?? noticeDuration(n.level, n.text, !!n.action)); }, [n.rev, n.level, n.text, !!n.action]);
   useEffect(() => {
     if (paused) return;
     const t0 = Date.now();

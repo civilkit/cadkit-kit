@@ -28,6 +28,16 @@ const v3 = (v: number[]) => `${v.map((x) => fmt(x, 3)).join(', ')}`;
 const pickLabel = (p: Pick): string => (p.kind === 'vertex' ? t('inspect.pick.vertex', { at: v3(p.p) }) : p.kind === 'edge' ? t('inspect.pick.edge', { name: p.name.split('#')[0] }) : t('inspect.pick.face', { name: p.name }));
 const feature = (face: string): string => face.split('.')[0];
 
+/** The id of the Mass properties card, so a ribbon button can bring it into view. */
+export const MASS_CARD_ID = 'insp-mass-card';
+/** Scroll the Mass properties card into view (the drawer has just opened on the Inspect tab). Returns false when the card is not on screen yet. */
+export function scrollMassIntoView(doc: Document = document): boolean {
+  const el = doc.getElementById(MASS_CARD_ID);
+  if (!el) return false;
+  el.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+  return true;
+}
+
 /** The Inspect tab of the drawer: four cards, each a tool. All state comes in as props (see useInspect). */
 export function InspectPanel(p: InspectProps): JSX.Element {
   useEffect(() => { p.onVisible(); }, []);
@@ -57,7 +67,7 @@ function MassCard(p: InspectProps): JSX.Element {
     ...(m.inertiaOrigin ? [[t('mass.inertiaOrigin'), `${matrixText(m.inertiaOrigin)}\n${t('mass.inertiaUnit')}`] as [string, string]] : []),
   ] : [];
   return (
-    <section class="insp-card" aria-label={t('inspect.mass')}>
+    <section class="insp-card" id={MASS_CARD_ID} aria-label={t('inspect.mass')}>
       <h4>{t('inspect.mass')}</h4>
       <div class="insp-bar">
         <label class="insp-field"><span>{t('inspect.density')}</span>

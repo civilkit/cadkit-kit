@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultExtrudeOp, nextBodyName, opChoiceOf, opChoices, opPatch, planeTouchesBox, cutFromPatch, targetBodiesOf, targetBodyOf, targetPatch, KERNEL_SUPPORTS_NEW_BODY } from './extrudeOp';
+import { defaultExtrudeOp, nextBodyName, opChoiceOf, opChoices, opPatch, planeTouchesBox, cutBodySide, cutFromPatch, targetBodiesOf, targetBodyOf, targetPatch, KERNEL_SUPPORTS_NEW_BODY } from './extrudeOp';
 
 const box = { min: [0, 0, 0], max: [10, 10, 10] };
 const frame = (z: number) => ({ o: [0, 0, z], z: [0, 0, 1] });
@@ -62,5 +62,18 @@ describe('target body', () => {
   it('switching a cut of several bodies to an Add drops the list; one body carries over', () => {
     expect(opPatch('add', { target: [{ body: 'A' }, { body: 'B' }] }, new Set())).toEqual({ op: 'add', flip: null, body: null, target: null });
     expect(opPatch('add', { target: [{ body: 'A' }] }, new Set())).toEqual({ op: 'add', flip: null, body: null });
+  });
+});
+
+describe('cutBodySide', () => {
+  // a cut goes against the sketch normal (+z here) unless flipped
+  it('says whether the body lies the way the cut goes, the other way, or on both sides of the plane', () => {
+    expect(cutBodySide(frame(25), box, false)).toBe('toward');
+    expect(cutBodySide(frame(25), box, true)).toBe('away');
+    expect(cutBodySide(frame(-5), box, false)).toBe('away');
+    expect(cutBodySide(frame(-5), box, true)).toBe('toward');
+    expect(cutBodySide(frame(5), box, false)).toBe('both');
+    expect(cutBodySide(frame(5), null, false)).toBeNull();
+    expect(cutBodySide(null, box, false)).toBeNull();
   });
 });

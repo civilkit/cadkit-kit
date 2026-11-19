@@ -12,7 +12,7 @@ export const toolbarStrings: Record<string, string> = {
   'rb.sketch-from-dxf': 'DXF sketch', 'rb.sketch-import-dxf': 'Import DXF', 'rb.sketch-from-svg': 'SVG sketch', 'rb.sketch-import-svg': 'Import SVG', 'rb.export-stl': 'STL', 'rb.export-stl-ascii': 'STL text', 'rb.export-obj': 'OBJ', 'rb.export-3mf': '3MF', 'rb.export-glb': 'glTF',
   'rb.export-step': 'STEP', 'rb.export-dxf-sketch': 'Sketch DXF', 'rb.export-dxf-views': 'Views DXF', 'rb.import-step': 'Import STEP / STL / OBJ / GLB / 3MF / SLDPRT', 'rb.add-cut': 'Cut',
   'rb.add-lpattern': 'Linear', 'rb.add-cpattern': 'Circular', 'rb.open-catalog': 'Catalog', 'rb.suppress-selected': 'Suppress', 'rb.delete-feature': 'Delete',
-  'rb.roll-forward': 'Roll fwd', 'rb.select-same-size': 'Same size', 'rb.add-trim-surface': 'Trim', 'rb.add-surface-planar': 'Planar', 'rb.add-surface-extrude': 'Extruded',
+  'rb.roll-forward': 'Roll fwd', 'rb.select-same-size': 'Same size', 'rb.select-junction': 'Junction', 'rb.add-trim-surface': 'Trim', 'rb.add-surface-planar': 'Planar', 'rb.add-surface-extrude': 'Extruded',
   'rb.add-surface-revolve': 'Revolved', 'rb.add-surface-loft': 'Lofted', 'rb.add-fill': 'Fill', 'rb.add-extend': 'Extend', 'rb.add-delete-face': 'Del. face',
   'rb.add-delete-body': 'Del. body', 'rb.add-project-curve': 'Project', 'rb.add-edit-curve': 'Edit curve', 'rb.add-freeform': 'Freeform', 'rb.add-pipe-cut': 'Pipe cut', 'rb.add-gear-pair': 'Gear pair', 'rb.add-lip': 'Lip', 'rb.add-split': 'Split', 'rb.add-lip-joint': 'Lip joint', 'rb.hide-selection': 'Hide',
   'rb.style-shadedEdges': 'With edges', 'rb.style-hiddenLines': 'Hidden', 'rb.style-wireframe': 'Wireframe', 'rb.light-contrast': 'Contrast',

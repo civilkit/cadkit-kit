@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/preact';
-import { ExprInput, VarsContext, growWidth } from './ExprInput';
+import { ExprInput, VarsContext, growWidth, placePopup } from './ExprInput';
 import { FeatureEditor } from './FeatureEditor';
 import { resolveVariables } from './expr';
 
@@ -162,5 +162,43 @@ describe('ExprInput on a phone keypad', () => {
     expect(m.r.container.querySelector('.expr-kb')).toBeNull();
     const r = render(<ExprInput value={5} min={0} onValue={() => {}} />);
     expect(r.container.querySelector('.expr-sign')).toBeNull();
+  });
+});
+
+describe('completion list placement', () => {
+  const view = { width: 1000, height: 700 };
+  it('goes below the field when it fits', () => {
+    expect(placePopup({ left: 100, top: 100, bottom: 124 }, { width: 200, height: 180 }, view)).toMatchObject({ up: false, shiftX: 0 });
+  });
+  it('flips above near the bottom edge when there is more room above', () => {
+    const r = placePopup({ left: 100, top: 600, bottom: 624 }, { width: 200, height: 180 }, view);
+    expect(r.up).toBe(true);
+    expect(r.maxHeight).toBeLessThanOrEqual(180);
+  });
+  it('stays below when it does not fit but there is even less room above', () => {
+    expect(placePopup({ left: 0, top: 40, bottom: 64 }, { width: 100, height: 800 }, view).up).toBe(false);
+  });
+  it('shifts left when its width would pass the right edge, never past the left margin', () => {
+    expect(placePopup({ left: 900, top: 10, bottom: 34 }, { width: 300, height: 100 }, view).shiftX).toBe(-208);
+    expect(placePopup({ left: 20, top: 10, bottom: 34 }, { width: 2000, height: 100 }, view).shiftX).toBe(-12);
+  });
+});
+
+describe('completion list', () => {
+  it('shows the whole name, and arrow keys scroll the active row into view', () => {
+    const many = resolveVariables(Array.from({ length: 12 }, (_, i) => ({ name: `CUBE_WIDTH_${i}`, expr: String(i) })));
+    const calls: number[] = [];
+    const proto = HTMLElement.prototype as unknown as { scrollIntoView?: () => void };
+    const old = proto.scrollIntoView;
+    proto.scrollIntoView = function (this: HTMLElement) { calls.push(Array.from(this.parentElement!.children).indexOf(this)); };
+    const r = render(<VarsContext.Provider value={many}><ExprInput value={1} label="L" onValue={() => {}} /></VarsContext.Provider>);
+    const input = r.container.querySelector('input') as HTMLInputElement;
+    fireEvent.focus(input);
+    fireEvent.input(input, { target: { value: 'CUBE_' } });
+    expect(r.container.querySelector('.expr-ac-name')?.textContent).toMatch(/^CUBE_WIDTH_/);
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(calls.at(-1)).toBe(2);
+    proto.scrollIntoView = old;
   });
 });

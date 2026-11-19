@@ -20,3 +20,8 @@ export function scriptOwnsKey(scriptTabActive: boolean, t: EventTarget | null, l
   if ((!el || el === document.body) && lastPressOnCanvas) return false;
   return true;   // a Fit or view button inside the viewport, a toolbar, a panel, the bare page after a tab switch: not
 }
+
+/** The digit keys 1-7 switch the standard views, except while a feature editor panel is open: a digit that reaches the page then (a field not yet focused, a click that landed during a rebuild) is a mistyped value, not a view change. */
+export function viewKeysActive(featureEditorOpen: boolean): boolean {
+  return !featureEditorOpen;
+}

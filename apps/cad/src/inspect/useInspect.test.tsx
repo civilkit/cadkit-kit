@@ -29,15 +29,16 @@ function fakeView(): InspectView & { section: unknown[]; marks: unknown[]; frame
 }
 
 let api!: ReturnType<typeof useInspect>;
-function Harness(p: { host: InspectHost; store: ReturnType<typeof createStore>; view: InspectView; opened: () => void; active: { current: boolean } }) {
+function Harness(p: { host: InspectHost; store: ReturnType<typeof createStore>; view: InspectView; opened: () => void; active: { current: boolean }; editing?: boolean }) {
   useSignals(() => { p.store.selection.value; p.store.mode.value; p.store.notices.value; });   // the app re-renders on these
-  api = useInspect(p.host, p.store, () => p.view, p.opened, p.active);
+  api = useInspect(p.host, p.store, () => p.view, p.opened, p.active, !!p.editing);
   return <div data-measuring={String(api.measuring)} />;
 }
-const mount = (host = fakeHost()) => {
+const mount = (host = fakeHost(), editing = false) => {
   const store = createStore(), view = fakeView(), opened = vi.fn(), active = { current: false };
-  const r = render(<Harness host={host} store={store} view={view} opened={opened} active={active} />);
-  return { host, store, view, opened, active, ...r };
+  const r = render(<Harness host={host} store={store} view={view} opened={opened} active={active} editing={editing} />);
+  const setEditing = (e: boolean) => r.rerender(<Harness host={host} store={store} view={view} opened={opened} active={active} editing={e} />);
+  return { host, store, view, opened, active, setEditing, ...r };
 };
 
 describe('useInspect', () => {
@@ -127,5 +128,38 @@ describe('useInspect', () => {
   it('sectionSpec is null when off or without a normal', () => {
     expect(sectionSpec({ on: false, plane: 'front', faceId: null, offset: 1, flip: false }, [0, 0, 1])).toBeNull();
     expect(sectionSpec({ on: true, plane: 'face', faceId: null, offset: 1, flip: false }, null)).toBeNull();
+  });
+
+  it('section while a feature panel is open: no Inspect panel, and a cut made there goes when the panel closes', async () => {
+    const { view, opened, setEditing } = mount(fakeHost(), true);
+    await act(async () => { api.toggleSection(); });
+    expect(opened).not.toHaveBeenCalled();
+    expect(api.sectionOn).toBe(true);
+    await act(async () => { api.cutPlane('top'); });
+    expect(view.section.at(-1)).toMatchObject({ normal: [0, 1, 0] });
+    await act(async () => { setEditing(false); });
+    expect(api.sectionOn).toBe(false);
+    expect(view.section.at(-1)).toBeNull();
+  });
+
+  it('a cut the user made themselves (Inspect panel, or before the panel opened) stays when the feature panel closes', async () => {
+    const a = mount(fakeHost(), true);
+    await act(async () => { api.props.onSectionPlane('front'); });
+    await act(async () => { a.setEditing(false); });
+    expect(api.sectionOn).toBe(true);
+    cleanup();
+    const b = mount(fakeHost(), false);
+    await act(async () => { api.toggleSection(); });
+    await act(async () => { b.setEditing(true); });
+    await act(async () => { b.setEditing(false); });
+    expect(api.sectionOn).toBe(true);
+    expect(b.opened).toHaveBeenCalled();
+  });
+
+  it('section on a named flat face needs no selection', async () => {
+    const { view } = mount();
+    await act(async () => { api.cutPlane('face', 'F2.C1'); });
+    expect(api.section).toMatchObject({ on: true, plane: 'face', faceId: 'F2.C1' });
+    expect((view.section.at(-1) as { offset: number }).offset).toBeCloseTo(10);
   });
 });

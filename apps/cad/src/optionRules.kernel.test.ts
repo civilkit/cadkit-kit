@@ -7,7 +7,7 @@ import { createStore } from '@kit/store';
 import { Controller, type KernelFactory, type ViewSink } from './controller';
 import { edgeRefs } from './featureCommands';
 import {
-  objectRefPatch, patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, patchStart,
+  objectRefPatch, patchBothWays, patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, patchStart,
 } from './optionRules';
 import { pickValue } from './featureCommands';
 
@@ -75,6 +75,38 @@ describe('extrude end conditions against the kernel', { skip: !process.env.CK_WA
     const one = await cut({});
     const two = await cut({ depth2: 3, end2: 'blind' });
     near(one.volume, two.volume);
+  });
+});
+
+describe('Through all, both directions, against the kernel', { skip: !process.env.CK_WASM }, () => {
+  const circle = (id: string, plane: Wire) => ({ type: 'sketch', id, plane, points: [{ id: 'o', x: 0, y: 0, fixed: true }], entities: [{ type: 'circle', id: 'k1', c: 'o', r: 10 }], constraints: [] });
+  /** A 60 x 60 boss on the Front plane, mid-plane 40 deep (z -20..20, volume 144000), and a 20 mm circle on the plane `at`. */
+  const boss = (at: Wire, extra: Wire[] = []): Wire[] => [
+    rect('F1', -30, -30, 30, 30), { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'mid', depth: 40 }, ...extra, circle('F3', at),
+  ];
+  /** A patch's nulls mean 'remove the field' (the app drops them before the kernel sees the feature). */
+  const clean = (f: Wire): Wire => Object.fromEntries(Object.entries(f).filter(([, v]) => v !== null && v !== undefined));
+  const run = (features: Wire[]) => measure({ ...emptyPart('Boss'), features: features.map(clean), seq: 20 } as unknown as PartDoc);
+  const hole = Math.PI * 100;
+  it('a 20 mm hole sketched on the mid plane: Through all removes one side, Both directions both', async () => {
+    const one = await run([...boss({ kind: 'std', id: 'front' }), { type: 'extrude', id: 'F4', op: 'cut', sketch: 'F3', ...patchEnd({ depth: 4 }, 'through') }]);
+    expect(one.errors).toEqual([]);
+    near(one.volume, 144000 - hole * 20, 0.5);
+    const both = await run([...boss({ kind: 'std', id: 'front' }), { type: 'extrude', id: 'F4', op: 'cut', sketch: 'F3', flip: true, ...patchBothWays({ end: 'through', flip: true }, true) }]);
+    expect(both.errors).toEqual([]);
+    near(both.volume, 144000 - hole * 40, 0.5);
+  });
+  it('a sketch outside the body on the wrong side: Through all misses, Flip or Both directions cut right through', async () => {
+    const plane = { type: 'plane', id: 'P1', mode: 'offset', base: { kind: 'std', id: 'front' }, offset: -30 };
+    const at = { kind: 'feature', id: 'P1' };
+    const miss = await run([...boss(at, [plane]), { type: 'extrude', id: 'F4', op: 'cut', sketch: 'F3', end: 'through' }]);
+    expect(miss.errors).toEqual(['F4:cutNoEffect']);
+    const flipped = await run([...boss(at, [plane]), { type: 'extrude', id: 'F4', op: 'cut', sketch: 'F3', end: 'through', flip: true }]);
+    expect(flipped.errors).toEqual([]);
+    near(flipped.volume, 144000 - hole * 40, 0.5);
+    const both = await run([...boss(at, [plane]), { type: 'extrude', id: 'F4', op: 'cut', sketch: 'F3', end: 'through', ...patchBothWays({ end: 'through' }, true) }]);
+    expect(both.errors).toEqual([]);
+    near(both.volume, 144000 - hole * 40, 0.5);
   });
 });
 

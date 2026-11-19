@@ -174,3 +174,18 @@ describe('sketchEditFit (what Fit does with the viewport\'s edit record)', () =>
     expect(src).toMatch(/sketchEditFit\(\{ frame: this\.sketchEdit\.frame as never, sketch: this\.sketchEdit\.sketch \}\)/);
   });
 });
+
+import { keepsSketchDrag } from './sketchedit';
+describe('keepsSketchDrag (a point drag lives through the solver frames of its sketch)', () => {
+  const view = (featureId: string, ids: string[]) => ({ featureId, sketch: { points: ids.map((id) => ({ id })) } });
+  it('the next frame of the same sketch with the point keeps the drag', () => {
+    expect(keepsSketchDrag('p1', view('F1', ['p1']), view('F1', ['O', 'p1']))).toBe(true);
+  });
+  it('no drag, the overlay closing, another sketch or the point gone end it', () => {
+    expect(keepsSketchDrag(null, view('F1', ['p1']), view('F1', ['p1']))).toBe(false);
+    expect(keepsSketchDrag('p1', view('F1', ['p1']), null)).toBe(false);
+    expect(keepsSketchDrag('p1', null, view('F1', ['p1']))).toBe(false);
+    expect(keepsSketchDrag('p1', view('F1', ['p1']), view('F2', ['p1']))).toBe(false);
+    expect(keepsSketchDrag('p1', view('F1', ['p1']), view('F1', ['p2']))).toBe(false);
+  });
+});

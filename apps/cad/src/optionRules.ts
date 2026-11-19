@@ -120,6 +120,23 @@ export function patchEnd(eff: Wire, end: EndCondition): Wire {
   return p;
 }
 
+/** Through all can go one way (with Flip) or both ways from the sketch plane (`throughBoth`): the Both directions box switches between them. */
+export const endHasBothWays = (end: string): boolean => end === 'through' || end === 'throughBoth';
+export const bothWaysOf = (eff: Wire): boolean => eff.end === 'throughBoth';
+/** Both directions on: a through-both end with no flip (it has no direction). Off: Through all one way again. */
+export function patchBothWays(eff: Wire, on: boolean): Wire {
+  return on ? { ...patchEnd(eff, 'throughBoth'), flip: null } : patchEnd(eff, 'through');
+}
+/** Which side of the sketch plane the body is on, seen from the cut: the way the cut goes, the other way, on both sides, or not known. */
+export type CutBodySide = 'toward' | 'away' | 'both' | null;
+/** What the "cut does not reach any body" note offers besides Add: Flip direction for an end that goes one way, unless the whole
+ *  body lies the way the cut already goes (flipping would cut air), and for Through all also Both directions. */
+export function cutMissOffers(eff: Wire, side: CutBodySide): { flip: boolean; both: boolean } {
+  const end = endOf(eff);
+  const flip = (end === 'blind' || end === 'through' || end === 'upToNext') && side !== 'toward';
+  return { flip, both: flip && end === 'through' };
+}
+
 /** Draft angle (degrees, 0 = none) and its direction: setting 0 removes both fields. */
 export function patchDraft(eff: Wire, angle: number): Wire {
   return angle > 0 ? { draft: angle, ...(eff.endScale != null ? { endScale: null } : {}) } : { draft: null, draftOut: null };

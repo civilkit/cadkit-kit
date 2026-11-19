@@ -21,6 +21,6 @@ export function inspectCommands(a: InspectActions): Command[] {
     { id: 'measure', label: t('cmd.measure'), tab: 'Evaluate', group: 'Measure', keys: 'M', enabled: a.hasSolid, pressed: a.isMeasuring, run: a.toggleMeasure },
     { id: 'mass-props', label: t('cmd.mass-props'), tab: 'Evaluate', group: 'Measure', enabled: a.hasSolid, run: a.massProps },
     { id: 'interference', label: t('cmd.interference'), tab: 'Evaluate', group: 'Analyse', enabled: a.hasSolid, run: a.interference },
-    { id: 'section-view', label: t('cmd.section-view'), tab: 'Evaluate', group: 'Section', enabled: a.hasSolid, pressed: a.isSectioned, run: a.toggleSection },
+    { id: 'section-view', label: t('cmd.section-view'), tab: 'Evaluate', group: 'Section', keys: 'Alt+S', enabled: a.hasSolid, pressed: a.isSectioned, run: a.toggleSection },
   ];
 }

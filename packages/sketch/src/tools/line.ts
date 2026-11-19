@@ -20,7 +20,7 @@
  * given), after an arc, when the new constraint would repeat or contradict one (`refusal`); the hint line says so when it is skipped.
  */
 import type { SketchDraft } from '../index';
-import { addConstraintOf, addLine, addPoint, pointOf } from './builders';
+import { addConstraintOf, addLine, addPoint, pointOf, pruneOrphanPoints } from './builders';
 import { angleSpec, appendSpec, orientations, refusal } from './constraints';
 import { ownersAt } from './builders-arcs';
 import { segmentEnd, type EndResult } from './geometry';
@@ -133,12 +133,12 @@ function enterArc(state: LineState, draft: SketchDraft, settings: ToolSettings):
   if (!started.state.from) return view(state, draft, settings, started.hint ?? 'app.sketch.hint.tangentStart');
   const arc: TangentArcState = { ...started.state, ...(state.cursor ? { cursor: state.cursor } : {}) };
   const shown = tangentArcTool.step(arc, { type: 'move', at: state.cursor ?? at, mods: state.mods }, draft, settings);
-  return arcView({ ...state, locked: {}, live: {} }, shown, draft);
+  return { ...arcView({ ...state, locked: {}, live: {} }, shown, draft), hint: 'app.sketch.hint.lineArcMode' };
 }
 
 function stepArc(state: LineState, ev: Parameters<Tool<LineState>['step']>[1], draft: SketchDraft, settings: ToolSettings): ToolOutput<LineState> {
   if (ev.type === 'key') {
-    if (ev.key === 'l' || ev.key === 'm' || ev.key === 'Escape') return view({ ...state, arc: undefined }, draft, settings);
+    if (ev.key === 'l' || ev.key === 'm' || ev.key === 'Escape') return view({ ...state, arc: undefined }, draft, settings, 'app.sketch.hint.lineLineMode');
     return arcView(state, tangentArcTool.step(state.arc!, ev, draft, settings), draft);
   }
   const withMods = ev.type === 'move' || ev.type === 'click' ? { ...state, mods: ev.mods } : state;
@@ -244,7 +244,8 @@ export const lineTool: Tool<LineState> = {
         if (ev.key === 'Escape' && !state.last && state.start) { const { start: _typing, ...rest } = state; return view(rest, draft, settings); }
         if (ev.key !== 'Escape') return view(state, draft, settings);
         if (Object.keys(state.locked).length || Object.keys(state.live).length) return view({ ...state, locked: {}, live: {} }, draft, settings);
-        return view({ locked: {}, live: {}, mods: state.mods }, draft, settings);
+        // the chain ends: a start point that no line was drawn from is not left in the sketch as a free point
+        return view({ locked: {}, live: {}, mods: state.mods }, pruneOrphanPoints(draft, [state.first, state.last]), settings);
       }
     }
   },

@@ -9,12 +9,14 @@ import type { ComponentChildren, JSX } from 'preact';
 import type { PartDoc } from '@ck/part-model';
 import { EditorSection as Section, ExprInput, Icon, fmtNum, type OptionsArgs, type OptionsResult, numberAttrs, textAttrs } from '@kit/ui';
 import { t } from './i18n';
+import { featureMemory, remembersType } from './featureMemory';
 import {
   CHAMFER_TYPES, FILLET_PROFILES, chamferTypeOf, endAllowsDraft, endNeedsDepth, endAllowsTwist, endAllowsEndScale, endScaleOf, patchEndScale, endNeedsObject, endOf, endsFor, filletFullRound, filletProfileOf, filletVariable, FULL_ROUND_FACES, managedPaths, patchFilletFullRound, patchTwist, patchTwistCentre, twistCentreOf, twistOf,
   PRESS_CONTINUES, TAPER_TYPES, patchContinue, patchTaperAngle, patchTaperScale, patchTaperType, pressContinueEnabled, pressContinueOf, pressHasContinue, scaleTaperAngle, taperAngleOf, taperScaleOf, taperTypeOf, type PressContinue, type TaperType,
   objectRefChoices, objectRefPatch, objectRefValue, patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, patchStart,
   planeBaseChoices, planeBasePatch, planeBaseValue, radiiOf, startAllowed, startOf,
-  type ChamferType, type EndCondition, type FilletProfile, type FullRoundFace, type StartCondition,
+  bothWaysOf, cutMissOffers, endHasBothWays, patchBothWays,
+  type ChamferType, type CutBodySide, type EndCondition, type FilletProfile, type FullRoundFace, type StartCondition,
 } from './optionRules';
 import {
   THIN_CORNERS, THIN_ENDS, THIN_SIDES, openProfile, patchThin, patchThinOn, thinOf, type OpenProfile, type ThinCorner, type ThinEnds, type ThinSide,
@@ -393,6 +395,7 @@ function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | n
   if (!ends.includes(raw)) options.unshift([raw, endLabel(raw)]);   // an end the editor does not offer stays visible (the kernel reports it)
   const draftAngle = typeof eff.draft === 'number' ? eff.draft : 0;
   const axisOf = p.revolve ? revolveAxisField(p.doc, eff) : null;
+  const miss = cutMissOffers(eff, p.revolve ? null : p.actions?.cutSide ?? null);
   return (
     <>
       <Section id="end" title={t('opt.section.end')}>
@@ -421,11 +424,14 @@ function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | n
         {p.actions?.cutProblem && eff.op === 'cut' ? (
           <div class="fedit-note fedit-warn" role="alert" data-note={'cut-' + p.actions.cutProblem}>
             {t(p.actions.cutProblem === 'nothing' ? 'opt.cut.nothing' : 'opt.cut.miss')}
+            {p.actions.cutProblem === 'miss' && miss.flip ? <button type="button" data-act="flip-cut" onClick={() => change({ flip: eff.flip === true ? null : true })}>{t('opt.flip')}</button> : null}
+            {p.actions.cutProblem === 'miss' && miss.both ? <button type="button" data-act="both-ways" onClick={() => change(patchBothWays(eff, true))}>{t('opt.bothWays')}</button> : null}
             <button type="button" data-act="switch-add" onClick={() => change({ op: 'add', flip: null })}>{t('opt.cut.switchAdd')}</button>
           </div>
         ) : null}
       </Section>
       <Section id="options" title={t('opt.section.options')}>
+        {!p.revolve && endHasBothWays(end) ? <Check name="bothWays" label={t('opt.bothWays')} value={bothWaysOf(eff)} onChange={(v) => change(patchBothWays(eff, v))} /> : null}
         {end !== 'mid' && end !== 'throughBoth' ? <Check name="flip" label={t('opt.flip')} value={eff.flip} onChange={(v) => change({ flip: v ? true : null })} /> : null}
         {!p.revolve && endAllowsDraft(end) && twistOf(eff) === 0 && endScaleOf(eff) === 1 ? <>
           <Num name="draft" label={t('opt.draft')} value={draftAngle} unit="°" plain onChange={(v) => change(patchDraft(eff, Number(v)))} />
@@ -458,6 +464,8 @@ export interface ThinActions {
   asSurface(): void;
   /** The cut in the editor removed nothing: no body under the sketch (`nothing`) or a body it does not reach (`miss`). */
   cutProblem?: 'nothing' | 'miss' | null;
+  /** For a cut that misses: where the body lies from it (see cutBodySide), so the note offers Flip direction only when it may help. */
+  cutSide?: CutBodySide;
   /** Fillet / chamfer: the feature's edge list with the edges that continue it tangentially, read on the body it is applied to (null: nothing to add). */
   chainEdges?(eff: Wire): Promise<unknown[] | null>;
   /** Press Pull: the kernel's faceRun of flat faces as they are before the feature `beforeId` (reach and area of each), for the scale taper's angle readout. */
@@ -1202,7 +1210,24 @@ function FreeformOptions(p: { eff: Wire; change: Change; doc: PartDoc | null } &
 }
 
 /** The `options` prop of FeatureEditor: the form for the feature's type, or null (the generic fields stay). `doc` feeds the sketch and surface lists. */
+/** The panel's memory controls: what the next feature of this type starts with is what was accepted last; this link goes back to the built-in defaults (Extrude also has the Remember depth box). */
+export function MemoryFooter(p: { type: string }): JSX.Element {
+  const [done, setDone] = useState(false);
+  const [depth, setDepth] = useState(featureMemory.rememberDepth);
+  return (
+    <div class="fedit-memory" data-memory={p.type}>
+      {p.type === 'extrude' ? <label class="fedit-check"><input type="checkbox" checked={depth} data-act="remember-depth" onChange={(e) => { const on = (e.currentTarget as HTMLInputElement).checked; featureMemory.rememberDepth = on; setDepth(on); }} /> {t('opt.memory.depth')}</label> : null}
+      {done ? <span class="fedit-note">{t('opt.memory.resetDone')}</span> : <button type="button" class="linklike" data-act="reset-memory" onClick={() => { featureMemory.reset(p.type); setDone(true); }}>{t('opt.memory.reset')}</button>}
+    </div>
+  );
+}
+
 export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null = null, actions?: ThinActions): OptionsResult | null {
+  const r = optionsForType(a, doc, actions);
+  const type = String(a.eff.type ?? '');
+  return r && remembersType(type) ? { ...r, node: <>{r.node}<MemoryFooter type={type} /></> } : r;
+}
+function optionsForType(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null, actions?: ThinActions): OptionsResult | null {
   const type = String(a.eff.type ?? '');
   const hide = managedPaths(type);
   if (!hide.size) return null;

@@ -62,6 +62,14 @@ describe('contextual ribbon', () => {
     const home = JSON.stringify(RIBBON_LAYOUT.Home);
     for (const id of ['sketch-here', 'add-extrude', 'add-revolve', 'add-loft', 'add-fillet', 'add-shell', 'add-lpattern', 'undo', 'redo', 'rebuild']) expect(home, id).toContain(id);
   });
+  it('the Sketch button always runs "sketch on selection" (a fixed slot): a plane used last never replaces it', () => {
+    const entries = (gs: Array<{ entries: unknown[] }>) => gs.flatMap((g) => g.entries) as Array<{ slot?: string; fixed?: boolean; ids?: string[] }>;
+    for (const es of [entries(RIBBON_LAYOUT.Home), entries(RAIL_SECTIONS)]) {
+      const sk = es.find((e) => typeof e === 'object' && e.slot === 'new-sketch')!;
+      expect(sk.fixed).toBe(true);
+      expect(sk.ids![0]).toBe('sketch-here');
+    }
+  });
   it('Frame is its own top-level ribbon tab and palette section, not part of the Loft menu', () => {
     expect(idsOf(RIBBON_LAYOUT.Frame.flatMap((g) => g.entries))).toEqual(['add-frame', 'frame-cutlist']);
     expect(RAIL_SECTIONS.find((s) => s.id === 'frame')).toBeTruthy();

@@ -178,12 +178,31 @@ describe('trim', () => {
     expect(trimAt(d, 'e5', { x: 5, y: 3 }).ok).toBe(true);
     const one = withExtra(rectDraft(10, 10), [{ id: 'p5', x: 5, y: -2 }, { id: 'p6', x: 5, y: 0 }], [{ id: 'e5', type: 'circle', c: 'p5', r: 2 }]);
     const t = trimAt(one, 'e5', { x: 5, y: -4 });                          // tangent to the bottom edge: a single touch point
-    expect(t).toEqual({ ok: false, hint: 'app.sketch.hint.trimNeedsTwo' });
+    expect(t).toEqual({ ok: false, hint: 'app.sketch.hint.trimOneCut' });
     const far = withExtra(rectDraft(10, 10), [{ id: 'p5', x: 50, y: 50 }], [{ id: 'e5', type: 'circle', c: 'p5', r: 2 }]);
     const w = trimAt(far, 'e5', { x: 52, y: 50 });
     if (!w.ok) throw new Error(w.hint);
     expect(w.draft.entities.some((e) => e.id === 'e5')).toBe(false);
     expect(w.draft.points.some((p) => p.id === 'p5')).toBe(false);
+  });
+
+  it('a tangent line that stops at its contact with a circle cuts it there, reusing its end', () => {
+    // circle r=2 at (5,-2) under the bottom edge y=0 of the rectangle; a line from (0,-4) to (5,-4)±a hair ends on the bottom tangent
+    for (const dx of [0, -3e-5, 3e-5]) {
+      const d = withExtra(rectDraft(10, 10), [{ id: 'p5', x: 5, y: -2 }, { id: 'p6', x: 0, y: -4 }, { id: 'p7', x: 5 + dx, y: -4 }],
+        [{ id: 'e5', type: 'circle', c: 'p5', r: 2 }, { id: 'e6', type: 'line', p1: 'p6', p2: 'p7' }]);
+      const r = trimAt(d, 'e5', { x: 7, y: -2 });                             // the right half, between the two contacts
+      if (!r.ok) throw new Error(r.hint);
+      const arc = r.draft.entities.find((e) => e.id === 'e5')!;
+      expect(arc).toMatchObject({ type: 'arc', c: 'p5', p2: 'p7' });          // the left half, counter-clockwise from the top to the line's own end
+      expect(pt(r.draft, String(arc.p1))).toMatchObject({ x: 5, y: 0 });
+      expect(r.draft.points).toHaveLength(d.points.length + 1);               // only the top contact is new
+      expect(resolves(r.draft)).toBe(true);
+    }
+    // a line stopping short of the contact by more than the tolerance does not touch it: one cut only
+    const short = withExtra(rectDraft(10, 10), [{ id: 'p5', x: 5, y: -2 }, { id: 'p6', x: 0, y: -4 }, { id: 'p7', x: 4.99, y: -4 }],
+      [{ id: 'e5', type: 'circle', c: 'p5', r: 2 }, { id: 'e6', type: 'line', p1: 'p6', p2: 'p7' }]);
+    expect(trimAt(short, 'e5', { x: 7, y: -2 })).toEqual({ ok: false, hint: 'app.sketch.hint.trimOneCut' });
   });
 
   it('tangent-touch: a line tangent to an arc end cuts it where it touches', () => {

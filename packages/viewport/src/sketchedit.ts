@@ -114,3 +114,9 @@ export function lookAngleDeg(sight: number[], normal: number[]): number {
 }
 /** Off the normal by more than this and entering a sketch offers `Look normal`. */
 export const LOOK_NORMAL_TOLERANCE_DEG = 5;
+
+/** Whether a point drag in progress goes on when the sketch overlay is replaced: the solver's next frame of the same sketch
+ *  that still has the point keeps it; no overlay, another sketch or a sketch without the point ends it. */
+export function keepsSketchDrag(drag: string | null, was: { featureId: string } | null, next: { featureId: string; sketch: { points: Array<{ id: string }> } } | null): boolean {
+  return !!drag && !!was && !!next && was.featureId === next.featureId && next.sketch.points.some((p) => p.id === drag);
+}

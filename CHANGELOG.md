@@ -4,6 +4,26 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.8.4 - 2026-11-19
+
+- **Show freedom and Show constraints in the sketcher.** Show freedom lights, in amber, the points and circle radii that can still move, says in which direction, and offers chips that pin them; Show constraints (Shift+C) draws every constraint glyph and dimension, and hovering a point or line lists what is attached to it.
+- **A Hole tool that starts from a face.** With nothing selected, Hole asks you to pick the flat face (or a plane) and opens the centre sketch there; centres can be typed, a plain diameter is remembered for the next hole, and the end condition offers Blind and Through (Up to next is hidden until the kernel stops at the first wall).
+- **Type a first point as x,y.** While Circle, Line, Point, Rectangle, Centre rectangle, Centre arc or Ellipse wait for their first point, typing a digit, minus, a point or @ opens a Position box; the point is dimensioned from the origin and expressions stay linked to variables.
+- **Fillet the junction after a boss, and a Section control while a panel is open.** After a new Extrude or Revolve that adds material, a prompt offers to fillet the edges where it meets the body, and a Select junction edges command picks them; a Section chip over the viewport clips the body with a plane while a feature panel is open.
+- **Mirror and Symmetric can use the origin axes.** Press X or Y at the mirror's "pick line" step; Symmetric takes circle and arc centres, and a line already on the mirror line is not copied twice.
+- **A compact sketch ribbon.** The Status group is a small "Fully defined" pill with icon buttons (Show constraints, Sketch Report, Snaps, Look normal), pinned to the right, so more tool groups fit at 1441 px; the scroll arrows step a whole group.
+- **Recover earlier versions shows a small picture of each version.**
+- **Through all can cut both ways.** A Both directions box sits beside Flip, and a cut that misses offers Flip direction or Both directions.
+- **Repeat last and per-feature memory.** Feature panels remember the last accepted options per feature type (Extrude and Cut end, flip and draft, Fillet radius, Chamfer, Shell thickness; a blind depth only with Remember depth), Repeat last reuses them, and Tab moves between dimension boxes.
+- **Sketching fixes.** Typed variables stay linked to the dimension they create; Horizontal and Vertical accept circle and arc centres and ignore body snaps; a drag is one undo step and a refused drag leaves nothing behind; Trim cuts at a tangent contact; Fully define uses relations the drawing already satisfies; an aborted Line leaves no stray point; the Sketch button starts on the selected plane or face and Front, Top and Right follow the view's up axis; autosave keeps one slot per browser tab.
+- **A fillet or chamfer on one selected face rounds all of its edges,** and removing the last edge in the editor shows the pick-edges state instead of an error.
+- **Boolean unions that graze a lofted hull no longer fail.** The Tinnie boat sample, whose floors and bulkheads touch the hull's loft where it dips by a millimetre, builds again with its original numbers once this kernel is in; the sample keeps a 0.1 mm lift for older kernels.
+- **Shell works around a boss that touches the opened face, and around a small rim fillet.** A 3 mm shell of a part with a cross boss tangent to the opening now builds to the analytic volume, and a rim fillet no bigger than the wall is sharpened for the cut instead of collapsing the cavity.
+- **The kernel survives the crash-fuzz set.** A near-flat revolve is refused as revolveDegenerate, partial revolves tessellate, boolean work polls its budget, SAT and curve-conversion overflows are caught, and an empty chain in Fill no longer panics; 71 earlier regressions are fixed.
+- **Certified surface intersections cover free-form surfaces.** B-spline, extrusion, revolution, screw and offset surfaces now take part in the intersection proof, with its shallow-angle step check raised back to sine 0.6.
+- **N-sided fill is a Fill option,** with G0 or G1 continuity across its inner seams.
+- **A shorter licences page.** It lists what ships with the app, the licence texts once, and the notices the licences ask for.
+
 ## 0.8.3 - 2026-11-18
 
 - **Fillet and Chamfer round the corners where one block overhangs another.** The four edges that meet at such a corner (two straight pairs that flip between convex and concave) now get a rounded or mitred corner patch, for the two-lines pick, any subset and Select all connected, where the result used to be stepped or refused. A mixed corner under the overhang can still end in flat steps, depending on the order you pick, and a corner that cannot be spliced still returns the stepped body without a message.

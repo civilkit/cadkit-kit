@@ -9,14 +9,15 @@ import type { TreeActions } from './treeCommands';
 
 afterEach(cleanup);
 
-const features = [
+const baseFeatures = [
   { id: 'F1', type: 'sketch' },
   { id: 'F2', type: 'extrude', sketch: 'F1' },
   { id: 'F3', type: 'fillet', edges: ['F2.E1'] },
   { id: 'F4', type: 'sketch', plane: { kind: 'face', id: 'F2.C1' } },
 ];
 
-function setup() {
+function setup(extra: Array<{ id: string; type: string; [k: string]: unknown }> = []) {
+  const features = [...baseFeatures, ...extra];
   const store = createStore();
   const edits: EditOp[][] = [];
   const started: string[] = [];
@@ -53,6 +54,17 @@ describe('tree interaction in the app', () => {
     const t = setup();
     fireEvent.click(t.row('F2'));
     expect(t.setRefSel).toHaveBeenCalledWith(null);
+  });
+
+  it('a plain click on a plane feature row replaces a stale face selection; Ctrl-click keeps it', () => {
+    const w = setup([{ id: 'F5', type: 'plane', mode: 'offset', base: 'top', offset: 10 }]);
+    w.store.select(['F2.C1']);
+    fireEvent.click(w.row('F5'));
+    expect(w.store.selection.value).toEqual([]);
+    w.store.select(['F2.C1']);
+    fireEvent.click(w.row('F1'), { ctrlKey: true });
+    fireEvent.click(w.row('F5'), { ctrlKey: true });
+    expect(w.store.selection.value).toEqual(['F2.C1']);
   });
 
   it('Ctrl-click adds to the selection, Shift-click takes a range, and dependents are marked', () => {

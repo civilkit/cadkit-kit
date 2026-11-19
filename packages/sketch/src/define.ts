@@ -7,8 +7,9 @@
  * stub.
  *
  *   fullyDefine     adds constraints until the degrees of freedom reach zero, first the relations the drawing already
- *                   shows (horizontal, vertical, parallel, perpendicular, equal), then dimensions taken from the
- *                   present geometry (radii, lengths, angles, positions from the origin). A candidate the solver calls
+ *                   shows (coincident, point on a curve, tangent, concentric, horizontal, vertical, parallel, perpendicular,
+ *                   equal), then dimensions taken from the
+ *                   present geometry (radii, lengths, angles, positions from the origin), their values rounded by `roundDimension`. A candidate the solver calls
  *                   redundant or conflicting is thrown away, so the result is never over-constrained.
  *   definitionMap   per entity: `full` (nothing about it can move), `under` (it can still move or change) or `over`
  *                   (a constraint that mentions it is in conflict). Found by pinning each free point in turn and asking
@@ -38,6 +39,20 @@ export interface DefineResult {
 
 const DIM = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'angle']);
 const round = (v: number) => Math.round(v * 1e4) / 1e4;
+
+/**
+ * The value a dimension is given from a measured one: the nearest half (0.5 mm, or 0.5 degree) when that is within 1% of the
+ * measurement, else two decimals (four when two would round a small positive value to nothing). A measurement of 19.97 becomes 20,
+ * 19.26 stays 19.26, and a dimension never carries spurious precision such as 19.2631.
+ */
+export function roundDimension(v: number): number {
+  if (!Number.isFinite(v)) return v;
+  const a = Math.abs(v), sign = v < 0 ? -1 : 1;
+  const half = Math.round(a * 2) / 2;
+  if (half > 0 && Math.abs(half - a) <= 0.01 * a) return sign * half;
+  const two = Math.round(a * 100) / 100;
+  return sign * (two === 0 && a > 0 ? round(a) : two);
+}
 const pm = (d: SketchDraft) => new Map(d.points.map((p) => [p.id, p]));
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 
@@ -52,12 +67,160 @@ export function entityPoints(e: DraftEntity): string[] {
   return out;
 }
 
-interface Candidate { type: string; refs: string[]; value?: number | number[]; extra?: Record<string, unknown>; kind: 'relation' | 'dimension' }
+export interface Candidate { type: string; refs: string[]; value?: number | number[]; extra?: Record<string, unknown>; kind: 'relation' | 'dimension' }
 
 /** Relations the drawing already satisfies (within a small tolerance) that no constraint states yet. */
 export function suggestRelations(d: SketchDraft): Candidate[] {
+  return [...suggestCoincidences(d), ...suggestCurveRelations(d), ...suggestLineRelations(d), ...suggestAlignments(d)];
+}
+
+/** How close counts as "already so": 0.2% of the sketch's extent, between 0.01 and 0.5 mm. */
+export function relationTolerance(d: SketchDraft): number {
+  if (!d.points.length) return 0.01;
+  const xs = d.points.map((p) => p.x), ys = d.points.map((p) => p.y);
+  const extent = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), 1);
+  return Math.min(0.5, Math.max(0.01, 0.002 * extent));
+}
+
+/** Points that end or place something (not only a centre): the ones that can sit on a curve or line up with another. */
+function placedPoints(d: SketchDraft): Set<string> {
+  const out = new Set<string>();
+  for (const e of d.entities) for (const k of ['p1', 'p2', 'p']) if (typeof e[k] === 'string') out.add(e[k] as string);
+  for (const e of d.entities) if (Array.isArray(e.pts)) for (const p of e.pts) if (typeof p === 'string') out.add(p);
+  return out;
+}
+
+/** Two points that lie within tolerance of each other (and no constraint joins them yet). */
+function suggestCoincidences(d: SketchDraft): Candidate[] {
+  const tol = relationTolerance(d);
+  const out: Candidate[] = [];
+  const lineEnds = new Set(d.entities.filter((e) => e.type === 'line').map((e) => [str(e.p1), str(e.p2)].sort().join('|')));
+  const joined = (a: string, b: string) => has(d, (c) => (c.type === 'coincident' || c.type === 'concentric') && refsSet(c).has(a) && refsSet(c).has(b));
+  for (let i = 0; i < d.points.length; i++) {
+    for (let j = i + 1; j < d.points.length; j++) {
+      const a = d.points[i], b = d.points[j];
+      if (a.fixed && b.fixed) continue;
+      if (Math.hypot(a.x - b.x, a.y - b.y) > tol) continue;
+      if (lineEnds.has([a.id, b.id].sort().join('|')) || joined(a.id, b.id)) continue;
+      out.push({ kind: 'relation', type: 'coincident', refs: [a.id, b.id] });
+    }
+  }
+  return out;
+}
+
+/** A circle or arc as centre point id, centre and radius (null when the draft does not say). */
+function curveOf(d: SketchDraft, pts: Map<string, Pt & { id: string }>, e: DraftEntity): { cid: string; c: Pt; r: number } | null {
+  const cid = str(e.c), c = pts.get(cid);
+  if (!c) return null;
+  if (e.type === 'circle') return Number(e.r) > 1e-9 ? { cid, c, r: Number(e.r) } : null;
+  const p = pts.get(str(e.p1));
+  const r = p ? Math.hypot(p.x - c.x, p.y - c.y) : NaN;
+  return r > 1e-9 ? { cid, c, r } : null;
+}
+
+/** Points on a curve, curves that touch, curves that share a centre. */
+function suggestCurveRelations(d: SketchDraft): Candidate[] {
+  const pts = pm(d), tol = relationTolerance(d), out: Candidate[] = [];
+  const placed = placedPoints(d);
+  const curves = d.entities.filter((e) => e.type === 'circle' || e.type === 'arc').flatMap((e) => { const g = curveOf(d, pts, e); return g ? [{ e, ...g }] : []; });
+  const lines = d.entities.filter((e) => e.type === 'line');
+  const stated = (type: string, ids: string[]) => has(d, (c) => c.type === type && ids.every((i) => refsSet(c).has(i)));
+  const joined = (a: string, b: string) => a === b || has(d, (c) => (c.type === 'coincident' || c.type === 'concentric') && refsSet(c).has(a) && refsSet(c).has(b));
+  // a point on a circle or arc / on a line, that is not one of the entity's own points
+  for (const pid of placed) {
+    const p = pts.get(pid);
+    if (!p) continue;
+    for (const k of curves) {
+      if (entityPoints(k.e).includes(pid) || stated('pointOnCircle', [pid, k.e.id])) continue;
+      if (Math.abs(Math.hypot(p.x - k.c.x, p.y - k.c.y) - k.r) > tol) continue;
+      // a point that already sits on one of this curve's own end points is the same thing as coincident
+      if (entityPoints(k.e).some((q) => joined(pid, q) || (pts.get(q) && Math.hypot(pts.get(q)!.x - p.x, pts.get(q)!.y - p.y) <= tol))) continue;
+      out.push({ kind: 'relation', type: 'pointOnCircle', refs: [pid, k.e.id] });
+    }
+    for (const l of lines) {
+      if (entityPoints(l).includes(pid) || stated('pointOnLine', [pid, l.id])) continue;
+      const a = pts.get(str(l.p1)), b = pts.get(str(l.p2));
+      if (!a || !b) continue;
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      if (len < 1e-9) continue;
+      const t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / (len * len);
+      const off = Math.abs((p.x - a.x) * (b.y - a.y) - (p.y - a.y) * (b.x - a.x)) / len;
+      if (off > tol || t < -tol / len || t > 1 + tol / len) continue;
+      if (Math.hypot(p.x - a.x, p.y - a.y) <= tol || Math.hypot(p.x - b.x, p.y - b.y) <= tol) continue;   // at an end: coincident covers it
+      out.push({ kind: 'relation', type: 'pointOnLine', refs: [pid, l.id] });
+    }
+  }
+  const sharedEnd = (a: DraftEntity, b: DraftEntity) => entityPoints(a).filter((q) => q !== str(a.c) && q !== str(b.c)).find((q) => entityPoints(b).includes(q));
+  const crossOf = (u: Pt, v: Pt) => Math.abs(u.x * v.y - u.y * v.x) / (Math.hypot(u.x, u.y) * Math.hypot(v.x, v.y));
+  const sinTol = Math.sin((1 * Math.PI) / 180);
+  for (let i = 0; i < curves.length; i++) {
+    for (let j = i + 1; j < curves.length; j++) {
+      const a = curves[i], b = curves[j];
+      const dd = Math.hypot(a.c.x - b.c.x, a.c.y - b.c.y);
+      if (dd <= tol) {
+        if (a.cid !== b.cid && !joined(a.cid, b.cid)) out.push({ kind: 'relation', type: 'concentric', refs: [a.e.id, b.e.id] });
+        continue;
+      }
+      if (stated('tangent', [a.e.id, b.e.id])) continue;
+      const at = sharedEnd(a.e, b.e);
+      if (at) {
+        // joined at an end: tangent there when the two radii through that end point line up
+        const q = pts.get(at)!;
+        if (crossOf({ x: q.x - a.c.x, y: q.y - a.c.y }, { x: q.x - b.c.x, y: q.y - b.c.y }) < sinTol) out.push({ kind: 'relation', type: 'tangent', refs: [a.e.id, b.e.id], extra: { at } });
+        continue;
+      }
+      if (Math.abs(dd - (a.r + b.r)) <= tol) out.push({ kind: 'relation', type: 'tangent', refs: [a.e.id, b.e.id] });
+      else if (Math.abs(a.r - b.r) > tol && Math.abs(dd - Math.abs(a.r - b.r)) <= tol) out.push({ kind: 'relation', type: 'tangent', refs: [a.e.id, b.e.id], extra: { internal: true } });
+    }
+  }
+  for (const l of lines) {
+    const a = pts.get(str(l.p1)), b = pts.get(str(l.p2));
+    if (!a || !b) continue;
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len < 1e-9) continue;
+    for (const k of curves) {
+      if (stated('tangent', [l.id, k.e.id])) continue;
+      const at = entityPoints(l).find((q) => entityPoints(k.e).includes(q) && q !== k.cid);
+      if (at) {
+        const q = pts.get(at)!;
+        const rad = { x: q.x - k.c.x, y: q.y - k.c.y };
+        // tangent at the shared end: the line is perpendicular to the radius there
+        if (Math.abs((b.x - a.x) * rad.x + (b.y - a.y) * rad.y) / (len * Math.hypot(rad.x, rad.y)) < sinTol) out.push({ kind: 'relation', type: 'tangent', refs: [l.id, k.e.id], extra: { at } });
+        continue;
+      }
+      const off = Math.abs((k.c.x - a.x) * (b.y - a.y) - (k.c.y - a.y) * (b.x - a.x)) / len;
+      const t = ((k.c.x - a.x) * (b.x - a.x) + (k.c.y - a.y) * (b.y - a.y)) / (len * len);
+      if (Math.abs(off - k.r) <= tol && t > -0.5 && t < 1.5) out.push({ kind: 'relation', type: 'tangent', refs: [l.id, k.e.id] });
+    }
+  }
+  return out;
+}
+
+/** Two placed points that share an x or a y (within tolerance), apart from the two ends of one line (the line's own horizontal / vertical covers those). */
+function suggestAlignments(d: SketchDraft): Candidate[] {
+  const tol = relationTolerance(d), out: Candidate[] = [];
+  const placed = placedPoints(d);
+  const pts = d.points.filter((p) => placed.has(p.id));
+  const lineEnds = new Set(d.entities.filter((e) => e.type === 'line').map((e) => [str(e.p1), str(e.p2)].sort().join('|')));
+  const stated = (a: string, b: string) => has(d, (c) => (c.type === 'horizontal' || c.type === 'vertical' || c.type === 'coincident') && refsSet(c).has(a) && refsSet(c).has(b));
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      const a = pts[i], b = pts[j];
+      if ((a.fixed && b.fixed) || lineEnds.has([a.id, b.id].sort().join('|')) || stated(a.id, b.id)) continue;
+      const dx = Math.abs(a.x - b.x), dy = Math.abs(a.y - b.y);
+      if (Math.hypot(dx, dy) <= tol) continue;      // the same place: coincident covers it
+      if (dy <= tol) out.push({ kind: 'relation', type: 'horizontal', refs: [a.id, b.id] });
+      else if (dx <= tol) out.push({ kind: 'relation', type: 'vertical', refs: [a.id, b.id] });
+    }
+  }
+  return out;
+}
+
+/** Lines that are horizontal, vertical, parallel, perpendicular or of equal length, and equal radii. */
+function suggestLineRelations(d: SketchDraft): Candidate[] {
   const pts = pm(d);
   const out: Candidate[] = [];
+  const tolLen = relationTolerance(d);
   const lines = d.entities.filter((e) => e.type === 'line');
   const dir = (e: DraftEntity) => {
     const a = pts.get(str(e.p1)), b = pts.get(str(e.p2));
@@ -86,7 +249,7 @@ export function suggestRelations(d: SketchDraft): Candidate[] {
       // two axis-aligned lines are already related through the axes: parallel / perpendicular would be redundant
       if (!both && cross < tol && !stated('parallel', [lines[i].id, lines[j].id])) out.push({ kind: 'relation', type: 'parallel', refs: [lines[i].id, lines[j].id] });
       else if (!both && dot < tol && !stated('perpendicular', [lines[i].id, lines[j].id])) out.push({ kind: 'relation', type: 'perpendicular', refs: [lines[i].id, lines[j].id] });
-      if (Math.abs(a.len - b.len) < 1e-6 * Math.max(a.len, 1) && !stated('equal', [lines[i].id, lines[j].id])) out.push({ kind: 'relation', type: 'equal', refs: [lines[i].id, lines[j].id] });
+      if (Math.abs(a.len - b.len) <= tolLen && !stated('equal', [lines[i].id, lines[j].id])) out.push({ kind: 'relation', type: 'equal', refs: [lines[i].id, lines[j].id] });
     }
   }
   const round_ = d.entities.filter((e) => e.type === 'circle' || e.type === 'arc');
@@ -97,7 +260,7 @@ export function suggestRelations(d: SketchDraft): Candidate[] {
   };
   for (let i = 0; i < round_.length; i++) {
     for (let j = i + 1; j < round_.length; j++) {
-      if (Math.abs(radius(round_[i]) - radius(round_[j])) < 1e-6 && !stated('equal', [round_[i].id, round_[j].id])) out.push({ kind: 'relation', type: 'equal', refs: [round_[i].id, round_[j].id] });
+      if (Math.abs(radius(round_[i]) - radius(round_[j])) <= tolLen && !stated('equal', [round_[i].id, round_[j].id])) out.push({ kind: 'relation', type: 'equal', refs: [round_[i].id, round_[j].id] });
     }
   }
   return out;
@@ -113,7 +276,7 @@ export function suggestDimensions(d: SketchDraft): Candidate[] {
     if (e.type === 'circle' || e.type === 'arc') {
       if (dimmed('radius', [e.id]) || dimmed('diameter', [e.id])) continue;
       const r = e.type === 'circle' ? Number(e.r) : (() => { const c = pts.get(str(e.c)), p = pts.get(str(e.p1)); return c && p ? dist(c, p) : NaN; })();
-      if (r > 1e-9) out.push({ kind: 'dimension', type: 'radius', refs: [e.id], value: round(r) });
+      if (r > 1e-9) out.push({ kind: 'dimension', type: 'radius', refs: [e.id], value: roundDimension(r) });
     }
   }
   for (const e of d.entities) {
@@ -122,7 +285,7 @@ export function suggestDimensions(d: SketchDraft): Candidate[] {
     if (!a || !b || dimmed('distance', [str(e.p1), str(e.p2)])) continue;
     if (a.fixed && b.fixed) continue;
     const l = dist(a, b);
-    if (l > 1e-9) out.push({ kind: 'dimension', type: 'distance', refs: [str(e.p1), str(e.p2)], value: round(l) });
+    if (l > 1e-9) out.push({ kind: 'dimension', type: 'distance', refs: [str(e.p1), str(e.p2)], value: roundDimension(l) });
   }
   const lines = d.entities.filter((e) => e.type === 'line');
   for (let i = 0; i < lines.length; i++) {
@@ -130,7 +293,7 @@ export function suggestDimensions(d: SketchDraft): Candidate[] {
       const shared = [str(lines[i].p1), str(lines[i].p2)].find((p) => p === str(lines[j].p1) || p === str(lines[j].p2));
       if (!shared || dimmed('angle', [lines[i].id, lines[j].id])) continue;
       const spec = angleSpec(d, lines[i].id, lines[j].id);
-      if (spec && spec.measured > 0.01 && spec.measured < 179.99) out.push({ kind: 'dimension', type: 'angle', refs: spec.refs, value: round(spec.measured), extra: spec.extra });
+      if (spec && spec.measured > 0.01 && spec.measured < 179.99) out.push({ kind: 'dimension', type: 'angle', refs: spec.refs, value: roundDimension(spec.measured), extra: spec.extra });
     }
   }
   const origin = d.points.find((p) => p.fixed && p.x === 0 && p.y === 0);
@@ -139,12 +302,19 @@ export function suggestDimensions(d: SketchDraft): Candidate[] {
     if (origin) {
       if (Math.abs(p.x) < 1e-9 && Math.abs(p.y) < 1e-9) out.push({ kind: 'dimension', type: 'coincident', refs: [origin.id, p.id] });
       else {
-        if (!dimmed('hdist', [origin.id, p.id])) out.push({ kind: 'dimension', type: 'hdist', refs: [origin.id, p.id], value: round(Math.abs(p.x)) });
-        if (!dimmed('vdist', [origin.id, p.id])) out.push({ kind: 'dimension', type: 'vdist', refs: [origin.id, p.id], value: round(Math.abs(p.y)) });
+        if (!dimmed('hdist', [origin.id, p.id])) out.push({ kind: 'dimension', type: 'hdist', refs: [origin.id, p.id], value: roundDimension(Math.abs(p.x)) });
+        if (!dimmed('vdist', [origin.id, p.id])) out.push({ kind: 'dimension', type: 'vdist', refs: [origin.id, p.id], value: roundDimension(Math.abs(p.y)) });
       }
-    } else if (!has(d, (c) => c.type === 'fix' && c.refs?.[0] === p.id)) out.push({ kind: 'dimension', type: 'fix', refs: [p.id], value: [round(p.x), round(p.y)] });
+    } else if (!has(d, (c) => c.type === 'fix' && c.refs?.[0] === p.id)) out.push({ kind: 'dimension', type: 'fix', refs: [p.id], value: [roundDimension(p.x), roundDimension(p.y)] });
   }
   return out;
+}
+
+/** A candidate as a constraint added to the draft (the id is the next free `k`). */
+export function addCandidate(d: SketchDraft, c: Candidate): { draft: SketchDraft; id: string } {
+  const id = nextId(d, 'k');
+  const k: DraftConstraint = { id, type: c.type, refs: [...c.refs], ...(c.value !== undefined ? { value: c.value } : {}), ...(c.extra ?? {}) };
+  return { draft: { ...d, constraints: [...d.constraints, k] }, id };
 }
 
 const unsolvedOrBad = (s: SketchSolverStatus | null, id: string) => !s || !s.solved || s.conflicts.includes(id) || s.redundant.includes(id);
@@ -188,7 +358,17 @@ export async function fullyDefine(draft: SketchDraft, solve: Solve, opts: { maxS
       s = await ask(trial);
     }
     if (s && s.solved && !s.conflicts.length && !s.redundant.length) { cur = trial; status = s; relations = ids.length; refused += 0; }
-    else refused += ids.length;
+    else {
+      // the batch did not hold together: try them one at a time, in order, keeping each that removes a degree of freedom
+      refused += ids.length;
+      for (const c of rel) {
+        if (!status || status.dof === 0 || budget <= 30) break;
+        const r = add(cur, c);
+        const one = await ask(r.draft);
+        if (unsolvedOrBad(one, r.id) || (one && one.dof >= status.dof)) continue;
+        cur = r.draft; status = one; relations++; refused--;
+      }
+    }
   }
 
   // 2. dimensions, one at a time: kept only if the solver sees them as new information

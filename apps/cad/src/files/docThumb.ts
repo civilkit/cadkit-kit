@@ -83,12 +83,12 @@ export const isFresh = (t: DocThumbnail | null | undefined, doc: unknown): t is 
 export type DocRenderer = (doc: PartDoc, size: { width: number; height: number }) => Promise<Uint8Array | null>;
 
 /** Make the thumbnail of a document: the largest size whose PNG fits THUMB_MAX_BYTES. Null when it has no solid or no size fits. */
-export async function makeDocThumbnail(doc: PartDoc, render: DocRenderer): Promise<DocThumbnail | null> {
+export async function makeDocThumbnail(doc: PartDoc, render: DocRenderer, sizes: Array<[number, number]> = THUMB_SIZES, maxBytes = THUMB_MAX_BYTES): Promise<DocThumbnail | null> {
   const hash = docHash(doc);
-  for (const [width, height] of THUMB_SIZES) {
+  for (const [width, height] of sizes) {
     const png = await render(doc, { width, height });
     if (!png) return null;
-    if (png.length <= THUMB_MAX_BYTES) return { format: 'png', width, height, hash, data: bytesToBase64(png) };
+    if (png.length <= maxBytes) return { format: 'png', width, height, hash, data: bytesToBase64(png) };
   }
   return null;
 }

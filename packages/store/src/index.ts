@@ -14,8 +14,8 @@ export const vertexName = (p: number[]): string => `v:${p.map((x) => (Math.round
 export const parseVertexName = (n: string): number[] | null => (n.startsWith('v:') ? n.slice(2).split(',').map(Number) : null);
 /** Selection name of the whole body (Alt+click in the viewport, the Select body command). */
 export const BODY = '@body';
-import { createNotifications, type Notice, type NoticeLevelInput } from './notifications';
-export { createNotifications, noticeDuration, normaliseLevel, HISTORY_MAX, LIVE_MAX, type Notice, type NoticeLevel, type NoticeLevelInput, type Notifications } from './notifications';
+import { createNotifications, type Notice, type NoticeLevelInput, type NotifyOptions } from './notifications';
+export { createNotifications, noticeDuration, normaliseLevel, HISTORY_MAX, LIVE_MAX, type Notice, type NoticeLevel, type NoticeLevelInput, type NotifyOptions, type Notifications } from './notifications';
 export type DisplayLayer = 'sketches' | 'curves' | 'planes' | 'axes' | 'relations' | 'edges' | 'hidden' | 'grid' | 'dimensions' | 'threads' | 'issues';
 export type Display = Record<DisplayLayer, boolean>;
 export const DEFAULT_DISPLAY: Display = { sketches: true, curves: true, planes: false, axes: true, relations: true, edges: true, hidden: false, grid: true, dimensions: false, threads: true, issues: false };
@@ -100,7 +100,7 @@ export function createStore(initialDisplay: Partial<Display> = {}, initialWorksp
   const facts = signal<{ faces: number; triangles: number; rebuildMs: number | null }>({ faces: 0, triangles: 0, rebuildMs: null });
 
   /** The one way to tell the user something transient (see notifications.ts): info, success, warning (`warn` still works) or error, with an optional action button. */
-  const notify = (text: string, level: NoticeLevelInput = 'info', action?: Notice['action']): void => { alerts.notify(text, level, action); };
+  const notify = (text: string, level: NoticeLevelInput = 'info', action?: Notice['action'], opts?: NotifyOptions): void => { alerts.notify(text, level, action, opts); };
   return {
     selection, mode, hover, filters, tool, busy, cached, notices, alerts, featureStatus, featureWarnings, display, workspace, facts, notify,
     setWorkspace(patch: Partial<Workspace>) {

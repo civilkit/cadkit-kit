@@ -164,3 +164,11 @@ describe('dimension to a body edge', () => {
     expect(refs(o)).toHaveLength(0);
   });
 });
+
+describe('dimension value box command keys', () => {
+  it('offers H, V, A and R to the box for a length, and none for an angle', () => {
+    const o = run(dimensionTool, [point('p1'), point('p2')]);
+    expect(o.fields[0].keys).toEqual(['h', 'v', 'a', 'r']);
+    expect(run(dimensionTool, [point('p1')]).fields).toEqual([]);
+  });
+});

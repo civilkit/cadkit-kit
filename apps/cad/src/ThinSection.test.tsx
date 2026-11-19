@@ -17,7 +17,7 @@ const sketch = (extra: Wire[] = []): Wire => ({
 const doc = (...f: Wire[]): PartDoc => ({ format: 'ck-part', version: 1, name: 't', features: f, seq: 9 }) as unknown as PartDoc;
 const EXTRUDE = { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 5 };
 
-function mount(feature: Wire, d: PartDoc, actions?: { closeWithLine(id: string): void; asSurface(): void; cutProblem?: 'nothing' | 'miss' | null }) {
+function mount(feature: Wire, d: PartDoc, actions?: { closeWithLine(id: string): void; asSurface(): void; cutProblem?: 'nothing' | 'miss' | null; cutSide?: 'toward' | 'away' | 'both' | null }) {
   const drafts: Wire[] = [];
   const r = render(<FeatureEditor feature={feature} onDraft={(x) => drafts.push(x)} onConfirm={() => {}} onCancel={() => {}} options={(a) => optionsFor(a, d, actions)} />);
   const q = (sel: string) => r.container.querySelector(sel) as HTMLElement | null;
@@ -119,6 +119,36 @@ describe('operation row', () => {
     expect(m.q('[data-note="cut-nothing"]')!.textContent).toContain('Nothing to cut: no body under this sketch');
     fireEvent.click(m.q('[data-act="switch-add"]')!);
     expect(m.drafts.at(-1)).toMatchObject({ op: 'add' });
+  });
+  it('a Through all cut that misses the body the other way offers Flip direction and Both directions', () => {
+    const THRU = { ...CUT, end: 'through', depth: undefined };
+    const m = mount(THRU, doc(closed(), THRU), { closeWithLine() {}, asSurface() {}, cutProblem: 'miss', cutSide: 'away' });
+    const note = m.q('[data-note="cut-miss"]')!;
+    expect(note.textContent).toContain('this cut does not reach any body');
+    fireEvent.click(note.querySelector('[data-act="flip-cut"]')!);
+    expect(m.drafts.at(-1)).toMatchObject({ flip: true });
+    fireEvent.click(note.querySelector('[data-act="both-ways"]')!);
+    expect(m.drafts.at(-1)).toMatchObject({ end: 'throughBoth', flip: null });
+  });
+  it('no Flip offer when the whole body lies the way the cut already goes', () => {
+    const THRU = { ...CUT, end: 'through', depth: undefined };
+    const m = mount(THRU, doc(closed(), THRU), { closeWithLine() {}, asSurface() {}, cutProblem: 'miss', cutSide: 'toward' });
+    expect(m.q('[data-note="cut-miss"] [data-act="flip-cut"]')).toBeNull();
+    expect(m.q('[data-note="cut-miss"] [data-act="switch-add"]')).not.toBeNull();
+  });
+  it('Through all shows a Both directions box beside Flip; ticked, Flip goes and the end is through-both', () => {
+    const THRU = { ...CUT, end: 'through', depth: undefined };
+    const m = mount(THRU, doc(closed(), THRU));
+    const box = m.q('[data-path="bothWays"] input')! as HTMLInputElement;
+    expect(m.q('[data-path="bothWays"]')!.textContent).toBe('Both directions');
+    expect(box.checked).toBe(false);
+    expect(m.q('[data-path="flip"]')).not.toBeNull();
+    fireEvent.click(box);
+    expect(m.drafts.at(-1)).toMatchObject({ end: 'throughBoth', flip: null });
+    expect(m.q('[data-path="flip"]')).toBeNull();
+    expect((m.q('[data-path="bothWays"] input') as HTMLInputElement).checked).toBe(true);
+    cleanup();
+    expect(mount(CUT, doc(closed(), CUT)).q('[data-path="bothWays"]')).toBeNull();
   });
   it('no message for an add, or when the cut works', () => {
     expect(mount(EXTRUDE, doc(closed(), EXTRUDE), { closeWithLine() {}, asSurface() {}, cutProblem: 'nothing' }).q('[data-note="cut-nothing"]')).toBeNull();

@@ -118,3 +118,9 @@ export function rememberRoundPick(seeds: unknown[], all: unknown[]): void {
 }
 /** The pick an edge list of a feature came from, or null (edges picked by other means). */
 export const roundPickOf = (edges: unknown): RoundPick | null => (Array.isArray(edges) ? picks.get(sig(edges)) ?? null : null);
+
+/** True for a fillet / chamfer draft with no edges left: the "pick edges" state, which must not be previewed (the kernel refuses an empty
+ *  edge list, and that refusal would show as a broken model). */
+export function noRoundEdges(type: unknown, draft: Record<string, unknown>): boolean {
+  return (type === 'fillet' || type === 'chamfer') && Array.isArray(draft.edges) && draft.edges.length === 0;
+}

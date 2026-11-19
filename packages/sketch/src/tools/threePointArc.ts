@@ -19,14 +19,20 @@ export interface ThreePointArcState {
   cursor?: Pt;
 }
 
-function view(state: ThreePointArcState, draft: SketchDraft, settings: ToolSettings, hint?: string): ToolOutput<ThreePointArcState> {
+/** The pick the tool waits for, as an i18n key: shown whenever there is no refusal to report. */
+export function threePointArcStepHint(state: ThreePointArcState): string {
+  return !state.a ? 'app.sketch.hint.arc3.start' : !state.through ? 'app.sketch.hint.arc3.through' : 'app.sketch.hint.arc3.end';
+}
+
+function view(state: ThreePointArcState, draft: SketchDraft, settings: ToolSettings, refusal?: string): ToolOutput<ThreePointArcState> {
   const { a, through, cursor } = state;
+  const hint = refusal ?? threePointArcStepHint(state);
   if (!a || !cursor) return { state, draft, preview: [], fields: [], hint };
   if (!through) return { state, draft, preview: [{ kind: 'line', a: a.at, b: cursor }], fields: [], hint };
   const circle = circumcircle(a.at, through, cursor);
   if (!circle) {
     const bad = dist(through, cursor) < 1e-9 || dist(a.at, cursor) < 1e-9 ? undefined : 'app.sketch.hint.collinear';
-    return { state, draft, preview: [{ kind: 'line', a: a.at, b: through }, { kind: 'line', a: through, b: cursor }], fields: [], hint: hint ?? bad };
+    return { state, draft, preview: [{ kind: 'line', a: a.at, b: through }, { kind: 'line', a: through, b: cursor }], fields: [], hint: refusal ?? bad ?? hint };
   }
   const ccw = turnsCcw(a.at, through, cursor);
   const [from, to] = ccw ? [a.at, cursor] : [cursor, a.at];

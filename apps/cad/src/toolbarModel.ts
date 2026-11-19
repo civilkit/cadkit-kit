@@ -35,7 +35,7 @@ export const SLOTS: Record<string, string[]> = {
   background: ['bg-theme', 'bg-light', 'bg-dark', 'bg-gradient'],
   layers: ['layer-edges', 'layer-sketches', 'layer-curves', 'layer-planes', 'layer-axes', 'layer-grid', 'layer-relations', 'layer-dimensions', 'layer-threads'],
   'pick-mode': ['sel-face', 'sel-edge', 'sel-vertex', 'sel-body'],
-  'pick-grow': ['select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', 'select-same-size'],
+  'pick-grow': ['select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', 'select-same-size', 'select-junction'],
   'pick-set': ['select-all', 'select-invert', 'select-none', 'select-box', 'select-body', 'show-in-tree'],
   measure: ['measure', 'mass-props', 'interference', 'section-view'],
   'surface-check': ['analysis-zebra', 'analysis-gaussian', 'analysis-mean', 'analysis-draft', 'analysis-comb'],
@@ -48,7 +48,7 @@ const slot = (id: string, extra: Partial<Extract<RibbonEntry, object>> = {}): Ri
 /** The ribbon: tabs of titled groups. Group titles are `group.<id>` in the catalogue. */
 export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEntry[] }>> = {
   Home: [
-    { id: 'Sketch', entries: [slot('new-sketch'), 'add-sketch3d'] },
+    { id: 'Sketch', entries: [slot('new-sketch', { fixed: true }), 'add-sketch3d'] },
     { id: 'Create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('primitives'), slot('solids'), slot('hole'), slot('catalog')] },
     { id: 'Modify', entries: [slot('edge-round'), 'add-shell', 'add-press-pull'] },
     { id: 'Pattern', entries: [slot('pattern')] },
@@ -89,7 +89,8 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
     { id: 'Position', entries: ['triball'] },
   ],
   Evaluate: [
-    { id: 'Measure', entries: [slot('measure')] },
+    // plain buttons: Mass properties, Overlap and Section are one click each, not hidden in a dropdown (the palette keeps the one slot)
+    { id: 'Measure', entries: [...SLOTS.measure] },
     { id: 'Surface analysis', entries: [slot('surface-check')] },
   ],
   Assembly: [
@@ -102,7 +103,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
  *  command in this build is skipped. Above these the palette adds a "For selection" slot when something is selected. */
 export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
   { id: 'history', entries: ['undo', 'redo', 'repeat-last', slot('history')] },
-  { id: 'sketch', entries: [slot('new-sketch'), 'add-sketch3d'] },
+  { id: 'sketch', entries: [slot('new-sketch', { fixed: true }), 'add-sketch3d'] },
   { id: 'create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('primitives'), slot('solids'), slot('hole'), slot('gear'), 'add-plugin', slot('reference'), slot('catalog')] },
   { id: 'modify', entries: [slot('edge-round'), 'add-shell', 'add-press-pull', slot('draft'), 'add-mirror', 'add-scale', 'add-split', 'add-split-face', 'add-combine', 'add-lip-joint', 'triball', 'add-pipe-cut', slot('delete-geom')] },
   { id: 'frame', entries: ['add-frame', 'frame-cutlist'] },

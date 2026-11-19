@@ -183,7 +183,7 @@ describe('sketchRibbonGroups (the contextual Sketch tab)', () => {
     for (const a of ['sketch-construction', 'look-normal']) expect(container.querySelectorAll(`[data-action="${a}"]`).length, a).toBe(1);
     for (const a of ['sketch-extrude', 'sketch-revolve']) expect(container.querySelectorAll(`[data-slot="${a}"] button`).length, a).toBe(1);
     expect(container.querySelectorAll('[data-action="look-normal-chip"]').length).toBe(0);
-    expect(container.querySelector('[data-action="look-normal"]')!.textContent).toBe('Look normal (N)');
+    expect(container.querySelector('[data-action="look-normal"]')!.getAttribute('aria-label')).toMatch(/^Look normal: /);
     expect(container.querySelector('.look-hint')).not.toBeNull();
     fireEvent.click(container.querySelector('[data-slot="sketch-extrude"] button')!); expect(c.onExtrude).toHaveBeenCalled();
     fireEvent.click(container.querySelector('[data-slot="sketch-revolve"] button')!); expect(c.onRevolve).toHaveBeenCalled();
@@ -204,6 +204,30 @@ describe('sketchRibbonGroups (the contextual Sketch tab)', () => {
     fireEvent.click(container.querySelector('.dof-chip')!);
     expect(container.querySelector('.the-list')).not.toBeNull();
     fireEvent.click(container.querySelector('[data-action="fully-define"]')!); expect(c.onFullyDefine).toHaveBeenCalled();
-    expect([...container.querySelectorAll('.aux-pop button')].some((b) => /Snaps/.test(b.textContent ?? ''))).toBe(true);
+    expect(container.querySelector('.aux-pop [data-action="snaps"]')!.getAttribute('aria-label')).toMatch(/^Snaps: /);
+  });
+  it('the Status group is icon buttons: every one has an aria-label with name and description and no visible text (Fully define adds its name only when wide)', async () => {
+    const { container } = await draw({ ...controls(), onShowConstraints: vi.fn(), onShowFree: vi.fn(), onReport: vi.fn() } as never);
+    const btns = [...container.querySelectorAll<HTMLElement>('.sk-status button.rb-ico')];
+    expect(btns.map((b) => b.dataset.action)).toEqual(['fully-define', 'show-freedom', 'show-constraints', 'sketch-report', 'snaps', 'look-normal']);
+    for (const b of btns) { expect(b.getAttribute('aria-label')).toMatch(/\S: \S/); expect(b.querySelector('svg')).not.toBeNull(); expect((b.textContent ?? '').replace('▾', '').trim()).toBe(''); }
+    expect(container.querySelector('[data-action="show-constraints"]')!.getAttribute('aria-label')).toBe('Show constraints: Draw every constraint symbol and dimension (Shift+C)');
+    expect(container.querySelector('[data-action="show-constraints"]')!.getAttribute('aria-pressed')).toBe('false');
+  });
+  it('wide: Fully define shows its name; narrow: the badge plus one "..." menu holding the same items', async () => {
+    const { SketchStatus } = await import('./SketchBar');
+    const c = { ...controls(), onShowConstraints: vi.fn(), onReport: vi.fn(), onShowFree: vi.fn() };
+    const wide = render(<SketchStatus {...c} width={1441} />);
+    expect(wide.container.querySelector('[data-action="fully-define"]')!.textContent).toBe('Fully define');
+    cleanup();
+    const narrow = render(<SketchStatus {...c} width={800} />);
+    expect(narrow.container.querySelector('.dof-chip')!.textContent).toBe('3 DOF');
+    expect(narrow.container.querySelectorAll('.sk-status > button, .sk-status [data-action="fully-define"]').length).toBe(0);
+    fireEvent.click(narrow.container.querySelector('[data-action="status-more"]')!);
+    const menu = [...document.querySelectorAll<HTMLElement>('.aux-menu [data-action]')].map((b) => b.dataset.action);
+    expect(menu).toEqual(['fully-define', 'show-freedom', 'show-constraints', 'sketch-report', 'look-normal']);
+    fireEvent.click(document.querySelector('.aux-menu [data-action="show-constraints"]')!);
+    expect(c.onShowConstraints).toHaveBeenCalled();
+    expect(document.querySelector('.aux-menu input[type="checkbox"]')).not.toBeNull();   // the Snaps choices
   });
 });

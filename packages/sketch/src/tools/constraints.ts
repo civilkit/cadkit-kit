@@ -93,9 +93,11 @@ export function resolve(kind: ConstraintKind, d: SketchDraft, picks: readonly Pi
     case 'horizontal':
     case 'vertical':
       if (a.kind === 'line') return picks.length === 1 ? { spec: { type: kind, refs: [a.id] } } : bad;
-      if (a.kind !== 'point') return bad;
+      // a circle or arc stands for its centre (as in Equal, Concentric ...), so two circles line up by their centres
+      if (a.kind !== 'point' && !isCurve(a)) return bad;
       if (picks.length === 1) return { more: true };
-      return b.kind === 'point' ? { spec: { type: kind, refs: [a.id, b.id] } } : bad;
+      if (b.kind !== 'point' && !isCurve(b)) return bad;
+      return { spec: { type: kind, refs: [centerId(d, a.id) ?? a.id, centerId(d, b.id) ?? b.id] } };
     case 'fix': {
       if (a.kind !== 'point') return bad;
       const p = xy(d, a.id);
@@ -142,13 +144,16 @@ export function resolve(kind: ConstraintKind, d: SketchDraft, picks: readonly Pi
       return { spec: tangentSpec(d, a, b) };
     }
     case 'symmetric': {
-      if (last.kind !== 'point' && last.kind !== 'line') return bad;
-      const pts = picks.filter((p) => p.kind === 'point'), lines = picks.filter((p) => p.kind === 'line');
+      // a circle or arc stands for its centre, as in Horizontal, Equal ...
+      const isPt = (p: Pick) => p.kind === 'point' || isCurve(p);
+      if (!isPt(last) && last.kind !== 'line') return bad;
+      const pts = picks.filter(isPt), lines = picks.filter((p) => p.kind === 'line');
       if (pts.length > 2 || lines.length > 1) return bad;
       if (picks.length < 3) return { more: true };
       const ends = lineEnds(d, lines[0].id) ?? ['', ''];
-      if (pts.some((p) => ends.includes(p.id))) return bad; // a point on the axis cannot mirror anything
-      return { spec: { type: 'symmetric', refs: [pts[0].id, pts[1].id, lines[0].id] } };
+      const ids = pts.map((p) => centerId(d, p.id) ?? p.id);
+      if (ids.some((p) => ends.includes(p))) return bad; // a point on the axis cannot mirror anything
+      return { spec: { type: 'symmetric', refs: [ids[0], ids[1], lines[0].id] } };
     }
   }
 }

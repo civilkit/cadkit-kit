@@ -57,10 +57,14 @@ export interface FieldSpec {
   value: number;
   locked: boolean;
   unit: 'length' | 'angle' | 'count';
+  /** i18n key of a longer name for the box (its tooltip), e.g. 'Radius (mm)'. */
+  tip?: string;
   /** The expression (no leading =) the value is linked to, when it has one. */
   expr?: string;
   /** A small switch beside the field (the line tool's relative angle): clicking it sends a `field` event with this id and 1 (turn on) or 0. */
   toggle?: { id: string; on: boolean; /** i18n keys */ label: string; tip: string };
+  /** Single keys (lower case) the tool reads as commands: pressed in this field while it is empty or its text is wholly selected, the key goes to the tool as a `key` event instead of being typed. */
+  keys?: string[];
 }
 
 /** One row of a tool's side panel. Every edit goes back to the tool as a `field` event with the row's id: a number row sends its value,

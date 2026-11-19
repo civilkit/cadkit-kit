@@ -17,13 +17,16 @@ export function revealScroll(m: StripMetrics, item: { left: number; width: numbe
   return Math.min(max, Math.max(0, Math.round(to)));
 }
 
-/** The scrollLeft one group further in `dir` (-1 left, 1 right). `starts` are the groups' left edges in content coordinates (ascending). Always moves at least a little,
- *  and lands on a group start, except that the last step clamps to the end. */
-export function stepScroll(m: StripMetrics, starts: number[], dir: -1 | 1): number {
+/** The scrollLeft one group further in `dir` (-1 left, 1 right). `starts` are the left edges (content coordinates, ascending) of the groups that scroll
+ *  (never the pinned ones: a sticky group reports its stuck position, which moves with the scroll and would make every click a few pixels). `pinW` is the
+ *  width of the pinned groups at the left, which a group must land after. Always moves at least a little, and lands on a group start, except that the
+ *  last step clamps to the end. */
+export function stepScroll(m: StripMetrics, starts: number[], dir: -1 | 1, pinW = 0): number {
   const max = Math.max(0, m.scrollWidth - m.clientWidth);
   const cur = m.scrollLeft, eps = 4;
+  const at = starts.map((s) => s - pinW);
   let to = cur;
-  if (dir > 0) { const next = starts.find((s) => s > cur + eps); to = next === undefined ? max : next; if (to - cur < 1 && cur < max) to = max; }
-  else { const prev = [...starts].reverse().find((s) => s < cur - eps); to = prev ?? 0; }
+  if (dir > 0) { const next = at.find((s) => s > cur + eps); to = next === undefined ? max : next; if (to - cur < 1 && cur < max) to = max; }
+  else { const prev = [...at].reverse().find((s) => s < cur - eps); to = prev ?? 0; }
   return Math.min(max, Math.max(0, Math.round(to)));
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isTextEntry, scriptOwnsKey } from './keyGuard';
+import { isTextEntry, scriptOwnsKey, viewKeysActive } from './keyGuard';
 
 const el = (html: string): HTMLElement => { const d = document.createElement('div'); d.innerHTML = html; document.body.append(d); return d.firstElementChild as HTMLElement; };
 describe('keyGuard', () => {
@@ -23,5 +23,12 @@ describe('keyGuard', () => {
     expect(scriptOwnsKey(false, document.body)).toBe(false);
     expect(scriptOwnsKey(true, document.body, true)).toBe(false);   // the last press was on the canvas, which takes no focus
     expect(scriptOwnsKey(true, document.body, false)).toBe(true);
+  });
+});
+
+describe('viewKeysActive', () => {
+  it('view digits are off while a feature editor is open', () => {
+    expect(viewKeysActive(false)).toBe(true);
+    expect(viewKeysActive(true)).toBe(false);
   });
 });

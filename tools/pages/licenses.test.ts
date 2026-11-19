@@ -1,55 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { filterKernelThirdParty, mdToHtml, renderLicensesHtml } from './licenses.mjs';
+import { groupLicences, renderLicensesHtml } from './licenses.mjs';
 
-const kernel = `# Third-party code
+const mit = (who: string) => `MIT License\n\nCopyright (c) ${who}\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software.`;
 
-| Path | Source | Licence |
-|---|---|---|
-| crates/ck-check/src/x.rs | brepkit | MIT OR Apache-2.0 |
-| crates/ck-io/src/sat/{mod,parse,build}.rs | the author's own earlier private SAT parser | same author |
-| crates/ck-skp/src/vff.rs, crates/ck-skp/NOTICE | OpenSKP (c) Ahsan Mehmood | MIT |
-| crates/ck-skp/tests/fixtures/*.skp | fixtures | MIT |
-| crates/new-thing/foo.rs | something nobody reviewed | MIT |
-
-## Curated fonts (hosted by the kit)
-
-| Role | Font |
-|---|---|
-| sans | Barlow |
-`;
-
-describe('filterKernelThirdParty', () => {
-  const r = filterKernelThirdParty(kernel);
-  it('keeps reviewed rows and drops private-project rows, unreviewed rows and the hosted-fonts section', () => {
-    expect(r.md).toContain('crates/ck-check/src/x.rs');
-    expect(r.md).not.toContain('earlier private SAT parser');
-    expect(r.md).not.toContain('new-thing');
-    expect(r.md).toContain('Ahsan Mehmood');
-    expect(r.md).not.toContain('ck-skp/tests/fixtures');
-    expect(r.md).not.toContain('Barlow');
-    expect(r.md).toContain('| Path | Source | Licence |');
-  });
-  it('lists what it removed and why', () => {
-    expect(r.filtered.map((f) => f.why)).toEqual(expect.arrayContaining([expect.stringContaining('private project'), 'not reviewed for publication']));
-  });
-});
-
-describe('mdToHtml', () => {
-  it('escapes HTML, renders tables and fences', () => {
-    const h = mdToHtml('# T\n\n| a | b |\n|---|---|\n| <x> | `c` |\n\n```\n<pre>\n```');
-    expect(h).toContain('<h1>T</h1>');
-    expect(h).toContain('<td>&lt;x&gt;</td>');
-    expect(h).toContain('<td><code>c</code></td>');
-    expect(h).toContain('<pre>&lt;pre&gt;</pre>');
+describe('groupLicences', () => {
+  it('shows one copy of the MIT text with every copyright line, and one copy of an identical Apache text', () => {
+    const g = groupLicences([
+      { title: 'MIT: a', text: mit('2026 Alice') }, { title: 'MIT: b', text: mit('2024 Bob') },
+      { title: 'Apache License 2.0: x', text: 'Apache License Version 2.0' }, { title: 'Apache License 2.0: y', text: 'Apache License\nVersion 2.0' },
+      { title: 'Notice: x', text: 'NOTICE body' },
+    ]);
+    expect(g.licences.map((l: { title: string }) => l.title)).toEqual(['MIT licence', 'Apache License 2.0']);
+    expect(g.licences[0].copyrights).toEqual(['Copyright (c) 2026 Alice', 'Copyright (c) 2024 Bob']);
+    expect(g.licences[0].text.startsWith('Permission is hereby granted')).toBe(true);
+    expect(g.notices).toHaveLength(1);
   });
 });
 
 describe('renderLicensesHtml', () => {
-  it('includes BOSL2 text passed in the kit file and links back to the app', () => {
-    const h = renderLicensesHtml({ kit: '## BOSL2 licence (BSD 2-Clause)\n\n```\nBSD 2-Clause License\n```', licences: [{ title: 'OFL', text: 'SIL OPEN FONT LICENSE' }], deps: [{ name: 'preact', version: '10', license: 'MIT' }] });
-    expect(h).toContain('BSD 2-Clause License');
-    expect(h).toContain('SIL OPEN FONT LICENSE');
-    expect(h).toContain('href="./"');
+  it('lists components and packages, the licence texts once, and links back to the app', () => {
+    const h = renderLicensesHtml({ licences: [{ title: 'MIT: a', text: mit('2026 Alice') }], deps: [{ name: 'preact', version: '10', license: 'MIT', copyright: 'Copyright (c) Jason Miller' }] });
     expect(h).toContain('<code>preact</code>');
+    expect(h).toContain('BOSL2');
+    expect(h).toContain('Copyright (c) 2026 Alice');
+    expect(h).toContain('href="./"');
   });
 });

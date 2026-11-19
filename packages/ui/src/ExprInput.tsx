@@ -1,5 +1,5 @@
 import { createContext } from 'preact';
-import { useContext, useRef, useState } from 'preact/hooks';
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { t } from './i18n';
 import { EMPTY_SCOPE, ERROR_TEXT, completions, evalExpr, isExprValue, parseAssignment, parseFieldText, type ExprCode, type Scope } from './expr';
@@ -10,6 +10,16 @@ export const useScope = (): Scope => useContext(VarsContext);
 
 /** Pixel width for a monospace value box holding `text`: the usual 64 px, then one character at a time up to a cap. */
 export const growWidth = (text: string): number => Math.min(320, Math.max(64, Math.ceil(text.length * 8 + 16)));
+
+/** Where the completion list goes: below the field unless it does not fit there and there is more room above (then it flips up), and shifted left when its width would run past the right edge.
+ *  `field` is the box's rect, `list` the list's size, `view` the viewport size. */
+export function placePopup(field: { left: number; top: number; bottom: number }, list: { width: number; height: number }, view: { width: number; height: number }, margin = 8): { up: boolean; shiftX: number; maxHeight: number } {
+  const below = view.height - field.bottom - margin, above = field.top - margin;
+  const up = list.height > below && above > below;
+  const room = up ? above : below;
+  const over = field.left + list.width - (view.width - margin);
+  return { up, shiftX: over > 0 ? -Math.min(over, Math.max(0, field.left - margin)) : 0, maxHeight: Math.max(60, Math.min(180, room)) };
+}
 
 const fmt = (v: number): string => String(Math.round(v * 1e6) / 1e6);
 
@@ -71,6 +81,20 @@ export function ExprInput(p: {
   const value = res && res.ok ? res.value : null;
   const wantList = open && /^=|[A-Za-z_]$/.test(shown.trim());
   const items = wantList ? completions(shown, scope).slice(0, 8) : [];
+  const list = useRef<HTMLUListElement>(null);
+  // keep the list on screen (flip above near the bottom edge, shift left near the right edge) and the active row in view
+  useLayoutEffect(() => {
+    const ul = list.current, host = ul?.parentElement;
+    if (!ul || !host || typeof innerWidth !== 'number') return;
+    ul.style.transform = ''; ul.classList.remove('up'); ul.style.maxHeight = '';
+    const f = host.getBoundingClientRect(), l = ul.getBoundingClientRect();
+    if (!l.width) return;
+    const pl = placePopup(f, { width: l.width, height: ul.scrollHeight + 8 }, { width: innerWidth, height: innerHeight });
+    ul.style.maxHeight = pl.maxHeight + 'px';
+    if (pl.up) ul.classList.add('up');
+    if (pl.shiftX) ul.style.transform = `translateX(${pl.shiftX}px)`;
+  }, [items.length, items[0]?.name, shown]);
+  useEffect(() => { (list.current?.children[sel] as HTMLElement | undefined)?.scrollIntoView?.({ block: 'nearest' }); }, [sel, items.length]);
   const apply = (raw: string): void => {
     setText(raw);
     setOpen(true);
@@ -130,10 +154,10 @@ export function ExprInput(p: {
           aria-label={t('expr.sign', undefined, 'Change sign')} onMouseDown={keep} onClick={flip}>{'±'}</button>}
       </span>
       {items.length ? (
-        <ul class="expr-ac" role="listbox">
+        <ul ref={list} class="expr-ac" role="listbox">
           {items.map((it, i) => (
             <li key={it.name} role="option" aria-selected={i === sel} class={i === sel ? 'on' : ''} onMouseDown={(e) => { e.preventDefault(); pick(it.name); }}>
-              <span class="expr-ac-name">{it.name}{it.kind === 'fn' ? '(' : ''}</span>
+              <span class="expr-ac-name" title={it.name}>{it.name}{it.kind === 'fn' ? '(' : ''}</span>
               {it.value !== null ? <span class="expr-ac-val">{fmt(it.value)}</span> : null}
             </li>
           ))}

@@ -196,6 +196,20 @@ describe('a round shape shows one diameter', () => {
     const sh = shapeModel(d, 'F9', () => frame, null)!;
     expect(sh.diameter).toBe(false);
   });
+  it('an arc centre outside the outline does not enlarge the box (extrude and revolve)', () => {
+    // a shallow segment: the arc bulges to v = 2.36 but its centre sits at v = -20, off the outline
+    const seg = { type: 'sketch', id: 'S6', plane: { kind: 'std', id: 'front' }, points: [{ id: 'c', x: 0, y: -20 }, { id: 'a', x: 10, y: 0 }, { id: 'b', x: -10, y: 0 }], entities: [{ id: 'k1', type: 'arc', c: 'c', p1: 'a', p2: 'b' }, { id: 'k2', type: 'line', p1: 'b', p2: 'a' }], constraints: [] };
+    for (const f of [{ type: 'extrude', id: 'F9', op: 'add', sketch: 'S6', end: 'blind', depth: 3 }, { type: 'revolve', id: 'F9', op: 'add', sketch: 'S6', axis: 'k2', angle: 360 }]) {
+      const d = { ...doc(), features: [seg, f] } as unknown as PartDoc;
+      const sh = shapeModel(d, 'F9', () => frame, null)!;
+      expect(sh.box.v0).toBeCloseTo(0, 6);
+      expect(sh.box.v1).toBeCloseTo(Math.sqrt(500) - 20, 6);
+      expect(sh.box.u0).toBeCloseTo(-10, 6);
+      expect(sh.box.u1).toBeCloseTo(10, 6);
+      // the centre still moves with the profile
+      expect(sh.profile!.pointIds.has('c')).toBe(true);
+    }
+  });
 });
 
 // a dome-ended cylinder: the outline beside a vertical axis (line e1), a wall (e3) and two half-circle ends, revolved 360 degrees

@@ -354,6 +354,11 @@ const ICONS: Record<string, string> = {
   // a phone's top bar and bottom bar
   menu: P('M4 7h16M4 12h16M4 17h16'),
   tools: P('M14.7 6.3a4 4 0 005 5L9 22l-3-3zM14.7 6.3 18 3l3 3-3.3 3.3'),
+  'show-constraints': P('M7 20 12 4M13 20 18 4') + A('M3 12h4M17 12h4'),
+  'show-freedom': D(12, 12, 2.4) + A('M12 3v5M9.5 5.5 12 3l2.5 2.5M12 21v-5M9.5 18.5 12 21l2.5-2.5M3 12h5M5.5 9.5 3 12l2.5 2.5M21 12h-5M18.5 9.5 21 12l-2.5 2.5', 1.5),
+  'sketch-report': P('M6 3h9l4 4v14H6z') + T('M15 3v4h4') + P('M9 12h6M9 15.5h6M9 19h3'),
+  'look-normal': P('M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4') + O(12, 12, 3) + D(12, 12, 1.2),
+  'sketch-snaps': P('M5 4v8a7 7 0 0 0 14 0V4h-4v8a3 3 0 0 1-6 0V4z') + T('M5 8h4M15 8h4'),
   more: D(5.5, 12, 2.3) + D(12, 12, 2.3) + D(18.5, 12, 2.3),
 };
 

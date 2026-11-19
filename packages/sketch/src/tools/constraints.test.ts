@@ -5,6 +5,7 @@ import {
   coincidentTool, collinearTool, concentricTool, equalTool, fixTool, horizontalTool, midpointTool, parallelTool,
   perpendicularTool, symmetricTool, tangentTool, verticalTool, type ConstraintTool,
 } from './constraint-tools';
+import { withPickedEntity } from '../select';
 import { dimensionTool, type DimensionState } from './dimension';
 import { DEFAULT_SETTINGS, type Modifiers, type SnapHit, type Tool, type ToolEvent, type ToolOutput } from './types';
 
@@ -49,6 +50,8 @@ describe('constraint tools: picks make exactly one constraint with the verified 
   it.each<[string, ConstraintTool, ToolEvent[], object]>([
     ['horizontal on a line', horizontalTool, [ent('e1')], { type: 'horizontal', refs: ['e1'] }],
     ['horizontal on two points', horizontalTool, [pt('p1'), pt('p2')], { type: 'horizontal', refs: ['p1', 'p2'] }],
+    ['horizontal on two circles lines up their centres', horizontalTool, [ent('e3'), ent('e4')], { type: 'horizontal', refs: ['c1', 'c2'] }],
+    ['vertical on a point and a circle', verticalTool, [pt('p1'), ent('e3')], { type: 'vertical', refs: ['p1', 'c1'] }],
     ['vertical on a line', verticalTool, [ent('e2')], { type: 'vertical', refs: ['e2'] }],
     ['coincident', coincidentTool, [pt('p2'), pt('p3')], { type: 'coincident', refs: ['p2', 'p3'] }],
     ['equal lines', equalTool, [ent('e1'), ent('e2')], { type: 'equal', refs: ['e1', 'e2'] }],
@@ -92,7 +95,7 @@ describe('constraint tools: picks make exactly one constraint with the verified 
     const o = run(parallelTool, [ent('e1'), ent('e3')]);
     expect(o.hint).toBe('app.sketch.hint.pick.invalid');
     expect(o.state.picks).toHaveLength(1);
-    expect(run(horizontalTool, [ent('e3')]).hint).toBe('app.sketch.hint.pick.invalid');
+    expect(run(horizontalTool, [ent('e3'), ent('e1')]).hint).toBe('app.sketch.hint.pick.invalid');   // a circle lines up with another circle or point, not a line
     expect(run(tangentTool, [ent('e1'), ent('e2')]).hint).toBe('app.sketch.hint.pick.invalid');   // two lines are never tangent
     expect(run(equalTool, [ent('e1'), ent('e3')]).hint).toBe('app.sketch.hint.pick.invalid');     // a length is not a radius
     expect(run(coincidentTool, [pt('p1'), ent('e1')]).hint).toBe('app.sketch.hint.pick.invalid');
@@ -202,7 +205,7 @@ describe('smart dimension', () => {
 
   it('a line asks for its length; Enter commits the measured value', () => {
     const o = dim([ent('e1')]);
-    expect(o.fields).toEqual([{ id: 'value', label: 'app.sketch.field.distance', value: Math.hypot(10, 2), locked: false, unit: 'length' }]);
+    expect(o.fields).toEqual([{ id: 'value', label: 'app.sketch.field.distance', value: Math.hypot(10, 2), locked: false, unit: 'length', keys: ['h', 'v', 'a', 'r'] }]);
     expect(o.preview).toEqual([{ kind: 'line', a: { x: 0, y: 0 }, b: { x: 10, y: 2 } }]);
     expect(o.draft.constraints).toEqual([]);
     const done = dimensionTool.step(o.state, key('Enter'), o.draft, DEFAULT_SETTINGS);
@@ -312,3 +315,25 @@ describe('reportStatus', () => {
   });
 });
 
+
+describe('pointer path of the constraint tools (what the app does before the tool sees a click)', () => {
+  const pick = (toolId: string, snap: SnapHit | undefined, p = { x: 23, y: 0 }) => withPickedEntity(toolId, D, p, 0.5, snap) as SnapHit | undefined;
+  it('a snap to the body (mid-extent) is not a target; the circle outline under the pointer is', () => {
+    const model: SnapHit = { kind: 'modelExtent', at: { x: 23, y: 0 }, model: 'midExtent' };
+    expect(pick('horizontal', model)).toMatchObject({ entityId: 'e3' });
+    expect(pick('horizontal', model, { x: 100, y: 100 })).toBeUndefined();
+  });
+  it('a grid snap on the circle outline still picks the circle; a point snap stays a point', () => {
+    expect(pick('vertical', { kind: 'grid', at: { x: 23, y: 0 } })).toMatchObject({ entityId: 'e3' });
+    const origin: SnapHit = { kind: 'point', at: { x: 0, y: 0 }, pointId: 'p1', role: 'origin' };
+    expect(pick('horizontal', origin, { x: 0, y: 0 })).toBe(origin);
+  });
+  it('other tools keep their snap, and a model snap passes through for them', () => {
+    const model: SnapHit = { kind: 'modelExtent', at: { x: 23, y: 0 }, model: 'midExtent' };
+    expect(withPickedEntity('line', D, { x: 23, y: 0 }, 0.5, model)).toBe(model);
+  });
+  it('Horizontal: the circle outline then a point (the origin) makes the centre line up with it', () => {
+    const o = run(horizontalTool, [at(pick('horizontal', undefined)!), at(pick('horizontal', { kind: 'point', at: { x: 0, y: 0 }, pointId: 'p1' }, { x: 0, y: 0 })!)]);
+    expect(added(o)).toEqual([{ type: 'horizontal', refs: ['c1', 'p1'] }]);
+  });
+});

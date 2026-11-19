@@ -65,3 +65,26 @@ describe('mirror: hints and a selection made before the tool', () => {
     expect(o.hint).toBe('app.sketch.hint.mirrorLine');
   });
 });
+
+describe('mirror about an origin axis and entities on the axis', () => {
+  const sc = (): SketchDraft => ({ id: 'F1', plane: {}, temp: [], points: [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 0, y: 10 }, { id: 'c', x: 20, y: 5 }], entities: [{ id: 'e1', type: 'line', p1: 'a', p2: 'b' }, { id: 'e2', type: 'circle', c: 'c', r: 3 }], constraints: [] });
+  it('key Y in the line step adds one fixed construction axis line (reused the second time) and mirrors', () => {
+    let o = mirrorTool.step(mirrorTool.start(), clickOn('e2'), sc(), DEFAULT_SETTINGS);
+    o = mirrorTool.step(o.state, { type: 'key', key: 'Enter' }, o.draft, DEFAULT_SETTINGS);
+    o = mirrorTool.step(o.state, { type: 'key', key: 'y' }, o.draft, DEFAULT_SETTINGS);
+    expect(o.draft.entities.filter((e) => e.construction)).toHaveLength(1);
+    expect(o.draft.points.filter((p) => p.fixed)).toHaveLength(2);
+    expect(o.draft.points.find((p) => p.x === -20 && p.y === 5)).toBeTruthy();
+    let o2 = mirrorTool.step(mirrorTool.start(), clickOn('e2'), o.draft, DEFAULT_SETTINGS);
+    o2 = mirrorTool.step(o2.state, { type: 'key', key: 'Enter' }, o2.draft, DEFAULT_SETTINGS);
+    o2 = mirrorTool.step(o2.state, { type: 'key', key: 'y' }, o2.draft, DEFAULT_SETTINGS);
+    expect(o2.draft.entities.filter((e) => e.construction)).toHaveLength(1);
+  });
+  it('a line lying on the mirror line is not duplicated', () => {
+    const d = { ...sc(), points: [...sc().points, { id: 'x1', x: 0, y: -5, fixed: true }, { id: 'x2', x: 0, y: 30, fixed: true }], entities: [...sc().entities, { id: 'ax', type: 'line', p1: 'x1', p2: 'x2' }] };
+    const r = mirrorEntities(d, ['e1', 'e2'], 'ax');
+    if (!r.ok) throw new Error(r.hint);
+    expect(r.draft.entities.filter((e) => e.type === 'line')).toHaveLength(2);        // e1 and ax only
+    expect(r.draft.entities.filter((e) => e.type === 'circle')).toHaveLength(2);
+  });
+});

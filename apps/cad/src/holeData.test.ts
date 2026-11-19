@@ -79,12 +79,17 @@ describe('new hole and remembered defaults', () => {
     expect(newHole('F3', true)).toMatchObject({ flip: true });
     expect(DEFAULT_PREFS).toEqual({ kind: 'simple', size: 'M6', fit: 'normal' });
   });
-  it('remembers the last confirmed type, size and fit; a custom diameter is not remembered', () => {
+  it('remembers the last confirmed type, size and fit, or a plain diameter (not an expression)', () => {
     saveHolePrefs({ kind: 'cbore', size: 'M8', fit: 'loose' });
     expect(loadHolePrefs()).toEqual({ kind: 'cbore', size: 'M8', fit: 'loose' });
     expect(newHole('F3', false)).toMatchObject({ kind: 'cbore', size: 'M8', fit: 'loose', end: 'through', cboreDiameter: 15, cboreDepth: 8.6 });
-    saveHolePrefs({ kind: 'simple', diameter: 3 });
-    expect(loadHolePrefs().size).toBe('M8');
+    saveHolePrefs({ kind: 'simple', diameter: 18 });
+    expect(loadHolePrefs()).toMatchObject({ size: 'M8', diameter: 18 });
+    expect(newHole('F3', true)).toEqual({ type: 'hole', sketch: 'F3', kind: 'simple', diameter: 18, end: 'through', flip: true });
+    saveHolePrefs({ kind: 'simple', diameter: '=d' });
+    expect(loadHolePrefs().diameter).toBe(18);
+    saveHolePrefs({ kind: 'simple', size: 'M5', fit: 'close' });
+    expect(loadHolePrefs()).toEqual({ kind: 'simple', size: 'M5', fit: 'close' });
   });
   it('ignores a damaged stored value', () => {
     localStorage.setItem('kit.hole.prefs', '{"kind":"zzz","size":"M99","fit":"xx"}');

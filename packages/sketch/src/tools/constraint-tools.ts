@@ -16,7 +16,9 @@ import {
   appendSpec, pickOf, refusal, refusalHint, resolve, HINT,
   type ConstraintKind, type Pick,
 } from './constraints';
-import type { Tool, ToolOutput, ToolSettings } from './types';
+import { entityShape } from '../select';
+import { AXIS_KEYS, axisLine } from './axisLine';
+import type { PreviewShape, Tool, ToolOutput, ToolSettings } from './types';
 
 export interface ConstraintToolState {
   /** What has been picked so far for the next constraint. */
@@ -31,8 +33,14 @@ export interface ConstraintTool extends Tool<ConstraintToolState> {
 
 const prompt = (kind: ConstraintKind, picked: number) => `app.sketch.hint.${kind}.${picked === 0 ? 'pick' : 'more'}`;
 
+const pickShape = (draft: SketchDraft, p: Pick): PreviewShape[] => {
+  if (p.kind !== 'point') return entityShape(draft, p.id) as PreviewShape[];
+  const q = draft.points.find((r) => r.id === p.id);
+  return q ? [{ kind: 'circle', c: { x: q.x, y: q.y }, r: 0.5 }] : [];
+};
+/** The picks made so far are drawn highlighted: that also lets keys (the symmetric tool's X / Y axis) reach the tool, which the app only routes to a tool with something on show. */
 const view = (state: ConstraintToolState, draft: SketchDraft, hint: string): ToolOutput<ConstraintToolState> =>
-  ({ state, draft, preview: [], fields: [], hint });
+  ({ state, draft, preview: state.picks.flatMap((p) => pickShape(draft, p)), fields: [], hint });
 
 /** Feed one more pick to the tool; shared by clicks and `fromSelection`. */
 function accept(kind: ConstraintKind, state: ConstraintToolState, draft: SketchDraft, pick: Pick): ToolOutput<ConstraintToolState> {
@@ -57,8 +65,16 @@ export function makeConstraintTool(kind: ConstraintKind): ConstraintTool {
           if (!pick) return view(state, draft, HINT.none);
           return accept(kind, state, draft, pick);
         }
-        case 'key':
+        case 'key': {
+          // Symmetric: after the two points (or circle centres), X / Y takes the origin axis as the mirror line
+          const ax = kind === 'symmetric' ? AXIS_KEYS[ev.key.toLowerCase()] : undefined;
+          if (ax && state.picks.length === 2 && state.picks.every((p) => p.kind !== 'line')) {
+            const made = axisLine(draft, ax);
+            const out = accept(kind, state, made.draft, { kind: 'line', id: made.id });
+            return out.draft.constraints.length > made.draft.constraints.length ? out : view(out.state, draft, out.hint ?? prompt(kind, 0));   // refused: the axis line is not kept
+          }
           return ev.key === 'Escape' ? view({ picks: [] }, draft, prompt(kind, 0)) : view(state, draft, prompt(kind, state.picks.length));
+        }
         default: // move, field: nothing to preview or type
           return view(state, draft, prompt(kind, state.picks.length));
       }

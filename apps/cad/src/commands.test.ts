@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildCommands, resetLastCommand, type Actions } from './commands';
+import { setPlaneUp } from './planeNames';
 
 const actions = (over: Partial<Actions> = {}): Actions => ({
   open: vi.fn(), save: vi.fn(), samples: vi.fn(), undo: vi.fn(), redo: vi.fn(), palette: vi.fn(), toggleDrawer: vi.fn(), settings: vi.fn(), hasDocument: () => false, newPart: vi.fn(), toggleProjection: vi.fn(), sketchHere: vi.fn(), toggleLeftPanel: vi.fn(), sketchOnFace: vi.fn(), hasFaceSelection: () => false, addExtrude: vi.fn(), newSketch: vi.fn(),
@@ -7,6 +8,23 @@ const actions = (over: Partial<Actions> = {}): Actions => ({
 });
 
 describe('ribbon commands', () => {
+  it('New sketch: front / top / right follow the view up axis (Z up: the upright xz and yz planes, the ground as Top)', () => {
+    const run = (up: 'y' | 'z') => {
+      setPlaneUp(up);
+      const newSketch = vi.fn();
+      const cmds = buildCommands(actions({ newSketch, hasDocument: () => true }));
+      for (const id of ['sketch-new-front', 'sketch-new-top', 'sketch-new-right']) cmds.find((c) => c.id === id)!.run();
+      return newSketch.mock.calls.map((c) => c[0]);
+    };
+    try {
+      expect(run('z')).toEqual(['xz', 'front', 'yz']);
+      expect(run('y')).toEqual(['front', 'top', 'right']);
+    } finally { setPlaneUp('y'); }
+  });
+  it('the Sketch command carries the tooltip that names its target', () => {
+    const cmds = buildCommands(actions({ hasDocument: () => true, sketchHereTip: () => 'Sketch on Top Plane' }));
+    expect(cmds.find((c) => c.id === 'sketch-here')!.tip).toBe('Sketch on Top Plane');
+  });
   it('Repeat last command runs the command run before it, ignores itself and the search, and is off until one ran', () => {
     resetLastCommand();
     const fit = vi.fn(); const palette = vi.fn();

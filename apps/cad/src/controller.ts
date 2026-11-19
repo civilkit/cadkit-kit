@@ -42,8 +42,10 @@ import { watchComponents, partMassProps, type AsmComponent, type AsmExtra } from
 import type { ViewData } from './files/viewCache';
 import { DocFontPool, type FontProblem, type FontResult } from './docFonts';
 import { pinOf, readDocFonts, textFontsUsed, type DocFont, type FontSource } from './fonts';
-import { planeTouchesBox } from './extrudeOp';
-import { defaultFlip, ensureTextOutlines, foldSolution, fromFeature, problemHint, refusedBy, toFeature, type SketchDraft, type TextOutlineData, type EquationResult, type EquationSpec } from '@kit/sketch';
+import { cutBodySide, planeTouchesBox } from './extrudeOp';
+import { evalExpr } from '@kit/ui';
+import { scopeOf } from './variables';
+import { defaultFlip, ensureTextOutlines, foldSolution, fromFeature, movePoint, problemHint, refusedBy, toFeature, type SketchDraft, type TextOutlineData, type EquationResult, type EquationSpec } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
 /** Why an export with its cosmetic knurls cut did not produce a file. */
@@ -56,6 +58,16 @@ export interface SketchEditView {
   frame: ViewFrame;
   sketch: SketchFeature;
   status?: SketchSolverStatus;
+}
+
+/** A point drag under way in the open sketch (see Controller.dragSketchPoint). */
+interface SketchDrag {
+  start: SketchDraft;
+  status: SketchSolverStatus | null;
+  view: SketchEditView | null;
+  /** The last pinned draft sent to the solver, and its answer (null while it waits). */
+  last: SketchDraft | null;
+  lastResult: SketchPreview | null;
 }
 
 /** Result of a speculative sketch drag: `stale` when a newer drag superseded it. */
@@ -961,6 +973,7 @@ export class Controller {
   redo(): Promise<void> { return this.serial(() => this.redoNow()); }
 
   private async redoNow(): Promise<void> {
+    if (this.sketchOpen) { await this.redoSketch(); return; }   // a sketch is open: Redo gives back its last undone step, like Undo
     const ops = this.redoStack.pop();
     if (!ops || !this.session) return;
     if (!Array.isArray(ops) && 'patch' in ops) { const rest = this.redoStack; try { await this.applyDocPatchNow(ops.patch, ops.reason); } finally { this.redoStack = rest; } return; }
@@ -983,7 +996,11 @@ export class Controller {
 
   // ---- sketch session (S1): open a sketch, drag with the solver, confirm/cancel ----
 
-  private sketchOpen: { featureId: string; upTo: number; draft: SketchDraft; baselineDof: number | null; isNew: boolean; undo: SketchDraft[]; status: SketchSolverStatus | null } | null = null;
+  /** `undo`/`redo`: the drafts of the sketch's own steps (one per tool edit or dropped drag). `drag`: the point drag under way,
+   *  with the draft and verdict from before it (what a refused drag goes back to) and the last pinned draft it was sent. */
+  private sketchOpen: { featureId: string; upTo: number; draft: SketchDraft; baselineDof: number | null; isNew: boolean; undo: SketchDraft[]; redo?: SketchDraft[]; status: SketchSolverStatus | null; drag?: SketchDrag | null } | null = null;
+  /** The sketch view now on screen (what a refused drag shows again). */
+  private sketchViewNow: SketchEditView | null = null;
   private sketchTimer: ReturnType<typeof setTimeout> | null = null;
   private sketchWake: (() => void) | null = null;
   private sketchSeq = 0;
@@ -1045,12 +1062,14 @@ export class Controller {
     if (this.realLoad) await this.whenReal();
     const open = this.sketchOpen;
     if (!open) return { ok: false, hint: 'no sketch open' };
+    open.drag = null;   // a tool step ends any drag
     const prev = open.draft;
     open.undo.push(prev);
     open.draft = draft;
     const r = await this.updateSketch(draft, 0);
     // a solve the kernel refused (it would shrink a curve to a point) leaves the edit out: the previous draft stays
     if (r.refused && this.sketchOpen === open && open.draft === draft) { open.undo.pop(); open.draft = prev; }
+    else open.redo = [];
     return r;
   }
 
@@ -1059,9 +1078,77 @@ export class Controller {
     const open = this.sketchOpen;
     const prev = open?.undo.pop();
     if (!open || !prev) return false;
+    open.drag = null;
+    (open.redo ??= []).push(open.draft);
     open.draft = prev;
-    await this.updateSketch(prev, 0);
+    await this.updateSketch(prev, 0);   // the solver's verdict (the DOF badge) is the one of the draft taken back to
     return true;
+  }
+
+  /** Redo the last undone step of the open sketch. False when there is nothing to redo. */
+  async redoSketch(): Promise<boolean> {
+    const open = this.sketchOpen;
+    const next = open?.redo?.pop();
+    if (!open || !next) return false;
+    open.drag = null;
+    open.undo.push(open.draft);
+    open.draft = next;
+    await this.updateSketch(next, 0);
+    return true;
+  }
+
+  /** One pointer move of a point drag (Select tool on a point handle). The first move of a drag remembers the draft and the
+   *  solver's verdict from before it; each move pins the point where the pointer is and previews the solve (debounced like
+   *  updateSketch). A move the solver cannot follow is refused: the last good sketch stays on screen. */
+  async dragSketchPoint(pointId: string, u: number, v: number, delayMs = 100): Promise<SketchPreview> {
+    if (this.realLoad) await this.whenReal();
+    const open = this.sketchOpen;
+    if (!open) return { ok: false, hint: 'no sketch open' };
+    if (!open.draft.points.some((p) => p.id === pointId)) return { ok: false, hint: `no point ${pointId}` };
+    open.drag ??= { start: open.draft, status: open.status, view: this.sketchViewNow, last: null, lastResult: null };
+    const drag = open.drag;
+    const next = movePoint(open.draft, pointId, u, v);
+    drag.last = next; drag.lastResult = null;
+    const r = await this.updateSketch(next, delayMs);
+    if (!r.stale && drag.last === next) drag.lastResult = r;
+    return r;
+  }
+
+  /** The point drag ended (pointer up). The drop is one undo step when the point moved: its pin is dropped and the sketch is
+   *  solved again without it, so the badge shows the sketch's own degrees of freedom and no later edit is held by it. A drag
+   *  the solver never followed is no step: the draft, the verdict and the view are the ones from before it, and `hint` says
+   *  why. With no drag under way it does nothing (ok, no view). */
+  async endSketchDrag(): Promise<SketchPreview> {
+    if (this.realLoad) await this.whenReal();
+    const open = this.sketchOpen;
+    const drag = open?.drag;
+    if (!open || !drag) return { ok: true };
+    // the last move may still wait for its debounce: solve it now
+    if (drag.last && !drag.lastResult) {
+      const r = await this.updateSketch(drag.last, 0);
+      if (!r.stale) drag.lastResult = r;
+    }
+    if (this.sketchOpen !== open || open.drag !== drag) return { ok: true, stale: true };
+    open.drag = null;
+    const refusedHint = drag.lastResult && !drag.lastResult.ok ? drag.lastResult.hint : undefined;
+    const moved = open.draft !== drag.start && open.draft.points.some((p) => {
+      const q = drag.start.points.find((x) => x.id === p.id);
+      return !q || q.x !== p.x || q.y !== p.y;
+    });
+    const back = (): SketchPreview => {
+      open.draft = drag.start;
+      open.status = drag.status;
+      if (drag.view && this.sketchViewNow !== drag.view) this.showSketch(drag.view);
+      return { ok: false, hint: refusedHint ?? 'app.sketch.conflict', ...(drag.status ? { status: drag.status } : {}) };
+    };
+    if (!moved) return back();
+    // the drop: the solver's positions stay, the pin goes
+    const settle = await this.updateSketch({ ...open.draft, temp: [] }, 0);
+    if (settle.stale) return settle;
+    if (!settle.ok || !settle.view) return back();
+    open.undo.push(drag.start);
+    open.redo = [];
+    return { ...settle, ...(refusedHint ? { hint: refusedHint } : {}) };
   }
 
   /** Drag a point: preview the pinned draft on the sketch's own partial regen.
@@ -1098,19 +1185,24 @@ export class Controller {
     // A drag the solver could not absorb comes back as a successful regen that
     // echoes the sketch unsolved (status.solved false): refuse it, keep the
     // last good solved sketch on screen (the point snaps back).
+    // The hint and the badge go by the sketch as it was before the drag (its own constraints, no pin), and the badge keeps
+    // that verdict: the refused, pinned solve is not the sketch's state.
     if (draft.temp.length && res.status && res.status.solved === false) {
-      const hint = open.baselineDof === 0 ? 'app.sketch.fullyDefined' : 'app.sketch.conflict';
-      open.status = res.status ?? open.status;
+      const base = open.drag ? open.drag.status : open.status;
+      const hint = (base?.dof ?? open.baselineDof) === 0 ? 'app.sketch.fullyDefined' : 'app.sketch.conflict';
       return { ok: false, hint, status: res.status };
     }
     if (res.ok && res.view) {
       open.status = res.status ?? null;
       // Fold the solver's result into the draft: regen only re-solves on expr
-      // changes, so the committed sketch must carry the solved coordinates.
-      open.draft = foldSolution(draft, res.view.sketch);
+      // changes, so the committed sketch must carry the solved coordinates. The drag pin is not kept: the next
+      // move pins the point again, and no later edit or solve is ever held by a point where a drag once was.
+      open.draft = withExprValues(foldSolution({ ...draft, temp: [] }, res.view.sketch), scopeOf(this.document()).values);
       this.showSketch(res.view);
       return { ok: true, view: res.view, status: res.status };
     }
+    // nothing is left to solve (an undo back to an empty sketch): the verdict of the sketch that was there no longer applies
+    if (!draft.points.length && !draft.entities.length) open.status = res.status ?? null;
     return { ok: false, hint: res.hint, status: res.status };
   }
 
@@ -1131,6 +1223,7 @@ export class Controller {
   private sketchFrameNow: ViewFrame | null = null;
   private showSketch(v: SketchEditView): void {
     this.sketchFrameNow = v.frame;
+    this.sketchViewNow = v;
     this.view.setSketchEdit(v);
     // lettering: the outlines come from the kernel; draw the sketch again when they have arrived
     void ensureTextOutlines(v.sketch as never, (spec) => this.fetchTextOutline(spec), () => { if (this.sketchOpen && this.sketchFrameNow === v.frame) this.view.setSketchEdit(v); this.onTextOutlines?.(); }).catch(() => {});
@@ -1807,6 +1900,15 @@ export class Controller {
     return defaultFlip(op, frame, v?.box ?? null, onFace);
   }
 
+  /** Where the body on screen lies from a cut of this sketch going the way `flip` says (see cutBodySide); null for a sketch on a face
+   *  (its normal is the face's, the bounding box says nothing there) or when the sketch or the body is not known. */
+  cutSide(sketchId: string, flip: boolean): 'toward' | 'away' | 'both' | null {
+    const v = this.lastView;
+    const onFace = (this.sdoc().features as unknown as Array<{ id?: string; plane?: { kind?: string } }>).find((f) => f.id === sketchId)?.plane?.kind === 'face';
+    if (onFace) return null;
+    return cutBodySide(v?.sketches.find((x) => x.id === sketchId)?.frame ?? null, v?.box ?? null, flip);
+  }
+
   /** Whether this sketch's plane meets the body on screen (a new extrude of it should then add to the body). */
   sketchTouchesBody(sketchId: string): boolean {
     const v = this.lastView;
@@ -1911,4 +2013,17 @@ export class Controller {
 /** The features an edit adds or replaces (what a font check reads). */
 function featuresOf(ops: EditOp[]): unknown[] {
   return ops.flatMap((o) => ((o.op === 'add' || o.op === 'replace') && 'feature' in o ? [(o as { feature: unknown }).feature] : []));
+}
+
+/** A dimension linked to a variable shows the expression's value now, so a variable changed while the sketch is open updates the label too. */
+function withExprValues(d: SketchDraft, values: Record<string, number>): SketchDraft {
+  let changed = false;
+  const constraints = d.constraints.map((c) => {
+    if (typeof c.expr !== 'string' || !c.expr || typeof c.value !== 'number') return c;
+    const r = evalExpr(c.expr, values);
+    if (!r.ok || !Number.isFinite(r.value) || Math.abs(r.value - c.value) < 1e-9) return c;
+    changed = true;
+    return { ...c, value: r.value };
+  });
+  return changed ? { ...d, constraints } : d;
 }

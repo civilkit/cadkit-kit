@@ -250,7 +250,7 @@ describe('feature commands against the real kernel', { skip: !process.env.CK_WAS
     try { localStorage.clear(); } catch { /* no storage: the defaults apply anyway */ }
     const w = await world(box());
     const base = await w.stats();
-    expect(w.cmd('add-hole').enabled!()).toBe(false);   // no face, no point sketch
+    expect(w.cmd('add-hole').enabled!()).toBe(true);   // no face, no point sketch: it asks for a face
     const sk = await addPointSketch(w, 'front', true);
     w.store.select([]);
     expect(w.cmd('add-hole').enabled!()).toBe(true);

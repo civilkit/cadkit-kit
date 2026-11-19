@@ -203,6 +203,13 @@ export interface OptionsArgs {
 /** The form to draw and the generic fields it replaces (hidden from the generic sections). */
 export interface OptionsResult { hide: Set<string>; node: JSX.Element }
 
+/** Whether an Enter key press inside the editor accepts the feature: not on a select (Enter there picks an option) or a button (it clicks itself) or a multi-line box, unless Ctrl / Cmd is held. */
+export function enterConfirms(e: { ctrlKey?: boolean; metaKey?: boolean; target?: EventTarget | null }): boolean {
+  if (e.ctrlKey || e.metaKey) return true;
+  const tag = (e.target as HTMLElement | null)?.tagName;
+  return tag !== 'SELECT' && tag !== 'BUTTON' && tag !== 'TEXTAREA';
+}
+
 export function FeatureEditor(p: {
   feature: FeatureLike | null;
   onDraft(next: Record<string, unknown>): void;
@@ -307,7 +314,7 @@ export function FeatureEditor(p: {
   const cancel = (): void => p.onCancel();
 
   const onKey = (e: KeyboardEvent): void => {
-    if (e.key === 'Enter') { e.preventDefault(); confirm(e); }
+    if (e.key === 'Enter' && enterConfirms(e)) { e.preventDefault(); confirm(e); }
     if (e.key === 'Escape') { e.preventDefault(); cancel(); }
   };
 

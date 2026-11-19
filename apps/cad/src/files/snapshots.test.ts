@@ -41,4 +41,16 @@ describe('snapshots', () => {
     await s.note(doc(3), 'P', 'undo');
     expect(await s.list()).toEqual([]);
   });
+  it('a picture is drawn after the snapshot is stored and kept with it', async () => {
+    const b = memoryBackend(); clock = 1_000_000;
+    const s = createSnapshots(b, { now: () => clock, thumb: async () => ({ width: 2, height: 2, data: 'AAAA' }) });
+    await s.note(doc(3), 'P', 'undo'); await s.settled();
+    expect(b.items[0].thumb).toEqual({ width: 2, height: 2, data: 'AAAA' });
+  });
+  it('a picture that cannot be drawn leaves the snapshot as it was', async () => {
+    const b = memoryBackend(); clock = 1_000_000;
+    const s = createSnapshots(b, { now: () => clock, thumb: async () => { throw new Error('no'); } });
+    await s.note(doc(3), 'P', 'undo'); await s.settled();
+    expect(b.items.length).toBe(1); expect(b.items[0].thumb).toBeUndefined();
+  });
 });

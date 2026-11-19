@@ -2,7 +2,7 @@
 // Builds the public static site (default dist-pages/): app bundle, stripped kernel wasm, allow-listed samples, licenses.html; then runs the leak check.
 //   PAGES_BASE=/my-repo/ npm run build:pages        (default base './': works under any sub-path and at a domain root)
 // Env: PAGES_OUT output dir (default dist-pages), CK_REBUILD kernel repo checkout, WASM_SRC wasm to publish (default apps/cad/public/kernel/ck_wasm.wasm),
-//      WASM_STRIP path of wasm-strip, KERNEL_THIRD_PARTY kernel THIRD_PARTY.md.
+//      WASM_STRIP path of wasm-strip. See docs/pages-deploy.md.
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { siteFooter, siteHeadLinks, siteHeader } from './pages/siteChrome.mjs';
 import { filterSamples, suspectSamples } from './pages/samples.mjs';
-import { filterKernelThirdParty, renderLicensesHtml } from './pages/licenses.mjs';
+import { renderLicensesHtml } from './pages/licenses.mjs';
 import { scanDir } from './pages_leakcheck.mjs';
 import { buildId, precacheList, swSource } from './pages/sw.mjs';
 import { docsLink, licencesLink } from './pages/siteLinks.mjs';
@@ -100,17 +100,13 @@ const flagged = suspectSamples(kept);
 if (flagged.length) die(`allow-listed samples look private: ${flagged.map((e) => e.id).join(', ')} (remove them from pages-samples.allow.json, or loosen SUSPECT in tools/pages/samples.mjs)`);
 
 // 4. licences
-const kernelTp = process.env.KERNEL_THIRD_PARTY || join(FW, 'THIRD_PARTY.md');
-let kernel;
-if (existsSync(kernelTp)) {
-  const f = filterKernelThirdParty(readFileSync(kernelTp, 'utf8'));
-  kernel = f.md;
-  console.log(`kernel THIRD_PARTY: ${f.filtered.length} line(s) not published:`);
-  for (const x of f.filtered) console.log(`  - ${x.why}: ${x.row.replace(/\s+/g, ' ').slice(0, 90)}`);
-} else console.warn(`warning: ${kernelTp} not found, licences page has no kernel section`);
 const licences = [];
 const addText = (title, file) => { if (existsSync(file)) licences.push({ title, text: readFileSync(file, 'utf8') }); else console.warn(`warning: licence text missing: ${file}`); };
 const cr = (p) => join(FW, 'crates', p);
+// BOSL2's BSD text sits in THIRD_PARTY.md under its heading; SolidCraft's MIT text beside the icons
+const bosl = readFileSync(join(ROOT, 'THIRD_PARTY.md'), 'utf8').match(/## BOSL2 licence[^\n]*\n[\s\S]*?```\n([\s\S]*?)```/);
+if (bosl) licences.push({ title: 'BSD 2-Clause: BOSL2', text: bosl[1] }); else console.warn('warning: BOSL2 licence text not found in THIRD_PARTY.md');
+addText('MIT licence: SolidCraft icons', join(ROOT, 'packages/ui/src/solidcraft/LICENSE-MIT'));
 addText('SIL Open Font License 1.1: Barlow Condensed (built-in font "gauge")', cr('ck-text/fonts/OFL-BarlowCondensed.txt'));
 addText('SIL Open Font License 1.1: PT Serif (built-in font "engrave")', cr('ck-text/fonts/OFL-PTSerif.txt'));
 addText('MIT licence: brepkit (check, heal and STEP reader logic)', cr('ck-check/LICENSE-MIT'));
@@ -124,7 +120,7 @@ addText('Notice: sldprt2step', cr('ck-sldprt/NOTICE-sldprt2step'));
 addText('MIT licence: sldprt-format-research', cr('ck-sldprt/LICENSE-MIT-sldprt-format-research'));
 addText('Notice: SketchUp file reader (OpenSKP)', cr('ck-skp/NOTICE'));
 addText('MIT licence: OpenSKP (Copyright (c) 2024-2026 Ahsan Mehmood)', cr('ck-skp/LICENSE-MIT-openskp'));
-const deps = ['preact', '@preact/signals', '@preact/signals-core', 'three'].flatMap((name) => {
+const deps = ['preact', '@preact/signals', '@preact/signals-core', 'three', '@bytecodealliance/jco-transpile'].flatMap((name) => {
   const dir = ['node_modules', '../kit/node_modules'].map((d) => join(ROOT, d, name)).find((d) => existsSync(join(d, 'package.json')));
   if (!dir) { console.warn(`warning: package ${name} not found for the licences page`); return []; }
   const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
@@ -132,7 +128,7 @@ const deps = ['preact', '@preact/signals', '@preact/signals-core', 'three'].flat
   const copyright = lic ? (readFileSync(lic, 'utf8').split('\n').find((l) => /copyright/i.test(l)) ?? '').trim() : '';
   return [{ name, version: pkg.version, license: typeof pkg.license === 'string' ? pkg.license : 'see package', copyright }];
 });
-writeFileSync(join(OUT, 'licenses.html'), renderLicensesHtml({ kit: readFileSync(join(ROOT, 'THIRD_PARTY.md'), 'utf8'), kernel, licences, deps }));
+writeFileSync(join(OUT, 'licenses.html'), renderLicensesHtml({ licences, deps }));
 
 // 5. a small link to the licences page, only in the published index.html (the app has no About dialog)
 const idx = join(OUT, 'index.html');

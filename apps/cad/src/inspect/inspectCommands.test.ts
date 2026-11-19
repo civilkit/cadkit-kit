@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { hasIcon } from '@kit/ui';
 import { buildCommands, matchShortcut, type Actions } from '../commands';
 import type { InspectActions } from './inspectCommands';
+import { RIBBON_LAYOUT } from '../toolbarModel';
 
 const inspect = (o: Partial<InspectActions> = {}): InspectActions => ({
   toggleMeasure: vi.fn(), isMeasuring: () => false, massProps: vi.fn(), interference: vi.fn(), toggleSection: vi.fn(), isSectioned: () => false, hasSolid: () => true, ...o,
@@ -32,5 +33,13 @@ describe('Evaluate commands', () => {
     expect(i.massProps).toHaveBeenCalled(); expect(i.interference).toHaveBeenCalled(); expect(i.toggleSection).toHaveBeenCalled();
     expect(by('measure').pressed!()).toBe(true); expect(by('section-view').pressed!()).toBe(true);
     expect(by('measure').enabled!()).toBe(false);
+  });
+});
+
+describe('Evaluate ribbon', () => {
+  it('Mass properties is its own button in the Measure group, not inside a dropdown, and its tooltip name is the full one', () => {
+    const entries = RIBBON_LAYOUT.Evaluate.find((g) => g.id === 'Measure')!.entries;
+    expect(entries).toEqual(['measure', 'mass-props', 'interference', 'section-view']);
+    expect(build(inspect()).find((c) => c.id === 'mass-props')!.label).toBe('Mass properties');
   });
 });

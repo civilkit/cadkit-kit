@@ -26,6 +26,15 @@ describe('cancelGesture (pointercancel, and a second finger landing)', () => {
     expect(v.midZoom).toBeNull();
     expect((v.controls as { enabled: boolean }).enabled).toBe(true);
   });
+  it('a point drag in progress is ended for the app (its drop or refusal is settled there); with none, no event', () => {
+    const onSketchDragEnd = vi.fn();
+    const v = bare({ sketchDrag: 'P1', opts: { onSketchDragEnd } });
+    v.cancelGesture();
+    expect(onSketchDragEnd).toHaveBeenCalledWith('P1');
+    onSketchDragEnd.mockClear();
+    bare({ opts: { onSketchDragEnd } }).cancelGesture();
+    expect(onSketchDragEnd).not.toHaveBeenCalled();
+  });
   it('a rubber band that was drawn is cancelled for the sketch; one that never moved needs no event', () => {
     const onSketchBox = vi.fn();
     const moved = bare({ rubber: { cx: 0, cy: 0, x: 0, y: 0, moved: true }, opts: { onSketchBox } });

@@ -127,8 +127,13 @@ function resolveDim(d: SketchDraft, picks0: readonly Pick[], radius: boolean, or
 
 function view(state: DimensionState, draft: SketchDraft, settings: ToolSettings, hint?: string): ToolOutput<DimensionState> {
   const p = state.pending;
-  const fields: FieldSpec[] = !p || settings.onViewValues === 'off' ? [] : [{ id: 'value', label: p.label, value: state.live ?? p.measured, locked: false, unit: p.unit }];
+  const fields: FieldSpec[] = !p || settings.onViewValues === 'off' ? [] : [{ id: 'value', label: p.label, value: state.live ?? p.measured, locked: false, unit: p.unit, keys: modeKeys(p) }];
   return { state, draft, preview: p?.preview ?? [], fields, hint: hint ?? (p ? `${H}.value` : state.picks.length ? `${H}.second` : `${H}.pick`) };
+}
+
+/** The mode keys the value box hands to the tool (see `FieldSpec.keys`): R switches radius and diameter on a circle; H, V and A switch the orientation of a length. */
+function modeKeys(p: { unit: string }): string[] {
+  return p.unit === 'length' ? ['h', 'v', 'a', 'r'] : [];
 }
 
 /** Re-resolve the pending dimension from the current picks (after a pick or a mode key). */

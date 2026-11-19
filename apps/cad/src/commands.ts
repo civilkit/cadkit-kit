@@ -13,6 +13,8 @@ import { treeCommands, type TreeActions } from './treeCommands';
 import { assemblyCommands, type AssemblyActions } from './assembly/assemblyCommands';
 import { analysisCommands, type AnalysisActions } from './analysisCommands';
 import { sheetCommands, type SheetActions } from './sheet/sheetCommands';
+import { viewPlaneIds, type PlaneId } from './planeNames';
+import { describeRepeat, whileRepeating } from './featureMemory';
 
 /** Import and export of files other than the part itself (see ioCommands in this file). */
 export interface IoActions {
@@ -114,12 +116,14 @@ export interface Actions {
   sketchOnFace(): void;
   hasFaceSelection(): boolean;
   addExtrude(op: 'add' | 'cut', thin?: boolean): void;
-  newSketch(plane: 'front' | 'top' | 'right'): void;
+  newSketch(plane: PlaneId): void;
   palette(): void;
   toggleDrawer(): void;
   resetLayout?(): void;
   /** Sketch on the selected face or plane (S). */
   sketchHere(): void;
+  /** Tooltip of the Sketch button: where it will sketch right now. */
+  sketchHereTip?(): string | undefined;
   /** Start a sketch by picking one of the origin planes (or a flat face) in the 3D view. */
   sketchPickPlane?(): void;
   toggleProjection(): void;
@@ -187,12 +191,12 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'add-cut', label: t('cmd.add-cut'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: () => a.addExtrude('cut') },
     { id: 'add-thin-extrude', label: t('cmd.add-thin-extrude'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: () => a.addExtrude('add', true) },
     { id: 'add-thin-cut', label: t('cmd.add-thin-cut'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: () => a.addExtrude('cut', true) },
-    { id: 'sketch-here', label: t('cmd.sketch-here'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: a.sketchHere },
+    { id: 'sketch-here', label: t('cmd.sketch-here'), tab: 'Home', group: 'Sketch', tip: a.sketchHereTip?.(), enabled: a.hasDocument, run: a.sketchHere },
     { id: 'sketch-pick-plane', label: t('cmd.sketch-pick-plane'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.sketchPickPlane?.() },
     { id: 'sketch-on-face', label: t('cmd.sketch-on-face'), tab: 'Home', group: 'Sketch', enabled: a.hasFaceSelection, run: a.sketchOnFace },
-    { id: 'sketch-new-front', label: t('cmd.sketch-new-front'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch('front') },
-    { id: 'sketch-new-top', label: t('cmd.sketch-new-top'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch('top') },
-    { id: 'sketch-new-right', label: t('cmd.sketch-new-right'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch('right') },
+    { id: 'sketch-new-front', label: t('cmd.sketch-new-front'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch(viewPlaneIds()[0]!) },
+    { id: 'sketch-new-top', label: t('cmd.sketch-new-top'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch(viewPlaneIds()[1]!) },
+    { id: 'sketch-new-right', label: t('cmd.sketch-new-right'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch(viewPlaneIds()[2]!) },
     { id: 'undo', label: t('cmd.undo'), tab: 'Home', group: 'Edit', enabled: a.hasDocument, run: a.undo },
     { id: 'redo', label: t('cmd.redo'), tab: 'Home', group: 'Edit', enabled: a.hasDocument, run: a.redo },
     // number keys are the standard views, in the order Onshape uses
@@ -258,7 +262,8 @@ export function buildCommands(a: Actions): Command[] {
     id: 'repeat-last', label: t('cmd.repeat-last'), tab: 'Home', group: 'Edit',
     enabled: () => { const c = target(); return !!c && (c.enabled?.() ?? true); },
     why: () => (target() ? undefined : t('cmd.repeat-last.why')),
-    run: () => target()?.run(),
+    run: () => whileRepeating(() => target()?.run()),   // a feature command repeats with the options of the last one (depth included)
+    ...(describeRepeat(lastCommandId) ? { tip: describeRepeat(lastCommandId)! } : {}),
   });
   return cmds;
 }

@@ -1,4 +1,5 @@
 import { PLANE_IDS, isPlaneId, planeName, planeTag, setPlaneUp, viewPlaneIds, type PlaneId } from './planeNames';
+import { sketchTarget, lastSketchPlane } from './sketchTarget';
 import { render } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { createBrowserKernel } from '@ck/kernel-client/browser';
@@ -19,10 +20,10 @@ import { Viewport, markerStyleFor } from '@kit/viewport';
 import { autoCutFlip, cutProblem, editorFixes } from './editorFixes';
 import { defaultExtrudeOp, KERNEL_SUPPORTS_NEW_BODY, nextBodyName } from './extrudeOp';
 import { featureLabel, loftMoveAfter, pipeCutNotice } from './featureCreators';
-import { tangentChainOn, chainSelection, chainRefs, edgeRuns, refEdgeKey } from './roundChain';
+import { tangentChainOn, chainSelection, chainRefs, edgeRuns, noRoundEdges, refEdgeKey } from './roundChain';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, revolveOps, type FeatureActions } from './featureCommands';
 import { selectionInField } from './listPick';
-import { annotate, gridCapture, expandFocus, rectangleAxisLocks, layoutDimensions, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, withPickedEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, alignSourceAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type PanelSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
+import { annotate, gridCapture, expandFocus, rectangleAxisLocks, layoutDimensions, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, pickEntity, withPickedEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, alignSourceAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, constrainTypedPoint, newPointAt, opensCoordBox, coordBoxText, EMPTY_MODEL_SNAPS, type TypedPoint, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type PanelSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput, describeFree, freeParts, suggestionsFor, applySuggestion, tooltipItems, effectiveMarkMode, type FreeItem, type Suggestion } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
   errorText, PanelBoundary, BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, NotificationHistory, VarsContext, Sheet, BottomNav,
@@ -56,8 +57,11 @@ import { HISTORY_FOLDER } from './historyFolder';
 import { toEntries, type Rejection } from './history';
 import { CheckPanel } from './CheckPanel';
 import { useDesignCheck } from './useDesignCheck';
-import { InspectPanel } from './inspect/InspectPanel';
+import { InspectPanel, scrollMassIntoView } from './inspect/InspectPanel';
 import { useInspect } from './inspect/useInspect';
+import { SectionBar } from './inspect/SectionBar';
+import { sketchSectionPlane, sectionChipShown } from './inspect/sectionEdit';
+import { addsMaterial, junctionFilletOps } from './junction';
 import { QuickMeasure, useQuickMeasure } from './inspect/QuickMeasure';
 import { LibraryDialog, type SampleEntry } from './LibraryDialog';
 import { partItem } from './library/entries';
@@ -75,12 +79,13 @@ import { importTimingsLine } from './files/importTimings';
 import { SKP_DEFAULT_ORIENT, nextSkpOrient, skpImportOpts, skpNotices, type SkpOrient } from './files/skpImport';
 import { stripThumbnail } from './files/docThumb';
 import { createSaveThumbs } from './files/saveThumb';
+import { makeDocThumbnail } from './files/docThumb';
 import { whenIdle } from './library/thumbs';
 import { browserKV } from './files/storage';
 import { withCacheCap } from './kernelCaps';
 import { createKernelRouter, chipOf } from './kernelService';
 import { packText, unpackDoc, warmPackCache, problemKey, packDocCached, assetSize, lightDoc } from './files/assets';
-import { createAutosaver, clearAutosave, AUTOSAVE_ASSET_BUDGET, readAutosave, worthRestoring, isTabs, sessionParts, type Autosave, type AutosaveTabs } from './files/autosave';
+import { createAutosaver, clearAutosave, AUTOSAVE_ASSET_BUDGET, readAutosave, pickRestorable, pruneSlots, touchBeat, dropBeat, newTabId, slotKey, BEAT_EVERY, isTabs, sessionParts, type Autosave, type AutosaveTabs } from './files/autosave';
 import { cleanSigAfterSave, mayClearAutosave } from './files/saveState';
 import { RestoreDialog, RecoverDialog, SaveAsDialog, DropOverlay } from './files/FileDialogs';
 import { ImportReportDialog } from './files/ImportReportDialog';
@@ -107,7 +112,7 @@ import { BodiesPanel } from './BodiesPanel';
 import { folderBodyRefs, moveGroupOps, combineBodyOps, copyBodyOps, freeBodyName, removeBodyOps, renameBodyOps, usedBodyNames, type BodyTarget, type CombineOp } from './bodyOps';
 import { bodyShapes, faceMoments, faceVolumes, hideOthers, matchLumps, listBodies, readBodyFields, resolveFaceLooks, rowOfName, setHidden, solo, showAll, splitBodies, viewSpec, withLook, withLooks, withName, type BodyLookSpec, type BodyRow, visibleMesh } from './bodies';
 import { ScriptPanel } from './ScriptPanel';
-import { isTextEntry, scriptOwnsKey } from './keyGuard';
+import { isTextEntry, scriptOwnsKey, viewKeysActive } from './keyGuard';
 import { runsInPlace } from './scriptTarget';
 import { shouldWarnOnUnload } from './urlFlags';
 import { evaluate as evaluateScript, runScript } from '@kit/script';
@@ -190,10 +195,15 @@ import { DEFAULT_IMPELLER, ImpellerError, impellerErrors, impellerOps, impellerO
 import { DEFAULT_PROP, PropError, freePrefix, propErrors, propOps, propOwner, propPlan, type PropParams } from './propData';
 import { defineVariable, readVars } from './variables';
 import { dimensionMenu } from './sketchDimMenu';
+import { dimTabOrder, nextDim } from './dimTab';
+import { featureMemory, applyExtrudeMemory, memoryOp, recallFor } from './featureMemory';
 import { cylinderOfFace, cylindersOfFaces, faceExtent, holeWallFaces, isHoleWall, loadThreadPrefs, threadGroup, threadOpsForFaces } from './threadData';
 import { holeThreadEditOps, linkedThreads, type HoleThread } from './holeThread';
 import type { ThreadEntryLike } from './handles/threadHandle';
 import { SketchToolStrip, SketchRailSections, sketchRibbonGroups } from './SketchToolStrip';
+import { addedSummary } from './fullyDefineMsg';
+import { SketchFreedomList } from './SketchFreedom';
+import { tooltipText } from './freedomText';
 import { ToolRail } from './ToolRail';
 import { selectionKind } from './menuModel';
 import { pluginDocContext, selectionItems } from './pluginDoc';
@@ -205,7 +215,8 @@ import { freeFeatureNumber, outlineCandidates } from './sheet/flangeSketch';
 import { legGeometry } from './sheet/legGeometry';
 import { tabForSheetChange } from './sheet/model';
 import { RIBBON_LAYOUT, pluginCommandId, withGearIds, withPluginSlots, slotGroup, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
-import { SketchFields, KeyboardPrimer, appendSeed, armKeyboardPrime, primeSketchKeyboard } from './SketchFields';
+import { CoordBox } from './CoordBox';
+import { SketchFields, KeyboardPrimer, appendSeed, seedsField, armKeyboardPrime, primeSketchKeyboard, tabIntoFields } from './SketchFields';
 import { TextPanel } from './TextPanel';
 import { PatternPanel } from './PatternPanel';
 import { EquationPanel } from './EquationPanel';
@@ -215,7 +226,7 @@ import { isPathCurve, isText, patchText, textFields, textNotes, textOutlineOf, t
 import { equationFields, equationSpec, isEquation, patchEquation, type EquationFields, type EquationResult } from '@kit/sketch';
 import { SketchReadout, ModelReadout, CursorLabel, readout, clearReadout } from './sketchReadout';
 import { uppForPercent } from './sketchStatus';
-import { DEFAULT_SKETCH_PREFS, constrainsFromGuides, escapeCancelsSketch, lookChipNeeded, loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
+import { DEFAULT_SKETCH_PREFS, constrainsFromGuides, escapeCancelsSketch, lookChipNeeded, reopenNeedsOrient, loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
 import { SketchAnnotations, type AnnotationItem } from './SketchAnnotations';
 import { separateMarks, visibleChips } from './annotChips';
 import { useSketchSessionGone, useEditorGone } from './sessionGone';
@@ -275,9 +286,13 @@ let scriptRunning = false;
 /** The line the busy overlay shows instead of "Rebuilding model" while an export cuts knurl grooves. */
 const busyNote = signal<string | null>(null);
 const importing = signal<{ name: string; done: number; total: number; abort: () => void; /** 'reading' while the importer works, 'building' while the finished part is loaded into the kernel (it cannot be stopped) */ phase?: 'reading' | 'building' } | null>(null);
-const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value || scriptRunning || !!importing.value, onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
+/** This tab's own autosave slot: tabs on one origin no longer overwrite each other's backup. */
+const tabId = newTabId();
+const autosaver = createAutosaver(browserKV(), { key: slotKey(tabId), busy: () => store.busy.value || scriptRunning || !!importing.value, onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
 /** Rolling snapshots of the open part (IndexedDB): whatever happens to the live document, an earlier state can be restored. */
-const snapshots = createSnapshots(idbBackend());
+const snapshots = createSnapshots(idbBackend(), { thumb: (doc) => snapThumb(doc) });
+/** the picture of a snapshot: a small PNG drawn on a scratch state when the app is idle (set once the controller exists) */
+let snapThumb: (doc: unknown) => Promise<{ width: number; height: number; data: string } | null> = async () => null;
 /** Stored views of parts (IndexedDB): a part opens on its stored view while the kernel rebuilds it. Keyed by the recipe and the kernel's wasm hash. */
 const viewCache = createViewCache(idbViewBackend());
 let wasmBuild: (() => Promise<string | null>) | null = null;
@@ -288,7 +303,8 @@ const kernelBuild = (): Promise<string | null> => {
 };
 /** Results of the export bake (cosmetic knurls cut for a file): exporting the same part again does not cut again. Kept in IndexedDB where there is any. */
 const bakeCache = new BakeCache({ build: kernelBuild, backend: (() => { try { return idbBakeBackend(); } catch { return null; } })() });
-const startupAutosave: Autosave | null = (() => { const a = readAutosave(browserKV()); return worthRestoring(a) ? a : null; })();
+// the newest backup that no open tab owns; the heartbeat says this tab is open, old slots are pruned
+const startupAutosave: Autosave | null = (() => { const kv = browserKV(); touchBeat(kv, tabId); pruneSlots(kv, { ownKey: slotKey(tabId) }); return pickRestorable(kv, tabId); })();
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
 import { sketchTools, sketchShapes, shapeAtPoint, sketchOpenChains, nextExtrudeTarget, defaultCutRegions, defaultShapeIds, toggleRegion, withExactEdges } from '@kit/sketch';
@@ -299,6 +315,8 @@ loadStoredLibrary();   // the user's own frame stock and fittings, from this bro
 const VIEW_KEYS: Record<string, 'top' | 'front' | 'right' | 'back' | 'left' | 'bottom' | 'iso'> = { '1': 'top', '2': 'front', '3': 'right', '4': 'back', '5': 'left', '6': 'bottom', '7': 'iso' };
 /** Sketch tools whose clicks pick a curve of the sketch. */
 const OBJECT_SNAPS_OFF: SketchPrefs['snaps'] = Object.fromEntries(Object.keys(DEFAULT_SKETCH_PREFS.snaps).map((k) => [k, k === 'grid'])) as SketchPrefs['snaps'];
+/** The model snaps that attach the new point to the body (a fixed reference point there) on a plain click: the centre of an edge's circle or arc, the middle of an edge. */
+const ATTACH_MODEL_TAGS: ReadonlySet<string> = new Set(['modelCenter', 'modelMidpoint']);
 const SKETCH_TOOL_KEYS = new Map(sketchTools().flatMap((x) => (x.key ? [[x.key, x.id] as const] : [])));
 const savedLocale = read('cad.locale');
 const savedTheme = asTheme(read('cad.theme'));
@@ -542,6 +560,11 @@ const controller: Controller = new Proxy({} as Controller, {
   get: (_t, k) => { const c = tabSet.active!.controller; const v = Reflect.get(c, k, c); return typeof v === 'function' ? v.bind(c) : v; },
   set: (_t, k, v) => { const c = tabSet.active!.controller as unknown as Record<PropertyKey, unknown>; c[k] = v; return true; },
 });
+snapThumb = async (doc) => {
+  await whenIdle();   // never while a part is being dragged
+  const t = await makeDocThumbnail(doc as PartDoc, makeThumbRenderer(controller), [[120, 90], [96, 72]], 12_000);
+  return t ? { width: t.width, height: t.height, data: t.data } : null;
+};
 const rejections = signal<Rejection[]>([]);
 tabSet.add(newTabRec());
 /** The Text panel's font picker; `apply` goes to the text edit of the current render. */
@@ -716,6 +739,7 @@ function App() {
   // The viewport is constructed once, so its sketch callbacks read these refs
   // instead of closing over state from the render they were created in.
   const sketchMoveRef = useRef<((pointId: string, u: number, v: number) => void) | null>(null);
+  const sketchDragEndRef = useRef<(() => void) | null>(null);
   const sketchConfirmRef = useRef<(() => void) | null>(null);
   const sketchingRef = useRef(false);
   const lastPressOnCanvas = useRef(false);   // the last pointer press was on the 3D canvas (which takes no focus)
@@ -730,6 +754,11 @@ function App() {
   const sketchToolRef = useRef<string | null>(null);
   /** Characters typed while no typed-entry field had focus yet (see the digit branch of the sketch keys), and the seed the fields component puts in the first field. */
   const seedBufRef = useRef('');
+  /** The coordinate box (a first point typed as x,y) and the typed point waiting for the tool to make its point (then it gets its dimensions). */
+  const [coordBox, setCoordBox] = useState<{ initial: string } | null>(null);
+  const pendingTypedRef = useRef<TypedPoint | null>(null);
+  /** typed variables / expressions of committed tool fields, by value (x1e6): put on the dimension the tool creates */
+  const typedExprRef = useRef(new Map<string, string>());
   /** The kind of pointer behind the last sketch pointer event (a finger or pen lift may need the keyboard raised from the handler itself). */
   const lastPointerTypeRef = useRef<'mouse' | 'pen' | 'touch'>('mouse');
   const [fieldSeed, setFieldSeed] = useState<{ n: number; text: string | null }>({ n: 0, text: '' });
@@ -774,6 +803,13 @@ function App() {
   const hoverFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** The constraint chip last clicked on the canvas: Delete removes it. */
   const [selConstraint, setSelConstraint] = useState<string | null>(null);
+  /** Show freedom: what can still move (amber in the sketch, listed in the badge's popover) and the constraints that would pin it. */
+  const [showFree, setShowFree] = useState(false);
+  const [freeState, setFreeState] = useState<{ items: FreeItem[]; suggestions: Suggestion[] } | null>(null);
+  const freeSeq = useRef(0);
+  /** The constraints attached to the point or entity under the pointer, in a small list that stays put so an item can be clicked. */
+  const [conTip, setConTip] = useState<{ target: string; x: number; y: number } | null>(null);
+  const conTipOver = useRef(false);
   const [reportOpen, setReportOpen] = useState(false);
   /** Starting a sketch with nothing chosen: the three origin planes are drawn in the 3D view to pick from (a click on one, on a flat face or on a datum plane starts the sketch). */
   const [planePick, setPlanePick] = useState(false);
@@ -785,6 +821,7 @@ function App() {
   const [hoverTip, setHoverTip] = useState<{ text: string; x: number; y: number } | null>(null);
   const [dimMenu, setDimMenu] = useState<{ id: string; type: string; driven: boolean; x: number; y: number } | null>(null);
   const [dimEdit, setDimEdit] = useState<{ id: string; x: number; y: number; value: number; expr?: string } | null>(null);
+  const dimTabRef = useRef<1 | -1 | 0>(0);   // Tab / Shift+Tab pressed in the dimension box: the next box opens once the value is applied
   const [, viewTick] = useState(0);
   // Select mode, several entities: Ctrl or Shift click toggles, a rubber band replaces (or adds with Shift/Ctrl). The transform tools act on these.
   const multiSelRef = useRef<string[]>([]);
@@ -809,6 +846,7 @@ function App() {
   const sketchPointerRef = useRef<((ev: import('@kit/viewport').SketchPointerEvent) => void) | null>(null);
   const sketchKeyRef = useRef<((e: KeyboardEvent) => boolean) | null>(null);
   const sketchUndoRef = useRef<(() => void) | null>(null);
+  const sketchRedoRef = useRef<(() => void) | null>(null);
   /** A finger is drawing with a sketch tool: the tool's state when it went down (a cancelled gesture goes back to it) and whether it became a drag. */
   const touchRef = useRef<{ state: unknown; out: ToolOutput<unknown> | null; dragged: boolean } | null>(null);
   /** A circle was just dragged out by a finger: the entities there were before it, so the new one can be picked and its radius typed. */
@@ -850,6 +888,7 @@ function App() {
       },
       onHover: (n) => { if (!store.cached.value) store.hover.value = n; },
       onSketchMove: (pointId, u, v) => sketchMoveRef.current?.(pointId, u, v),
+      onSketchDragEnd: () => sketchDragEndRef.current?.(),
       onSketchPointer: (ev) => sketchPointerRef.current?.(ev),
       onSketchSelect: (ev) => sketchSelectRef.current?.(ev),
       onSketchHover: (ev) => sketchHoverRef.current?.(ev),
@@ -1229,18 +1268,29 @@ function App() {
     setOrthoState(next);
     try { localStorage.setItem('cad.ortho', next ? '1' : '0'); } catch { /* private window */ }
   };
+  /** The one selected face, if exactly one face is selected. */
+  const selectedFace = (): string | null => {
+    const sel = store.selection.value;
+    return store.mode.value === 'face' && sel.length === 1 && sel[0] !== BODY ? sel[0] : null;
+  };
+  // defined before the Sketch button's tooltip: the commands table is built during render and calls it, before anything lower down exists
   /** The Plane feature (an offset or tangent reference plane) selected in the tree or clicked in the viewport. */
   const selectedPlaneFeature = () => (selectedId ? controller.document()?.features.find((x) => x.id === selectedId && x.type === 'plane') ?? null : null);
   const planeLabel = (id: string) => { const d = controller.document(); const f = d?.features.find((x) => x.id === id); return f ? featureLabel(d, f as never) : id; };
+  /** Where the Sketch button would sketch now: the selected face, plane or plane feature, else the plane of the last sketch. */
+  const currentSketchTarget = () => sketchTarget({ face: selectedFace(), plane: isPlaneId(refSel) ? refSel : null, feature: selectedPlaneFeature()?.id ?? null, last: lastSketchPlane.get() });
   const sketchHere = () => {
-    const face = selectedFace();
-    const plane = isPlaneId(refSel) ? refSel : null;
-    const pf = selectedPlaneFeature();
-    if (face) startNewSketch({ kind: 'face', id: face });
-    else if (plane) startNewSketch(plane);
-    else if (pf) startNewSketch({ kind: 'feature', id: pf.id });
+    const tg = currentSketchTarget();
+    if (tg?.kind === 'face') startNewSketch({ kind: 'face', id: tg.id });
+    else if (tg?.kind === 'plane' || tg?.kind === 'last') startNewSketch(tg.id);
+    else if (tg?.kind === 'feature') startNewSketch({ kind: 'feature', id: tg.id });
     else if (!editingIdRef.current && !measureRef.current && !sketchingRef.current) beginPlanePick();
     else store.notify(t('app.sketch.pickFirst'), 'error');
+  };
+  const sketchHereTip = (): string | undefined => {
+    const tg = currentSketchTarget();
+    if (!tg) return t('app.sketch.pickTip');
+    return tg.kind === 'face' ? t('app.sketch.onFace') : t('app.sketch.onNamed', { name: tg.kind === 'feature' ? planeLabel(tg.id) : planeName(tg.id) });
   };
   /** Show the origin planes as sheets to pick from; a flat face in the model can be picked too. */
   const beginPlanePick = () => {
@@ -1271,7 +1321,7 @@ function App() {
   };
   const showWarning = (id: string) => { selectFailed(id); setDrawerTab('diagnostics'); openDrawer(); };
   const openInspect = () => { setDrawerTab('inspect'); openDrawer(); };
-  const inspect = useInspect(controller, store, () => viewport, openInspect, measureRef);
+  const inspect = useInspect(controller, store, () => viewport, openInspect, measureRef, !!editingId);
   /** Fold or unfold the side panel (the chevron on its edge, the top bar button, `[`). Remembered per device with the workspace. The tool column follows: its place and width come from the same rules. */
   const toggleLeftPanel = () => {
     if (layout.value === 'phone') { toggleSheet('tree'); return; }
@@ -1966,9 +2016,11 @@ function App() {
     context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId, selectedIds: ti.actions.selected(), refPlane: refSel, tangentChain: tangentChainOn(), bodyRows: () => bodyRowsFor(false) }),
     create: (ops) => void createFeature(ops),
     holeOnFace: (face) => { holeSketchRef.current = true; startNewSketch({ kind: 'face', id: face }); },
+    holePickFace: () => { if (sketchingRef.current || editingIdRef.current) return; beginPlanePick(); holeSketchRef.current = true; },   // the pick bar says "hole"; the picked face starts the hole sketch
     holeFlip: (sketchId) => controller.extrudeFlip(sketchId, 'cut'),
     addThread: (faces) => void addThread(faces),
     select: (names) => store.select(names),
+    selectEdges: (keys) => { setMode('edge'); store.select(keys); },
     notify: (text, level) => store.notify(text, level),
   };
   const revealRef = useRef<{ canShow(): boolean; show(): void }>({ canShow: () => false, show: () => {} });   // filled by useRevealInTree below (the commands are built before the tree rows exist)
@@ -2023,6 +2075,7 @@ function App() {
     toggleDrawer,
     resetLayout: () => resetLayout(store),
     sketchHere,
+    sketchHereTip,
     sketchPickPlane: beginPlanePick,
     toggleProjection,
     toggleUpAxis: () => changeNav({ upAxis: navPrefs.upAxis === 'y' ? 'z' : 'y' }),
@@ -2038,7 +2091,7 @@ function App() {
     sheet: sheetUi.actions,
     inspect: {
       toggleMeasure: () => inspect.toggleMeasure(), isMeasuring: () => inspect.measuring,
-      massProps: () => { openInspect(); void inspect.runMass(); }, interference: () => { openInspect(); void inspect.runInterference(); },
+      massProps: () => { openInspect(); void inspect.runMass(); setTimeout(() => scrollMassIntoView(), 120); }, interference: () => { openInspect(); void inspect.runInterference(); },
       toggleSection: inspect.toggleSection, isSectioned: () => inspect.sectionOn, hasSolid: () => controller.bodyBox() !== null,
     },
     assembly: {
@@ -2113,6 +2166,7 @@ function App() {
       const onCanvas = !t || t === document.body || !!t.closest?.('#vp');
       if (treeKeyRef.current(e, onCanvas)) { e.preventDefault(); return; }
       if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey && sketchingRef.current && sketchUndoRef.current) { e.preventDefault(); sketchUndoRef.current(); return; }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z') && e.shiftKey && sketchingRef.current && sketchRedoRef.current) { e.preventDefault(); sketchRedoRef.current(); return; }
       // the common commands' keys (not while a sketch tool owns the letters, except Ctrl combinations)
       if (!sketchingRef.current || e.metaKey || e.ctrlKey) {
         const hit = matchShortcut(commandsRef.current, e);
@@ -2124,6 +2178,7 @@ function App() {
       if (e.key === 'f' || e.key === 'F') { e.preventDefault(); setPalette(true); }
       else if (e.key === '\\') { e.preventDefault(); toggleDrawer(); }
       else if (e.key === '[') { e.preventDefault(); toggleLeftPanel(); }
+      else if (VIEW_KEYS[e.key] && !viewKeysActive(!!editingIdRef.current)) { e.preventDefault(); }   // a feature panel is open: the digit is not a view change
       else if (VIEW_KEYS[e.key]) { e.preventDefault(); viewport?.setView(VIEW_KEYS[e.key]); }
       else if (e.key === 'q' || e.key === 'Q') setMode('face');
       else if (e.key === 'e' || e.key === 'E') setMode('edge');
@@ -2228,8 +2283,10 @@ function App() {
     return () => { viewport?.setRegionPicker(null); viewport?.highlightSketchEntities(null, []); };
   }, [viewport, editingId, !!regionFrame]);
   const cutProblemNow = cutProblem(editingFeature ? { ...editingFeature, ...draft } : null, previewDiag?.d.roots ?? null);
+  const editEff = editingFeature ? { ...editingFeature, ...draft } as Record<string, unknown> : null;
   const thinActions = {
     cutProblem: cutProblemNow,
+    cutSide: cutProblemNow === 'miss' && editEff?.type === 'extrude' && typeof editEff.sketch === 'string' ? controller.cutSide(editEff.sketch, editEff.flip === true) : null,
     closeWithLine: (sketchId: string) => {
       const op = closeWithLineOp(doc, sketchId);
       if (op) void timed(() => controller.commit([op], 'closeProfile')).then(() => { redraw((n) => n + 1); if (editingId) { const ops = opsFromDraft(draft); if (ops.length) void controller.preview(ops).then((r) => setPreviewHint(r.ok ? null : (r.hint ?? null))); } });
@@ -2266,6 +2323,11 @@ function App() {
   };
   const onDraft = (next: Record<string, unknown>, thread?: HoleThread | null) => {
     setDraft(next); draftRef.current = next;
+    // a fillet / chamfer with no edges left is the "pick edges" state, not a broken model: drop the preview instead of sending it to the kernel
+    if (noRoundEdges(editingFeature?.type, next)) {
+      void controller.cancelPreview(); setPreviewHint(null); setPreviewDiag(null); redraw((n) => n + 1);
+      return;
+    }
     const ops = opsFromDraft(next, thread);
     if (!ops.length) return;
     void controller.preview(ops).then((r) => {
@@ -2276,6 +2338,7 @@ function App() {
   };
   const onConfirm = async (next: Record<string, unknown>, thread?: HoleThread | null) => {
     viewport?.highlightSketchEntities(null, []);
+    if (noRoundEdges(editingFeature?.type, next)) { setPreviewHint(t('ui.editor.pickEdgesNote')); setPreviewDiag(null); return; }   // nothing to round yet: stay in the editor and say what to pick
     const ops = opsFromDraft(next, thread);
     const moved = ops.find((o) => o.op === 'move' && o.id === editingId) as { to: number } | undefined;
     const movedAfter = moved ? (controller.document()?.features ?? [])[moved.to] : undefined;
@@ -2290,7 +2353,9 @@ function App() {
         return;
       }
     }
+    if (editingFeature) featureMemory.remember({ ...editingFeature, ...next });   // the options accepted here are the next feature's starting point
     setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+    if (editingId && newFeatureRef.current === editingId) { newFeatureRef.current = null; offerJunction(editingId); }
     if (movedAfter) store.notify(t('app.loft.moved', { name: featureLabel(controller.document(), movedAfter as never) }), 'info');
     if (editingId) setSelectedId(editingId);
     setLeftTab('Features');   // back to the history tree, with the feature you just edited selected
@@ -2508,7 +2573,7 @@ function App() {
   /** The camera on entering a sketch: squared up when the view is not kept, or for a NEW sketch with 'Auto look normal'; otherwise left alone, with a Look normal chip when it is angled to the plane (more than 5 degrees). */
   const enteredSketch = (isNew: boolean) => {
     const p = prefsRef.current;
-    if (!p.keepView || (isNew && p.autoLookNormal)) { viewport?.orientToSketch(); setLookChip(false); return; }
+    if (!p.keepView || (isNew && p.autoLookNormal) || (!isNew && reopenNeedsOrient(true, viewport?.sketchLookAngle() ?? null))) { viewport?.orientToSketch(); setLookChip(false); return; }
     setLookChip(lookChipNeeded(viewport?.sketchLookAngle() ?? null));
   };
   const lookNormal = () => { viewport?.orientToSketch(); setLookChip(false); };
@@ -2578,14 +2643,23 @@ function App() {
   // these refs; the actual work reads the controller's current draft (which
   // carries the solver's folds from earlier drags).
   sketchMoveRef.current = (pointId, u, v) => {
-    const d = controller.sketchDraft();
-    if (!d) return;
-    void controller.updateSketch(movePoint(d, pointId, u, v)).then((r) => {
+    void controller.dragSketchPoint(pointId, u, v).then((r) => {
       setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null));
     });
   };
+  // the drop: one undo step when the point moved; a drag the solver refused goes back (the hint says why) and is no step
+  sketchDragEndRef.current = () => {
+    void controller.endSketchDrag().then((r) => {
+      if (r.stale) return;
+      setSketchHint(r.hint ? t(r.hint) : null);
+      viewTick((n) => n + 1);   // the DOF badge now counts the sketch without the drag pin
+    });
+  };
   const selectTool = (id: string | null) => {
+    // leaving the Line tool mid-chain (Escape, another tool): the tool ends its chain first, which removes a start point nothing was drawn from
+    for (let i = 0; i < 3 && sketchToolRef.current === 'line' && (toolStateRef.current as { last?: string } | null)?.last; i++) runTool({ type: 'key', key: 'Escape' });
     const entry = id ? toolById(id) : undefined;
+    typedExprRef.current.clear();
     // entities picked in Select mode go to the tool (move, copy, rotate, scale, patterns) and the selection itself is let go
     toolEntitiesRef.current = id ? selectedEntityIds() : [];
     if (id) { selEntityRef.current = null; multiSelRef.current = []; setEntityOut(null); }
@@ -2594,6 +2668,7 @@ function App() {
     sketchToolRef.current = entry ? entry.id : null;
     toolStateRef.current = entry ? entry.tool.start() : null;
     lastOutRef.current = null;
+    pendingTypedRef.current = null; setCoordBox(null);
     setSketchToolId(entry ? entry.id : null);
     setToolOut(null);
     viewport?.setSketchTool(!!entry);
@@ -2602,6 +2677,19 @@ function App() {
     // Offset chosen while the sketch is on a face: offer that face's outline offset inward right away
     else if (entry.id === 'offset' && projectSelRef.current.length) runTool({ type: 'key', key: OFFSET_FACE_KEY });
     else if (toolEntitiesRef.current.length || ['mirror', 'pattern-linear', 'pattern-circular'].includes(entry.id)) runTool({ type: 'move', at: { x: 0, y: 0 }, mods: { shift: false, ctrl: false, alt: false } });   // lets a tool that acts on a selection take it up at once
+  };
+  /** The active tool starts over (its picks, typed and locked fields and preview are dropped) and stays selected. */
+  const resetActiveTool = () => {
+    const entry = sketchToolRef.current ? toolById(sketchToolRef.current) : undefined;
+    if (!entry) return;
+    typedExprRef.current.clear();
+    toolStateRef.current = entry.tool.start();
+    lastOutRef.current = null;
+    pendingTypedRef.current = null; setCoordBox(null);
+    seedBufRef.current = '';
+    setToolOut(null);
+    viewport?.setSketchPreview([]);
+    readout.from.value = null;
   };
   /** What the pointer is snapped to, drawn as markers and dotted guides, plus the ring on the chain end. */
   const snapVisuals = (draft: import('@kit/sketch').SketchDraft, snap: SnapHit | undefined, out: ToolOutput<unknown>): SketchPreviewShape[] => {
@@ -2628,6 +2716,12 @@ function App() {
     }
     return shapes;
   };
+  /** Enter in the coordinate box: the tool gets a click at the typed place and the point it makes there is dimensioned from the origin. */
+  const placeTyped = (pt: TypedPoint) => {
+    setCoordBox(null);
+    pendingTypedRef.current = pt;
+    runTool({ type: 'click', at: { x: pt.x, y: pt.y }, mods: { shift: false, ctrl: false, alt: false } });
+  };
   const runTool = (ev: ToolEvent, dry = false): ToolOutput<unknown> | undefined => {
     const entry = sketchToolRef.current ? toolById(sketchToolRef.current) : undefined;
     const draft = controller.sketchDraft();
@@ -2645,10 +2739,28 @@ function App() {
     if (dry) return out;   // only asking what the event would do
     // a click that snapped to a midpoint or an alignment makes that a real constraint, so it survives later edits
     if (ev.type === 'click' && out.draft !== draft && constrainsFromGuides(prefsRef.current, ev.mods.shift)) out.draft = applySnapConstraints(draft, out.draft, snap);
-    // Shift+click on a model point attaches the new point to the model (a fixed reference point there); without Shift it only positions it
-    if (ev.type === 'click' && out.draft !== draft && ev.mods.shift && snap?.model) out.draft = attachModelSnap(draft, out.draft, snap);
+    // Shift+click on a model point attaches the new point to the model (a fixed reference point there); a centre or midpoint of the body's edges is attached without Shift (that is the point of picking it)
+    if (ev.type === 'click' && out.draft !== draft && snap?.model && (ev.mods.shift || ATTACH_MODEL_TAGS.has(snap.model))) out.draft = attachModelSnap(draft, out.draft, snap);
+    // a point typed in the coordinate box: once the tool has made its point there, it is dimensioned from the origin (a zero coordinate lies on the axis instead)
+    if (out.draft !== draft && pendingTypedRef.current) {
+      const id = newPointAt(draft, out.draft, pendingTypedRef.current);
+      if (id) { out.draft = constrainTypedPoint(out.draft, id, pendingTypedRef.current); pendingTypedRef.current = null; }
+    }
     if (out.draft !== draft && constructionModeRef.current && entry.group === 'draw') out.draft = markNewAsConstruction(draft, out.draft);
     toolStateRef.current = out.state;
+    // dimensions this step created from a typed variable / expression keep their link, so changing the variable resizes the sketch
+    if (out.draft !== draft && typedExprRef.current.size) {
+      const had = new Set(draft.constraints.map((c) => c.id));
+      let changed = false;
+      const cs = out.draft.constraints.map((c) => {
+        if (had.has(c.id) || typeof c.value !== 'number' || c.expr) return c;
+        const k = String(Math.round(c.value * 1e6)), e = typedExprRef.current.get(k);
+        if (!e) return c;
+        typedExprRef.current.delete(k); changed = true;
+        return { ...c, expr: e.replace(/^\s*=\s*/, '') };
+      });
+      if (changed) out.draft = { ...out.draft, constraints: cs };
+    }
     // the Dimension tool just resolved what it measures (two lines: their angle ...): its value field takes the focus, selected, ready to be typed over
     if (entry.id === 'dimension' && out.fields.length && !lastOutRef.current?.fields.length) {
       setFieldSeed((s0) => ({ n: s0.n + 1, text: null }));
@@ -2845,7 +2957,9 @@ function App() {
     const nowId = pt?.pointId ?? (next as { entity?: string }).entity ?? null;
     if (hoverFocusTimer.current) { clearTimeout(hoverFocusTimer.current); hoverFocusTimer.current = null; }
     if (nowId) setHoverFocus(nowId);
-    else hoverFocusTimer.current = setTimeout(() => { hoverFocusTimer.current = null; setHoverFocus(null); }, 350);
+    else hoverFocusTimer.current = setTimeout(() => { hoverFocusTimer.current = null; setHoverFocus(null); if (!conTipOver.current) setConTip(null); }, 350);
+    // the constraints on it, in a list that stays where it appeared until the pointer leaves it (so an item can be clicked)
+    if (nowId && !conTipOver.current) setConTip((c) => (c?.target === nowId ? c : tooltipItems(draft, controller.sketchStatus(), nowId).length ? { target: nowId, x: ev.x + 14, y: ev.y + 16 } : null));
     if (cur.point === next.point && cur.entity === (next as { entity?: string }).entity) return;
     hoverRef.current = { ...next, constraint: cur.constraint };
     applyHighlight();
@@ -2890,8 +3004,22 @@ function App() {
     const edit = dimEdit;
     if (!commit || value === null || !draft || !edit) return;
     const next = setConstraintValue(draft, edit.id, value, expr);
+    const dir = dimTabRef.current; dimTabRef.current = 0;
     setDimEdit(null);
-    if (next) void controller.applySketchDraft(next).then((r) => { setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null)); viewTick((n) => n + 1); });
+    if (next) void controller.applySketchDraft(next).then((r) => { setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null)); viewTick((n) => n + 1); if (dir) tabToDim(edit.id, dir); });
+  };
+  /** Tab chain: open the box of the dimension after (before) this one. */
+  const tabToDim = (from: string, dir: 1 | -1) => {
+    const draft = controller.sketchDraft();
+    const to = draft ? nextDim(dimTabOrder(annotate(draft)), from, dir) : null;
+    if (to) startDimEdit(to);
+  };
+  const dimTabKey = (dir: 1 | -1) => {
+    const from = dimEdit?.id;
+    if (!from) return;
+    dimTabRef.current = dir;
+    // an empty or unusable value is not committed: the chain moves on without applying anything
+    setTimeout(() => { if (dimTabRef.current) { dimTabRef.current = 0; tabToDim(from, dir); } }, 0);
   };
   /** The selected entity (Select mode) flips between normal and construction. */
   const toggleSelectedConstruction = () => {
@@ -2969,14 +3097,31 @@ function App() {
     applyDraft(next);
   };
   /** `name = value` in a value box: define the parameter (or give an existing one the new value) as one undo step. False when it was refused. */
-  const defineParam = async (name: string, expr: string): Promise<boolean> => {
-    const r = defineVariable(readVars(controller.document()), name, expr);
+  const defineParam = async (name: string, expr: string, unit?: string): Promise<boolean> => {
+    const r = defineVariable(readVars(controller.document()), name, expr, unit);
     if (!r.ok) { setSketchHint(errorText(r.code, r.name)); return false; }
     const done = await controller.applyDocPatch({ variables: r.variables }, `parameter ${name}`);
     if (!done.ok) { setSketchHint(t('expr.error.badExpression', undefined, 'Not a valid expression')); return false; }
     setSketchHint(null);
     redraw((n) => n + 1);
     return true;
+  };
+  /** Ask the solver what is still free and what would pin it (Show freedom). */
+  const analyseFreedom = async () => {
+    const draft = controller.sketchDraft(), st = controller.sketchStatus();
+    const seq = ++freeSeq.current;
+    if (!draft || !st) { setFreeState(null); return; }
+    const parts = await freeParts(draft, st, (d) => controller.probeSketch(d));
+    if (seq !== freeSeq.current) return;
+    const items = describeFree(draft, parts);
+    setFreeState({ items, suggestions: suggestionsFor(draft, items) });
+  };
+  /** A suggestion chip: add the constraint; a dimension then opens its value box. */
+  const runSuggestion = (sg: Suggestion) => {
+    const draft = controller.sketchDraft();
+    if (!draft) return;
+    const r = applySuggestion(draft, sg);
+    applyDraft(r.draft, (res) => { if (res.ok && r.dimension) startDimEdit(r.id); });
   };
   /** Fully define: relations as drawn, then dimensions, until nothing can move. One undo step. */
   const fullyDefineNow = async () => {
@@ -2991,11 +3136,13 @@ function App() {
       const st = controller.sketchStatus();
       const msg = r.status?.conflicts.length ? t('app.sketch.fullyDefined.conflict')
         : r.fully && added === 0 ? t('app.sketch.fullyDefined.already')
-        : r.fully ? t('app.sketch.fullyDefined.added', { relations: r.relations, dimensions: r.dimensions })
-        : added > 0 ? t('app.sketch.fullyDefined.partial', { relations: r.relations, dimensions: r.dimensions, dof: st?.dof ?? r.status?.dof ?? 0 })
+        : r.fully ? t('app.sketch.fullyDefined.added', { what: addedSummary(r.relations, r.dimensions) })
+        : added > 0 ? t('app.sketch.fullyDefined.partial', { what: addedSummary(r.relations, r.dimensions), dof: st?.dof ?? r.status?.dof ?? 0 })
         : t('app.sketch.fullyDefined.nothing');
       setSketchHint(null);
       store.notify(msg, r.fully || added > 0 ? 'info' : 'error');
+      // could not finish: show what is still free, in amber, with ways to pin it
+      if (!r.fully && !r.status?.conflicts.length) { setShowFree(true); await analyseFreedom(); }
     } finally { setDefining(false); viewTick((n) => n + 1); applyHighlight(); }
   };
   /** Model snaps of the open sketch: built once per sketch session and when the body, the plane or the picked extrusion changes, not per pointer move. */
@@ -3080,9 +3227,10 @@ function App() {
     }
   };
   // Keys while a sketch tool is active. A tool that is mid-shape (a rubber band or fields showing) gets Escape,
-  // Enter and its own keys; an idle tool lets Escape leave the tool, Enter confirm the sketch and letters pick tools.
+  // Enter and its own keys; an idle tool lets Escape leave the tool and letters pick tools; Enter is ignored while a tool is active (only with no tool does it confirm the sketch).
   sketchKeyRef.current = (e) => {
     if (!sketching) return false;
+    if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'C' || e.key === 'c') && !sketchToolRef.current) { e.preventDefault(); toggleShowConstraints(); return true; }
     const sel = selEntityRef.current;
     if (!sketchToolRef.current && selConstraintRef.current && !sel && !multiSelRef.current.length) {
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); const id = selConstraintRef.current; setSelConstraint(null); deleteConstraint(id); return true; }
@@ -3122,10 +3270,14 @@ function App() {
       if (e.key === 'Escape') { e.preventDefault(); selectEntity(null, 0, 0); return true; }
     }
     const busy = !!lastOutRef.current && (lastOutRef.current.preview.length > 0 || lastOutRef.current.fields.length > 0);
-    // Tab with the Line tool waiting for its first point: type that point's X and Y (see the line tool)
-    if (e.key === 'Tab' && !e.shiftKey && sketchToolRef.current === 'line' && !busy) { e.preventDefault(); runTool({ type: 'key', key: 'Tab' }); return true; }
+    // Tab with the Line tool waiting for its first point, or the Point tool: type that point's X and Y (see the line and point tools)
+    if (e.key === 'Tab' && !e.shiftKey && (sketchToolRef.current === 'line' || sketchToolRef.current === 'point') && !busy) { e.preventDefault(); runTool({ type: 'key', key: 'Tab' }); return true; }
+    // Tab with value boxes showing moves into them (and from box to box); it never switches a tool's mode: the line's tangent arc is the A key
+    if (e.key === 'Tab' && !e.altKey && !e.ctrlKey && !e.metaKey && sketchToolRef.current && busy && lastOutRef.current?.fields.length) { e.preventDefault(); tabIntoFields(e.shiftKey); return true; }
+    // a tool waiting for its first point: a digit, a minus, @ or G opens the box to type it as x,y
+    if (!busy && opensCoordBox(e.key, sketchToolRef.current, e)) { e.preventDefault(); setCoordBox((c) => ({ initial: coordBoxText(c ? c.initial : null, e.key) })); return true; }
     if (sketchToolRef.current && busy) {
-      if (/^[0-9.\-]$/.test(e.key)) {
+      if (seedsField(e.key, sketchToolRef.current, lastOutRef.current?.fields[0]?.keys, e)) {
         // typing starts the first field. Not by focusing it here and hoping the key lands in it (the fields may be about to be re-rendered, and a second
         // fast key would select and overwrite the first): the characters typed before the field has focus are collected and put in it, replacing its text
         e.preventDefault();
@@ -3138,16 +3290,29 @@ function App() {
       return true;
     }
     if (e.key === 'Escape' && sketchToolRef.current) { e.preventDefault(); selectTool(null); return true; }
+    // Enter with a tool active and nothing in progress goes to the tool (which ignores it unless it has something to confirm); it must not fall through and finish the sketch
+    if (e.key === 'Enter' && sketchToolRef.current) { e.preventDefault(); runTool({ type: 'key', key: 'Enter' }); return true; }
     if ((e.key === 'n' || e.key === 'N') && !e.shiftKey) { e.preventDefault(); lookNormal(); return true; }   // Look normal
     const hit = SKETCH_TOOL_KEYS.get(e.key.toLowerCase());
     if (hit && e.key.length === 1) { e.preventDefault(); selectTool(hit); return true; }
     return false;
   };
-  sketchUndoRef.current = () => { void controller.undoSketch(); };
-  /** The one selected face, if exactly one face is selected. */
-  const selectedFace = (): string | null => {
-    const sel = store.selection.value;
-    return store.mode.value === 'face' && sel.length === 1 && sel[0] !== BODY ? sel[0] : null;
+  sketchUndoRef.current = () => {
+    void controller.undoSketch().then((did) => {
+      if (!did) return;
+      // the tool's typed values (a locked radius, a half-placed shape) belong to the draft that was undone: start the tool over
+      resetActiveTool();
+      setSketchHint(null);
+      viewTick((n) => n + 1);   // the solver's verdict (the DOF badge) changed with the draft
+    });
+  };
+  sketchRedoRef.current = () => {
+    void controller.redoSketch().then((did) => {
+      if (!did) return;
+      resetActiveTool();
+      setSketchHint(null);
+      viewTick((n) => n + 1);
+    });
   };
   /** Everything the shell keeps for one sketch session (tool, picked entities, chips, readout, hole mode). A session starts from this
    *  and ends in it, so nothing of the last sketch can show in the next. */
@@ -3161,6 +3326,7 @@ function App() {
     clearReadout();
   };
   const startNewSketch = (plane: PlaneId | { kind: 'face' | 'feature'; id: string }, after?: () => Promise<void>) => {
+    if (typeof plane === 'string') lastSketchPlane.set(plane);   // the Sketch button falls back to this plane when nothing is selected
     setRefSel(null); setRefHover(null);   // the chosen plane's highlight must not tint the sketch
     setPlanePick(false);
     void (async () => {
@@ -3202,16 +3368,18 @@ function App() {
     const d = controller.document();
     if (!d) return;
     const target = sketchId ? { sketchId, regions: null } : nextExtrudeTarget(d.features as never, selectedId);
-    if (!target) { store.notify(d.features.some((f) => f.type === 'sketch') ? t('app.allSketchesUsed') : t('app.noSketch'), 'error'); return; }
+    if (!target) { store.notify(d.features.some((f) => f.type === 'sketch') ? t('app.allSketchesUsed') : t('app.noSketch'), 'warn', undefined, { ttl: 6000 }); return; }   // a hint, stale as soon as the user acts: it goes by itself
     const dflt = defaultExtrudeOp({ explicitCut: opArg === 'cut', touchesBody: controller.sketchTouchesBody(target.sketchId), supportsNew: KERNEL_SUPPORTS_NEW_BODY && controller.hasSolid() });
     // a sketch that does not meet the body makes a new, named body; the first solid of a part just adds
-    const op: 'add' | 'cut' | 'newBody' = dflt === 'cut' ? 'cut' : dflt === 'new' ? 'newBody' : 'add';
+    const mem = recallFor('extrude');   // read now: a repeat of the last feature carries its depth too
+    const op: 'add' | 'cut' | 'newBody' = memoryOp(mem, opArg === 'cut', controller.hasSolid(), dflt === 'cut' ? 'cut' : dflt === 'new' ? 'newBody' : 'add');
     const bodyName = op === 'newBody' ? nextBodyName(usedBodyNames(d.features as unknown as Array<Record<string, unknown>>)) : null;
     // a cut of a projected outline with a loop inside it is a pocket: the inner loop, not the wall that coincides with the body
     const regions = target.regions ?? (op === 'cut' ? defaultCutRegions(d.features.find((f) => f.id === target.sketchId) as never) : null);
-    const make = (flip: boolean) => ({ type: 'extrude', op, ...(bodyName ? { body: bodyName } : {}), sketch: target.sketchId, end: 'blind', depth: 10, ...(thin ? { thin: { thickness: defaultThickness(d.features.find((f) => f.id === target.sketchId) as never), side: 'inside', ends: 'flat', cornerStyle: 'mitre' } } : {}), ...(regions ? { regions } : {}), ...(flip ? { flip: true } : {}) });
+    const make = (flip: boolean) => applyExtrudeMemory({ type: 'extrude', op, ...(bodyName ? { body: bodyName } : {}), sketch: target.sketchId, end: 'blind', depth: 10, ...(thin ? { thin: { thickness: defaultThickness(d.features.find((f) => f.id === target.sketchId) as never), side: 'inside', ends: 'flat', cornerStyle: 'mitre' } } : {}), ...(regions ? { regions } : {}), ...(flip ? { flip: true } : {}) }, mem) as Record<string, unknown>;
     // a cut's direction is 'auto': the side the body lies on first, then the other, and the one that really touches the body is kept
     let flip = controller.extrudeFlip(target.sketchId, op === 'cut' ? 'cut' : 'add');
+    if (op === 'cut' && typeof mem.flip === 'boolean') flip = mem.flip;   // the remembered direction is tried first; the probe below still checks it touches the body
     if (op === 'cut') {
       const pick = await autoCutFlip(flip, async (f) => {
         const r = await controller.preview([{ op: 'add', feature: make(f) as never }], 0);
@@ -3225,6 +3393,13 @@ function App() {
   // Add the feature the ops describe as one edit, clear the selection that fed it, and open the Editor on it.
   // features whose first try is kept as a draft in their editor when the kernel refuses it (the toast alone left nothing to fix)
   const DRAFTABLE = new Set(['loft', 'shell', 'extrude', 'revolve', 'fillet', 'chamfer', 'sweep', 'edgeFlange', 'hem', 'sheetCorner']);
+  const newFeatureRef = useRef<string | null>(null);   // the feature just made and not yet accepted: accepting a new boss offers to round its junction
+  /** Offer, as a toast with a button, to fillet the edges where the boss `id` meets the older body (the fillet opens with them picked). */
+  const offerJunction = (id: string) => {
+    const f = controller.document()?.features.find((x) => x.id === id) as { type?: string; op?: string } | undefined;
+    if (!addsMaterial(f) || !junctionFilletOps(controller.document(), id, controller.bodyEdges(), controller.bodyBox())) return;
+    store.notify(t('junction.prompt'), 'info', { label: t('junction.fillet'), run: () => { const ops = junctionFilletOps(controller.document(), id, controller.bodyEdges(), controller.bodyBox()); if (ops) void createFeature(ops); } });
+  };
   const createFeature = async (ops: EditOp[]) => {
     const before = controller.document()?.features.length ?? 0;
     // the picked edges, faces or corners are consumed by the feature: clear them first so the rebuild does not report them as lost
@@ -3257,9 +3432,16 @@ function App() {
       const n = pipeCutNotice((r as { diff?: Parameters<typeof pipeCutNotice>[0] }).diff);
       if (n) store.notify(t(n === 'surface' ? 'app.pipeCut.surface' : 'app.pipeCut.nothing'), 'warn');
     }
-    if (added) startEditing(added.id);
+    if (added) { newFeatureRef.current = added.id; startEditing(added.id); }
   };
-  const fieldEvent = (id: string, value: number | null, commit: boolean) => { if (commit) seedBufRef.current = ''; runTool({ type: 'field', id, value, commit }); };
+  const fieldEvent = (id: string, value: number | null, commit: boolean, expr?: string) => {
+    if (commit) {
+      seedBufRef.current = '';
+      // a typed variable or expression: the tools only know numbers, so the link is remembered here and put on the dimension the tool makes with that value (a plain number typed later unlinks it)
+      if (value !== null && Number.isFinite(value)) { const k = String(Math.round(value * 1e6)); if (expr) typedExprRef.current.set(k, expr); else typedExprRef.current.delete(k); }
+    }
+    runTool({ type: 'field', id, value, commit });
+  };
   const confirmSketch = async (): Promise<string | null> => {
     if (!sketching) return null;
     selectTool(null);
@@ -3293,7 +3475,7 @@ function App() {
     if (fromKey === true && !escapeCancelsSketch(controller.sketchDraft())) { setSketchHint(t('app.sketch.escapeKeeps')); return; }
     selectTool(null);
     selectEntity(null, 0, 0);
-    setDimEdit(null); hoverRef.current = {}; setHotConstraint(null); setSelConstraint(null);
+    setDimEdit(null); hoverRef.current = {}; setHotConstraint(null); setSelConstraint(null); setShowFree(false); setFreeState(null); setConTip(null);
     await controller.cancelSketch();
     holeSketchRef.current = false; setHoleCorner(null);
     projectSelRef.current = [];
@@ -3334,7 +3516,18 @@ function App() {
     const d = controller.sketchDraft();
     viewport?.setSketchConflicts(d && stForKey && sketchPrefs.show.relations ? conflictingGeometry(d, stForKey) : null);
   }, [defKey, viewport, sketchPrefs.show.relations]);
+  // Show freedom: analyse when asked and again after each edit while it is on; the free curves and points turn amber
+  useEffect(() => {
+    if (!sketching || !showFree || !defKey) { freeSeq.current++; return; }
+    const timer = setTimeout(() => void analyseFreedom(), 350);
+    return () => clearTimeout(timer);
+  }, [defKey, showFree, !!sketching]);
+  useEffect(() => {
+    const items = showFree && freeState ? freeState.items : [];
+    viewport?.setSketchFreedom(items.length ? { entities: [...new Set(items.map((i) => i.entityId).filter(Boolean))], points: items.filter((i) => i.role !== 'radius').map((i) => i.partId) } : null);
+  }, [viewport, showFree, freeState]);
   const show = sketchPrefs.show;
+  const markMode = effectiveMarkMode(sketchPrefs.showConstraints, sketchPrefs.constraintMarkers, sketchDraftNow?.entities.length ?? 0);
   const annotItems = sketchDraftNow ? (() => {
     const to = (u: number, v: number) => viewport?.sketchToScreen(u, v) ?? null;
     const all = [...annotate(sketchDraftNow, { upp: viewport?.sketchViewInfo()?.upp, squareRight: sketchPrefs.rightAngleSquare, coincident: true }), ...(show.reference ? refAnnotations(sketchDraftNow, { upp: viewport?.sketchViewInfo()?.upp, squareRight: sketchPrefs.rightAngleSquare }) : [])]
@@ -3346,7 +3539,7 @@ function App() {
     // what the constraint chips follow: the above, the pointer's entity or point (a moment after it leaves) and the points of those
     const markFocus = expandFocus(sketchDraftNow, [...focus, ...(hoverFocus && !sketchToolRef.current ? [hoverFocus] : []), ...(hoverRef.current.point ? [hoverRef.current.point] : [])]);
     const axisLocks = rectangleAxisLocks(sketchDraftNow);
-    const placed = new Map(layoutDimensions(sketchDraftNow, all, { to, viewport: { w: host?.width ?? 1200, h: host?.height ?? 800 }, keepOut, display: sketchPrefs.dimDisplay, squareRight: sketchPrefs.rightAngleSquare, focus, dimensionTool: sketchToolRef.current === 'dimension', measure: (txt) => labelBox(txt) }).map((p) => [p.id, p]));
+    const placed = new Map(layoutDimensions(sketchDraftNow, all, { to, viewport: { w: host?.width ?? 1200, h: host?.height ?? 800 }, keepOut, display: sketchPrefs.showConstraints === true ? 'all' : sketchPrefs.dimDisplay, squareRight: sketchPrefs.rightAngleSquare, focus, dimensionTool: sketchToolRef.current === 'dimension', measure: (txt) => labelBox(txt) }).map((p) => [p.id, p]));
     const bl = (id: string) => (stForKey?.conflicts.includes(id) ? { blame: 'conflict' as const } : stForKey?.redundant.includes(id) ? { blame: 'redundant' as const } : {});
     return separateMarks(visibleChips(all.flatMap((a): AnnotationItem[] => {
       const pd = placed.get(a.id);
@@ -3357,7 +3550,7 @@ function App() {
       }
       const p = viewport?.sketchToScreen(a.at.x, a.at.y);
       return p ? [{ id: a.id, text: a.text, kind: a.kind, type: a.type, driven: !!a.driven, ...bl(a.id), ...(a.expr ? { fx: true } : {}), x: p.x, y: p.y + 10, refs: a.refs, ...(axisLocks.has(a.id) ? { axisLock: true } : {}) }] : [];
-    }), { mode: sketchPrefs.constraintMarkers, focus: markFocus, hot: hotConstraint, selected: selConstraint }));
+    }), { mode: markMode, focus: markFocus, hot: hotConstraint, selected: selConstraint }));
   })() : [];
   const stNow = sketching ? controller.sketchStatus() : null;
   const blame = (id: string) => (stNow?.conflicts.includes(id) ? 'conflict' as const : stNow?.redundant.includes(id) ? 'redundant' as const : undefined);
@@ -3384,6 +3577,12 @@ function App() {
     setHoleCorner({ plate, rec });
     void controller.applySketchDraft(next).then((r) => { setSketchHint(r.ok || r.stale ? t('cornerHoles.placed', { n: points.length }) : (r.hint ? t(r.hint) : null)); viewTick((n) => n + 1); });
   };
+  const toggleFree = () => { const on = !showFree; setShowFree(on); if (!on) setFreeState(null); };
+  /** Show constraints (Shift+C): every glyph and dimension, or only those of what is hovered. Turning it on also turns the dimension and relation display on. */
+  const toggleShowConstraints = () => {
+    const on = effectiveMarkMode(prefsRef.current.showConstraints, prefsRef.current.constraintMarkers, controller.sketchDraft()?.entities.length ?? 0) !== 'always';
+    updatePrefs(on ? { showConstraints: true, show: { ...prefsRef.current.show, dimensions: true, relations: true } } : { showConstraints: false });
+  };
   const sketchControls: SketchControls | null = sketching ? {
     name: sketching.name, plane: sketching.plane ?? sketchPlaneLabel,
     onOk: () => void confirmSketch(),
@@ -3396,10 +3595,11 @@ function App() {
     status: stNow, busy: defining, prefs: sketchPrefs,
     onPrefs: updatePrefs,
     onFullyDefine: () => void fullyDefineNow(),
+    showFree, onShowFree: toggleFree, showConstraints: markMode === 'always', onShowConstraints: toggleShowConstraints,
     onReport: () => setReportOpen((v) => !v), reportOpen,
     selected: selectedEntityIds().length > 1 ? selectedEntityIds().length : 0,
     onClearSelection: () => setMultiSelection([]),
-    list: <SketchConstraintList rows={conRows} status={stNow} hot={hotConstraint} selected={selConstraint} onSelect={(id) => { selectEntity(null, 0, 0); setSelConstraint(id); }} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} onToggleDriven={toggleDriven} />,
+    list: <><SketchFreedomList items={showFree ? freeState?.items ?? null : null} suggestions={freeState?.suggestions ?? []} busy={defining} onRun={runSuggestion} onAnalyse={toggleFree} /><SketchConstraintList rows={conRows} status={stNow} hot={hotConstraint} selected={selConstraint} onSelect={(id) => { selectEntity(null, 0, 0); setSelConstraint(id); }} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} onToggleDriven={toggleDriven} /></>,
   } : null;
   const chrome = sketchChrome(ws, !!sketching);
   // the side panel and the tool column are drawn from rules over the workspace on every render (chromeModel.ts); nothing here is stored
@@ -4615,7 +4815,7 @@ function App() {
       setLeftTab('Variables');   // the load put the panel back on the feature tree: stay where the edit was made
     } finally { store.busy.value = false; scriptRunning = false; }
   };
-  const variablesPanel = <VariablesPanel doc={doc} onApply={async (patch, reason) => { const r = await controller.applyDocPatch(patch, reason); if (r.ok && patch.variables) await rerunScriptForVariables(); redraw((n) => n + 1); return r; }} />;
+  const variablesPanel = <VariablesPanel doc={doc} onApply={async (patch, reason) => { const r = await controller.applyDocPatch(patch, reason); if (r.ok && patch.variables) await rerunScriptForVariables(); const open = r.ok && patch.variables ? controller.sketchDraft() : null; if (open) await controller.applySketchDraft({ ...open }); /* an open sketch re-solves its linked dimensions now, not only after it is finished */ redraw((n) => n + 1); return r; }} />;
   // Bodies: view state kept in the document (no feature, no undo step); the viewport is told at once
   const setBodyField = (key: 'appearance' | 'bodyNames' | 'view', value: unknown | null): void => {
     controller.setDocExtra(key, value && typeof value === 'object' && Object.keys(value).length ? value : null);
@@ -4771,7 +4971,7 @@ function App() {
   useEffect(() => { viewport?.setRefPlanePick(planePick); return () => viewport?.setRefPlanePick(false); }, [planePick]);
   useEffect(() => {   // Escape gives up picking a plane
     if (!planePick) return;
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setPlanePick(false); } };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setPlanePick(false); holeSketchRef.current = false; } };
     addEventListener('keydown', key, true);
     return () => removeEventListener('keydown', key, true);
   }, [planePick]);
@@ -4800,7 +5000,7 @@ function App() {
     if (stored.length === 1) {
       const only = stored[0];
       // the stored copy is about to be replaced by a part with far fewer features: keep the stored one first
-      const prev = readAutosave(browserKV());
+      const prev = readAutosave(browserKV(), slotKey(tabId));
       if (prev && !isTabs(prev.doc) && featureCount(prev.doc) >= 4 && (only.doc as PartDoc).features.length < featureCount(prev.doc) / 2) void snapshots.note(prev.doc, prev.name, 'drop');
       return { name: only.name, doc: only.doc, omitted };
     }
@@ -4809,10 +5009,13 @@ function App() {
   useEffect(() => { if (anyDirty()) autosaver.schedule(autoPayload, (controller.document()?.features.length ?? 0) > 200 ? 5000 : undefined); });
   useEffect(() => {
     const hide = () => { if (anyDirty()) autosaver.flush(autoPayload); };
-    addEventListener('pagehide', hide);
+    const gone = () => { hide(); dropBeat(browserKV(), tabId); };   // this tab's slot is free to offer at once
+    const back = () => touchBeat(browserKV(), tabId);               // restored from the back/forward cache
+    const beat = setInterval(back, BEAT_EVERY);
+    addEventListener('pagehide', gone); addEventListener('pageshow', back);
     const vis = () => { if (document.visibilityState === 'hidden') hide(); };
     document.addEventListener('visibilitychange', vis);
-    return () => { removeEventListener('pagehide', hide); document.removeEventListener('visibilitychange', vis); };
+    return () => { clearInterval(beat); removeEventListener('pagehide', gone); removeEventListener('pageshow', back); document.removeEventListener('visibilitychange', vis); };
   }, []);
   // drag and drop of files onto the window
   useEffect(() => {
@@ -4903,6 +5106,8 @@ function App() {
     { id: 'sketch-cancel', label: t('app.sketch.cancel'), tab: 'Sketch', group: 'Finish', run: () => void cancelSketch() },
     { id: 'sketch-fully-define', label: t('app.sketch.fullyDefine'), tip: t('app.sketch.fullyDefine.tip'), tab: 'Sketch', group: 'Sketch', run: () => void fullyDefineNow() },
     { id: 'sketch-construction', label: t('app.sketch.constructionMode'), tip: t('app.sketch.constructionMode.tip'), tab: 'Sketch', group: 'Sketch', pressed: () => constructionMode, run: () => setConstructionMode(!constructionMode) },
+    { id: 'sketch-show-freedom', label: t('app.sketch.free.button'), tip: t('app.sketch.free.button.tip'), tab: 'Sketch', group: 'Sketch', pressed: () => showFree, run: () => toggleFree() },
+    { id: 'sketch-show-constraints', label: t('app.sketch.showConstraints'), tip: t('app.sketch.showConstraints.tip'), tab: 'Sketch', group: 'Sketch', keys: 'Shift+C', pressed: () => markMode === 'always', run: () => toggleShowConstraints() },
     { id: 'sketch-report', label: t('app.sketch.report'), tip: t('app.sketch.report.tip'), tab: 'Sketch', group: 'Sketch', pressed: () => reportOpen, run: () => setReportOpen((v) => !v) },
     { id: 'sketch-look-normal', label: t('app.sketch.lookNormal'), tab: 'Sketch', group: 'Sketch', keys: 'N', run: () => lookNormal() },
     { id: 'sketch-show-dimensions', label: t('app.sketch.show.dimensions'), tab: 'Sketch', group: 'Sketch', pressed: () => sketchPrefs.show.dimensions, run: () => sketchSetShow('dimensions') },
@@ -5025,13 +5230,32 @@ function App() {
           library: { enabled: online.value.enabled, onEnable: () => setOnlineEnabled(true), list: () => onlineLibrary.list('wood'), listHdris: () => onlineLibrary.listHdris() },
           componentName: selComp?.name,
           anyHidden: anyHidden(hid), onShowAll: () => lookStore.showAll(),
-        }} />
+        }}>
+          {sectionChipShown({ sketching: !!sketching, editing: !!editingId, sectionOn: inspect.sectionOn, hasBody: !!controller.bodyBox() }) ? <SectionBar section={inspect.section} range={inspect.sectionRange} sketchPlane={sketchSectionPlane((doc?.features ?? []) as never, editingFeature as never)} onToggle={inspect.toggleSection} onPlane={inspect.cutPlane} onChange={inspect.setSection} /> : null}
+        </DisplayMenu>
         {sketching && holeSketchRef.current && holeCorner ? <CornerHolesPanel floating value={holeCorner.rec} plate={holeCorner.plate} holeDiameter={holeDiameter(newHole(sketching.id, false, loadHolePrefs()))} onPlace={placeCornerHolesInSketch} /> : null}
         {boxRect ? <div class={'sketch-box' + (boxRect.crossing ? ' crossing' : '')} style={{ left: Math.min(boxRect.x0, boxRect.x1) + 'px', top: Math.min(boxRect.y0, boxRect.y1) + 'px', width: Math.abs(boxRect.x1 - boxRect.x0) + 'px', height: Math.abs(boxRect.y1 - boxRect.y0) + 'px' }} title={boxRect.crossing ? t('app.sketch.box.crossing') : t('app.sketch.box.window')} /> : null}
-        {sketching && !sketchToolId && !entityOut && hoverTip ? <div class="sketch-tip" style={{ left: hoverTip.x + 'px', top: hoverTip.y + 'px' }}>{hoverTip.text}</div> : null}
+        {sketching && !sketchToolId && !entityOut && conTip ? (() => {
+          const d = controller.sketchDraft(), st = controller.sketchStatus();
+          const items = d ? tooltipItems(d, st, conTip.target) : [];
+          return items.length ? (
+            <div class="sketch-contip" data-testid="sketch-contip" style={{ left: conTip.x + 'px', top: conTip.y + 'px' }}
+              onPointerEnter={() => { conTipOver.current = true; if (hoverFocusTimer.current) { clearTimeout(hoverFocusTimer.current); hoverFocusTimer.current = null; } }}
+              onPointerLeave={() => { conTipOver.current = false; hoverRef.current = { ...hoverRef.current, constraint: undefined }; setHotConstraint(null); setConTip(null); }}>
+              {items.map((it) => (
+                <button key={it.id} class={(selConstraint === it.id ? 'sel ' : '') + (it.blame === 'conflict' ? 'bad' : it.blame === 'redundant' ? 'warn' : '')} data-id={it.id} title={t('app.sketch.contip.tip')}
+                  onPointerEnter={() => hoverConstraint(it.id)} onPointerLeave={() => hoverConstraint(null)}
+                  onClick={() => { selectEntity(null, 0, 0); setSelConstraint(it.id); }}>
+                  <span>{tooltipText(it)}</span><small>{it.driving ? t('app.sketch.contip.driving') : t('app.sketch.contip.reference')}</small>
+                </button>
+              ))}
+            </div>
+          ) : null;
+        })() : null}
+        {sketching && !sketchToolId && !entityOut && hoverTip && !conTip ? <div class="sketch-tip" style={{ left: hoverTip.x + 'px', top: hoverTip.y + 'px' }}>{hoverTip.text}</div> : null}
         {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} touch={layout.value !== 'desktop'} selected={selConstraint} inert={!!sketchToolId} onSelect={(id) => { setSelConstraint(id); selectEntity(null, 0, 0); }} onEdit={startDimEdit} onHover={hoverConstraint} onToggleDriven={toggleDriven} onMenu={(a, x, y) => setDimMenu({ id: a.id, type: a.type ?? '', driven: !!a.driven, x, y })} /> : null}
         {sketching && dimMenu ? <ContextMenu x={dimMenu.x} y={dimMenu.y} items={dimensionMenu(dimMenu.type, dimMenu.driven)} onRun={runDimMenu} onClose={() => setDimMenu(null)} /> : null}
-        {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length', ...(dimEdit.expr ? { expr: dimEdit.expr } : {}) }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} onDefine={defineParam} /> : null}
+        {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length', ...(dimEdit.expr ? { expr: dimEdit.expr } : {}) }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} onTab={dimTabKey} onDefine={defineParam} /> : null}
         {chrome.rightPalette ? <SketchToolStrip layout="palette" active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
         <ViewNav phone={phone} onTurn={(d, step) => viewport?.turnView(d, step)} onRoll={(d, step) => viewport?.rollView(d, step)} onHome={() => viewport?.homeView()} {...(sketching ? { onLookNormal: lookNormal } : {})} />
         <div class="cube-tools" data-ovr-reserve="right">
@@ -5060,7 +5284,8 @@ function App() {
         })() : null}
         {sketching && toolOut?.panel ? <PatternPanel panel={toolOut.panel} onField={fieldEvent} onKey={(key) => runTool({ type: 'key', key })} onCancel={() => selectTool(null)} /> : null}
         {sketching ? <KeyboardPrimer /> : null}
-        {sketching && toolOut ? <SketchFields fields={toolOut.fields} x={toolOut.x} y={toolOut.y} onField={fieldEvent} onDefine={defineParam} seed={fieldSeed} /> : null}
+        {sketching && coordBox && sketchToolId ? <CoordBox initial={coordBox.initial} x={lastPosRef.current.x} y={lastPosRef.current.y} onSubmit={placeTyped} onCancel={() => setCoordBox(null)} /> : null}
+        {sketching && toolOut ? <SketchFields fields={toolOut.fields} x={toolOut.x} y={toolOut.y} onField={fieldEvent} onDefine={defineParam} onKey={(key) => runTool({ type: 'key', key })} seed={fieldSeed} /> : null}
         {sketching && toolOut && (toolOut.pending?.length || toolOut.snapLabel) ? <div class={'sketch-pending' + (toolOut.snapModel ? ' model' : '')} style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{[...(toolOut.pending ?? []), toolOut.snapLabel].filter(Boolean).join(' · ')}</div> : null}
         {/* the canvas-left column: the undo card on a touch layout, then the tool column; it sits against the side panel and moves with it */}
         <div class="ovr-left" data-ovr-reserve="left" data-testid="left-column">
@@ -5086,8 +5311,8 @@ function App() {
           {/* notices first: a long sketch bar scrolls inside the region, a busy pill is never the one pushed out of sight */}
           {planePick ? (
             <div class="busy-overlay plane-pick-bar" role="status" data-testid="plane-pick-bar">
-              <span>{t('app.sketch.pickPlane')}</span>
-              <button class="busy-cancel" onClick={() => setPlanePick(false)}>{t('app.sketch.pickPlane.cancel')}</button>
+              <span>{t(holeSketchRef.current ? 'app.hole.pickFace' : 'app.sketch.pickPlane')}</span>
+              <button class="busy-cancel" onClick={() => { setPlanePick(false); holeSketchRef.current = false; }}>{t('app.sketch.pickPlane.cancel')}</button>
             </div>
           ) : null}
           <BusyOverlay busy={store.busy.value} label={busyNote.value ?? undefined} showElapsed={busyNote.value !== null} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
@@ -5145,7 +5370,7 @@ function App() {
         <StatusBar help={<HelpButton topic="guide" />} links={siteLinks()} alerts={{ total: store.alerts.history.value.length, unread: store.alerts.unread.value, unreadErrors: store.alerts.unreadErrors.value, open: alertsOpen, onToggle: toggleAlerts }} hover={hoverLabel(store.hover.value)} busy={store.busy.value}
           sketch={sketching ? <><SketchReadout snapOn={sketchPrefs.snapOn} gridOn={sketchPrefs.gridSnap} gridBase={sketchPrefs.gridSpacing}
             onSnap={(on) => updatePrefs({ snapOn: on })} onGrid={(on) => updatePrefs({ gridSnap: on })} onSpacing={(mm) => updatePrefs({ gridSpacing: mm })} onZoom={(pct) => viewport?.setSketchZoom(uppForPercent(pct))} />
-            {sketchControls && !chrome.bar ? <SketchNotes hint={sketchControls.hint} selected={sketchControls.selected} onClearSelection={sketchControls.onClearSelection} status={sketchControls.status} list={sketchControls.list} /> : null}</> : <ModelReadout />}
+            {sketchControls && !chrome.bar ? <SketchNotes hint={sketchControls.hint} selected={sketchControls.selected} onClearSelection={sketchControls.onClearSelection} /> : null}</> : <ModelReadout />}
           items={[
             ...(selText ? [{ label: t('app.status.selection'), value: selText }] : []),
             ...(warnList.length ? [{ label: t('app.status.warnings'), value: String(warnList.length), tone: 'warn' as const, title: t('app.status.warnings.tip'), onClick: () => { setDrawerTab('diagnostics'); openDrawer(); } }] : []),
@@ -5210,8 +5435,8 @@ function App() {
       {recoverOpen ? <RecoverDialog load={() => snapshots.list()} onClose={() => setRecoverOpen(false)} onRestore={(sn) => { setRecoverOpen(false); void load(JSON.stringify(sn.doc), { restored: true }); }} /> : null}
       {restore ? <RestoreDialog name={restore.name} savedAt={restore.savedAt}
         onVersions={() => { setRestore(null); setRecoverOpen(true); }}
-        onNew={() => { clearAutosave(browserKV()); setRestore(null); }}
-        onRestore={() => { const a = restore; setRestore(null); void restoreSession(a); }} /> : null}
+        onNew={() => { clearAutosave(browserKV(), restore.key); setRestore(null); }}
+        onRestore={() => { const a = restore; setRestore(null); void restoreSession(a).then(() => clearAutosave(browserKV(), a.key)); }} /> : null}
       {saveAsOpen ? <SaveAsDialog initial={files.partName ?? doc?.name ?? 'Part1'} geometry={embedPref || openedWithView.current} onCancel={() => setSaveAsOpen(false)}
         onSave={async (fileName, o) => { setSaveAsOpen(false); chooseEmbed(o.geometry); const d = controller.document(), v = controller.viewData(); if (d) finishSave(await files.save(d, { saveAs: true, fileName, thumbnail: await saveThumbs.forSave(d), ...embedOpt(o.geometry, v) }), d); }} /> : null}
       {dragging ? <DropOverlay /> : null}

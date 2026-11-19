@@ -150,4 +150,26 @@ describe('Ribbon automation hooks', () => {
       delete (HTMLElement.prototype as any).scrollTo;
     }
   });
+
+  it('a group pinned to the end keeps its own class so it can stick to the right edge', () => {
+    const layout = { Home: [
+      { id: 'File', pinned: true as const, entries: ['open'] },
+      { id: 'Edit', entries: [{ node: <span>mid</span>, key: 'm' }] },
+      { id: 'Status', pinned: 'end' as const, entries: [{ node: <span>dof</span>, key: 'd' }] },
+    ] };
+    const { container } = render(<Ribbon commands={commands} activeTab="Home" onTab={() => {}} layout={layout} />);
+    expect(container.querySelectorAll('.rb-pinned').length).toBe(1);
+    const end = container.querySelectorAll('.rb-pinned-end');
+    expect(end.length).toBe(1);
+    expect(end[0].textContent).toContain('dof');
+  });
+
+  it('the end-pinned group sticks to the very edge of the scrollport and covers the padding beside it', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const css = readFileSync(resolve(process.cwd(), 'apps/cad/src/toolbar.css'), 'utf8');
+    expect(css).toMatch(/\.rb-pinned-end \{[^}]*position: sticky;[^}]*right: 0;[^}]*background: var\(--panel\)[^}]*z-index: 4|\.rb-pinned-end \{[^}]*right: 0;[^}]*z-index: 4[^}]*background: var\(--panel\)/);
+    expect(css).toMatch(/\.rb-pinned-end::after \{[^}]*left: 100%/);
+    expect(css).toMatch(/\.rb-strip \{ overflow: clip; \}/);
+  });
 });

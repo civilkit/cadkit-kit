@@ -76,6 +76,51 @@ describe('Fully Define in the real kernel', { skip: !process.env.CK_WASM }, () =
   });
 });
 
+/** Two d40 circles and two R40 arcs tangent to both; the arc ends are free but lie (within a hair) on the circles. 4 degrees of freedom are left. */
+const twoCirclesTwoArcs = (): SketchDraft => {
+  const h = Math.sqrt(60 * 60 - 30 * 30);               // arc centre height: 20 + 40 from each circle centre
+  const t = 20 * 0.5, u = 20 * (h / 60);                 // tangent point offsets from a circle centre
+  return {
+    id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [],
+    points: [
+      { id: 'O', x: 0, y: 0, fixed: true },
+      { id: 'c1', x: -30, y: 0, fixed: true }, { id: 'c2', x: 30, y: 0, fixed: true },
+      { id: 'ca', x: 0, y: h }, { id: 'cb', x: 0, y: -h },
+      { id: 'a1', x: -30 + t + 0.04, y: u - 0.03 }, { id: 'a2', x: 30 - t - 0.03, y: u + 0.04 },
+      { id: 'b1', x: 30 - t + 0.02, y: -u + 0.03 }, { id: 'b2', x: -30 + t - 0.04, y: -u - 0.02 },
+    ],
+    entities: [
+      { id: 'e1', type: 'circle', c: 'c1', r: 20 }, { id: 'e2', type: 'circle', c: 'c2', r: 20 },
+      { id: 'e3', type: 'arc', c: 'ca', p1: 'a1', p2: 'a2' }, { id: 'e4', type: 'arc', c: 'cb', p1: 'b1', p2: 'b2' },
+    ],
+    constraints: [
+      { id: 'k1', type: 'diameter', refs: ['e1'], value: 40 }, { id: 'k2', type: 'diameter', refs: ['e2'], value: 40 },
+      { id: 'k3', type: 'radius', refs: ['e3'], value: 40 }, { id: 'k4', type: 'radius', refs: ['e4'], value: 40 },
+      { id: 'k5', type: 'tangent', refs: ['e3', 'e1'] }, { id: 'k6', type: 'tangent', refs: ['e3', 'e2'] },
+      { id: 'k7', type: 'tangent', refs: ['e4', 'e1'] }, { id: 'k8', type: 'tangent', refs: ['e4', 'e2'] },
+    ],
+  };
+};
+
+describe('Fully Define prefers relations the drawing already satisfies', { skip: !process.env.CK_WASM }, () => {
+  it('arc ends that lie on the circles are put on them, not pinned with arbitrary dimensions', async () => {
+    const d0 = twoCirclesTwoArcs();
+    const { solve } = await solver(d0);
+    const st0 = (await solve(d0))!;
+    expect(st0.dof).toBe(4);
+    const r = await fullyDefine(d0, solve);
+    expect(r.fully).toBe(true);
+    expect(r.status!.conflicts).toEqual([]);
+    expect(r.status!.redundant).toEqual([]);
+    expect(r.relations).toBe(4);
+    expect(r.dimensions).toBe(0);
+    const added = r.draft.constraints.slice(d0.constraints.length);
+    expect(added.every((c) => c.type === 'pointOnCircle')).toBe(true);
+    // no dimension with an accidental value, and nothing pinned
+    expect(r.draft.constraints.some((c) => c.type === 'fix' || c.type === 'hdist' || c.type === 'vdist')).toBe(false);
+  });
+});
+
 describe('definitionMap in the real kernel', { skip: !process.env.CK_WASM }, () => {
   it('fully defined: every entity is full', async () => {
     const d0 = withOrigin(rectDraft(10, 5));

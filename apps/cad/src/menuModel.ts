@@ -21,7 +21,7 @@ export function selectionKind(selection: string[], mode: string): SelectionKind 
 
 /** Command ids per selection kind, in menu order; `-` is a separator. */
 export const MENU_COMMANDS: Record<MenuKind, string[]> = {
-  sketch: ['sketch-ok', 'sketch-cancel', '-', 'sketch-select', 'sketch-construction', 'sketch-fully-define', '-', 'sketch-look-normal', 'fit', '-', 'sketch-show-dimensions', 'sketch-show-relations'],
+  sketch: ['sketch-ok', 'sketch-cancel', '-', 'sketch-select', 'sketch-construction', 'sketch-fully-define', '-', 'sketch-look-normal', 'fit', '-', 'sketch-show-dimensions', 'sketch-show-relations', 'sketch-show-constraints', 'sketch-show-freedom'],
   edge: ['add-fillet', 'add-chamfer', '-', 'show-in-tree', '-', 'select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', '-', 'select-invert', 'select-none'],
   corner: ['add-fillet', 'add-chamfer', '-', 'select-invert', 'select-none'],
   face: ['sketch-on-face', 'add-hole', 'fasten-hole', 'teardrop-hole', 'heat-set-seat', 'add-shell', 'add-fillet', 'add-chamfer', '-', 'add-lpattern', 'add-cpattern', '-', 'show-in-tree', '-', 'select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', '-', 'select-invert', 'select-none'],

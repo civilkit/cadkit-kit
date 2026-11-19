@@ -45,7 +45,8 @@ export function RecoverDialog(p: { load(): Promise<Snapshot[]>; now?: number; on
         <div class="discard-body recover-list">
           {list === null ? null : list.length === 0 ? t('files.recover.empty') : list.map((s) => (
             <div class="recover-row" key={s.id}>
-              <span>{t('files.recover.row', { name: s.name || '-', features: s.features, when: ago(s.time, now, t) })} <small>({t('files.recover.reason.' + s.reason)})</small></span>
+              {s.thumb ? <img class="recover-thumb" alt="" width={s.thumb.width} height={s.thumb.height} src={'data:image/png;base64,' + s.thumb.data} /> : <span class="recover-thumb" />}
+              <span class="recover-what">{t('files.recover.row', { name: s.name || '-', features: s.features, when: ago(s.time, now, t) })} <small>({t('files.recover.reason.' + s.reason)})</small></span>
               <button class="rb-btn ok" onClick={() => p.onRestore(s)}>{t('files.recover.restore')}</button>
             </div>
           ))}

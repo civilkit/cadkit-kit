@@ -90,6 +90,10 @@ describe('defineVariable (name = value)', () => {
   it('adds a new parameter', () => {
     expect(defineVariable(vars, 'h', '=w/2')).toEqual({ ok: true, variables: [vars[0], { name: 'h', expr: 'w/2' }] });
   });
+  it('gives a new one the unit of the field it was typed into, and leaves an existing one its own', () => {
+    expect(defineVariable(vars, 'h', '=w/2', 'mm')).toEqual({ ok: true, variables: [vars[0], { name: 'h', expr: 'w/2', unit: 'mm' }] });
+    expect(defineVariable([{ name: 'w', expr: '40', unit: '°' }], 'w', '=12', 'mm')).toEqual({ ok: true, variables: [{ name: 'w', expr: '12', unit: '°' }] });
+  });
   it('gives an existing one its new value and keeps its comment', () => {
     expect(defineVariable(vars, 'w', '=12')).toEqual({ ok: true, variables: [{ name: 'w', expr: '12', comment: 'width' }] });
   });

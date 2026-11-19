@@ -108,9 +108,16 @@ describe('HoleEditor', () => {
     expect(tip.textContent).toContain('118');
     fireEvent.click(tip.querySelector('input')!);
     expect(m.drafts.at(-1)).toMatchObject({ end: 'blind', depth: 8, tip: true });
-    fireEvent.change(m.sel('end'), { target: { value: 'upToNext' } });
+    fireEvent.change(m.sel('end'), { target: { value: 'through' } });
     expect(m.q('depth')).toBeNull();
     expect(m.q('tip')).toBeNull();
+  });
+
+  it('offers Blind and Through (the kernel drills Up to next through everything); a hole that says upToNext keeps it visible', () => {
+    expect([...mount().sel('end').options].map((o) => o.value)).toEqual(['blind', 'through']);
+    cleanup();
+    const m = mount({ ...HOLE, end: 'upToNext' });
+    expect(m.sel('end').value).toBe('upToNext');
   });
 
   it('confirm sends the draft and remembers type, size and fit; Escape cancels', () => {

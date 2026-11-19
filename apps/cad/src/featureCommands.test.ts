@@ -33,12 +33,28 @@ describe('enabled rules', () => {
     expect(canShell(ctx({ selection: ['A'] }))).toBe(true);
     expect(canShell(ctx({ mode: 'edge', selection: ['A|B#0'] }))).toBe(false);
   });
-  it('hole needs a face, or a sketch made of points', () => {
-    expect(canHole(ctx())).toBe(false);
+  it('hole needs a body (with nothing to drill yet it asks for a face)', () => {
+    expect(canHole(ctx())).toBe(true);
+    expect(canHole(ctx({ box: null }))).toBe(false);
+    expect(canHole(ctx({ doc: null as never }))).toBe(false);
     expect(canHole(ctx({ selection: ['A'] }))).toBe(true);
     expect(canHole(ctx({ doc: docOf(sketch([{ type: 'point', p: 'p1' }])) }))).toBe(true);
-    expect(canHole(ctx({ doc: docOf(sketch([{ type: 'line' }])) }))).toBe(false);
+    expect(canHole(ctx({ doc: docOf(sketch([{ type: 'line' }])) }))).toBe(true);
     expect(canHole(ctx({ doc: docOf(sketch([{ type: 'point', p: 'p1' }])), box: null }))).toBe(false);
+  });
+  it('hole: drills a point sketch no hole uses yet; otherwise asks for a face', () => {
+    const made: unknown[] = []; let picks = 0, faces: string[] = [];
+    const run = (c: Ctx) => featureCommands({ context: () => c, create: (ops) => made.push(ops), holeOnFace: (f) => faces.push(f), holePickFace: () => { picks += 1; }, holeFlip: () => false, addThread() {}, notify() {} }).find((x) => x.id === 'add-hole')!.run();
+    const pts = sketch([{ type: 'point', p: 'p1' }]);
+    run(ctx({ doc: docOf(pts) }));
+    expect(made.length).toBe(1);
+    run(ctx({ doc: docOf(pts, { type: 'hole', id: 'F2', sketch: 'F1' }) }));
+    expect(made.length).toBe(1);
+    expect(picks).toBe(1);
+    run(ctx({ doc: docOf(pts, { type: 'hole', id: 'F2', sketch: 'F1' }), selectedId: 'F1' }));   // picked in the tree: drilled again on purpose
+    expect(made.length).toBe(2);
+    run(ctx({ selection: ['A'] }));
+    expect(faces).toEqual(['A']);
   });
   it('revolve needs a sketch; patterns need a feature that is not a sketch', () => {
     expect(canRevolve(ctx())).toBe(false);
@@ -125,10 +141,25 @@ describe('fillet and chamfer from faces', () => {
     expect(chamferOps(c)![0]).toMatchObject({ feature: { type: 'chamfer', edges: [{ faces: ['F10.W0', 'F11'], at: [0, 1, 0] }] } });
     expect(pickValue('edges', ['F10.W0', 'F11'], fe)).toEqual([{ faces: ['F10.W0', 'F11'], at: [0, 1, 0] }]);
   });
-  it('one face stays disabled with a reason; no selection says what to select', () => {
-    expect(canFillet(fctx(['F11']))).toBe(false);
-    expect(filletWhy(fctx(['F11']))).toMatch(/second face/);
-    expect(filletWhy(fctx([]))).toMatch(/two or more faces/);
+  it('one face rounds all of its edges (fillet and chamfer)', () => {
+    const c = fctx(['F11']);
+    expect(canFillet(c)).toBe(true);
+    const want = [{ faces: ['F10.W0', 'F11'], at: [0, 1, 0] }, { faces: ['F9.S.e1~1', 'F11'], at: [0, 0, 1] }];
+    expect(filletOps(c)).toEqual([{ op: 'add', feature: { type: 'fillet', radius: 0.5, edges: want } }]);
+    expect(chamferOps(c)![0]).toMatchObject({ feature: { type: 'chamfer', edges: want } });
+    expect(filletWhy(c)).toBeUndefined();
+  });
+  it('one face honours the tangent chain', () => {
+    const e = (key: string, faces: string[], a: number[], b: number[]) => ({ key, faces, mid: a.map((x, i) => (x + b[i]) / 2), pts: [a, b] });
+    const el = [e('T|A#1', ['T', 'A'], [0, 0, 0], [10, 0, 0]), e('A|B#2', ['A', 'B'], [10, 0, 0], [20, 0, 0])];
+    expect(filletOps(fctx(['T'], { edges: el, tangentChain: false }))![0]).toMatchObject({ feature: { edges: [{ faces: ['T', 'A'] }] } });
+    const on = filletOps(fctx(['T'], { edges: el, tangentChain: true }))![0] as unknown as { feature: { edges: unknown[] } };
+    expect(on.feature.edges).toHaveLength(2);
+  });
+  it('one face with no edges stays disabled with a reason; no selection says what to select', () => {
+    expect(canFillet(fctx(['Z']))).toBe(false);
+    expect(filletWhy(fctx(['Z']))).toMatch(/no edges/);
+    expect(filletWhy(fctx([]))).toMatch(/a face/);
     expect(filletWhy(fctx(['F10.W0', 'F11']))).toBeUndefined();
     expect(filletWhy(ctx({ doc: null }))).toMatch(/part/);
     expect(filletWhy(fctx(['F10.W0|F11#51']))).toMatch(/edge selection/);

@@ -90,6 +90,8 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
     d.setRefSel(null);   // a feature row and a Front / Top / Right row are never both 'the' selection (the Plane tool reads one base)
     // a shape row selects the SHAPE: the faces picked before no longer stand in front of its size box
     if (r.selection.includes(id) && isShapeFeature(doc, id)) d.store.select([]);
+    // a plain click on a plane row replaces what was selected before (a face picked earlier would win over the plane when a sketch starts); Ctrl / Shift add
+    if (!mods?.ctrl && !mods?.shift && feats.find((f) => f.id === id)?.type === 'plane') d.store.select([]);
   };
   const clearAll = (): boolean => {
     const any = d.store.selection.value.length > 0 || sel.length > 0;

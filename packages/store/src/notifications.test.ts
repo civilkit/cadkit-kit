@@ -35,6 +35,14 @@ describe('createNotifications', () => {
     a.notify('Saved', 'error');
     expect(a.notices.value).toHaveLength(2);   // another level is another message
   });
+  it('a message can carry its own lifetime, kept when identical ones merge in', () => {
+    const a = createNotifications();
+    a.notify('Hint', 'warn', undefined, { ttl: 6000 }); a.notify('Hint', 'warn', undefined, { ttl: 6000 });
+    expect(a.notices.value).toHaveLength(1);
+    expect(a.notices.value[0]).toMatchObject({ ttl: 6000, count: 2 });
+    a.notify('Plain');
+    expect(a.notices.value[1].ttl).toBeUndefined();
+  });
   it('never merges a message that has an action', () => {
     const a = createNotifications(); const act = { label: 'Undo', run() {} };
     a.notify('Deleted F5', 'info', act); a.notify('Deleted F5', 'info', act);

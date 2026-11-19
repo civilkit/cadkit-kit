@@ -7,7 +7,13 @@ export type HoleFit = 'tap' | 'close' | 'normal' | 'loose';
 export type HoleEnd = 'blind' | 'through' | 'upToNext';
 export const HOLE_KINDS: HoleKind[] = ['simple', 'cbore', 'csink'];
 export const HOLE_FITS: HoleFit[] = ['tap', 'close', 'normal', 'loose'];
-export const HOLE_ENDS: HoleEnd[] = ['blind', 'through', 'upToNext'];
+/**
+ * The kernel's hole drills every end but `blind` through the whole part (hole.rs: `through = end != Blind`), so "Up to
+ * next" would cut every wall of a shelled part like Through. It is offered only once the kernel stops at the next face
+ * (holeTool.kernel.test.ts fails then: set this to true). A hole that already says upToNext still shows it.
+ */
+export const KERNEL_HOLE_UP_TO_NEXT = false;
+export const HOLE_ENDS: HoleEnd[] = KERNEL_HOLE_UP_TO_NEXT ? ['blind', 'through', 'upToNext'] : ['blind', 'through'];
 /** The value of the Size dropdown that means "no ISO size, type the diameter" (a plain hole only). */
 export const CUSTOM = 'custom';
 /** Included angle of the drill point (the kernel's `tip`). */
@@ -78,7 +84,8 @@ export function sizeChoice(f: Wire): string {
 const round = (v: number) => Math.round(v * 100) / 100;
 export function defaultDepth(d: number | null): number { return Math.max(10, round((d ?? 5) * 2)); }
 
-export interface HolePrefs { kind: HoleKind; size: string; fit: HoleFit }
+/** `diameter`: the last confirmed hole was a plain (custom) diameter: the next one starts as that. */
+export interface HolePrefs { kind: HoleKind; size: string; fit: HoleFit; diameter?: number }
 export const DEFAULT_PREFS: HolePrefs = { kind: 'simple', size: 'M6', fit: 'normal' };
 const PREFS_KEY = 'kit.hole.prefs';
 
@@ -89,14 +96,25 @@ export function loadHolePrefs(): HolePrefs {
     const kind = HOLE_KINDS.includes(raw.kind as HoleKind) ? raw.kind as HoleKind : DEFAULT_PREFS.kind;
     const size = typeof raw.size === 'string' && ISO_TABLE[raw.size] ? raw.size : DEFAULT_PREFS.size;
     const fit = effectiveFit(kind, HOLE_FITS.includes(raw.fit as HoleFit) ? raw.fit : 'normal');
-    return { kind, size, fit };
+    const dia = num(raw.diameter);
+    return { kind, size, fit, ...(kind === 'simple' && dia !== null && dia > 0 ? { diameter: dia } : {}) };
   } catch { return DEFAULT_PREFS; }
 }
-/** Remember the type, size and fit of a confirmed hole as the next default. A custom diameter is not remembered. */
+/**
+ * Remember the type, size and fit of a confirmed hole as the next default; a simple hole of a plain diameter (a number,
+ * not an expression: a variable may not exist in the next part) is remembered as that diameter.
+ */
 export function saveHolePrefs(f: Wire): void {
   const size = str(f.size);
-  if (!size || !ISO_TABLE[size] || sizeChoice(f) === CUSTOM) return;
   const kind = kindOf(f);
+  if (kind === 'simple' && sizeChoice(f) === CUSTOM) {
+    const d = num(f.diameter);
+    if (d === null || d <= 0) return;
+    const was = loadHolePrefs();
+    try { globalThis.localStorage?.setItem(PREFS_KEY, JSON.stringify({ kind: 'simple', size: was.size, fit: was.fit, diameter: d } satisfies HolePrefs)); } catch { /* storage may be blocked */ }
+    return;
+  }
+  if (!size || !ISO_TABLE[size] || sizeChoice(f) === CUSTOM) return;
   try { globalThis.localStorage?.setItem(PREFS_KEY, JSON.stringify({ kind, size, fit: effectiveFit(kind, f.fit) } satisfies HolePrefs)); } catch { /* storage may be blocked */ }
 }
 
@@ -110,8 +128,9 @@ function dimsFor(kind: HoleKind, size: string | null): Wire {
   return none;
 }
 
-/** The feature a new hole starts as (Shift+H): the remembered type / size / fit, a through hole. */
+/** The feature a new hole starts as (Shift+H): the remembered type / size / fit (or plain diameter), a through hole. */
 export function newHole(sketchId: string, flip: boolean, prefs: HolePrefs = loadHolePrefs()): Wire {
+  if (prefs.kind === 'simple' && prefs.diameter !== undefined) return { type: 'hole', sketch: sketchId, kind: 'simple', diameter: prefs.diameter, end: 'through', ...(flip ? { flip: true } : {}) };
   const dims = Object.fromEntries(Object.entries(dimsFor(prefs.kind, prefs.size)).filter(([, v]) => v !== null));
   return { type: 'hole', sketch: sketchId, kind: prefs.kind, size: prefs.size, fit: effectiveFit(prefs.kind, prefs.fit), end: 'through', ...dims, ...(flip ? { flip: true } : {}) };
 }

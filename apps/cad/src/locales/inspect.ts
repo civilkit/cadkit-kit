@@ -30,6 +30,7 @@ export const inspectStrings: Record<string, string> = {
   'inspect.section': 'Section view', 'inspect.section.plane': 'Cutting plane',
   'inspect.section.front': 'Front', 'inspect.section.top': 'Top', 'inspect.section.right': 'Right', 'inspect.section.face': 'Selected face',
   'inspect.section.off': 'Off', 'inspect.section.offset': 'Offset', 'inspect.section.offsetValue': 'Offset in millimetres', 'inspect.section.flip': 'Flip side',
+  'section.toggle': 'Section', 'section.toggle.tip': 'Cut the part open to see inside (Alt+S)', 'section.sketchPlane': 'Sketch plane',
   'inspect.section.hint': 'Choose a plane to cut the part open.', 'inspect.section.pickFace': 'Select one flat face first.',
   'inspect.interference': 'Interference check', 'inspect.interference.run': 'Check', 'inspect.interference.running': 'Checking...',
   'inspect.interference.none': 'Not checked yet.', 'inspect.interference.single': 'Needs two or more solid bodies; this part has one.',

@@ -1,7 +1,7 @@
 import '../i18n';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/preact';
-import { InspectPanel, type InspectProps } from './InspectPanel';
+import { InspectPanel, scrollMassIntoView, type InspectProps } from './InspectPanel';
 import { massView } from './mass';
 
 afterEach(cleanup);
@@ -18,6 +18,17 @@ function setup(o: Partial<InspectProps> = {}) {
   return { p, ...render(<InspectPanel {...p} />) };
 }
 const card = (c: Element, name: string) => c.querySelector(`section[aria-label="${name}"]`) as HTMLElement;
+
+describe('scrollMassIntoView', () => {
+  it('scrolls the Mass properties card into view, and says false when the panel is not there', () => {
+    expect(scrollMassIntoView()).toBe(false);
+    const { container } = setup();
+    const el = card(container, 'Mass properties');
+    el.scrollIntoView = vi.fn();
+    expect(scrollMassIntoView()).toBe(true);
+    expect(el.scrollIntoView).toHaveBeenCalledOnce();
+  });
+});
 
 describe('InspectPanel with surface bodies', () => {
   it('a part of surface bodies only says they have no volume, and Compute is off', () => {

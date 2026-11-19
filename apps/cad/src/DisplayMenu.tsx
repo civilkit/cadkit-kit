@@ -1,6 +1,7 @@
 import { SurfaceControls, type LibraryControls } from './SurfaceControls';
 import { EnvironmentPicker } from './EnvironmentPicker';
 import { useEffect, useRef, useState } from 'preact/hooks';
+import type { ComponentChildren } from 'preact';
 import type { DisplayLayer, Display } from '@kit/store';
 import { DISPLAY_STYLES, LIGHT_PRESETS, BACKGROUND_MODES, MATERIAL_PRESETS, EDGE_WIDTHS, PALETTE, type DisplayStyle, type LightPreset, type BackgroundMode, type MaterialPreset, type EdgeWidth, type Appearance, type SceneEnvironment } from '@kit/viewport';
 import type { AnalysisOptions } from '@kit/viewport';
@@ -30,7 +31,7 @@ export interface LookControls {
 export const DISPLAY_LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations', 'dimensions', 'threads', 'issues'];
 
 /** A button on the viewport that opens a small checklist of display layers. Hiding a layer never changes the document. */
-export function DisplayMenu(p: { display: Display; onToggle(layer: DisplayLayer, on: boolean): void; /** Given only while a sketch is open: the sketch's own show toggles, so there is one Display menu. */ sketch?: { show: SketchShow; onToggle(key: keyof SketchShow, on: boolean): void; /** how many dimensions are drawn */ dimDisplay?: DimDisplay; onDimDisplay?(v: DimDisplay): void; /** the Line tool's typed angles make dimensions; right angles as a square */ typedAngleDims?: boolean; rightAngleSquare?: boolean; onFlag?(key: 'typedAngleDims' | 'rightAngleSquare', on: boolean): void }; look?: LookControls; analysis?: { opts: AnalysisOptions; onChange(patch: Partial<AnalysisOptions>): void } }) {
+export function DisplayMenu(p: { /** Shown right under the Display button (the Section chip), so the two can never sit on top of each other. */ children?: ComponentChildren; display: Display; onToggle(layer: DisplayLayer, on: boolean): void; /** Given only while a sketch is open: the sketch's own show toggles, so there is one Display menu. */ sketch?: { show: SketchShow; onToggle(key: keyof SketchShow, on: boolean): void; /** how many dimensions are drawn */ dimDisplay?: DimDisplay; onDimDisplay?(v: DimDisplay): void; /** the Line tool's typed angles make dimensions; right angles as a square */ typedAngleDims?: boolean; rightAngleSquare?: boolean; onFlag?(key: 'typedAngleDims' | 'rightAngleSquare', on: boolean): void }; look?: LookControls; analysis?: { opts: AnalysisOptions; onChange(patch: Partial<AnalysisOptions>): void } }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -49,6 +50,7 @@ export function DisplayMenu(p: { display: Display; onToggle(layer: DisplayLayer,
         </svg>
         <span class="display-lab">{t('display.label')}</span>
       </button>
+      {p.children}
       {open ? (
         <div class="display-pop" role="group" aria-label={t('display.label')}>
           {p.look ? <LookSections look={p.look} /> : null}

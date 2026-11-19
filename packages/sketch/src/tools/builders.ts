@@ -32,3 +32,22 @@ export const pointOf = (draft: SketchDraft, id: string): Pt => {
   if (!p) throw new Error(`no point ${id}`);
   return { x: p.x, y: p.y };
 };
+
+/** Remove the points among `ids` that nothing uses: no entity is made of them and no constraint (or reference dimension) mentions them. Fixed points stay.
+ *  A tool that placed a point for a shape it then gave up on (Escape after a line's first click) calls this, so no free point is left behind. */
+export function pruneOrphanPoints(draft: SketchDraft, ids: Array<string | undefined>): SketchDraft {
+  const want = new Set(ids.filter((i): i is string => !!i));
+  if (!want.size) return draft;
+  const used = new Set<string>();
+  for (const e of draft.entities) {
+    for (const v of Object.values(e)) {
+      if (typeof v === 'string') used.add(v);
+      else if (Array.isArray(v)) for (const x of v) if (typeof x === 'string') used.add(x);
+    }
+  }
+  for (const c of [...draft.constraints, ...draft.temp]) for (const r of c.refs ?? []) used.add(r);
+  const refDims = Array.isArray(draft.extras?.refDims) ? (draft.extras!.refDims as Array<{ refs?: string[] }>) : [];
+  for (const r of refDims) for (const x of r.refs ?? []) used.add(x);
+  const points = draft.points.filter((p) => p.fixed || !want.has(p.id) || used.has(p.id));
+  return points.length === draft.points.length ? draft : { ...draft, points };
+}

@@ -112,7 +112,9 @@ function profileOf(sk: Wire, regions: unknown): Profile | null {
       if (c && r !== null) { add(c.x - r, c.y - r); add(c.x + r, c.y + r); }
     } else if (e.type === 'arc') {
       round = true;
-      const c = addPt(e.c), a = addPt(e.p1), b = addPt(e.p2);
+      // the arc's centre belongs to the profile (it moves with it) but is not on the outline, so it stays out of the box
+      const c = pts.get(String(e.c)) ?? null; if (c) pointIds.add(String(e.c));
+      const a = addPt(e.p1), b = addPt(e.p2);
       if (c && a && b) {
         const r = Math.hypot(a.x - c.x, a.y - c.y);
         const a0 = Math.atan2(a.y - c.y, a.x - c.x);

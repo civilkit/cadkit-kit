@@ -297,6 +297,11 @@ svg.icon-sc[data-sc="construction"] { --sc-a1: var(--sc-construction-1); --sc-a2
 .sketch-fields { position: absolute; z-index: 6; display: flex; gap: 6px; padding: 4px 6px; border-radius: 8px; background: var(--panel); outline: 1px solid var(--line); box-shadow: 0 4px 14px #0004; pointer-events: auto; }
 .sketch-fields label { display: flex; gap: 4px; align-items: center; font: 11px ui-monospace, monospace; color: var(--text-2); text-transform: uppercase; }
 .sketch-fields input { width: 64px; font: 13px ui-monospace, monospace; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 2px 5px; }
+.sketch-fields .coord-input { width: 120px; }
+.sketch-fields .coord-input[aria-invalid="true"] { border-color: var(--danger, #d44); }
+.sketch-fields .coord-bad { font: 11px ui-monospace, monospace; color: var(--danger, #d44); align-self: center; }
+.sketch-fields label:focus-within { color: var(--accent); font-weight: 700; }   /* the box being typed into */
+.sketch-fields label:focus-within input { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .sketch-fields label.locked input { border-color: var(--accent); background: var(--accent-soft); }
 .sketch-pending { position: absolute; z-index: 6; font: 600 11px system-ui; color: #e0a030; pointer-events: none; }
 .sketch-pending.model { color: #30c0d8; }
@@ -356,6 +361,17 @@ svg.icon-sc[data-sc="construction"] { --sc-a1: var(--sc-construction-1); --sc-a2
 .chip { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: var(--panel-2); color: var(--text-2); }
 .chip.ok { color: var(--ok); } .chip.warn { color: var(--warn); } .chip.bad { color: var(--err); }
 .sketch-tip { position: absolute; z-index: 6; pointer-events: none; font: 12px system-ui; padding: 3px 8px; border-radius: 6px; background: var(--panel); color: var(--text); outline: 1px solid var(--line); box-shadow: 0 2px 8px #0003; white-space: nowrap; }
+.sketch-contip { position: absolute; z-index: 7; font: 12px system-ui; padding: 4px; border-radius: 8px; background: var(--panel); color: var(--text); outline: 1px solid var(--line); box-shadow: 0 2px 8px #0003; display: flex; flex-direction: column; gap: 1px; min-width: 120px; }
+.sketch-contip button { display: flex; gap: 8px; justify-content: space-between; align-items: center; border: 0; background: none; color: inherit; font: inherit; padding: 2px 6px; border-radius: 5px; cursor: pointer; text-align: left; }
+.sketch-contip button:hover, .sketch-contip button.sel { background: var(--accent-soft); }
+.sketch-contip button.bad { color: var(--err); } .sketch-contip button.warn { color: var(--warn); }
+.sketch-contip button small { color: var(--text-2); }
+.sketch-free { border-bottom: 1px solid var(--line); margin-bottom: 6px; padding-bottom: 6px; max-width: 280px; }
+.sketch-free ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.sketch-free .free-text { display: block; color: #b36b00; font-weight: 600; }
+.sketch-free .free-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.sketch-free .free-chip { font: 11px system-ui; padding: 1px 8px; border-radius: 10px; border: 1px solid #f59f00; background: none; color: var(--text); cursor: pointer; }
+.sketch-free .free-chip:hover:not(:disabled) { background: #f59f0033; }
 .face-sketch-chip { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); z-index: 6; font: inherit; padding: 5px 12px; border-radius: 16px; border: 0; cursor: pointer; background: var(--accent); color: #fff; box-shadow: 0 3px 12px #0004; }
 .set-section { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 .set-head { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
@@ -789,7 +805,10 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .expr-fx:hover { filter: brightness(1.1); }
 .expr-hint { font-size: 11.5px; color: var(--text-2); padding-left: 2px; }
 .expr-hint.err { color: var(--err); }
-.expr-ac { position: absolute; z-index: 30; top: 100%; left: 0; right: 0; margin: 2px 0 0; padding: 3px; list-style: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.18); max-height: 180px; overflow: auto; }
+.expr-ac { position: absolute; z-index: 30; top: 100%; left: 0; min-width: max(100%, max-content); max-width: min(40ch, 90vw); box-sizing: border-box; margin: 2px 0 0; padding: 3px; list-style: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.18); max-height: 180px; overflow: auto; }
+.expr-ac.up { top: auto; bottom: 100%; margin: 0 0 2px; }
+.expr-ac-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.expr-ac-val { flex: none; }
 .expr-ac li { display: flex; justify-content: space-between; gap: 12px; padding: 3px 6px; border-radius: 4px; font-size: 12.5px; cursor: pointer; }
 .expr-ac li.on, .expr-ac li:hover { background: var(--accent); color: var(--on-accent, #fff); }
 .expr-ac-val { opacity: .75; font-variant-numeric: tabular-nums; }
@@ -1389,7 +1408,11 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 
 /* While sketching the hint line is what is read: it takes the room that is left, and on a narrow window (1440 px and below) the plain model counters
    (Features, Faces, Triangles, Errors ...) give way to it; the buttons among them (Warnings, the drawer) stay. */
-.status > .sketch-hint { flex: 1 1 0; min-width: 0; }
+.status > .sketch-hint { flex: 0 0 auto; max-width: 100%; }   /* the hint is the current instruction: it keeps its whole text, the other cells give way */
+/* the cursor readout gives way to the hint, not the other way round: its delta and snap-name cells shrink (their fixed width is only a ceiling) */
+.status > .st-sketch { flex: 0 1 auto; min-width: 0; }
+.status .st-sketch > .st-delta, .status .st-sketch > .st-snap { flex: 0 1 auto; min-width: 8ch; max-width: 38ch; width: auto; }
+.status .st-sketch > .st-snap { max-width: 18ch; }
 /* badges and chips keep their whole text; the long note beside them is what gives way */
 .status > :has(> .dof-chip), .status > .dof-chip, .status .dof-chip { flex: none; white-space: nowrap; overflow: visible; }
 .status:has([data-testid="status-sketch"]) > .sp { flex: 0 0 0; }
@@ -1860,7 +1883,7 @@ label.set-row:has(> input[type="checkbox"]:first-child) { justify-content: flex-
 #app[data-narrow] .status > * { flex: none; }
 #app[data-narrow] .status > .st-low, #app[data-narrow] .status > .st-links, #app[data-narrow] .status > .st-hover { display: none; }
 #app[data-narrow] .status .st-sketch { gap: 10px; }
-#app[data-narrow] .status .st-sketch .st-coords, #app[data-narrow] .status .st-sketch .st-delta, #app[data-narrow] .status .sk-badge { display: none; }   /* no pointer to read out; the Status group of the ribbon carries Fully defined */
+#app[data-narrow] .status .st-sketch .st-coords, #app[data-narrow] .status .st-sketch .st-delta { display: none; }   /* no pointer to read out */
 #app[data-narrow] .status > .sp { flex: 1 1 0; min-width: 0; }
 
 /* The update notice must not cover the document tab or the controls beside it: it shrinks (its text ends in an ellipsis, the full text is its tooltip) and the tab keeps a minimum width;
@@ -2028,3 +2051,23 @@ label.set-row:has(> input[type="checkbox"]:first-child) { justify-content: flex-
 .plugin-panel .plugin-result-table th { position: sticky; top: 0; background: var(--panel, #f6f8fa); font-weight: 600; }
 .plugin-panel .plugin-result-json { margin: 0; font-size: 11px; max-height: 200px; overflow: auto; }
 .plugin-panel .plugin-result-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Section control over the viewport (inspect/SectionBar.tsx) */
+.section-bar { position: relative; margin-top: 6px; align-self: flex-end; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; max-width: min(560px, calc(100vw - 24px)); padding: 4px 6px; border-radius: 8px; background: var(--panel, #fff); border: 1px solid var(--line, #8884); box-shadow: 0 3px 12px #0003; }
+.section-bar input[type="range"] { width: 120px; }
+.section-bar input[type="number"] { width: 70px; }
+.fedit-memory { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0 0; font-size: 12px; opacity: 0.85; }
+.fedit-memory .linklike { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
+
+/* the sketch ribbon's Status group: a small text pill for the definition state, then square icon buttons */
+.sk-status { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
+.rb-node .dof-chip { font-size: 11px; line-height: 16px; padding: 0 7px; }
+.rb-node .rb-btn.rb-ico { width: 28px; height: 28px; padding: 0; justify-content: center; }
+.rb-node .rb-btn.rb-ico.rb-ico-text { width: auto; padding: 0 8px 0 6px; }
+.rb-btn.rb-ico .rb-ico-label { font-size: 12px; }
+.rb-btn.rb-ico .caret { font-size: 9px; margin-left: -2px; }
+.rb-node .aux-pop .rb-btn.rb-ico { width: auto; min-width: 28px; padding: 0 4px; gap: 1px; }
+.rb-btn.rb-ico.done { color: var(--ok, #1c9a4a); }
+.aux-item { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.aux-item[aria-pressed="true"] { color: var(--accent); font-weight: 600; }
+.aux-item[disabled] { opacity: .5; cursor: default; }

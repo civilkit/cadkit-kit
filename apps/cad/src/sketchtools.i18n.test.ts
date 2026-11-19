@@ -20,4 +20,13 @@ describe('sketch tool text', () => {
     const missing = kinds.flatMap((k) => [`app.sketch.hint.${k}.pick`, `app.sketch.hint.${k}.more`]).filter((k) => !keys.has(k));
     expect(missing).toEqual([]);
   });
+
+  it('says how many cuts a circle trim found and what a tangent cutter must do', () => {
+    const t = en['app.sketch.hint.trimOneCut'];
+    expect(t).toMatch(/Only 1 cut/);
+    expect(t).toMatch(/needs 2/);
+    expect(t).toMatch(/tangent arc or line/);
+    expect(t).toMatch(/reaches the point where it touches/);
+    expect(Object.keys(en)).not.toContain('app.sketch.hint.trimNeedsTwo');
+  });
 });

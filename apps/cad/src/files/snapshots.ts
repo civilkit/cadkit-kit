@@ -1,6 +1,8 @@
 // Rolling snapshots of the open part, kept in IndexedDB (a document can be 900 KB: too big for localStorage to hold ten of).
 // They are the safety net behind autosave: whatever happens to the live document, an earlier state is one click away.
-export interface Snapshot { id: string; time: number; name: string; features: number; reason: 'auto' | 'undo' | 'drop' | 'load'; doc: unknown }
+export interface Snapshot { id: string; time: number; name: string; features: number; reason: 'auto' | 'undo' | 'drop' | 'load'; doc: unknown;
+  /** a small picture of the part (PNG, base64), drawn after the snapshot is stored, so it can be missing */ thumb?: { width: number; height: number; data: string } }
+export type SnapThumb = (doc: unknown) => Promise<{ width: number; height: number; data: string } | null>;
 export interface SnapBackend { all(): Promise<Snapshot[]>; put(s: Snapshot): Promise<void>; remove(ids: string[]): Promise<void> }
 
 export const SNAP_KEEP = 10;
@@ -55,9 +57,22 @@ export function idbBackend(dbName = 'cad.snapshots.v1'): SnapBackend | null {
   };
 }
 
-export function createSnapshots(backend: SnapBackend | null, opts: { now?: () => number } = {}) {
+export function createSnapshots(backend: SnapBackend | null, opts: { now?: () => number; /** draws a snapshot's picture; called one at a time, after the snapshot is stored */ thumb?: SnapThumb } = {}) {
   const now = opts.now ?? Date.now;
   let lastTime = 0, lastKey = '', seq = 0, queue: Promise<unknown> = Promise.resolve();
+  const gone = new Set<string>(); let drawing: Promise<unknown> = Promise.resolve(); let waiting = 0;
+  /** draws the picture of a stored snapshot in the background (at most 3 wait; a failed or slow one just leaves the row without) */
+  const draw = (snap: Snapshot): void => {
+    if (!opts.thumb || !backend || waiting >= 3) return;
+    waiting++;
+    drawing = drawing.then(async () => {
+      try {
+        if (gone.has(snap.id)) return;
+        const t = await opts.thumb!(snap.doc);
+        if (t && !gone.has(snap.id)) await backend.put({ ...snap, thumb: t });
+      } catch { /* no picture */ } finally { waiting--; }
+    });
+  };
   return {
     /** Keep the document as it is now. `auto` snapshots come at most every SNAP_EVERY; `undo`, `drop` and `load` always (an identical state is not stored twice). */
     note(doc: unknown, name: string, reason: Snapshot['reason']): Promise<void> {
@@ -70,13 +85,13 @@ export function createSnapshots(backend: SnapBackend | null, opts: { now?: () =>
       if (key === lastKey) return Promise.resolve();
       lastKey = key; if (reason === 'auto') lastTime = t;
       const snap: Snapshot = { id: `${t}-${seq++}`, time: t, name, features, reason, doc: JSON.parse(key) };
-      const job = queue.then(async () => { await backend.put(snap); await backend.remove(pruneIds(await backend.all(), now())); }).catch(() => {});
+      const job = queue.then(async () => { await backend.put(snap); const old = pruneIds(await backend.all(), now()); for (const i of old) gone.add(i); await backend.remove(old); draw(snap); }).catch(() => {});
       queue = job;
       return job;
     },
     /** Newest first. */
     async list(): Promise<Snapshot[]> { try { return backend ? (await backend.all()).sort((a, b) => b.time - a.time) : []; } catch { return []; } },
     /** Resolves when every write so far has finished (tests). */
-    settled(): Promise<unknown> { return queue; },
+    settled(): Promise<unknown> { return queue.then(() => drawing); },
   };
 }
