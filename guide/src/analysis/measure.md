@@ -4,7 +4,7 @@ This chapter covers the tools that look at a part without changing it: mass prop
 
 ## Where the tools are
 
-The **Evaluate** ribbon tab has them. Mass properties, Measure, Interference check and Section view open the **Inspect** tab of the bottom drawer, which holds one card for each. You can also open the drawer with the backslash key (**\\**) and choose Inspect, or find any of them in the command search (press **F**).
+The **Evaluate** ribbon tab has them. Mass properties, Measure, Interference check, Intersection check and Section view open the **Inspect** tab of the bottom drawer, which holds one card for each. You can also open the drawer with the backslash key (**\\**) and choose Inspect, or find any of them in the command search (press **F**).
 
 | Tool | Command | Key |
 |---|---|---|
@@ -12,6 +12,7 @@ The **Evaluate** ribbon tab has them. Mass properties, Measure, Interference che
 | Mass properties | Mass properties | |
 | Section view | Section view | |
 | Interference check | Interference check | |
+| Intersection check | Check intersection | |
 | Zebra stripes | Zebra stripes | Alt+Z |
 | Gaussian curvature, Mean curvature | the same names | |
 | Draft analysis | Draft analysis | Alt+D |
@@ -99,6 +100,12 @@ The cut face is filled so the section looks solid. Selection, hover colours and 
 Interference finds bodies of one part that share volume. Press **Check** in the Interference card. If the part has only one solid, the card says "Needs two or more solid bodies". Otherwise it lists each pair that overlaps with the shared volume, or says "No interference between N bodies". Click a pair to select the faces involved and frame them. The result goes out of date when the part changes, and you must press **Check** again.
 
 For components in an assembly, the Assembly tab has its own **Interference check** that names the pairs by component. See [Assemblies and mates](../assemblies/assemblies.md). Note that bodies made by overlapping features in one part are merged by the kernel, so this check mainly finds overlaps between separate bodies you have kept apart.
+
+## Intersection check
+
+The Intersection check proves where faces meet. Where two faces cross, the kernel traces the curve of intersection; the check then tests every span of that curve and says whether it is proved to lie on one arc of the true intersection. Choose **Evaluate > Measure > Intersect** (or **Check intersection** in command search) and press **Check** in the Intersection check card. Nothing in the part changes.
+
+With no face selected the check covers the whole part against itself. Select faces first to check only those against the rest of the part; this is also what to do when the card says there are too many face pairs (at most 400 at a time). The card shows the number of face pairs, the intersection curves and the spans proved. Curves that are exact (lines, circles, ellipses) need no proof and are only counted. A span that could not be proved is listed with its reason: a tangent contact or pole, branches too close together, or a surface kind with no proof yet. Click a row to select the two faces and frame them. An unproved span is not an error: it only means no guarantee could be given there. The result goes out of date when the part changes, and you must press **Check** again.
 
 ## Surface analysis
 

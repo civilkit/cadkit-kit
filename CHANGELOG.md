@@ -4,6 +4,25 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.8.5 - 2026-11-20
+
+- **Convert mesh to solid (preview).** Turn an imported STL, OBJ, GLB or 3MF mesh into a solid you can see before keeping it: flat areas become flat faces, round areas become cylinders, cones and spheres where they fit, and gaps are marked and can be closed. In this release the result is a preview; saving it into the part arrives with the next update.
+- **Surface tools for curves and sweeps.** Offset curve, Composite curve and Project curve (several curves at once, with Keep exact), Sweep surface (a curve can be the path, with Cap the ends and Knit to solid) and Blend surface between two faces that share an edge, each with its own form, icon, help and plain refusal messages; Check intersection in Evaluate runs the kernel's certified intersection check.
+- **Fillet and chamfer over the tie across several walls.** Rounding the top and bottom edges of a plate, box or some of its walls with radii past the point where they meet now builds, with a warning that names the narrowest wall, instead of being refused.
+- **Fillets and chamfers at overhang corners are consistent.** A chamfer at the three-edge corner under an overhang gives the same result whatever order the edges are picked in, and a result that would still carry a leftover tool face is refused with the vertex and a hint; the corner patch of an overhang fillet is smooth and no longer crumpled.
+- **A fillet on the end rims of a swept tube builds.** A tube made with Sweep surface, or a plain swept torus tube, takes a rim fillet in under a second where it used to fail after half a minute; very large radii are refused with a reason.
+- **Fillets that meet across a face, and R10 then R5 on a wheel, build.** Two rounds that meet along a face are tied together (or refused precisely when they cannot be), and a larger round followed by a smaller one on the same rim now works; the opposite order is still refused with its reason.
+- **Warnings show their text.** The model tree and the Diagnostics tab list kernel warnings with their plain-language message and advice, for example two roundings that cross in a sharp edge.
+- **Export STEP includes surface bodies.** Open surfaces are written as their own named models next to the solids; a part with nothing to export says so instead of giving an empty file, and exported STEP files now carry the CadKit name in their header.
+- **A thickened free-form or closed-spline wall can be cut, drilled, joined and shelled.**
+- **More SolidWorks parts open as solids.** Edges on rolling-ball blends and fitted intersection curves are read, so parts that used to arrive as open shells come in whole.
+- **A compact floating feature editor.** Options such as flip, draft, end scale and twist fold away while they are neutral.
+- **Sketching.** Hovering a point lists its constraints and dimensions; Look normal always views the sketch from its +normal side; typed point fields no longer lose keys; Show freedom refreshes when a suggestion chip is applied; Show constraints says what the next press does and draws a rectangle's locks.
+- **Plugins can read a body's mesh and pick edges, sketches and regions.** A plugin can ask for a body's triangles in millimetres, and selection fields accept edges, sketches and sketch regions.
+- **Hole: Up to next.** The Hole tool offers Up to next now that the kernel stops at the first wall.
+- **Sheet faces no longer show black or hatched** in the outline pass, and the view and Start here card centre in the space the floating panels leave free.
+- **Faster sketches with many curves, and a kernel that stays responsive.** A sketch whose curves meet at T-junctions regenerates in a fraction of the time (a spur gear went from 6 s to 0.6 s), and meshing of fast-turning free-form patches is bounded.
+
 ## 0.8.4 - 2026-11-19
 
 - **Show freedom and Show constraints in the sketcher.** Show freedom lights, in amber, the points and circle radii that can still move, says in which direction, and offers chips that pin them; Show constraints (Shift+C) draws every constraint glyph and dimension, and hovering a point or line lists what is attached to it.

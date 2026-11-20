@@ -2,7 +2,7 @@
 export const inspectStrings: Record<string, string> = {
   'app.drawer.inspect': 'Inspect',
   'tab.Evaluate': 'Evaluate', 'group.Measure': 'Measure', 'group.Analyse': 'Analyse', 'group.Section': 'Section',
-  'cmd.measure': 'Measure', 'cmd.mass-props': 'Mass properties', 'cmd.interference': 'Interference check', 'cmd.section-view': 'Section view',
+  'cmd.measure': 'Measure', 'cmd.mass-props': 'Mass properties', 'cmd.interference': 'Interference check', 'cmd.check-intersection': 'Check intersection', 'cmd.section-view': 'Section view',
   'inspect.copy': 'Copy', 'inspect.copied': 'Copied to the clipboard', 'inspect.copyFailed': 'Could not copy',
   'inspect.stale': 'Out of date: the part changed.',
   'inspect.mass': 'Mass properties', 'inspect.mass.compute': 'Compute', 'inspect.mass.none': 'No solid to measure.',
@@ -34,5 +34,14 @@ export const inspectStrings: Record<string, string> = {
   'inspect.section.hint': 'Choose a plane to cut the part open.', 'inspect.section.pickFace': 'Select one flat face first.',
   'inspect.interference': 'Interference check', 'inspect.interference.run': 'Check', 'inspect.interference.running': 'Checking...',
   'inspect.interference.none': 'Not checked yet.', 'inspect.interference.single': 'Needs two or more solid bodies; this part has one.',
+  'inspect.intersection': 'Intersection check', 'inspect.intersection.run': 'Check', 'inspect.intersection.running': 'Checking...',
+  'inspect.intersection.scopeBody': 'Checks the whole part. Select faces first to check only those against the rest of the part.', 'inspect.intersection.scopeFaces': 'Checks {n} selected faces against the rest of the part.',
+  'inspect.intersection.none': 'Not checked yet.', 'inspect.intersection.noPairs': 'No two faces meet, so there is nothing to check.',
+  'inspect.intersection.exact': 'Every intersection is exact ({curves} found): there is nothing to prove.',
+  'inspect.intersection.summary': '{pairs} face pairs, {curves} intersection curves: {proved} of {spans} spans proved ({repaired} after repair).',
+  'inspect.intersection.clean': 'Every span is proved to lie on the true intersection.', 'inspect.intersection.unresolved': '{n} spans could not be proved. This is not an error: it only means no guarantee could be given there.',
+  'inspect.intersection.truncated': 'The check ran out of time: some faces were not looked at.', 'inspect.intersection.issues': 'Spans that are not proved', 'inspect.intersection.more': '{n} more not shown.',
+  'inspect.intersection.reason.unsupported': 'no proof for this surface kind', 'inspect.intersection.reason.singular': 'tangent contact or pole', 'inspect.intersection.reason.noContraction': 'branches too close', 'inspect.intersection.reason.degenerate': 'not a number',
+  'inspect.intersection.tooMany': 'Too many face pairs to check at once (at most 400). Select the faces to check first.', 'inspect.intersection.failed': 'The check could not run: {detail}',
   'inspect.interference.clean': 'No interference between {n} bodies.', 'inspect.interference.pairs': 'Bodies that share volume',
 };

@@ -143,7 +143,7 @@ describe('file commands', () => {
   };
   it('Ctrl+Shift+S is Save as and Ctrl+S stays Save', () => {
     const saveAs = vi.fn(); const save = vi.fn();
-    const cmds = buildCommands({ ...base, save, files: { saveAs, importStep() {}, importSkpHidden() {}, recover() {}, rotateSkp() {}, hasSkp: () => false, recogniseFeatures: () => {}, hasStep: () => false, embedOn: () => false, toggleEmbed() {} } });
+    const cmds = buildCommands({ ...base, save, files: { saveAs, importStep() {}, importSkpHidden() {}, recover() {}, rotateSkp() {}, hasSkp: () => false, recogniseFeatures: () => {}, hasStep: () => false, embedOn: () => false, toggleEmbed() {}, meshToSolid() {} } });
     const ev = (o: Partial<KeyboardEvent>) => ({ key: 's', shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...o });
     matchShortcut(cmds, ev({ metaKey: true, shiftKey: true }))!.run();
     matchShortcut(cmds, ev({ ctrlKey: true }))!.run();
@@ -152,7 +152,7 @@ describe('file commands', () => {
   });
   it('Rotate imported model is a file command, enabled only while a SketchUp model is shown', () => {
     const rotateSkp = vi.fn(); let shown = false;
-    const cmds = buildCommands({ ...base, save() {}, files: { saveAs() {}, importStep() {}, importSkpHidden() {}, recover() {}, rotateSkp, hasSkp: () => shown, recogniseFeatures: () => {}, hasStep: () => false, embedOn: () => false, toggleEmbed() {} } });
+    const cmds = buildCommands({ ...base, save() {}, files: { saveAs() {}, importStep() {}, importSkpHidden() {}, recover() {}, rotateSkp, hasSkp: () => shown, recogniseFeatures: () => {}, hasStep: () => false, embedOn: () => false, toggleEmbed() {}, meshToSolid() {} } });
     const c = cmds.find((x) => x.id === 'rotate-skp')!;
     expect(c.label).toBe('Rotate imported model');
     expect(c.enabled?.()).toBe(false);

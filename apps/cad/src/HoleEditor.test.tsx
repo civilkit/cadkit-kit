@@ -113,8 +113,8 @@ describe('HoleEditor', () => {
     expect(m.q('tip')).toBeNull();
   });
 
-  it('offers Blind and Through (the kernel drills Up to next through everything); a hole that says upToNext keeps it visible', () => {
-    expect([...mount().sel('end').options].map((o) => o.value)).toEqual(['blind', 'through']);
+  it('offers Blind, Through and Up to next (the kernel stops at the first wall); a hole that says upToNext shows it selected', () => {
+    expect([...mount().sel('end').options].map((o) => o.value)).toEqual(['blind', 'through', 'upToNext']);
     cleanup();
     const m = mount({ ...HOLE, end: 'upToNext' });
     expect(m.sel('end').value).toBe('upToNext');

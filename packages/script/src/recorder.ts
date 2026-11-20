@@ -115,7 +115,7 @@ export interface ReadRuntime {
   pass?(label: string, line: number): void;
 }
 export interface TextMetricsFact { advance: number; bbox: [number, number, number, number]; width: number; capHeight: number; chars: number; advances: number[]; warnings: unknown[] }
-export interface FactNeed { mass?: boolean; validate?: boolean; geometry?: boolean; /** answer `bbox` for the body of this name (needs mass) instead of the whole part */ body?: string; /** measure a string (the kernel's textMetrics) */ text?: { string: string; font?: string; height: number; spacing?: number } }
+export interface FactNeed { mass?: boolean; validate?: boolean; geometry?: boolean; /** answer `bbox` for the body of this name (needs mass) instead of the whole part */ body?: string; /** measure a string (the kernel's textMetrics) */ text?: { string: string; font?: string; height: number; spacing?: number }; /** the kernel's checkIntersection of these faces against every face (none: the part against itself) */ intersection?: { faces: string[] } }
 export interface FaceFact {
   /** persistent face name, usable in face('F3.C1') */
   name: string;
@@ -143,6 +143,8 @@ export interface Facts {
   faceCount: number; edgeCount: number; faces: FaceFact[];
   edges: Array<{ key: string; mid: Vec; length: number; faces: string[] }>;
   text?: TextMetricsFact;
+  /** the kernel's checkIntersection answer for need.intersection */
+  intersection?: Record<string, unknown> | null;
 }
 export interface Step { line: number; label: string; /** feature name given by the script (`{ name }` option); a missing one is derived from the sketch it consumes */ name?: string; /** tree folder the step's features belong to (see part.group) */ group?: string; run(ctx: Ctx): EditOp[]; sk?: SketchBuilder; /** a read-back step: builds what was recorded, asks the kernel, resolves a script promise or checks an expectation */ read?(rt: ReadRuntime): Promise<void> }
 export interface Recorded { name: string; variables: Array<{ name: string; expr: string }>; steps: Step[] }

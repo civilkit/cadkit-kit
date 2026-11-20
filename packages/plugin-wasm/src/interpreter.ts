@@ -11,7 +11,7 @@ export interface BodyRow { name: string; volume: number | null; bbox: { min: num
 export interface Scratch { build(script: string): Promise<BodyRow[]> }
 export interface Target { commit(script: string): Promise<{ created: number }> }
 
-export const SUPPORTED = new Set(['parameters.add', 'solid.box', 'solid.cylinder', 'solid.cone', 'solid.combine', 'solid.move', 'selection.get', 'solid.hole', 'solid.pattern.rectangular', 'timeline.group', 'document.inspect', 'inspect.measure', 'material.list', 'material.create', 'material.assign']);
+export const SUPPORTED = new Set(['parameters.add', 'solid.box', 'solid.cylinder', 'solid.cone', 'solid.combine', 'solid.move', 'selection.get', 'solid.hole', 'solid.pattern.rectangular', 'timeline.group', 'document.inspect', 'inspect.measure', 'material.list', 'material.create', 'material.assign', 'model.mesh']);
 export const STUBBED = new Set(['component.create', 'component.activate', 'component.list', 'component.metadata', 'component.metadata.set', 'component.delete', 'occurrence.ground', 'occurrence.move', 'joint.as_built', 'joint.limits', 'joint.create', 'joint.edit', 'joint.list', 'construct.axis.two_planes', 'solid.chamfer', 'sketch.create', 'sketch.text', 'sketch.finish', 'parameters.change']);
 /** SolidCraft classifies these as reads; everything else is an edit (a `read` entry may only call reads). */
 export const READS = new Set(['document.inspect', 'inspect.measure', 'model.mesh', 'material.list', 'selection.get']);
@@ -19,7 +19,11 @@ export const READS = new Set(['document.inspect', 'inspect.measure', 'model.mesh
 /** What the open document offers a plugin that edits it (all in the DOCUMENT's frame: the interpreter turns it into the plugin's Z-up frame): its bodies with their boxes and what is selected. */
 export interface DocSel { type: 'body' | 'face' | 'edge'; /** body items */ name?: string; /** face and edge items: the body they belong to */ body?: string; /** a face's place in its body's list */ index?: number; /** planar faces: the outward normal */ normal?: number[] }
 export interface DocBody { name: string; bbox: { min: number[]; max: number[] } | null; volume?: number | null; /** the feature that made the body: a colour for it is written against that feature */ feature?: string }
-export interface DocContext { up?: 'y' | 'z'; bodies: DocBody[]; selection: DocSel[]; /** what generators stored for the components they made, by component name (kept with the run that made each folder) */ components?: Record<string, Record<string, unknown>>; /** the document's variables */ parameters?: ReadonlyArray<{ name: string; expression: string; value: number; comment?: string }> }
+/** The display mesh of the open document and which faces (by name, in the body's own order) belong to each body: what `model.mesh` answers from. Triangles are three vertices each (9 floats), millimetres, document frame. */
+export interface DocMeshSource { mesh: { positions: ArrayLike<number>; triFace: ArrayLike<number>; faceIds: string[] }; faces: Record<string, string[]> }
+/** `model.mesh` answers at most this many triangles in one call (the reply is JSON through the command channel); ask for fewer bodies at a time. */
+export const MESH_MAX_TRIANGLES = 200000;
+export interface DocContext { /** the bodies' triangles, for `model.mesh` */ meshes?: DocMeshSource; up?: 'y' | 'z'; bodies: DocBody[]; selection: DocSel[]; /** what generators stored for the components they made, by component name (kept with the run that made each folder) */ components?: Record<string, Record<string, unknown>>; /** the document's variables */ parameters?: ReadonlyArray<{ name: string; expression: string; value: number; comment?: string }> }
 
 interface Box { name: string; body?: string; corner: number[]; size: number[]; cut: boolean; join?: boolean; inter?: boolean; targets: string[]; group?: string }
 /** A cylinder, or a cone when `top` is set (diameters at the base and at the top), on an axis along one of x, y, z. */
@@ -116,6 +120,7 @@ export class Interpreter {
   runSync(command: string, args: any): unknown {
     if (command === 'material.list') { this.calls.push(command); return { materials: [...this.materials].map(([name, m]) => ({ name, density_g_cm3: m.density })) }; }
     if (command === 'selection.get') { this.calls.push(command); return this.selection(args); }
+    if (command === 'model.mesh') { this.calls.push(command); return this.modelMesh(args); }
     if (READS.has(command) && SUPPORTED.has(command)) return undefined;
     this.calls.push(command);
     if (this.opts.readEntry && !READS.has(command)) throw new Error(`a read entry may not call ${command}`);
@@ -377,6 +382,42 @@ export class Interpreter {
       return o;
     });
     return { items };
+  }
+  /** `model.mesh`: the triangles of bodies of the open document, in the plugin's frame (Z up), millimetres. `bodies` (names) or `body` (one name) picks them, all of them when
+   *  neither is given. Per body: `positions` (the welded vertices, each `[x, y, z]`: the form the Woodwork cut list reads), `indices` (flat, three per triangle) and `triangle_face` (per triangle,
+   *  the index of its face in the body's face list, the same `index` a face selection carries). A request with `body` (one name) is answered with that body's fields at the top level next to
+   *  `units` (what Woodwork's `{ body, tolerance }` call reads); `bodies` or no selector gives `{ units, bodies: [...] }`. `tolerance` is accepted and ignored: the mesh is the display tessellation. An unknown name is an error. Bodies this run has made or changed are not in the open document yet, so they are refused. */
+  private modelMesh(args: { bodies?: string[]; body?: string } | undefined): unknown {
+    const doc = this.opts.doc, src = doc?.meshes;
+    const want = args?.bodies ?? (args?.body !== undefined ? [args.body] : undefined);
+    if (want !== undefined && (!Array.isArray(want) || want.some((n) => typeof n !== 'string'))) throw new Error('model.mesh: bodies must be a list of body names');
+    const names = want ?? (doc?.bodies ?? []).map((b) => b.name);
+    for (const n of names) if (!this.docBody(n)) throw new Error(`model.mesh: no body named "${n}" in the open document`);
+    if (this.order.length && names.length) throw new Error('model.mesh reads the open document; this run has already changed the model, so ask for the mesh before editing');
+    const m = src?.mesh;
+    const toPlugin = (x: number, y: number, z: number): number[] => (this.opts.up ?? doc?.up) === 'y' ? [x, 0 - z, y] : [x, y, z];
+    const triOf = new Map<string, number[]>();   // face name -> its triangles
+    if (m) for (let t = 0; t < m.triFace.length; t++) { const f = m.faceIds[m.triFace[t]]; let a = triOf.get(f); if (!a) triOf.set(f, a = []); a.push(t); }
+    let total = 0;
+    const bodies = names.map((name) => {
+      const faces = src?.faces[name] ?? [];
+      const verts = new Map<string, number>(), positions: number[][] = [], indices: number[] = [], triangleFace: number[] = [];
+      faces.forEach((f, fi) => {
+        for (const t of triOf.get(f) ?? []) {
+          if (++total > MESH_MAX_TRIANGLES) throw new Error(`model.mesh: more than ${MESH_MAX_TRIANGLES} triangles asked for in one call; ask for fewer bodies at a time`);
+          for (let v = 0; v < 3; v++) {
+            const o = t * 9 + v * 3, p = toPlugin(m!.positions[o], m!.positions[o + 1], m!.positions[o + 2]).map((c) => Math.round(c * 1e4) / 1e4 + 0);
+            const key = `${p[0]},${p[1]},${p[2]}`;
+            let id = verts.get(key);
+            if (id === undefined) { id = positions.length; verts.set(key, id); positions.push(p); }
+            indices.push(id);
+          }
+          triangleFace.push(fi);
+        }
+      });
+      return { name, vertex_count: positions.length, triangle_count: indices.length / 3, positions, indices, triangle_face: triangleFace };
+    });
+    return args?.body !== undefined && args.bodies === undefined ? { units: 'mm', ...bodies[0] } : { units: 'mm', bodies };
   }
   private dirFromDoc(d: number[]): number[] { return (this.opts.up ?? this.opts.doc?.up) === 'y' ? [d[0], 0 - d[2], d[1]] : d; }
 

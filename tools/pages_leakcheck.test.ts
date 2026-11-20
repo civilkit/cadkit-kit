@@ -53,6 +53,7 @@ describe('leak patterns', () => {
     expect(ids('Iron' + 'CAD')).toContain('product-name');
     expect(ids('tri' + 'ball')).toContain('product-name');
     expect(ids('Tri-' + 'Ball')).toContain('product-name');
+    expect(ids('Purra' + 'metric model')).toContain('product-name');
     expect(ids('moveball')).not.toContain('product-name');
   });
   it('flags source map references', () => {

@@ -66,7 +66,7 @@ export interface MarkFilter {
 }
 /** The chips to draw. Value chips always stay. A glyph chip stays when the solver blames its constraint (conflict / redundant: even with markers off),
  *  when it is the hovered or selected chip, and by mode: all (`always`), those touching the focus (`hover`), none (`off`).
- *  Axis locks that only close a rectangle (`axisLock`) show for the hovered or selected sides only, in any mode. */
+ *  Axis locks that only close a rectangle (`axisLock`) follow the same rule: with Show constraints on (`always`) they are drawn like any other, otherwise for the hovered or selected sides. */
 export function visibleChips<T extends ChipItem & { refs?: string[]; blame?: string; axisLock?: boolean }>(items: T[], f: MarkFilter): T[] {
   return items.filter((i) => {
     if (i.kind !== 'mark') return true;
@@ -74,7 +74,6 @@ export function visibleChips<T extends ChipItem & { refs?: string[]; blame?: str
     if (f.mode === 'off') return false;
     if (i.id === f.hot || i.id === f.selected) return true;
     const touches = (i.refs ?? []).some((r) => f.focus.has(r));
-    if (i.axisLock) return touches;
     return f.mode === 'always' || touches;
   });
 }

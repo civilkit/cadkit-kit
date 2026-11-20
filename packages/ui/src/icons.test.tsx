@@ -17,6 +17,22 @@ describe('featureIconName', () => {
   });
 });
 
+describe('offset curve, composite curve and intersection check icons', () => {
+  it('each tool has an icon of its own, and the two curve features use theirs in the tree', () => {
+    for (const id of ['add-offset-curve', 'add-composite-curve', 'check-intersection']) expect(hasIcon(id)).toBe(true);
+    expect(featureIconName('offsetCurve')).toBe('add-offset-curve');
+    expect(featureIconName('compositeCurve')).toBe('add-composite-curve');
+  });
+});
+
+describe('sweep surface and blend surface icons', () => {
+  it('each tool has an icon of its own, and the two features use theirs in the tree', () => {
+    for (const id of ['add-sweep-surface', 'add-blend-surface']) expect(hasIcon(id)).toBe(true);
+    expect(featureIconName('sweepSurface')).toBe('add-sweep-surface');
+    expect(featureIconName('blendSurface')).toBe('add-blend-surface');
+  });
+});
+
 describe('sheet metal icons', () => {
   it('every sheet command and every sheet feature in the tree has an icon of its own', () => {
     const cmds = ['sheet-rules', 'add-base-flange', 'add-edge-flange', 'add-contour-flange', 'add-sheet-convert', 'add-hem', 'add-fold', 'add-sheet-cut', 'add-sheet-corner', 'sheet-unfold', 'sheet-refold', 'sheet-flat', 'sheet-dxf', 'sheet-bends-csv', 'sheet-bends-json'];

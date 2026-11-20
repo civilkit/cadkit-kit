@@ -23,6 +23,8 @@ export interface MeshPanelProps {
   onDelete(): void;
   onSketchOn(): void;
   onDraw(): void;
+  /** open Convert mesh to solid on this mesh (meshes/useMeshSolid.ts) */
+  onToSolid?(): void;
 }
 
 export function MeshPanel(p: MeshPanelProps): JSX.Element {
@@ -65,6 +67,7 @@ export function MeshPanel(p: MeshPanelProps): JSX.Element {
         <div class="mesh-actions">
           <button type="button" class="fedit-card-btn prop-create" data-testid="mesh-sketch-on" title={t('mesh.sketchOn.tip')} onClick={p.onSketchOn}>{t('mesh.sketchOn')}</button>
           <button type="button" class="fedit-card-btn prop-create" data-testid="mesh-draw" title={t('mesh.draw.tip')} onClick={p.onDraw}>{t('mesh.draw')}</button>
+          {p.onToSolid ? <button type="button" class="fedit-card-btn" data-testid="mesh-to-solid" title={t('cmd.mesh-to-solid.tip')} onClick={p.onToSolid}>{t('cmd.mesh-to-solid')}</button> : null}
         </div>
         <label class="fedit-fld sk3d-check" data-path="visible">
           <input type="checkbox" checked={rec.visible} aria-label={t('mesh.visible')} onChange={(e) => patch({ visible: (e.currentTarget as HTMLInputElement).checked })} />

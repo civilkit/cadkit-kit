@@ -6,6 +6,15 @@ import type { MassRaw } from './mass';
 
 export interface Interference { bodies: number; pairs: Array<{ a: string; b: string; volume?: number; com?: number[]; box?: { min: number[]; max: number[] }; error?: string }> }
 
+/** One span of a marched intersection curve that was not proved as traced (`repaired`: proved after points of the arc were inserted). */
+export interface IntersectionIssue { a: string; b: string; curve: number; span: number; reason: 'unsupported' | 'singular' | 'noContraction' | 'degenerate' | string; repaired?: boolean; from?: number[]; to?: number[] }
+/** The kernel's `checkIntersection`: per pair of faces, how many spans of the marched intersection curves are proved to lie on one arc of the true intersection. */
+export interface IntersectionCheck {
+  curves: number; marched: number; spans: number; proved: number; repaired: number; unresolved: number; pairs: number;
+  byPair?: Array<{ a: string; b: string; curves: number; marched: number; spans: number; proved: number; unresolved: number }>;
+  issues: IntersectionIssue[]; elapsedMs?: number; truncated?: boolean;
+}
+
 type Transport = { request(msg: Record<string, unknown>): Promise<{ ok?: boolean; result?: unknown; error?: unknown; trap?: unknown }> };
 
 /** Send `msg` for the session's current state. Throws on a trap or an error reply; a null result stays null. */
@@ -19,6 +28,8 @@ export async function sessionQuery<T>(session: Session, msg: { type: string; [k:
 
 export const queryMeasure = (s: Session, refs: Array<Record<string, unknown>>) => sessionQuery<KernelMeasure>(s, { type: 'measure', refs });
 export const queryInterference = (s: Session) => sessionQuery<Interference>(s, { type: 'interference' });
+/** `a` and `b`: face names, or `body` for every face. A face is never paired with itself. */
+export const queryIntersection = (s: Session, a: string | string[], b: string | string[]) => sessionQuery<IntersectionCheck>(s, { type: 'checkIntersection', a, b });
 export const queryMass = (s: Session, densities?: number[]) => sessionQuery<MassRaw>(s, { type: 'massProps', bodies: true, ...(densities ? { densities } : {}) });
 
 /** One flat face of a `faceRun` reply: where a Press Pull on it starts and how far its outline reaches from its area centre (the angle readout of a scale taper). `endOf` names the extrude, revolve or sweep the face is the moving end of. */

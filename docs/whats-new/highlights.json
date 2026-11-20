@@ -1,4 +1,26 @@
 {
+  "0.8.5": [
+    {
+      "id": "mesh-to-solid",
+      "title": "Convert mesh to solid (preview)",
+      "blurb": "Turn an imported STL, OBJ, GLB or 3MF mesh into a solid you can see before keeping it; flat areas become faces, round areas become cylinders, cones and spheres, and gaps are marked and can be closed."
+    },
+    {
+      "id": "surface-tools",
+      "title": "Curve and surface tools",
+      "blurb": "Offset, composite and project curves, Sweep surface with caps and Knit to solid, and Blend surface between two faces, with plain messages when a form cannot be built."
+    },
+    {
+      "id": "cross-rounds",
+      "title": "Rounds that meet across a face",
+      "blurb": "Fillets and chamfers wider together than the face between them now build and meet in a sharp crease, with a warning in the tree that says why."
+    },
+    {
+      "id": "step-surfaces",
+      "title": "Export STEP with surfaces",
+      "blurb": "Open surface bodies are written to STEP as their own models next to the solids, and an empty export explains itself."
+    }
+  ],
   "0.8.4": [
     {
       "id": "show-freedom",

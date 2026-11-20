@@ -140,21 +140,21 @@ A full 360 degree turn has no end caps. A profile that crosses the axis fails wi
 
 Sweep moves a closed profile along an open path.
 
-1. Draw the **path** as an open chain of lines and arcs in one sketch, or, for a path that bends in all three directions, as one spline in a [3D sketch](../sketching/sketch-3d.md).
+1. Draw the **path** as an open chain of lines and arcs in one sketch, or, for a path that bends in all three directions, as one spline in a [3D sketch](../sketching/sketch-3d.md). A curve feature can be the path too: a helix, or an Edit, Project, Offset or Composite curve (see [Curves](curves.md)).
 2. Draw the **profile** as a closed shape in a second sketch on a plane that is perpendicular to the path at its start.
 3. Choose **Home > Create > Sweep** (Shift+W), or pick it from the Loft button's list.
 
-With nothing selected, Sweep takes the newest unused closed sketch as the profile and the newest unused open sketch as the path. The Editor lets you change both.
+With nothing selected, Sweep takes the newest unused closed sketch as the profile and the newest unused open sketch as the path (with no open sketch left, the newest curve feature no sweep uses). A curve feature selected in the tree is the path. The Editor lets you change both.
 
 | Option | What it does | Default |
 |---|---|---|
 | Profile (closed) | The profile sketch. | Newest unused closed sketch |
-| Path (open) | The path sketch. | Newest unused open sketch |
+| Path (open) | The path: an open sketch, or a curve feature made before the sweep (listed by type and name). An Offset or Composite curve of lines and arcs is followed exactly; other curves along a smooth spline through their points. | Newest unused open sketch |
 | Guide curves | Open sketches the profile scales to follow. Add guide adds one; the guide must be as long as the path. | None |
 | Twist over the path | Degrees of turn along the path. Hidden when there are guide curves. | 0 |
 | Operation, Body name | As for Extrude. | Add |
 
-Common failures: the profile is not perpendicular to the path start, the path has a sharp kink, or a corner between a line and an arc is not tangent (make the arc tangent). Sweeping into a sheet is not available. A helix (see [Reference geometry](reference-geometry.md)) cannot be chosen as the path in the Editor: its Path list shows open sketches only. See [sweep](/docs/cad/kernel/format/features-solids.html#sweep) in the kernel book.
+Common failures: the profile is not perpendicular to the path start, the path has a sharp kink, or a corner between a line and an arc is not tangent (make the arc tangent). Sweeping into a sheet is the separate [Sweep surface](surfaces.md) tool. See [sweep](/docs/cad/kernel/format/features-solids.html#sweep) in the kernel book.
 
 ## Loft
 

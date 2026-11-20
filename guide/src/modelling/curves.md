@@ -1,8 +1,8 @@
 # Curves on faces
 
-Three commands reshape geometry without making a solid. **Project curve** lays a sketch or an earlier curve onto the faces of a part, **Edit curve** rebuilds edges and curves into one smooth curve, and **Freeform** pushes a face into a new shape with a control net.
+Five commands reshape geometry without making a solid. **Project curve** lays a sketch or an earlier curve onto the faces of a part, **Edit curve** rebuilds edges and curves into one smooth curve, **Offset curve** draws a parallel curve at a distance, **Composite curve** joins curves end to end into one, and **Freeform** pushes a face into a new shape with a control net.
 
-**Project curve** and **Edit curve** sit in the **Reference** group of the **Features** tab, beside Plane, Axis and Helix. **Freeform** sits on the **Edit** button of the **Surfaces** tab, with Trim surface, Knit and Thicken. All three are in command search (**F**), and each is greyed out until it has something to work on. Each result is an ordinary feature: it sits in the tree, rebuilds with the part and takes part in undo.
+**Project curve**, **Edit curve**, **Offset curve** and **Composite curve** sit in the **Reference** group of the **Features** tab, beside Plane, Axis and Helix. **Freeform** sits on the **Edit** button of the **Surfaces** tab, with Trim surface, Knit and Thicken. All of them are in command search (**F**), and each is greyed out until it has something to work on. Each result is an ordinary feature: it sits in the tree, rebuilds with the part and takes part in undo.
 
 ## Project curve
 
@@ -22,8 +22,43 @@ Project curve takes a curve that lies flat (a sketch, or a curve feature you mad
 | Direction | **Both ways**, **Along the sketch normal** or **Against the sketch normal**. | Both ways |
 | Degree | How smooth the curve is. Must be between 2 and 9. | 3 |
 | Fit tolerance | How closely the curve follows the faces, in millimetres. | 0.001 mm |
+| Keep exact (procedural) | Keeps the projection as its definition instead of a fitted spline, so it stays exact when the face or the sketch changes. It works on exactly one face (the editor warns otherwise) and the curve must stay inside the face. Degree and Direction are not used then; **Project along** chooses the sketch direction, the nearest point of the face, or a direction you type, and **Gap tolerance** is how far apart the pieces of a chain may end. With Keep exact on, **Add curve** lists several curves to project together (sketch curves, edges or earlier curve features, in the order they join end to end); the list replaces the single source, and removing the last curve brings the source back. Turning Keep exact off drops the list. | Off |
 
 The note in the editor says what to expect: the result is one smooth curve lying on the faces, and a curve that misses every face is reported. If the result comes in several separate pieces, the editor's note says so, but check the curve in the view. A projection that reaches no face is refused and the feature is left as it was.
+
+## Offset curve
+
+Offset curve draws a curve parallel to a sketch, a curve or a chain of edges, at a distance. Lines and arcs offset exactly, and the result follows its source when the source changes.
+
+1. Select a sketch or a curve feature in the tree, or in Edge mode (**E**) pick the edges of the chain in order.
+2. Choose **Features > Reference > Offset**.
+3. Set the distance and where to offset in, then press **Enter**.
+
+| Option | What it does | Default |
+|---|---|---|
+| From, Curves | A sketch or a curve feature, or the curves listed one by one in the order they follow each other (the list wins when it has curves). | The picked edges, else the selected curve or sketch, else the last sketch with a curve |
+| Distance | A positive distance moves to the right of the direction of travel, seen from the side the plane normal points to; a negative one moves to the left. It cannot be 0. | 5 mm |
+| Offset in | **The plane of the curve** (the sketch plane, or the plane the curve lies in), **A plane** (a standard or reference plane), **The surface of a face** (the offset stays on the face, found with **Pick**) or **A plane by its normal**. | The plane of the curve |
+| Spline tolerance | How closely the exact definition is converted to a spline for later features. | 0.001 mm |
+| Gap tolerance | The largest gap allowed between consecutive curves of a chain. | 0.00001 mm |
+
+A corner in the curve is refused (an offset of it would have a gap): round the corner in the sketch first. A distance larger than a bend allows, or one that makes the offset run into another part of the curve, is refused too, with the radius at which it fails. A curve that does not lie in one plane needs a plane or a face to offset in.
+
+## Composite curve
+
+Composite curve joins curves that meet end to end into one curve that keeps its pieces. Each piece is turned to run on from the previous one.
+
+1. Select a sketch or a curve feature in the tree, or in Edge mode (**E**) pick the edges in the order they follow each other.
+2. Choose **Features > Reference > Join**.
+3. Set the tolerances if the pieces do not quite meet, then press **Enter**.
+
+| Option | What it does | Default |
+|---|---|---|
+| From, Curves | As for Offset curve. A sketch is walked into one chain from a free end. | The picked edges, else the selected curve or sketch, else the last sketch with a curve |
+| Gap tolerance | The largest distance between the end of one piece and the start of the next. A larger gap is refused. | 0.00001 mm |
+| Spline tolerance | How closely the joined curve is converted to a spline. Lines, arcs and splines convert exactly. | 0.001 mm |
+
+Sketch curves that do not form one chain are refused: connect them in the sketch, or list them in order.
 
 ## Edit curve
 
@@ -73,6 +108,10 @@ The outer ring of the net never moves, so the face keeps the border it shares wi
 | Project curve is greyed out | It needs a body or a surface, and a sketch or curve to project. Start a sketch, or select one in the tree |
 | The curve misses every face | Move the sketch over the part, or pick the faces the curve does cross, or change the direction |
 | A degree is refused | The degree must be between 2 and 9 |
+| Offset curve is refused at a corner | An offset cannot follow a corner. Round the corner in the sketch, or offset the pieces one at a time |
+| Offset curve is refused at a distance | The distance is larger than a bend of the curve allows. Use a smaller distance, or offset to the other side |
+| Composite curve says two curves do not meet | The gap is larger than the gap tolerance. Close the gap in the sketch, list the curves in order, or raise the tolerance |
+| Keep exact says it needs one face | A procedural projection works on exactly one face. Pick one face, or turn Keep exact off |
 | Edit curve will not build | The chain must meet end to end. Keep **Keep corners** on for a chain with a corner, and check the order of the rows in **Curves** |
 | Freeform says to pick a single face | Point moves work on one face only. Clear the extra picks, or delete the moves |
 | The face will not move at its border | The outer ring never moves. Move points inside the ring |

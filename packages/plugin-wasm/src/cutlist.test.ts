@@ -59,6 +59,23 @@ describe.skipIf(!dir || !existsSync(join(dir, 'plugin.json')))('the Cut list ent
     await expect(wasmReaders(rec)['cutlist']({ file: '../x.csv' }, contextOf([], { doc } as never))).rejects.toThrow();
   }, 60000);
 
+  it('sizes a turned (revolved) board from its mesh through model.mesh: 300 x 40 x 40, not an unreadable size', async () => {
+    const { rec } = await setup();
+    // a 24-sided lathe of a 40 mm diameter spindle, 300 mm long, with a 20 mm collar: the volume is not the bounding box's, so the plugin asks for the mesh
+    const n = 24, prof = [[20, 0], [20, 100], [10, 100], [10, 300]], pts = [[0, 0], ...prof, [0, 300]];
+    const at = (r: number, z: number, k: number) => [r * Math.cos((2 * Math.PI * k) / n), r * Math.sin((2 * Math.PI * k) / n), z];
+    const positions: number[] = [], triFace: number[] = [], faceIds = pts.slice(1).map((_, i) => `F1.${i + 1}`);
+    for (let i = 0; i + 1 < pts.length; i++) for (let k = 0; k < n; k++) {
+      const [r0, z0] = pts[i], [r1, z1] = pts[i + 1], A = at(r0, z0, k), B = at(r0, z0, k + 1), C = at(r1, z1, k + 1), D = at(r1, z1, k);
+      if (r0 > 0) { positions.push(...A, ...B, ...D); triFace.push(i); }
+      if (r1 > 0) { positions.push(...D, ...B, ...C); triFace.push(i); }
+    }
+    const turned = { up: 'z' as const, selection: [] as never[], bodies: [{ name: 'Turned Leg', bbox: { min: [-20, -20, 0], max: [20, 20, 300] }, volume: 150000 }], meshes: { mesh: { positions, triFace, faceIds }, faces: { 'Turned Leg': faceIds } } };
+    const r = await wasmReaders(rec)['cutlist']({ file: '' }, contextOf([], { doc: turned } as never));
+    const part = (r.result as { parts: Array<{ length: number; width: number; thickness: number }> }).parts[0];
+    expect([part.length, part.width, part.thickness]).toEqual([300, 40, 40]);
+  }, 60000);
+
   it('the manager runs it by id', async () => {
     const { rec } = await setup();
     const reg = new PluginRegistry();

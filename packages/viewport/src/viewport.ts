@@ -18,6 +18,7 @@ import { offPolePose, poseOfQuaternion, poseQuaternion, rollPose, snapPose, turn
 import { vertexName, parseVertexName, BODY } from '@kit/store';
 import { boxPick, type Project, type ScreenRect } from './boxselect';
 import { buildBoxDimensions, label as textLabel } from './dimensions';
+import { clampInsets, fitLimit, insetShift, NO_INSETS, sameInsets, type SafeInsets } from './safeArea';
 import { navButtons, wheelFactor, zoomAbout, zoomedDistance } from './navButtons';
 import { RefPlanes, PLANE_PICK_TOL, type RefPlaneId } from './refplanes';
 import { HandleLayer } from './handleLayer';
@@ -39,7 +40,7 @@ import { DEFAULT_ANALYSIS, sanitizeAnalysis, type AnalysisOptions, type Legend }
 import { markerSegments, markerColor, MARKER_HALF_PX, ANCHOR_HALF_PX, type MarkerStyle } from './snapMarks';
 import { cursorFor, type CursorContext } from './cursorPolicy';
 import { adaptiveGrid } from './gridSpacing';
-import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchEditFit, sketchPointWorld, lookAngleDeg, keepsSketchDrag } from './sketchedit';
+import { planeToWorld, rayPlane, lookNormalPose, sketchEditPolylines, sketchEditFit, sketchPointWorld, lookAngleDeg, keepsSketchDrag } from './sketchedit';
 
 export interface ViewFrame {
   o: number[];
@@ -624,7 +625,7 @@ export class Viewport {
   setSketchEdit(v: SketchEditShape | null): void {
     this.clearSketchOverlay();
     if (this.groundGrid) this.groundGrid.visible = !v && this.layerOn('grid');   // the sketch has its own grid
-    if (!v) { this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; this.sketchDef = null; this.sketchConflict = null; }
+    if (!v) { this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; this.sketchDef = null; this.sketchConflict = null; this.sketchFree = null; }
     this.sketchDefLines = [];
     const leaving = !v && !!this.sketchEdit;
     // a drag goes on through the solver's new frames of the same sketch; it ends when the sketch or its point goes away
@@ -1143,7 +1144,6 @@ export class Viewport {
       c.set(v.frame.o[0], v.frame.o[1], v.frame.o[2]);
     }
     const z = new THREE.Vector3(v.frame.z[0], v.frame.z[1], v.frame.z[2]).normalize();
-    const y = new THREE.Vector3(v.frame.y[0], v.frame.y[1], v.frame.y[2]).normalize();
     // an empty sketch (just the origin) on a part: look at the part's middle, projected onto the sketch plane
     if (pts.length <= 1 && this.mesh) {
       const g = this.mesh.geometry;
@@ -1156,16 +1156,10 @@ export class Viewport {
     }
     const dist = this.camera.position.distanceTo(this.controls.target) || this.radius() * 3;
     this.controls.target.copy(c);
-    this.camera.up.copy(y);
-    // read the sketch from outside the part: the side of its plane facing away from the body
-    let centre: number[] | null = null;
-    if (this.mesh) {
-      const g = this.mesh.geometry;
-      g.computeBoundingBox();
-      if (g.boundingBox) { const bc = g.boundingBox.getCenter(new THREE.Vector3()); centre = [bc.x, bc.y, bc.z]; }
-    }
-    const side = viewSide(v.frame as never, centre);
-    this.camera.position.copy(c).add(z.multiplyScalar(dist * side));
+    // always from the plane's +normal side, with or without a body (see lookNormalPose)
+    const pose = lookNormalPose(v.frame as never, [c.x, c.y, c.z], dist);
+    this.camera.up.set(...pose.up);
+    this.camera.position.set(...pose.position);
     this.camera.lookAt(c);
     this.controls.update();
     this.rebuildSketchGrid();
@@ -2328,7 +2322,8 @@ export class Viewport {
     const c = sk ? new THREE.Vector3(...sk.center) : this.center();
     const r = sk ? sk.radius : this.radius();
     // the limiting half angle is the narrower of the vertical and the horizontal one (a tall, narrow canvas)
-    const half = Math.min(1, this.camera.aspect || 1) * Math.sin((this.camera.fov * Math.PI) / 360);
+    // (with panels floating over the canvas, only the free part counts: see setSafeInsets)
+    const half = fitLimit(this.insets, Math.max(1, this.host.clientWidth), Math.max(1, this.host.clientHeight)) * Math.sin((this.camera.fov * Math.PI) / 360);
     const dist = (r * 1.2) / half;
     const dir = this.camera.position.clone().sub(this.controls.target);
     if (dir.lengthSq() < 1e-9) dir.set(1, 0.8, 1);
@@ -2447,6 +2442,38 @@ export class Viewport {
     this.camera.updateProjectionMatrix();
   }
 
+  /** Panels floating over the canvas: the view centre (origin, orbit target) is drawn at the centre of the part they leave free, by shifting the camera's
+   *  principal point (a projection offset). The orbit target, pan, zoom and picking are untouched. Eases over ~150 ms unless `animate` is false. */
+  setSafeInsets(i: Partial<SafeInsets> | null, animate = true): void {
+    const next = clampInsets(i, Math.max(1, this.host.clientWidth), Math.max(1, this.host.clientHeight));
+    if (sameInsets(next, this.insets)) return;
+    this.insets = next;
+    const to = insetShift(next);
+    if (this.tween) { cancelAnimationFrame(this.tween); this.tween = null; }
+    if (!animate || typeof requestAnimationFrame !== 'function' || (to.x === this.shown.x && to.y === this.shown.y)) { this.shown = to; this.applyViewOffset(); return; }
+    const from = { ...this.shown }, t0 = performance.now(), ms = 150;
+    const step = (now: number) => {
+      const k = Math.min(1, (now - t0) / ms), e = 1 - (1 - k) ** 3;
+      const goal = insetShift(this.insets);   // the insets may change again mid-flight
+      this.shown = { x: from.x + (goal.x - from.x) * e, y: from.y + (goal.y - from.y) * e };
+      this.applyViewOffset();
+      this.tween = k < 1 && !this.disposed ? requestAnimationFrame(step) : null;
+      if (this.tween === null) { this.shown = insetShift(this.insets); this.applyViewOffset(); }
+    };
+    this.tween = requestAnimationFrame(step);
+  }
+  safeInsetsNow(): SafeInsets { return { ...this.insets }; }
+  private insets: SafeInsets = { ...NO_INSETS };
+  private shown = { x: 0, y: 0 };
+  private tween: number | null = null;
+  /** Apply the current shift to the camera: the picture moves right and down by `shown`. */
+  private applyViewOffset(): void {
+    const w = Math.max(1, this.host.clientWidth), h = Math.max(1, this.host.clientHeight), s = this.shown;
+    if (s.x === 0 && s.y === 0) { if (this.camera.view?.enabled) this.camera.clearViewOffset(); }
+    else this.camera.setViewOffset(w, h, -s.x, -s.y, w, h);
+    this.dirty = true;
+  }
+
   resize(): void {
     const w = Math.max(1, this.host.clientWidth);
     const h = Math.max(1, this.host.clientHeight);
@@ -2455,6 +2482,7 @@ export class Viewport {
     this.dom.style.height = '100%';
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.applyViewOffset();
     for (const m of this.fatMaterials) m.resolution.set(w, h);
     for (const m of this.edgeMats) m.resolution.set(w, h);
     this.hullSize();

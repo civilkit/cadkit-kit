@@ -6,10 +6,12 @@ import { optionsFor } from './FeatureOptions';
 import { managedPaths } from './optionRules';
 import { SLOTS } from './toolbarModel';
 import {
+  COMPOSITE_DEFAULTS, OFFSET_DEFAULTS, alongPatch, distanceIsZero, hasCurveList, normalPatch, offsetInOf, offsetNeedsFace, patchAlong, patchOffsetIn, proceduralNeedsOneFace, proceduralOn, proceduralPatch, projectAlongOf,
   addableCurves, curveManaged, curveRefLabel, degreeOutOfRange, directionOf, editsNeedOneFace, entriesPatch, frameOf, keepEndsOn, keepEndsPatch, methodOf, netSize, newEdit, newEntry,
   parsePoints, patchEntry, patchFrame, patchMethod, planarPatch, pointsText, retargetSketchCurve, sourceChoices, sourcePatch, sourceValue,
 } from './curveRules';
-import { CREATORS, editCurveOps, freeformOps, projectCurveOps } from './featureCreators';
+import { CREATORS, compositeCurveOps, editCurveOps, freeformOps, offsetCurveOps, projectCurveOps } from './featureCreators';
+import { pickValue } from './featureCommands';
 import type { Ctx } from './featureCommands';
 import './i18n';
 
@@ -23,7 +25,10 @@ const added = (ops: unknown): Wire => ((ops as Array<{ feature: Wire }>)[0]).fea
 
 describe('curve forms: which fields they own', () => {
   it('each feature type hides exactly the fields its form draws', () => {
-    expect([...managedPaths('projectCurve')].sort()).toEqual(['curve', 'degree', 'direction', 'faces', 'sketch', 'tolerance']);
+    expect([...managedPaths('projectCurve')].sort()).toEqual(['along', 'curve', 'curves', 'degree', 'direction', 'faces', 'gapTolerance', 'procedural', 'sketch', 'tolerance']);
+    expect([...managedPaths('offsetCurve')].sort()).toEqual(['curve', 'curves', 'distance', 'face', 'gapTolerance', 'normal', 'plane', 'sketch', 'tolerance']);
+    expect([...managedPaths('compositeCurve')].sort()).toEqual(['curve', 'curves', 'gapTolerance', 'sketch', 'tolerance']);
+    expect(managedPaths('fill').has('patch') && managedPaths('fill').has('patchTolerance')).toBe(true);
     expect(managedPaths('editCurve').has('entries')).toBe(true);
     expect(managedPaths('freeform').has('edits')).toBe(true);
     expect(curveManaged('extrude').size).toBe(0);
@@ -46,6 +51,52 @@ describe('project curve rules', () => {
   it('directions and the degree range', () => {
     expect([directionOf({}), directionOf({ direction: 'reverse' }), directionOf({ direction: 'sideways' })]).toEqual(['both', 'reverse', 'both']);
     expect([degreeOutOfRange(1), degreeOutOfRange(2), degreeOutOfRange(9), degreeOutOfRange(10), degreeOutOfRange('=3')]).toEqual([true, false, false, true, false]);
+  });
+});
+
+describe('procedural project curve rules', () => {
+  it('keep exact is a flag; off removes what only a procedural projection reads', () => {
+    expect([proceduralOn({}), proceduralOn({ procedural: true }), proceduralOn({ procedural: false })]).toEqual([false, true, false]);
+    expect(proceduralPatch(true)).toEqual({ procedural: true });
+    expect(proceduralPatch(false)).toEqual({ procedural: null, along: null, gapTolerance: null, curves: null });
+  });
+  it('it needs exactly one face', () => {
+    expect([proceduralNeedsOneFace({ procedural: true }), proceduralNeedsOneFace({ procedural: true, faces: ['a', 'b'] }), proceduralNeedsOneFace({ procedural: true, faces: ['a'] }), proceduralNeedsOneFace({ faces: [] })]).toEqual([true, true, false, false]);
+  });
+  it('along: the sketch direction, the nearest point of the face, or a direction', () => {
+    expect([projectAlongOf({}), projectAlongOf({ along: 'normal' }), projectAlongOf({ along: [0, 0, -1] }), projectAlongOf({ along: 'sideways' })]).toEqual(['sketch', 'normal', 'vector', 'sketch']);
+    expect(patchAlong({}, 'normal')).toEqual({ along: 'normal' });
+    expect(patchAlong({}, 'sketch')).toEqual({ along: null });
+    expect(patchAlong({}, 'vector')).toEqual({ along: [0, 0, -1] });
+    expect(patchAlong({ along: [1, 0, 0] }, 'vector')).toEqual({ along: [1, 0, 0] });
+    expect(alongPatch({ along: [1, 2, 3] }, 1, 9)).toEqual({ along: [1, 9, 3] });
+  });
+});
+
+describe('offset curve rules', () => {
+  it('where the offset runs follows the field that is set; the other fields go on a change', () => {
+    expect([offsetInOf({}), offsetInOf({ plane: { kind: 'std', id: 'top' } }), offsetInOf({ face: 'F2.C1' }), offsetInOf({ face: '' }), offsetInOf({ normal: [0, 0, 1] })]).toEqual(['auto', 'plane', 'face', 'face', 'normal']);
+    expect(patchOffsetIn({ face: 'F2.C1' }, 'auto')).toEqual({ plane: null, face: null, normal: null });
+    expect(patchOffsetIn({}, 'plane')).toEqual({ plane: { kind: 'std', id: 'front' }, face: null, normal: null });
+    expect(patchOffsetIn({ plane: { kind: 'feature', id: 'P1' } }, 'plane').plane).toEqual({ kind: 'feature', id: 'P1' });
+    expect(patchOffsetIn({}, 'face')).toEqual({ plane: null, face: '', normal: null });
+    expect(patchOffsetIn({}, 'normal')).toEqual({ plane: null, face: null, normal: [0, 0, 1] });
+    expect(normalPatch({ normal: [1, 2, 3] }, 2, 9)).toEqual({ normal: [1, 2, 9] });
+  });
+  it('a zero distance and an empty face are flagged before the kernel refuses them', () => {
+    expect([distanceIsZero(0), distanceIsZero(5), distanceIsZero('=a')]).toEqual([true, false, false]);
+    expect([offsetNeedsFace({ face: '' }), offsetNeedsFace({ face: 'F2.C1' }), offsetNeedsFace({})]).toEqual([true, false, false]);
+  });
+  it('curves listed win over the source', () => {
+    expect([hasCurveList({}), hasCurveList({ curves: [] }), hasCurveList({ curves: [{ kind: 'curve', id: 'E1' }] })]).toEqual([false, false, true]);
+    expect(OFFSET_DEFAULTS).toEqual({ distance: 5, tolerance: 0.001 });
+    expect(COMPOSITE_DEFAULTS).toEqual({ tolerance: 0.001 });
+  });
+  it('a curve source may be any earlier curve feature, a helix only for these two', () => {
+    const doc = { features: [line('S1'), { type: 'helix', id: 'H1' }, { type: 'offsetCurve', id: 'O1', sketch: 'S1', distance: 1 }, { type: 'compositeCurve', id: 'C1', sketch: 'S1' }] } as unknown as PartDoc;
+    expect(sourceChoices(doc, 'F9', {}).map(([v]) => v)).toEqual(['sketch:S1', 'curve:O1', 'curve:C1']);
+    expect(sourceChoices(doc, 'F9', {}, true).map(([v]) => v)).toEqual(['sketch:S1', 'curve:H1', 'curve:O1', 'curve:C1']);
+    expect(sourceChoices(doc, 'O1', {}, true).map(([v]) => v)).toEqual(['sketch:S1', 'curve:H1']);
   });
 });
 
@@ -125,6 +176,23 @@ describe('creators', () => {
     expect(added(editCurveOps(ctx({ doc: onlyCurve }))).curves).toEqual([{ kind: 'curve', id: 'E1' }]);
     expect(editCurveOps(ctx({ doc: { features: [] } as never }))).toBeNull();
   });
+  it('Offset curve: picked edges in order, else a selected curve feature, else the selected or last sketch', () => {
+    const edges = [{ key: 'k1', faces: ['F2.C1', 'F2.S.e1'], mid: [1, 2, 3], pts: [[0, 0, 0], [2, 4, 6]] }];
+    expect(added(offsetCurveOps(ctx({ mode: 'edge', selection: ['k1'], edges })))).toEqual({ type: 'offsetCurve', curves: [{ kind: 'edge', faces: ['F2.C1', 'F2.S.e1'], at: [1, 2, 3] }], distance: 5, tolerance: 0.001 });
+    expect(added(offsetCurveOps(ctx({ selectedId: 'E1' })))).toEqual({ type: 'offsetCurve', curve: 'E1', distance: 5, tolerance: 0.001 });
+    expect(added(offsetCurveOps(ctx({ selectedId: 'S1' })))).toMatchObject({ sketch: 'S1' });
+    expect(added(offsetCurveOps(ctx()))).toMatchObject({ sketch: 'S2' });
+    expect(offsetCurveOps(ctx({ doc: { features: [] } as never }))).toBeNull();
+  });
+  it('Composite curve: the same sources, no distance', () => {
+    expect(added(compositeCurveOps(ctx({ selectedId: 'S1' })))).toEqual({ type: 'compositeCurve', sketch: 'S1', tolerance: 0.001 });
+    expect(added(compositeCurveOps(ctx({ selectedId: 'E1' })))).toMatchObject({ curve: 'E1' });
+    expect(compositeCurveOps(ctx({ doc: { features: [] } as never }))).toBeNull();
+  });
+  it('a face field takes the first picked face, not an edge', () => {
+    expect(pickValue('face', ['F2.C1', 'F2.C0'], [])).toBe('F2.C1');
+    expect(pickValue('face', [], [])).toBeNull();
+  });
   it('Freeform: needs picked faces; rebuilds them as a cubic 2 x 2 spans net with no moves', () => {
     expect(freeformOps(ctx())).toBeNull();
     expect(added(freeformOps(ctx({ selection: ['F2.C1'] })))).toEqual({ type: 'freeform', faces: ['F2.C1'], degreeU: 3, degreeV: 3, spansU: 2, spansV: 2, edits: [] });
@@ -136,7 +204,10 @@ describe('creators', () => {
     expect(en('add-edit-curve', ctx({ box: null }))).toBe(true);
     expect(en('add-freeform', ctx())).toBe(false);
     expect(en('add-freeform', ctx({ selection: ['F2.C1'] }))).toBe(true);
-    expect(SLOTS.reference).toEqual(expect.arrayContaining(['add-project-curve', 'add-edit-curve']));
+    expect(en('add-offset-curve', ctx())).toBe(true);
+    expect(en('add-composite-curve', ctx())).toBe(true);
+    expect(en('add-offset-curve', ctx({ doc: { features: [] } as never }))).toBe(false);
+    expect(SLOTS.reference).toEqual(expect.arrayContaining(['add-project-curve', 'add-edit-curve', 'add-offset-curve', 'add-composite-curve']));
     expect(SLOTS['surface-edit']).toContain('add-freeform');
   });
 });
@@ -166,6 +237,119 @@ describe('Project curve form', () => {
     expect((m.q('[data-path="faces"] input') as HTMLInputElement).value).toBe('F2.C1, F2.S.e1');
     expect(m.q('[data-note="allFaces"]')).toBeNull();
     expect(m.q('[data-note="degree"]')?.textContent).toContain('between 2 and 9');
+  });
+});
+
+describe('Project curve form: keep exact (procedural)', () => {
+  const base = { type: 'projectCurve', id: 'F9', sketch: 'S1', faces: ['F2.C1'], degree: 3, tolerance: 0.001, direction: 'both' };
+  it('the toggle swaps the spline fields (degree, direction) for the exact ones (along, gap tolerance)', () => {
+    const m = mount(base);
+    expect(m.q('[data-path="procedural"] input')).not.toBeNull();
+    expect(m.q('[data-path="degree"]')).not.toBeNull();
+    expect(m.q('[data-path="along"]')).toBeNull();
+    fireEvent.click(m.q('[data-path="procedural"] input')!);
+    expect(m.drafts.at(-1)).toMatchObject({ procedural: true });
+    const on = mount({ ...base, procedural: true });
+    for (const p of ['along', 'gapTolerance', 'tolerance']) expect(on.q(`[data-path="${p}"]`), p).not.toBeNull();
+    for (const p of ['degree', 'direction']) expect(on.q(`[data-path="${p}"]`), p).toBeNull();
+    expect(on.q('[data-note="allFaces"]')).toBeNull();
+    expect(on.q('[data-note="oneFace"]')).toBeNull();
+    fireEvent.click(on.q('[data-path="procedural"] input')!);
+    expect(on.drafts.at(-1)).toMatchObject({ procedural: null, along: null, gapTolerance: null, curves: null });
+  });
+  it('the spline projection takes one sketch or curve: no curve list', () => {
+    const m = mount(base);
+    expect(m.q('[data-path="source"]')).not.toBeNull();
+    expect(m.q('[data-path="curves"]')).toBeNull();
+  });
+  it('keep exact takes several curves in chain order: adding starts the list and hides the source, the next add appends, removing the last brings the source back', () => {
+    const on = mount({ ...base, procedural: true });
+    expect(on.q('[data-path="source"]')).not.toBeNull();
+    const sel = on.q('[data-path="source"] select') as HTMLSelectElement;
+    expect([...sel.options].map((o) => o.value)).toEqual(['sketch:S1', 'sketch:S2', 'curve:E1']);
+    fireEvent.click(on.q('[data-path="curves"] [data-act="add"]')!);
+    expect((on.drafts.at(-1) as Wire).curves).toEqual([{ kind: 'sketchCurve', sketch: 'S1', entity: 'l1' }]);
+    const one = [{ kind: 'sketchCurve', sketch: 'S1', entity: 'l1' }];
+    const listed = mount({ ...base, procedural: true, sketch: null, curves: one });
+    expect(listed.q('[data-path="source"]')).toBeNull();
+    expect(listed.q('[data-path="curves.0"]')).not.toBeNull();
+    fireEvent.click(listed.q('[data-path="curves"] [data-act="add"]')!);
+    expect((listed.drafts.at(-1) as Wire).curves).toEqual([...one, { kind: 'sketchCurve', sketch: 'S1', entity: 'l2' }]);
+    // a curve feature can be listed too (it enters as its definition, or a spline through its points)
+    const two = mount({ ...base, procedural: true, sketch: null, curves: [one[0], { kind: 'curve', id: 'E1' }] });
+    expect(two.q('[data-path="curves.1"]')?.textContent).toContain('E1');
+    const again = mount({ ...base, procedural: true, sketch: null, curves: one });
+    fireEvent.click(again.q('[data-path="curves"] [data-act="remove"]')!);
+    expect((again.drafts.at(-1) as Wire).curves).toEqual([]);
+    // the other exact fields stay as they are
+    for (const p of ['along', 'gapTolerance', 'tolerance', 'faces']) expect(again.q(`[data-path="${p}"]`), p).not.toBeNull();
+  });
+  it('warns when it is not exactly one face', () => {
+    expect(mount({ ...base, procedural: true, faces: [] }).q('[data-note="oneFace"]')).not.toBeNull();
+    expect(mount({ ...base, procedural: true, faces: ['a', 'b'] }).q('[data-note="oneFace"]')).not.toBeNull();
+  });
+  it('along: nearest point of the face, or a direction with its three numbers', () => {
+    const m = mount({ ...base, procedural: true });
+    change(m.q('[data-path="along"] select')!, 'normal');
+    expect(m.drafts.at(-1)).toMatchObject({ along: 'normal' });
+    change(m.q('[data-path="along"] select')!, 'vector');
+    expect(m.drafts.at(-1)).toMatchObject({ along: [0, 0, -1] });
+    const v = mount({ ...base, procedural: true, along: [0, 0, -1] });
+    for (const i of [0, 1, 2]) expect(v.q(`[data-path="along.${i}"]`)).not.toBeNull();
+  });
+});
+
+describe('Offset curve form', () => {
+  const feat = { type: 'offsetCurve', id: 'F9', sketch: 'S1', distance: 5, tolerance: 0.001 };
+  it('draws the source, distance, offset-in choice and tolerances; a sketch is the source until curves are listed', () => {
+    const m = mount(feat);
+    for (const p of ['source', 'curves', 'distance', 'offsetIn', 'tolerance', 'gapTolerance']) expect(m.q(`[data-path="${p}"]`), p).not.toBeNull();
+    expect(m.q('[data-path="plane"]')).toBeNull();
+    expect(m.q('[data-path="face"]')).toBeNull();
+    const sel = m.q('[data-path="source"] select') as HTMLSelectElement;
+    expect([...sel.options].map((o) => o.value)).toEqual(['sketch:S1', 'sketch:S2', 'curve:E1']);
+    change(sel, 'curve:E1');
+    expect(m.drafts.at(-1)).toMatchObject({ curve: 'E1', sketch: null });
+  });
+  it('adding a curve starts the list and hides the source; removing the last brings the source back', () => {
+    const m = mount(feat);
+    fireEvent.click(m.q('[data-path="curves"] [data-act="add"]')!);
+    expect((m.drafts.at(-1) as Wire).curves).toEqual([{ kind: 'sketchCurve', sketch: 'S1', entity: 'l1' }]);
+    const listed = mount({ ...feat, sketch: null, curves: [{ kind: 'sketchCurve', sketch: 'S1', entity: 'l1' }] });
+    expect(listed.q('[data-path="source"]')).toBeNull();
+    fireEvent.click(listed.q('[data-path="curves"] [data-act="remove"]')!);
+    expect((listed.drafts.at(-1) as Wire).curves).toEqual([]);
+  });
+  it('the offset-in choice shows a plane, a face (with a Pick button) or a normal, and clears the others', () => {
+    const m = mount(feat);
+    change(m.q('[data-path="offsetIn"] select')!, 'plane');
+    expect(m.drafts.at(-1)).toMatchObject({ plane: { kind: 'std', id: 'front' }, face: null, normal: null });
+    const p = mount({ ...feat, plane: { kind: 'std', id: 'top' } });
+    expect(p.q('[data-path="plane"]')).not.toBeNull();
+    change(p.q('[data-path="plane"] select')!, 'feature:P1');
+    expect(p.drafts.at(-1)).toMatchObject({ plane: { kind: 'feature', id: 'P1' } });
+    const f = mount({ ...feat, face: '' });
+    expect(f.q('[data-path="face"] button.fedit-pick')).not.toBeNull();
+    expect(f.q('[data-note="needFace"]')).not.toBeNull();
+    expect(mount({ ...feat, face: 'F2.C1' }).q('[data-note="needFace"]')).toBeNull();
+    const n = mount({ ...feat, normal: [0, 0, 1] });
+    for (const i of [0, 1, 2]) expect(n.q(`[data-path="normal.${i}"]`)).not.toBeNull();
+    change(n.q('[data-path="offsetIn"] select')!, 'auto');
+    expect(n.drafts.at(-1)).toMatchObject({ plane: null, face: null, normal: null });
+  });
+  it('a distance of 0 is flagged', () => {
+    expect(mount({ ...feat, distance: 0 }).q('[data-note="distance"]')).not.toBeNull();
+    expect(mount(feat).q('[data-note="distance"]')).toBeNull();
+  });
+});
+
+describe('Composite curve form', () => {
+  it('draws the source, the curve list and the two tolerances', () => {
+    const m = mount({ type: 'compositeCurve', id: 'F9', sketch: 'S1', tolerance: 0.001 });
+    for (const p of ['source', 'curves', 'gapTolerance', 'tolerance']) expect(m.q(`[data-path="${p}"]`), p).not.toBeNull();
+    for (const p of ['distance', 'offsetIn']) expect(m.q(`[data-path="${p}"]`), p).toBeNull();
+    change(m.q('[data-path="source"] select')!, 'sketch:S2');
+    expect(m.drafts.at(-1)).toMatchObject({ sketch: 'S2', curve: null });
   });
 });
 

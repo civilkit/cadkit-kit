@@ -1,9 +1,11 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { render, fireEvent, cleanup, screen } from '@testing-library/preact';
+import { render, fireEvent, cleanup, screen, act } from '@testing-library/preact';
 import type { SketchSolverStatus } from '@ck/part-model';
 import { describeFree, suggestionsFor, type SketchDraft } from '@kit/sketch';
 import { DEFAULT_SKETCH_PREFS } from './sketchPrefs';
-import { SketchBar } from './SketchBar';
+import { SketchBar, DofBadge } from './SketchBar';
+import { SketchConstraintList } from './SketchConstraintList';
+import { FREE_VISIBLE, freeVisibleCount, constraintsStartFolded, popoverLayout } from './dofPopover';
 import { SketchFreedomList } from './SketchFreedom';
 import { freeText, suggestionText, tooltipText } from './freedomText';
 import './i18n';
@@ -26,7 +28,8 @@ describe('SketchFreedomList', () => {
   it('lists each finding with its chips, and a chip runs its suggestion', () => {
     const onRun = vi.fn();
     render(<SketchFreedomList items={items} suggestions={sug} busy={false} onRun={onRun} onAnalyse={vi.fn()} />);
-    expect(screen.getByText('Circle 1 centre can move in x and y')).toBeTruthy();
+    expect(screen.getByText('Circle 1 centre')).toBeTruthy();
+    expect(screen.getByText('- x and y')).toBeTruthy();
     fireEvent.click(screen.getByText('Radius 5'));
     expect(onRun).toHaveBeenCalledWith(sug[2]);
   });
@@ -63,7 +66,78 @@ describe('an orphan point in the freedom list', () => {
     const oi = describeFree(od, [{ kind: 'point', id: 'p3', axes: 'xy' }]);
     expect(oi.map(freeText)).toEqual(['Point 1 can move in x and y']);
     render(<SketchFreedomList items={oi} suggestions={suggestionsFor(od, oi)} busy={false} onRun={vi.fn()} onAnalyse={vi.fn()} />);
-    expect(screen.getByText('Point 1 can move in x and y')).toBeTruthy();
+    expect(screen.getByText('Point 1')).toBeTruthy();
     expect(screen.getByText('X from origin 30')).toBeTruthy();
+  });
+});
+
+describe('popover rules', () => {
+  it('shows five free parts until expanded, and folds Constraints above three free parts', () => {
+    expect(FREE_VISIBLE).toBe(5);
+    expect([3, 5, 9].map((n) => freeVisibleCount(n, false))).toEqual([3, 5, 5]);
+    expect(freeVisibleCount(9, true)).toBe(9);
+    expect([0, 3, 4, 9].map(constraintsStartFolded)).toEqual([false, false, true, true]);
+  });
+  it('places the panel under the badge, right-aligned, inside the window', () => {
+    expect(popoverLayout(40, 1441, 900)).toEqual({ top: 46, right: 8, left: null, maxWidth: 1425, maxHeight: 838, sheet: false });
+    const n = popoverLayout(60, 460, 800);
+    expect(n.sheet).toBe(true);
+    expect(n.left).toBe(8);
+    expect(n.maxWidth).toBe(444);
+    expect(popoverLayout(790, 1000, 800).maxHeight).toBe(120);
+  });
+});
+
+describe('many free parts', () => {
+  const many: SketchDraft = { ...d, points: [{ id: 'O', x: 0, y: 0, fixed: true }, ...Array.from({ length: 7 }, (_, i) => ({ id: 'p' + i, x: i, y: 1 }))], entities: [] };
+  const mi = describeFree(many, many.points.slice(1).map((p) => ({ kind: 'point' as const, id: p.id, axes: 'xy' as const })));
+  it('lists the first five, and Show all expands the rest', () => {
+    const { container } = render(<SketchFreedomList items={mi} suggestions={suggestionsFor(many, mi)} busy={false} onRun={vi.fn()} onAnalyse={vi.fn()} />);
+    expect(container.querySelectorAll('.sketch-free li').length).toBe(5);
+    fireEvent.click(screen.getByText('Show all (7)'));
+    expect(container.querySelectorAll('.sketch-free li').length).toBe(7);
+    expect(screen.getByText('Show fewer')).toBeTruthy();
+  });
+});
+
+describe('the badge popover', () => {
+  const st = { dof: 9, fullyDefined: false, conflicts: [], redundant: [], solved: true, state: 'under', residual: 0 } as SketchSolverStatus;
+  const rows = [{ id: 'k1', type: 'horizontal', refs: ['e1'] }, { id: 'k2', type: 'hdist', refs: ['p1', 'p2'], value: 60 }];
+  const list = (collapsed: boolean, onRun = vi.fn()) => (
+    <><SketchFreedomList items={items} suggestions={sug} busy={false} onRun={onRun} onAnalyse={vi.fn()} /><SketchConstraintList collapsed={collapsed} rows={rows} status={st} hot={null} onHover={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} /></>
+  );
+  it('opens as a solid panel with a pinned title; Escape, a click outside and the close button close it', async () => {
+    const { container } = render(<div><button id="out">x</button><DofBadge status={st} list={list(false)} /></div>);
+    expect(container.querySelector('.dof-pop')).toBeNull();
+    fireEvent.click(container.querySelector('.dof-chip')!);
+    const pop = container.querySelector('.dof-pop')!;
+    expect(pop).toBeTruthy();
+    expect(pop.querySelector('.dof-pop-head')!.textContent).toContain('Degrees of freedom: 9');
+    expect(pop.querySelector('.dof-pop-body')).toBeTruthy();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(container.querySelector('.dof-pop')).toBeNull();
+    expect(document.activeElement).toBe(container.querySelector('.dof-chip'));
+    fireEvent.click(container.querySelector('.dof-chip')!);
+    await act(async () => { container.querySelector('#out')!.dispatchEvent(new Event('pointerdown', { bubbles: true })); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(container.querySelector('.dof-pop')).toBeNull();
+    fireEvent.click(container.querySelector('.dof-chip')!);
+    fireEvent.click(container.querySelector('[data-action="dof-close"]')!);
+    expect(container.querySelector('.dof-pop')).toBeNull();
+  });
+  it('a chip inside it still applies its suggestion', () => {
+    const onRun = vi.fn();
+    const { container } = render(<DofBadge status={st} list={list(false, onRun)} />);
+    fireEvent.click(container.querySelector('.dof-chip')!);
+    fireEvent.click(screen.getByText('Radius 5'));
+    expect(onRun).toHaveBeenCalledWith(sug[2]);
+  });
+  it('the Constraints section starts folded when told so, and opens on a click', () => {
+    const { container } = render(<DofBadge status={st} list={list(true)} />);
+    fireEvent.click(container.querySelector('.dof-chip')!);
+    expect(screen.getByText('Constraints (2)')).toBeTruthy();
+    expect(container.querySelectorAll('.sketch-cons li').length).toBe(0);
+    fireEvent.click(container.querySelector('[data-action="constraints-fold"]')!);
+    expect(container.querySelectorAll('.sketch-cons li').length).toBe(2);
   });
 });

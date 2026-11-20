@@ -21,7 +21,7 @@ export interface ScriptHost {
    * Optional: kernel answers about the document built last (the scratch state after build(), or the open document without build()):
    * mass properties (volume, area, centre of mass) and/or the validity check. Without it the read-back methods fail with an error.
    */
-  facts?(need: { mass?: boolean; validate?: boolean; describe?: string[]; text?: { string: string; font?: string; height: number; spacing?: number } }): Promise<KernelFacts>;
+  facts?(need: { mass?: boolean; validate?: boolean; describe?: string[]; text?: { string: string; font?: string; height: number; spacing?: number }; intersection?: { faces: string[] } }): Promise<KernelFacts>;
 }
 export interface KernelFacts {
   volume?: number | null; area?: number | null; com?: number[] | null; valid?: boolean | null;
@@ -33,6 +33,8 @@ export interface KernelFacts {
   faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }>;
   /** the kernel's textMetrics answer for need.text */
   text?: TextMetricsFact;
+  /** the kernel's checkIntersection answer for need.intersection */
+  intersection?: Record<string, unknown> | null;
 }
 export interface BuildReply { errors: Array<[string, { code?: string; message?: string; params?: Record<string, unknown> }]>; geometry?: Geometry; warnings?: Array<[string, { code?: string; params?: Record<string, unknown> }]> }
 export interface Progress { phase: 'building' | 'loading'; done: number; total: number; elapsedMs: number }
@@ -243,6 +245,7 @@ export async function runScript(code: string, host: ScriptHost, base: Record<str
   const rt: ReadRuntime = {
     facts: async (need: FactNeed) => {
       if (need.text) { if (!host.facts) throw new SelectorError('this host cannot measure text (it has no facts())', 0); const k = await host.facts({ text: need.text }); if (!k.text) throw new SelectorError('textMetrics(): the kernel gave no answer (is the kernel build older than text support?)', 0); return { ...EMPTY_FACTS, text: k.text }; }
+      if (need.intersection) { if (!host.facts) throw new SelectorError('this host cannot check intersections (it has no facts())', 0); return { ...EMPTY_FACTS, intersection: (await host.facts({ intersection: need.intersection })).intersection ?? null }; }
       if ((need.mass || need.validate) && !host.facts) throw new SelectorError('this host cannot read volume or validity back (it has no facts())', 0);
       const k = need.mass || need.validate ? await host.facts!({ mass: need.mass, validate: need.validate }) : {};
       const g = geoFacts(host.geometry());
@@ -331,6 +334,7 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
     get mesh() { return current().mesh; },
     get edges() { return current().edges; },
     get box() { return current().box; },
+    get openEdges() { return current().openEdges; },
   };
   const ctx: Ctx = { geo: lazy, nextId: () => `F${++n}`, lastSketch: null, lastFeature: null, warn, autoFlip };
   const progress = (phase: Progress['phase']): void => opts.onProgress?.({ phase, done: built, total: steps.length, elapsedMs: performance.now() - t0 });
@@ -395,6 +399,7 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
         if (!(await flush(wantView, curStep))) throw new ReadAborted();
       }
       if (cache.n !== features.length) cache = { n: features.length };
+      if (need.intersection) { if (!host.facts) throw new SelectorError('this host cannot check intersections (it has no facts())', 0); return { ...EMPTY_FACTS, intersection: (await host.facts({ intersection: need.intersection })).intersection ?? null }; }
       if (need.mass && !cache.mass) cache.mass = await host.facts!({ mass: true });
       if (need.validate && !cache.validate) cache.validate = await host.facts!({ validate: true });
       const g = wantView ? geoFacts(geo) : null;

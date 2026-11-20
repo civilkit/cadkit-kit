@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SketchSolverStatus } from '@ck/part-model';
 import type { SketchDraft } from './index';
-import { applySuggestion, describeFree, effectiveMarkMode, freeParts, suggestionsFor, tooltipItems } from './freedom';
+import { freedomHighlight, withoutSuggestion, applySuggestion, describeFree, effectiveMarkMode, freeParts, suggestionsFor, tooltipItems } from './freedom';
 
 const P = (id: string, x: number, y: number, fixed = false) => ({ id, x, y, ...(fixed ? { fixed: true } : {}) });
 const bare = (points: SketchDraft['points'], entities: SketchDraft['entities'], constraints: SketchDraft['constraints'] = [], extras?: SketchDraft['extras']): SketchDraft => ({ id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [], points, entities, constraints, ...(extras ? { extras } : {}) });
@@ -92,12 +92,18 @@ describe('tooltipItems', () => {
   it('an entity lists what names it or its points, a reference dimension last and not driving', () => {
     expect(tooltipItems(d, null, 'e1').map((i) => [i.id, i.driving])).toEqual([['k1', true], ['k2', true], ['k3', true], ['k4', true], ['r1', false]]);
   });
-  it('a point lists only what names it, with values, and the solver\'s blame', () => {
+  it('a point lists what names it, then those of the curve it ends, with values, and the solver\'s blame', () => {
     const items = tooltipItems(d, status(1, { conflicts: ['k4'] }), 'O');
     expect(items.map((i) => i.id)).toEqual(['k3', 'k4']);
     expect(items[0].value).toBe(10);
     expect(items[1].blame).toBe('conflict');
-    expect(tooltipItems(d, null, 'b').map((i) => i.id)).toEqual(['k2', 'r1']);
+    expect(tooltipItems(d, null, 'b').map((i) => i.id)).toEqual(['k2', 'k1', 'r1']);
+  });
+  it('a point with several constraints and dimensions lists every one, its own first and then those of the curve it ends', () => {
+    const q = bare([P('O', 0, 0, true), P('a', 60, 0), P('b', 60, 40)], [{ id: 'e1', type: 'line', p1: 'a', p2: 'b' }], [
+      { id: 'h', type: 'hdist', refs: ['O', 'a'], value: 60 }, { id: 'c', type: 'coincident', refs: ['O', 'a'] }, { id: 'v', type: 'vdist', refs: ['O', 'a'], value: 0 }, { id: 'ver', type: 'vertical', refs: ['e1'] }, { id: 'len', type: 'distance', refs: ['a', 'b'], value: 40 }, { id: 'far', type: 'radius', refs: ['zz'], value: 3 },
+    ], { refDims: [{ id: 'r1', type: 'distance', refs: ['O', 'a'] }] });
+    expect(tooltipItems(q, null, 'a').map((i) => i.id)).toEqual(['h', 'c', 'v', 'len', 'ver', 'r1']);
   });
   it('nothing attached gives an empty list', () => { expect(tooltipItems(d, null, 'zz')).toEqual([]); });
 });
@@ -110,5 +116,18 @@ describe('effectiveMarkMode', () => {
     expect(effectiveMarkMode(null, 'hover', 11)).toBe('always');
     expect(effectiveMarkMode(null, 'hover', 12)).toBe('hover');
     expect(effectiveMarkMode(null, 'off', 3)).toBe('off');
+  });
+});
+
+describe('freedom highlight after a chip', () => {
+  const it1 = { key: 'a', entityId: 'e1', partId: 'p1', role: 'start' }, it2 = { key: 'b', entityId: 'e2', partId: 'e2', role: 'radius' };
+  it('clears when nothing is free and leaves a radius out of the points', () => {
+    expect(freedomHighlight([])).toBeNull();
+    expect(freedomHighlight([it1, it2] as never)).toEqual({ entities: ['e1', 'e2'], points: ['p1'] });
+  });
+  it('takes only the applied chip out of the analysis', () => {
+    const s1 = { itemKey: 'a', label: 'hdist', kind: 'dimension', type: 'hdist', refs: ['o', 'p1'], value: 5 }, s2 = { ...s1, type: 'vdist', label: 'vdist' };
+    const st = { items: [it1] as never, suggestions: [s1, s2] as never };
+    expect(withoutSuggestion(st, s1 as never).suggestions).toEqual([s2]);
   });
 });

@@ -117,6 +117,10 @@ export const HELP: Record<string, HelpEntry> = {
   'feature:lipJoint': { page: 'modelling/cases-and-moulds.html', anchor: 'lip-joint' },
   'feature:projectCurve': { page: 'modelling/curves.html', anchor: 'project-curve' },
   'feature:editCurve': { page: 'modelling/curves.html', anchor: 'edit-curve' },
+  'feature:offsetCurve': { page: 'modelling/curves.html', anchor: 'offset-curve' },
+  'feature:compositeCurve': { page: 'modelling/curves.html', anchor: 'composite-curve' },
+  'feature:sweepSurface': { page: 'modelling/surfaces.html', anchor: 'sweep-surface' },
+  'feature:blendSurface': { page: 'modelling/surfaces.html', anchor: 'blend-surface' },
   'feature:freeform': { page: 'modelling/curves.html', anchor: 'freeform' },
   'feature:knurlBand': { page: 'library/wizards.html', anchor: 'knurl' },
   'feature:importStep': { page: 'files/import.html', anchor: 'step' },
@@ -151,6 +155,7 @@ export const HELP: Record<string, HelpEntry> = {
   'wizard:knurl': { page: 'library/wizards.html', anchor: 'knurl' },
   'wizard:cornerHoles': { page: 'modelling/holes.html', anchor: 'corner-holes' },
   'wizard:mesh': { page: 'files/import.html', anchor: 'mesh-files-stl-obj-glb-and-3mf-a-model-to-sketch-on' },
+  'wizard:meshSolid': { page: 'files/import.html', anchor: 'convert-a-mesh-to-a-solid-preview' },
   'wizard:material': { page: 'assemblies/appearance.html', anchor: 'the-material' },
 };
 

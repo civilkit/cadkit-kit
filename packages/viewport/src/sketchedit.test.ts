@@ -104,17 +104,24 @@ describe('sketchEditPolylines / sketchPointWorld', () => {
   });
 });
 
-import { viewSide } from './sketchedit';
+import { lookNormalPose } from './sketchedit';
 
-describe('viewSide', () => {
+describe('lookNormalPose', () => {
   const frame = { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
-  it('looks from the side facing away from the body', () => {
-    expect(viewSide(frame, [0, 0, -10])).toBe(1);    // body behind the plane: look from the front
-    expect(viewSide(frame, [0, 0, 10])).toBe(-1);    // body in front of the plane: look from behind it
+  it('looks at the plane from its +normal side, whether or not a body sits in front of or behind it', () => {
+    // the pose takes no body at all: a plane with an extruded solid on either side and a bare one give the same camera
+    const bare = lookNormalPose(frame, [3, 4, 0], 50);
+    expect(bare.position).toEqual([3, 4, 50]);
+    expect(bare.dir[2]).toBe(-1);
+    expect(bare.up).toEqual([0, 1, 0]);
   });
-  it('uses the plane normal with no body or a plane through the body', () => {
-    expect(viewSide(frame, null)).toBe(1);
-    expect(viewSide(frame, [5, 5, 0])).toBe(1);
+  it('follows a tilted or flipped frame (the sketch reads the right way round)', () => {
+    const flipped = { o: [0, 0, 0], x: [-1, 0, 0], y: [0, 1, 0], z: [0, 0, -1] };
+    const p = lookNormalPose(flipped, [0, 0, 5], 10);
+    expect(p.position[2]).toBe(-5);
+    expect(p.dir[2]).toBe(1);
+    const tilt = lookNormalPose({ o: [0, 0, 0], x: [1, 0, 0], y: [0, 0.6, 0.8], z: [0, -0.8, 0.6] }, [0, 0, 0], 5);
+    expect(tilt.position[1]).toBeCloseTo(-4); expect(tilt.position[2]).toBeCloseTo(3);
   });
 });
 

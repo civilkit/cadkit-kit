@@ -15,7 +15,7 @@ export type PlaceFallback = 'curved' | 'noFrame' | 'noStdRoot' | 'otherPlanes' |
 export type Placed = { features: Obj[]; moved: true; rotated?: boolean; rotIgnored?: boolean } | { features: Obj[]; moved: false; why: PlaceFallback };
 const ADD_SHAPES = new Set(['extrude', 'revolve', 'loft', 'sweep']);
 
-const FIXED_TYPES = new Set(['insertPart', 'mate', 'moveBody', 'sketch3d', 'freeform', 'editCurve']);
+const FIXED_TYPES = new Set(['insertPart', 'mate', 'moveBody', 'sketch3d', 'freeform', 'editCurve', 'offsetCurve', 'compositeCurve', 'sweepSurface', 'blendSurface']);
 const isNum3 = (v: unknown): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === 'number');
 const dot = (a: ArrayLike<number>, b: ArrayLike<number>): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 

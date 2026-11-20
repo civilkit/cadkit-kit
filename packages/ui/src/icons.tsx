@@ -204,6 +204,7 @@ const ICONS: Record<string, string> = {
   'select-parallel': cubeDim + A('M6 19L14 5M11 21L19 7', 2),
   'select-similar': cubeDim + A('M4.5 18h6v-6h-6zM13.5 12h6v-6h-6z', 1.8),
   'select-loop': cubeDim + A('M12 3l7.8 4.5L12 12 4.2 7.5z', 2.4),
+  'select-junction': cubeDim + A('M4.2 7.5L12 12l7.8-4.5M12 12v9', 2.4) + AP(12, 12, 2.2),
   'select-connected': cubeDim + A('M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z', 2),
   'select-invert': cubeDim + A(FACE.top, 2) + P('M12 12l7.8-4.5v9L12 21z'),
   'select-none': cubeDim + P('M8 8l8 8M16 8l-8 8'),
@@ -295,6 +296,10 @@ const ICONS: Record<string, string> = {
   'add-extend': P('M4 17l4-9h7l-4 9z') + C('M15 8h5l-4 9h-5') + A('M14 17h6M18 15l2 2-2 2'),
   'add-project-curve': P('M3 18C8 12 16 12 21 18') + C('M6 5h12') + A('M12 5v7M9.5 9.5 12 12l2.5-2.5') + T('M8 15.2c2.5 1 5.5 1 8 0'),
   'add-edit-curve': P('M3 17C7 5 13 19 21 7') + C('M3 17 8 6l5 12 8-11') + D(8, 6) + D(13, 18),
+  'add-offset-curve': P('M4 15C8 5 16 5 20 15') + A('M4 20C9 11 15 11 20 20') + T('M12 7.5v6') + D(12, 7.5, 1.4),
+  'add-composite-curve': P('M3 18C6 9 9 9 12 13') + P('M12 13l4.5-5.5 4.5 3.5') + AP(12, 13, 2.2) + T('M3 21h18'),
+  'add-sweep-surface': P('M4 19c1.5-4 5-4 6.5 0') + P('M13.5 9c1.5-4 5-4 6.5 0') + T('M4 19C5 12 10 8 13.5 9M10.5 19c1-5 5-8 9.5-10') + A('M7.2 15.5C9 10 13 7 16.8 5.5'),
+  'add-blend-surface': P('M4 4v16h16') + CO(12, 12, 8) + A('M4 12a8 8 0 0 0 8 8') + D(12, 12, 1.4),
   'add-freeform': P('M4 9c3-2 5 2 8 0s5-2 8 0v8c-3-2-5 2-8 0s-5 2-8 0z') + T('M4 13c3-2 5 2 8 0s5-2 8 0M12 9v8') + A('M12 9V4M10 6l2-2 2 2'),
   'analysis-zebra': P('M4 6h16M4 10h16M4 14h16M4 18h16') + T('M3 4v16M21 4v16') + A('M6 20C9 8 15 8 18 4'),
   'analysis-gaussian': O(12, 12, 8) + T('M6 9c3 2 9 2 12 0M5 14c4 3 10 3 14 0') + A('M9 7l6 10') + D(12, 12, 1.6),
@@ -304,6 +309,7 @@ const ICONS: Record<string, string> = {
   // ---- evaluate: measure, mass, interference, section
   measure: P('M4 17 17 4l3 3L7 20z') + T('M8 13l2 2M11 10l2 2M14 7l2 2') + D(4, 20),
   'mass-props': P('M5 20h14l-2.5-9h-9z') + O(12, 7.5, 2.5) + A('M12 11v4'),
+  'check-intersection': P('M4 18C9 6 15 6 20 18') + P('M4 6C9 18 15 18 20 6') + AP(7.3, 12, 2) + AP(16.7, 12, 2),
   interference: O(9.5, 12, 6.5) + A('M15 6.3a6.5 6.5 0 0 1 0 11.4a6.5 6.5 0 0 1 0-11.4z'),
   // ---- assembly
   'insert-part': P('M4 14h10v6H4z') + P('M14 5h6v6h-6z') + T('M14 20h6v-6') + A('M9 13V8h4M11 6l2 2-2 2'),
@@ -320,6 +326,8 @@ const ICONS: Record<string, string> = {
   'rotate-skp': P(HEX) + T(Y) + A('M19 5.5a8 8 0 0 0-13 1M5 18.5a8 8 0 0 0 13-1M5.5 3.5v4h4M18.5 20.5v-4h-4', 1.75),
   'import-skp-hidden': P(HEX) + T(Y) + A('M12 1.8v7M9 6l3 3 3-3', 2),
   'recognise-features': P(HEX) + T(Y) + A('M9.8 12.6a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0', 1.75),
+  // a triangulated box (the mesh) whose outline becomes the solid
+  'mesh-to-solid': T('M4.2 7.5 12 21M12 12 19.8 16.5M12 3 4.2 16.5M19.8 7.5 12 12') + T(Y) + A(HEX, 2),
   rename: P('M4 8h12v8H4z') + A('M19 5v14M17 5h4M17 19h4', 1.75) + D(7, 12, 1.2) + D(10, 12, 1.2) + D(13, 12, 1.2),
   'delete-feature': P('M5 5h14v14H5z') + T('M9 9h6M9 12h6M9 15h3') + A('M14 14l6 6M20 14l-6 6', 2),
   'suppress-selected': P('M5 5h14v14H5z') + T('M9 9h6M9 12h6M9 15h3') + A('M9 19.5 19 4.5', 2),
@@ -431,6 +439,10 @@ export function featureIconName(type: string, op?: string): string {
     case 'knit': return 'feature-knit';
     case 'projectCurve': return 'add-project-curve';
     case 'editCurve': return 'add-edit-curve';
+    case 'offsetCurve': return 'add-offset-curve';
+    case 'compositeCurve': return 'add-composite-curve';
+    case 'sweepSurface': return 'add-sweep-surface';
+    case 'blendSurface': return 'add-blend-surface';
     case 'freeform': return 'add-freeform';
     case 'insertPart': case 'importStep': return 'feature-part';
     case 'surfacePlanar': case 'surfaceExtrude': case 'surfaceRevolve': case 'surfaceOffset': case 'trimSurface': case 'fill': case 'extend': case 'pipeCut':

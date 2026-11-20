@@ -1,4 +1,5 @@
 import type { SketchSolverStatus } from '@ck/part-model';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { t } from './i18n';
 
 export interface ConstraintRow {
@@ -31,15 +32,24 @@ export function SketchConstraintList(p: {
   onDelete(id: string): void;
   onEdit(id: string): void;
   onToggleDriven?(id: string, driven: boolean): void;
+  /** start folded (the badge popover folds it while many parts are still free); a conflicting row keeps it open */
+  collapsed?: boolean;
 }) {
   const level = !p.status ? '' : p.status.state === 'over' || (!p.status.solved) ? 'bad' : p.status.state === 'full' ? 'ok' : 'warn';
+  const mustShow = p.rows.some((r) => r.blame);
+  const [open, setOpen] = useState(!p.collapsed || mustShow);
+  const touched = useRef(false);
+  // the free list arrives after the popover mounts: follow the default until the user has chosen
+  useEffect(() => { if (!touched.current) setOpen(!p.collapsed || mustShow); }, [p.collapsed, mustShow]);
   return (
     <aside class="sketch-cons" aria-label={t('app.sketch.constraints')}>
       <header>
-        <b>{t('app.sketch.constraints')}</b>
-        {p.status ? <span class={`chip ${level}`}>{statusText(p.status)}</span> : null}
+        <button class="cons-fold" data-action="constraints-fold" aria-expanded={open} onClick={() => { touched.current = true; setOpen(!open); }}>
+          <span class="cons-chev" aria-hidden="true">{open ? '▾' : '▸'}</span><b>{t('app.sketch.constraints.count', { count: p.rows.length })}</b>
+        </button>
+        {p.status && p.status.state !== 'under' ? <span class={`chip ${level}`}>{statusText(p.status)}</span> : null}
       </header>
-      {p.rows.length === 0 ? <p class="none">{t('app.sketch.constraints.none')}</p> : (
+      {!open ? null : p.rows.length === 0 ? <p class="none">{t('app.sketch.constraints.none')}</p> : (
         <ul>
           {p.rows.map((r) => (
             <li

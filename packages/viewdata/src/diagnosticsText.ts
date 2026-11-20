@@ -47,6 +47,9 @@ export function summaryLine(d: Diagnosis): string {
 /** The kernel's `maxSize` on a refusal whose size is too large: the field (`thickness`, a dotted path for a nested one such as `thin.thickness`), the largest value of it that builds, and its unit (`mm`, `deg`). Null when the kernel gave none or it is malformed (older kernels, fillet and chamfer until the blend code names one). */
 export interface MaxSize { param: string; value: number; unit: string }
 export function maxSizeOf(params: Record<string, unknown> | null | undefined): MaxSize | null {
+  // a blend surface names the largest radius that fits as `maxRadius` (a smaller ball rolls, this one does not)
+  const r = params?.maxRadius;
+  if (typeof r === 'number' && Number.isFinite(r) && r > 0 && !params?.maxSize) return { param: 'radius', value: Math.round(r * 1000) / 1000, unit: 'mm' };
   const m = params?.maxSize as Record<string, unknown> | null | undefined;
   if (!m || typeof m !== 'object') return null;
   const { param, value, unit } = m;

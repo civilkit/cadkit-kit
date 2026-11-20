@@ -150,4 +150,42 @@ describe('PluginPanel', () => {
       expect(m.q('[data-testid="plugin-pick-clear-body"]')).not.toBeNull();
     });
   });
+  describe('fields that take edges, sketches and closed regions', () => {
+    const reg = new PluginRegistry();
+    reg.add({ id: 'test.kinds', name: 'Kinds', version: '1.0.0', contributes: { generators: [{ id: 'k', title: 'Kinds', params: [
+      { name: 'edges', type: 'selection', title: 'Edges', accept: ['edge'], optional: true },
+      { name: 'path', type: 'selection', title: 'Path', accept: ['sketch'], optional: true },
+      { name: 'shape', type: 'selection', title: 'Shape', accept: ['profile'], maxItems: 1, optional: true },
+      { name: 'old', type: 'selection', title: 'Old', accept: ['body', 'face'], optional: true },
+    ] }] } }, { k: async () => 'p.run(() => {});' });
+    const sketches = [{ id: 'F1', name: 'Outline', regions: ['e1', 'e5'] }, { id: 'F3', name: 'Rail path', regions: [] }];
+    const mountKinds = (values: Values, pickField: string | null = null) => {
+      const log = { changes: [] as Values[] };
+      const view = (v: Values) => <PluginPanel registry={reg} sel={{ pluginId: 'test.kinds', generatorId: 'k', values: v }} onPick={() => {}} onChange={(n) => { log.changes.push(n); r.rerender(view(n)); }}
+        onApply={() => {}} onBack={() => {}} onCancel={() => {}} pickField={pickField} onPickField={() => {}} sketches={sketches} />;
+      const r = render(view(values));
+      return { r, log, q: (s: string) => r.container.querySelector(s) as HTMLElement | null };
+    };
+    it('lists picked edges, sketches and regions by name', () => {
+      const m = mountKinds({ edges: [{ type: 'edge', body: 'Rail', index: 2 }], path: [{ type: 'sketch', id: 'F3', name: 'Rail path' }], shape: [{ type: 'profile', sketch: 'F1', region: 'e5', name: 'Outline', index: 1 }] });
+      expect(m.q('[data-testid="plugin-pick-edges"]')!.textContent).toContain('Rail, edge 3');
+      expect(m.q('[data-testid="plugin-pick-path"]')!.textContent).toContain('Rail path');
+      expect(m.q('[data-testid="plugin-pick-shape"]')!.textContent).toContain('Outline, region 2');
+    });
+    it('the picking hint names the kinds; a sketch or a region can be added from a list; a body and face field has no list', () => {
+      const m = mountKinds({}, 'edges');
+      expect(m.q('[data-testid="plugin-pick-edges"]')!.textContent).toContain('Select edges in the view');
+      expect(m.q('[data-testid="plugin-add-sketch-edges"]')).toBeNull();
+      expect(m.q('[data-testid="plugin-add-sketch-old"]')).toBeNull();
+      expect(m.q('[data-testid="plugin-add-profile-old"]')).toBeNull();
+      const add = m.q('[data-testid="plugin-add-sketch-path"]') as HTMLSelectElement;
+      expect([...add.options].map((o) => o.textContent)).toEqual(['Add a sketch…', 'Outline', 'Rail path']);
+      fireEvent.change(add, { target: { value: 'F3' } });
+      expect(m.log.changes.at(-1)).toMatchObject({ path: [{ type: 'sketch', id: 'F3', name: 'Rail path' }] });
+      const reg2 = m.q('[data-testid="plugin-add-profile-shape"]') as HTMLSelectElement;
+      expect([...reg2.options].map((o) => o.textContent)).toEqual(['Add a region…', 'Outline, region 1', 'Outline, region 2']);
+      fireEvent.change(reg2, { target: { value: 'F1/e1' } });
+      expect(m.log.changes.at(-1)).toMatchObject({ shape: [{ type: 'profile', sketch: 'F1', region: 'e1', index: 0 }] });
+    });
+  });
 });

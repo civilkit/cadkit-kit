@@ -71,14 +71,13 @@ export function sketchPointWorld(
 }
 
 /**
- * Which side of the sketch plane to look from: +1 along the plane's normal, -1 against it. A sketch is read from
- * outside the part, so the camera goes on the side of the plane facing away from the body (looking at its face);
- * with no body, or a plane through the middle of it, the plane's own normal side.
+ * The camera for Look normal: `dist` along the plane's own +normal from `target`, up along the sketch's Y. The side never depends
+ * on the body (an extruded sketch and a bare one read the same way, and the sketch is never seen mirrored from behind).
  */
-export function viewSide(frame: Frame, bodyCenter: number[] | null): 1 | -1 {
-  if (!bodyCenter) return 1;
-  const d = (bodyCenter[0] - frame.o[0]) * frame.z[0] + (bodyCenter[1] - frame.o[1]) * frame.z[1] + (bodyCenter[2] - frame.o[2]) * frame.z[2];
-  return d > 1e-6 ? -1 : 1;
+export function lookNormalPose(frame: Frame, target: number[], dist: number): { position: [number, number, number]; up: [number, number, number]; dir: [number, number, number] } {
+  const unit = (v: number[]): [number, number, number] => { const n = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / n, v[1] / n, v[2] / n]; };
+  const z = unit(frame.z as number[]), up = unit(frame.y as number[]);
+  return { position: [target[0] + z[0] * dist, target[1] + z[1] * dist, target[2] + z[2] * dist], up, dir: [-z[0], -z[1], -z[2]] };
 }
 
 /** The view `Fit` frames in sketch mode: the sketch's own content (entities and its points, not the fixed origin point and not the body or the reference planes), else a 100 mm view around the plane origin. */

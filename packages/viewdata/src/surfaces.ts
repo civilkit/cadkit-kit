@@ -7,7 +7,7 @@ import { mergedBox, type ViewSurface } from '../../viewport/src/surfaces';
 type Feat = { type?: string; surface?: unknown; solid?: unknown };
 
 /** Feature types that leave a surface body registered under their id. */
-export const SURFACE_TYPES = ['surfacePlanar', 'surfaceExtrude', 'surfaceRevolve', 'surfaceOffset', 'trimSurface', 'fill', 'extend', 'pipeCut'];
+export const SURFACE_TYPES = ['surfacePlanar', 'surfaceExtrude', 'surfaceRevolve', 'surfaceOffset', 'trimSurface', 'fill', 'extend', 'pipeCut', 'sweepSurface', 'blendSurface'];
 
 /** Feature types that can leave a surface body (knit and sweep / loft only when they are asked for a sheet). */
 export function makesSurface(f: Feat): boolean {

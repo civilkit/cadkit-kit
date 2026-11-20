@@ -72,7 +72,7 @@ describe('Hole tool in a shelled block', { skip: !process.env.CK_WASM }, () => {
     expect(near(blind.removed, disc * T)).toBe(true);
   });
 
-  it('KERNEL_HOLE_UP_TO_NEXT says whether upToNext stops at the first wall (today it drills through all)', async () => {
+  it('KERNEL_HOLE_UP_TO_NEXT says whether upToNext stops at the first wall (the kernel now does: floor only)', async () => {
     const r = await cut(doc(false), { ...newHole('F4', true, { kind: 'simple', size: 'M6', fit: 'normal', diameter: D }), end: 'upToNext' });
     expect(r.errors).toEqual([]);
     const stopsAtNext = near(r.removed, disc * T);

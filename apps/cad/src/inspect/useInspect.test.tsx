@@ -20,6 +20,7 @@ function fakeHost(o: Partial<InspectHost> = {}): InspectHost & { calls: string[]
     massProps: async () => { calls.push('mass'); return { volume: 6000, area: 2200, com: [15, 10, 5], principal: [1, 2, 3] }; },
     measure: async (refs) => { calls.push('measure ' + JSON.stringify(refs)); return null; },
     interference: async () => { calls.push('interference'); return { bodies: 2, pairs: [{ a: 'F2.C0', b: 'F5.C0', volume: 4 }] }; },
+    intersection: async (faces) => { calls.push('intersection ' + JSON.stringify(faces)); return { curves: 2, marched: 2, spans: 10, proved: 10, repaired: 0, unresolved: 0, pairs: 1, issues: [] }; },
     ...o,
   };
 }
@@ -93,6 +94,22 @@ describe('useInspect', () => {
     store.mode.value = 'edge';
     act(() => api.props.onPair('F2.C0', 'F5.C0'));
     expect(store.mode.value).toBe('face'); expect(store.selection.value).toEqual(['F2.C0', 'F5.C0']); expect(view.framed).toEqual([['F2.C0', 'F5.C0']]);
+  });
+
+  it('intersection: the whole part when no face is selected, the selected faces against the part otherwise; a refusal is kept as text', async () => {
+    const { store } = mount();
+    await act(async () => { api.props.onIntersection(); });
+    await waitFor(() => expect(api.props.intersection).not.toBeNull());
+    expect(api.props.intersectionError).toBeNull();
+    act(() => { store.mode.value = 'face'; store.select(['F2.C1']); });
+    await act(async () => { api.props.onIntersection(); });
+    await waitFor(() => expect(api.props.intersectionFaces).toBe(1));
+  });
+  it('intersection: the kernel refusing the request is shown, not thrown', async () => {
+    mount(fakeHost({ intersection: async () => { throw new Error('checkIntersection: 500 face pairs (at most 400 per request)'); } }));
+    await act(async () => { api.props.onIntersection(); });
+    await waitFor(() => expect(api.props.intersectionError).toMatch(/at most 400/));
+    expect(api.props.intersection).toBeNull();
   });
 
   it('section: a standard plane starts through the middle, the slider range is the part along the normal, flip and off reach the viewport', async () => {

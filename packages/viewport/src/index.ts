@@ -36,3 +36,4 @@ export { packKnurls, grooveField, KNURL_MAX, type KnurlView } from './knurlview'
 export { MeshLayer, type MeshView } from './meshlayer';
 export * from './textures';
 export * from './hdri';
+export { clampInsets, insetShift, safeCenter, NO_INSETS, type SafeInsets } from './safeArea';

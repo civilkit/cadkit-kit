@@ -8,11 +8,11 @@ export type HoleEnd = 'blind' | 'through' | 'upToNext';
 export const HOLE_KINDS: HoleKind[] = ['simple', 'cbore', 'csink'];
 export const HOLE_FITS: HoleFit[] = ['tap', 'close', 'normal', 'loose'];
 /**
- * The kernel's hole drills every end but `blind` through the whole part (hole.rs: `through = end != Blind`), so "Up to
- * next" would cut every wall of a shelled part like Through. It is offered only once the kernel stops at the next face
- * (holeTool.kernel.test.ts fails then: set this to true). A hole that already says upToNext still shows it.
+ * "Up to next" drills to the first wall of the body (the kernel stops at the first exit of the hole's axis, hole.rs
+ * `first_exit`; before that every end but `blind` drilled through the whole part). Turn it off only for a wasm older than
+ * that change (holeTool.kernel.test.ts then fails the other way round). A hole that already says upToNext always shows it.
  */
-export const KERNEL_HOLE_UP_TO_NEXT = false;
+export const KERNEL_HOLE_UP_TO_NEXT = true;
 export const HOLE_ENDS: HoleEnd[] = KERNEL_HOLE_UP_TO_NEXT ? ['blind', 'through', 'upToNext'] : ['blind', 'through'];
 /** The value of the Size dropdown that means "no ISO size, type the diameter" (a plain hole only). */
 export const CUSTOM = 'custom';

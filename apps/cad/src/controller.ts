@@ -16,7 +16,7 @@ import { applyOpsLocal, saveThreadPrefs, warningsById, type ThreadRow, type Thre
 import { buildFolder, frozenPart, FOLDER_TAG, type FolderFormat } from './folderExport';
 import { bakedDoc, recordsInFaces, type FaceFact } from './exportKnurl';
 import type { BakeCache } from './bakeCache';
-import { queryInterference, queryMass, queryMeasure, type FaceRunItem, type Interference } from './inspect/kernel';
+import { queryInterference, queryIntersection, queryMass, queryMeasure, type FaceRunItem, type Interference, type IntersectionCheck } from './inspect/kernel';
 import type { LumpInfo } from './bodies';
 import { namesBodies } from './bodyOps';
 import { drawingQuery } from './drawing/kernel';
@@ -31,7 +31,7 @@ import { listPick } from './listPick';
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, toViewSurfaces, withSurfaces } from './surfaceView';
 import { markSmoothEdges } from './smoothEdges';
 import type { BodyMesh, ViewSurface } from '@kit/viewport';
-import type { CosmeticKnurl, InertiaFact } from '@kit/script';
+import { openSheetEdges, type CosmeticKnurl, type InertiaFact } from '@kit/script';
 import { diagnose, summaryLine, diagnoseErrors as diagnoseErrorList, featureStatuses, type Diagnosis } from '@kit/viewdata';
 import { setDocFields, type DocPatch } from './docFields';
 import { cosmeticOnly, LABEL_BUSY_MS } from './cosmeticOps';
@@ -279,7 +279,7 @@ export class Controller {
       this.committedDiag = v.diag as Diagnosis;
       this.limits = new Map(v.limits);
       this.store.cached.value = true;
-      this.view.setBody(body);
+      this.show(body);
       this.applyExtras(this.committedExtras);
       this.store.featureStatus.value = v.status;
       return true;
@@ -345,6 +345,12 @@ export class Controller {
     const k = (this.session as unknown as { kernel?: { request?: unknown } } | null)?.kernel;
     return k && typeof k.request === 'function' ? (k as never) : null;
   }
+  /** The kernel transport for Convert mesh to solid (meshes/useMeshSolid.ts), which runs on a preview tag of its own and never touches the
+   *  document's; null without a session. Waits for a part that is still being built. */
+  async meshSolidKernel(): Promise<{ request(m: Record<string, unknown>): Promise<{ ok?: boolean; trap?: string; error?: unknown; result?: unknown }> } | null> {
+    if (this.realLoad) await this.whenReal();
+    return this.transport();
+  }
   /** Whether `scratchBuild` can run (a script run uses it for the batched path). */
   canScratchBuild(): boolean { return this.transport() !== null; }
   private scratchTag = `script-${Math.random().toString(36).slice(2, 8)}`;
@@ -355,7 +361,7 @@ export class Controller {
    * `load` of the same list finds it built. The document is completed with the defaults a loaded part has (the kernel's cache key
    * covers the material and the variables), or the later load would not find what was built here.
    */
-  async scratchBuild(doc: PartDoc, view: boolean, tag: string = this.scratchTag): Promise<{ errors: Array<[string, { code?: string; message?: string }]>; warnings?: Array<[string, { code?: string; params?: Record<string, unknown> }]>; geometry?: { mesh: ReturnType<Controller['bodyFaces']>; edges: ViewEdge[]; box: { min: number[]; max: number[] } | null; faceLumps?: Record<string, number> } }> {
+  async scratchBuild(doc: PartDoc, view: boolean, tag: string = this.scratchTag): Promise<{ errors: Array<[string, { code?: string; message?: string }]>; warnings?: Array<[string, { code?: string; params?: Record<string, unknown> }]>; geometry?: { mesh: ReturnType<Controller['bodyFaces']>; edges: ViewEdge[]; openEdges?: ViewEdge[]; box: { min: number[]; max: number[] } | null; faceLumps?: Record<string, number> } }> {
     if (this.realLoad) await this.whenReal();
     const k = this.transport();
     if (!k) throw new Error('no kernel');
@@ -363,15 +369,17 @@ export class Controller {
     const { fonts: _fonts, ...plain } = doc as PartDoc & { fonts?: unknown };
     const r = await k.request({ type: 'regen', tag, part: { ...emptyPart('script'), ...plain }, ...(view ? {} : { opts: { noView: true } }) });
     if (r.trap || !r.ok || !r.result) throw new Error(r.trap ?? (typeof r.error === 'string' ? r.error : 'regen failed'));
-    const res = r.result as { errors?: Array<[string, { code?: string; message?: string }]>; warnings?: Array<[string, { code?: string; params?: Record<string, unknown> }]>; body?: Record<string, unknown> | null };
+    const res = r.result as { errors?: Array<[string, { code?: string; message?: string }]>; warnings?: Array<[string, { code?: string; params?: Record<string, unknown> }]>; body?: Record<string, unknown> | null; surfaces?: unknown };
     const errors = res.errors ?? [];
     const warnings = res.warnings ?? [];
     if (!view) return { errors, warnings };
     const body = res.body ?? null;
-    if (!body) return { errors, warnings, geometry: { mesh: null, edges: [], box: null } };
+    // the open edges of the sheets, apart (a script's fillNSided finds its loop there; the edge facts and selectors stay those of the solid)
+    const sheet = openSheetEdges(res.surfaces) as unknown as ViewEdge[];
+    if (!body) return { errors, warnings, geometry: { mesh: null, edges: [], box: null, openEdges: sheet } };
     const { meshFromBody } = await import('@ck/mesh');
     const mesh = meshFromBody(body as Parameters<typeof meshFromBody>[0]) as unknown as ReturnType<Controller['bodyFaces']>;
-    return { errors, warnings, geometry: { mesh: mesh && mesh.positions.length > 0 ? mesh : null, edges: (body.edges as ViewEdge[] | undefined) ?? [], box: (body.box as { min: number[]; max: number[] } | undefined) ?? null, ...lumpsOf(body) } };
+    return { errors, warnings, geometry: { mesh: mesh && mesh.positions.length > 0 ? mesh : null, edges: (body.edges as ViewEdge[] | undefined) ?? [], openEdges: sheet, box: (body.box as { min: number[]; max: number[] } | undefined) ?? null, ...lumpsOf(body) } };
   }
   /**
    * The geometry of a folder export: `doc` (the open document cut down to the folder's bodies, see folderExport.ts) built on a scratch
@@ -531,7 +539,7 @@ export class Controller {
     return { ok: true, volume: typeof v === 'number' && Number.isFinite(v) ? v : null };
   }
   /** Kernel answers about the document `scratchBuild` built last (a script's read-back: volume, area, centre of mass, validity). */
-  async scratchFacts(need: { mass?: boolean; validate?: boolean; describe?: string[]; text?: { string: string; font?: string; height: number; spacing?: number } }): Promise<{ text?: never;  volume?: number | null; area?: number | null; com?: number[] | null; bodies?: Array<{ name?: string; volume: number; area: number }>; inertia?: InertiaFact | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>; faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }> }> {
+  async scratchFacts(need: { mass?: boolean; validate?: boolean; describe?: string[]; text?: { string: string; font?: string; height: number; spacing?: number }; intersection?: { faces: string[] } }): Promise<{ text?: never; intersection?: Record<string, unknown> | null; volume?: number | null; area?: number | null; com?: number[] | null; bodies?: Array<{ name?: string; volume: number; area: number }>; inertia?: InertiaFact | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>; faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }> }> {
     if (this.realLoad) await this.whenReal();
     const k = this.transport();
     if (!k) throw new Error('no kernel');
@@ -558,6 +566,7 @@ export class Controller {
       const d = (r.ok ? r.result : null) as { items?: Array<{ name: string; surface?: string; area?: number; radius?: number }> } | null;
       out.faces = (d?.items ?? []).map((i) => ({ name: i.name, surface: i.surface, area: i.area, radius: i.radius }));
     }
+    if (need.intersection) out.intersection = await scratchIntersection(k, this.scratchTag, need.intersection.faces);
     return out;
   }
   /** Drop the scratch state of `scratchBuild` (the kernel keeps a body per tag): the tag goes back to an empty part. */
@@ -764,7 +773,7 @@ export class Controller {
       const surfaces = r.surfaces !== undefined ? (hasSurfaceFeatures(cand as never) ? toViewSurfaces(r.surfaces) : []) : await this.surfacesFor(s, { ...this.sdoc(), features: cand } as unknown as PartDoc, upTo, '-psurf');
       if (seq !== this.previewSeq) return { ok: true, errors: [], hints: [], body: null, stale: true };
       const shown = withSurfaces(r.body, surfaces);
-      this.view.setBody(shown);
+      this.show(shown);
       this.previewView = shown ? withSmoothEdges(mergedView(shown)) : null;
       await this.previewExtras(s, ops, seq, r.threads || r.warnings ? { threads: r.threads ?? [], warnings: r.warnings ?? [] } : undefined);
       return lim.tips.length ? { ...r, tip: lim.tips[0] } : r;
@@ -871,6 +880,15 @@ export class Controller {
     } catch { return []; }
   }
   threadsNow(): unknown[] { return this.committedExtras.threads; }
+  /** The body handed to the viewer last (the committed one, or the candidate of a preview), kept so a form can read the marker of a feature. */
+  private shownBody: unknown = null;
+  private show(b: unknown | null): void { this.shownBody = b; this.view.setBody(b); }
+  /** The marker the kernel returned for a feature in what is on screen now (a blend's resolved `sides`, a sweep's `pathLength`), or null. */
+  markerOf(id: string): Record<string, unknown> | null {
+    const list = (this.shownBody as { markers?: unknown[] } | null)?.markers;
+    const hit = Array.isArray(list) ? list.find((m) => Array.isArray(m) && m[0] === id) as [string, Record<string, unknown>] | undefined : undefined;
+    return hit && hit[1] && typeof hit[1] === 'object' ? hit[1] : null;
+  }
   /** The markers of what is on screen now: the committed ones, or the candidate of a preview in progress. */
   threadsShown(): unknown[] { return this.shownThreads; }
 
@@ -885,7 +903,7 @@ export class Controller {
     const s = this.session;
     if (!s) return;
     const body = await this.bodyNow(s).catch(() => null);
-    this.view.setBody(body);
+    this.show(body);
   }
 
   /** Commit the editor draft as exactly one edit record (one batch). */
@@ -1833,6 +1851,12 @@ export class Controller {
   }
   /** Pairs of solid bodies that share volume. */
   interference(): Promise<Interference | null> { return this.inspect((s) => queryInterference(s)); }
+  /** The certified check of the intersection curves: the faces given against every face of the part, or (none given) the part against itself. A refusal of the kernel throws, so the Inspect card can say what to change. */
+  async intersection(faces: string[]): Promise<IntersectionCheck | null> {
+    if (this.realLoad) await this.whenReal();
+    const s = this.session;
+    return s ? queryIntersection(s, faces.length ? faces : 'body', 'body') : null;
+  }
 
   /** STEP text of the current document, from the kernel (null when nothing is loaded). */
   async exportStep(): Promise<string | null> {
@@ -1943,6 +1967,10 @@ export class Controller {
     return fetchSurfaces(k, doc, `${this.previewTagOf(s)}${suffix}`, upTo);
   }
 
+  /** The meshes of the surface bodies on screen (face names in `faceIds`), for measuring their faces as bodyFaces() does the solid's. */
+  surfaceMeshes(): Array<{ positions: ArrayLike<number>; triFace: ArrayLike<number>; faceIds: string[] }> {
+    return (this.shown?.surfaces ?? []).map((x) => x.mesh as unknown as { positions: ArrayLike<number>; triFace: ArrayLike<number>; faceIds: string[] });
+  }
   /** The surface bodies on screen: feature id and the face names it owns. */
   surfaceBodies(): Array<{ id: string; faces: string[] }> {
     return (this.shown?.surfaces ?? []).map((x) => ({ id: x.id, faces: x.mesh.faceIds }));
@@ -1981,7 +2009,7 @@ export class Controller {
     this.shown = body; bumpViewportContent();
     this.previewView = null;
     this.lastView = body ? withSmoothEdges(mergedView(body)) : null;   // solid and sheets as one mesh: what picking lists, measure and section read
-    this.view.setBody(body);
+    this.show(body);
     this.refreshLumps();
     // everything that can be selected now: faces, edges and the corners at the ends of edges
     const existing = new Set<string>(this.lastView?.mesh?.faceIds ?? []);
@@ -2026,4 +2054,11 @@ function withExprValues(d: SketchDraft, values: Record<string, number>): SketchD
     return { ...c, value: r.value };
   });
   return changed ? { ...d, constraints } : d;
+}
+
+/** A script's checkIntersection on the scratch state: the faces given against every face (none: the part against itself). A refusal throws with the kernel's words. */
+async function scratchIntersection(k: { request(m: Record<string, unknown>): Promise<unknown> }, tag: string, faces: string[]): Promise<Record<string, unknown> | null> {
+  const r = await k.request({ type: 'checkIntersection', tag, a: faces.length ? faces : 'body', b: 'body' }) as { ok: boolean; result?: Record<string, unknown>; error?: { message?: string } | string };
+  if (!r.ok) throw new Error(`checkIntersection(): ${typeof r.error === 'string' ? r.error : r.error?.message ?? 'the kernel refused the check'}`);
+  return r.result ?? null;
 }

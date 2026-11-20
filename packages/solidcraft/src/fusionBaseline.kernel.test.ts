@@ -1,4 +1,4 @@
-// The importer against a folder of real .solidcraft files (FUSION_BASELINE_DIR, default ~/ci-cad/dutchman-baseline-out/solidcraft; skipped when absent):
+// The importer against a folder of real .solidcraft files (FUSION_BASELINE_DIR, default ~/ci/dutchman-baseline-out/solidcraft; skipped when absent):
 // each is imported with ONE shared kernel and one scratch tag as the app does it, then the part is regenerated without a view
 // (and validated when it has fewer than 300 features: validate is very slow on big parts). Prints a table and the aggregates, appends
 // a progress line per file to FUSION_BASELINE_LOG (default ~/fusion-baseline-progress.log) and writes the records as JSON to FUSION_BASELINE_JSON.
@@ -13,7 +13,7 @@ import { importSolidcraft, type ScPart } from './import';
 import { kernelResolvers } from './kernelResolvers';
 
 const WASM = process.env.CK_WASM!;
-const DIR = process.env.FUSION_BASELINE_DIR ?? join(homedir(), 'ci-cad', 'dutchman-baseline-out', 'solidcraft');
+const DIR = process.env.FUSION_BASELINE_DIR ?? join(homedir(), 'ci', 'dutchman-baseline-out', 'solidcraft');
 const LOG = process.env.FUSION_BASELINE_LOG ?? join(homedir(), 'fusion-baseline-progress.log');
 const OUT = process.env.FUSION_BASELINE_JSON ?? join(homedir(), 'fusion-baseline.json');
 const LIMIT_MS = 120_000, VALIDATE_BELOW = 300;

@@ -22,6 +22,18 @@ export function focusSketchField(doc: Document = document): boolean {
   return true;
 }
 
+/** Put typed text into the first value box now: focus it, replace its text, caret at the end, and tell it (an `input` event) so the live preview follows. Synchronous, so the keys that
+ *  follow land in the box itself and never in a half-moved focus (the way the Position box takes its first key). False when no box is on screen yet. */
+export function seedFirstFieldNow(text: string, doc: Document = document): boolean {
+  const input = doc.querySelector<HTMLInputElement>('.sketch-fields input');
+  if (!input) return false;
+  input.focus();
+  input.value = text;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.setSelectionRange(text.length, text.length);
+  return true;
+}
+
 /** Tab (Shift+Tab) with a tool's value boxes on screen and none focused: focus the first (last) box, selected, so Tab walks the boxes. Returns false when there are none. */
 export function tabIntoFields(shift: boolean, doc: Document = document): boolean {
   const inputs = Array.from(doc.querySelectorAll<HTMLInputElement>('.sketch-fields input'));
@@ -100,7 +112,7 @@ export const fieldVarUnit = (u: string | undefined): string | undefined => (u ==
 /** One field. Takes a number or an expression (`=w*2`, a variable name): while it has focus it shows exactly what was typed;
  *  the evaluated value drives the live preview and, on Enter or Tab, the expression is kept with the dimension.
  *  `name = value` defines the parameter `name` (when the owner takes `onDefine`) and links the field to it. */
-function FieldInput(p: { f: FieldSpec; index: number; last: boolean; seed?: { n: number; text: string | null }; target: boolean; onField(id: string, value: number | null, commit: boolean, expr?: string): void; onDefine?(name: string, expr: string, unit?: string): Promise<boolean>; onKey?(key: string): void; onTab?(dir: 1 | -1): void }) {
+function FieldInput(p: { f: FieldSpec; index: number; last: boolean; seed?: { n: number; text: string | null }; target: boolean; onField(id: string, value: number | null, commit: boolean, expr?: string): void; onDefine?(name: string, expr: string, unit?: string): Promise<boolean>; onKey?(key: string): void; onTab?(dir: 1 | -1): void; onEnter?(): void }) {
   const { f } = p;
   const scope = useScope();
   const emit = (value: number | null, commit: boolean, expr?: string): void => { if (expr !== undefined) p.onField(f.id, value, commit, expr); else p.onField(f.id, value, commit); };
@@ -149,6 +161,7 @@ function FieldInput(p: { f: FieldSpec; index: number; last: boolean; seed?: { n:
           const got = q.kind === 'number' ? { value: q.value } : q.kind === 'expr' ? resolve(q.expr) : null;
           if (got) emit(got.value, true, got.expr);
           latest.current = null;
+          if (e.key !== 'Tab') p.onEnter?.();
           const next = el.closest('.sketch-fields')?.querySelectorAll<HTMLInputElement>('input')[p.index + 1];
           if (e.key === 'Tab' && next) { next.focus(); next.select(); } else el.blur();
         } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && el.tagName === 'INPUT') {
@@ -183,7 +196,7 @@ function FieldInput(p: { f: FieldSpec; index: number; last: boolean; seed?: { n:
 
 /** The typed-value fields that follow the pointer while a tool draws (length, angle, radius ...).
  *  Typing changes a live preview; Tab or Enter locks the value as a driving dimension. */
-export function SketchFields(p: { fields: FieldSpec[]; x: number; y: number; cls?: string; /** typing that started with no field focused: the first field takes `text` (bump `n` for each new key) */ seed?: { n: number; text: string | null }; onField(id: string, value: number | null, commit: boolean, expr?: string): void; /** define the parameter a `name = value` entry names; resolves false when it was refused */ onDefine?(name: string, expr: string, unit?: string): Promise<boolean>; /** a command key pressed in an empty field (`FieldSpec.keys`) */ onKey?(key: string): void; /** Tab (+1) or Shift+Tab (-1) pressed in a box: called just before the value is committed */ onTab?(dir: 1 | -1): void }) {
+export function SketchFields(p: { fields: FieldSpec[]; x: number; y: number; cls?: string; /** typing that started with no field focused: the first field takes `text` (bump `n` for each new key) */ seed?: { n: number; text: string | null }; onField(id: string, value: number | null, commit: boolean, expr?: string): void; /** define the parameter a `name = value` entry names; resolves false when it was refused */ onDefine?(name: string, expr: string, unit?: string): Promise<boolean>; /** a command key pressed in an empty field (`FieldSpec.keys`) */ onKey?(key: string): void; /** Tab (+1) or Shift+Tab (-1) pressed in a box: called just before the value is committed */ onTab?(dir: 1 | -1): void; /** Enter pressed in a box: called after its value was committed */ onEnter?(): void }) {
   const box = useRef<HTMLDivElement>(null);
   // the row follows the pointer; near the right or bottom edge of the drawing (a finger, a docked panel) it moves back inside, or its keys would be cut off
   useLayoutEffect(() => {
@@ -199,7 +212,7 @@ export function SketchFields(p: { fields: FieldSpec[]; x: number; y: number; cls
       {p.fields.map((f, i) => (
         <label key={f.id} class={f.locked ? 'locked' : ''} title={f.tip ? t(f.tip) : undefined}>
           <span>{t(f.label)}</span>
-          <FieldInput f={f} index={i} last={i === p.fields.length - 1} onField={p.onField} onDefine={p.onDefine} onKey={p.onKey} onTab={p.onTab} seed={p.seed} target={i === 0} />
+          <FieldInput f={f} index={i} last={i === p.fields.length - 1} onField={p.onField} onDefine={p.onDefine} onKey={p.onKey} onTab={p.onTab} onEnter={p.onEnter} seed={p.seed} target={i === 0} />
           {f.toggle ? <button type="button" class={'fld-toggle' + (f.toggle.on ? ' on' : '')} data-testid={'field-' + f.toggle.id} aria-pressed={f.toggle.on} aria-label={t(f.toggle.tip)} title={t(f.toggle.tip)}
             onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.preventDefault(); p.onField(f.toggle!.id, f.toggle!.on ? 0 : 1, false); }}>{t(f.toggle.label)}</button> : null}
         </label>

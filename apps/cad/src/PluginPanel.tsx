@@ -7,6 +7,7 @@ import { checkParams, defaultsOf, formModel, type FormField, type ParamDef, type
 import { PluginManage } from './PluginManage';
 import { t } from './i18n';
 import type { PluginSel } from './pluginRun';
+import { addPick, profileItem, sketchItem, type DocSketch } from './pluginPicks';
 
 export interface PluginPanelProps {
   registry: PluginRegistry;
@@ -32,6 +33,8 @@ export interface PluginPanelProps {
   onRun?(): void;
   readResult?: ReadResult | null;
   readBusy?: boolean;
+  /** the document's sketches and their closed regions: what a field that takes sketches or profiles can add from its list */
+  sketches?: DocSketch[];
 }
 
 /** CSV text as rows: quoted fields, doubled quotes, commas and newlines inside quotes. */
@@ -81,14 +84,19 @@ function ReadView(p: { r: ReadResult }): JSX.Element {
 const label = (d: ParamDef): string => d.title ?? d.name;
 const tip = (d: ParamDef): string | undefined => d.description;
 
-/** How a pick reads in the list: a body by its name, a face as "Body, face 2". */
+/** How a pick reads in the list: a body or sketch by its name, a face as "Body, face 2", an edge as "Body, edge 3", a region as "Sketch 1, region 2". */
 const pickName = (it: SelItem): string => {
   if (typeof it === 'string') return it;
-  if (it.type === 'face') return t('plugin.pickFaceOf', { body: String(it.body ?? ''), n: typeof it.index === 'number' ? it.index + 1 : '?' });
+  const n = typeof it.index === 'number' ? it.index + 1 : '?';
+  if (it.type === 'face') return t('plugin.pickFaceOf', { body: String(it.body ?? ''), n });
+  if (it.type === 'edge') return t('plugin.pickEdgeOf', { body: String(it.body ?? ''), n });
+  if (it.type === 'profile') return t('plugin.pickProfileOf', { sketch: String(it.name ?? it.sketch ?? ''), n });
   return String(it.name ?? it.type ?? '');
 };
 
-function Field(p: { f: FormField; values: Values; set(name: string, v: string | number | boolean | SelItem[] | undefined): void; pickField?: string | null; onPickField?(name: string | null): void }): JSX.Element | null {
+const KIND_LABEL: Record<string, string> = { body: 'plugin.pickBody', face: 'plugin.pickFace', edge: 'plugin.pickEdge', sketch: 'plugin.pickSketch', profile: 'plugin.pickProfile' };
+
+function Field(p: { f: FormField; values: Values; set(name: string, v: string | number | boolean | SelItem[] | undefined): void; pickField?: string | null; onPickField?(name: string | null): void; sketches?: DocSketch[] }): JSX.Element | null {
   const { def: d, value, error, auto, visible } = p.f;
   if (!visible) return null;
   // A plugin that has a `units` choice (mm / in) shows it inside every plain number field, like the unit of the sizes it asks for.
@@ -97,7 +105,21 @@ function Field(p: { f: FormField; values: Values; set(name: string, v: string | 
   if (d.type === 'selection') {
     const picks = Array.isArray(value) ? value : [];
     const active = p.pickField === d.name;
-    const what = (d.accept ?? []).map((a) => (a === 'body' ? t('plugin.pickBody') : a === 'face' ? t('plugin.pickFace') : a)).join(' / ');
+    const what = (d.accept ?? []).map((a) => (KIND_LABEL[a] ? t(KIND_LABEL[a]) : a)).join(' / ');
+    const sks = p.sketches ?? [];
+    // a sketch or a closed region can also be added from a list (the Features list and the view are the other ways)
+    const adder = (kind: 'sketch' | 'profile'): JSX.Element | null => {
+      if (!d.accept?.includes(kind)) return null;
+      const opts = kind === 'sketch' ? sks.map((s) => ({ key: s.id, label: s.name, item: sketchItem(s) })) : sks.flatMap((s) => s.regions.map((r, i) => ({ key: `${s.id}/${r}`, label: t('plugin.pickProfileOf', { sketch: s.name, n: i + 1 }), item: profileItem(s, r, i) })));
+      if (!opts.length) return null;
+      return (
+        <select value="" aria-label={t(kind === 'sketch' ? 'plugin.addSketch' : 'plugin.addProfile')} data-testid={`plugin-add-${kind}-${d.name}`}
+          onChange={(e) => { const o = opts.find((x) => x.key === (e.currentTarget as HTMLSelectElement).value); if (o) p.set(d.name, addPick(d, picks, o.item)); }}>
+          <option value="">{t(kind === 'sketch' ? 'plugin.addSketch' : 'plugin.addProfile')}</option>
+          {opts.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+        </select>
+      );
+    };
     return (
       <div class="fedit-fld plugin-pick" data-path={d.name} data-testid={`plugin-pick-${d.name}`}>
         <span class="fedit-fld-label" title={tip(d)}>{label(d)}</span>
@@ -108,6 +130,7 @@ function Field(p: { f: FormField; values: Values; set(name: string, v: string | 
             {picks.length ? <button type="button" class="row-act" aria-label={t('plugin.pickClear')} title={t('plugin.pickClear')} data-testid={`plugin-pick-clear-${d.name}`} onClick={() => p.set(d.name, [])}><Icon name="close" size={14} /></button> : null}
           </div>
           {active ? <div class="thread-hint">{t('plugin.pickHint', { what })}</div> : null}
+          {adder('sketch')}{adder('profile')}
           {picks.length
             ? <ul class="plugin-pick-list">{picks.map((it, i) => <li key={i}>{pickName(it)}</li>)}</ul>
             : <div class="thread-hint">{t('plugin.pickNone')}</div>}
@@ -226,7 +249,7 @@ export function PluginPanel(p: PluginPanelProps): JSX.Element {
         {groups.map((g) => (
           <div key={g.title} data-group={g.title}>
             {g.title ? <div class="fedit-fld-label" style="margin:10px 0 4px;font-weight:600">{g.title}</div> : null}
-            {g.fields.map((f) => <Field key={f.def.name} f={f} values={values} set={set} pickField={p.pickField} onPickField={p.onPickField} />)}
+            {g.fields.map((f) => <Field key={f.def.name} f={f} values={values} set={set} pickField={p.pickField} onPickField={p.onPickField} sketches={p.sketches} />)}
           </div>
         ))}
         <button type="button" class="fedit-card-btn" data-testid="plugin-reset" onClick={() => p.onChange(defaultsOf(decl.params))}>{t('plugin.reset')}</button>

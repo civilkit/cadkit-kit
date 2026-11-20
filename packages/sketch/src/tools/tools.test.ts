@@ -196,10 +196,12 @@ describe('line tool: typed first point and typed closing', () => {
     expect(o.state.start).toBeUndefined();
   });
   it('the first point lands on an existing point at those coordinates (no duplicate)', () => {
-    const base = run(lineTool, [click(0, 0), key('Escape'), key('Escape')]);
+    // a lone first point is dropped by Escape (no orphan points), so the existing point is the end of a drawn line
+    const base = run(lineTool, [click(0, 0), click(10, 0), key('Escape'), key('Escape')]);
+    expect(base.draft.points).toHaveLength(2);
     const o = run(lineTool, [key('Tab'), field('x', 0), field('y', 0)], { ...base.draft });
     expect(o.state.first).toBe(base.draft.points[0].id);
-    expect(o.draft.points).toHaveLength(1);
+    expect(o.draft.points).toHaveLength(2);
   });
   it('a click with only X typed takes Y from the pointer; Escape drops the typing, not the tool', () => {
     let o = run(lineTool, [move(3, 9), key('Tab'), field('x', 5)]);

@@ -4,7 +4,7 @@ import { afterEach } from 'vitest';
 import { FeatureEditor } from '@kit/ui';
 import type { PartDoc } from '@ck/part-model';
 import { optionsFor } from './FeatureOptions';
-import { guidesPatch, loftGuides, loftProfiles, move, nextFree, sweepGuides, sweepGuidesPatch, tensionOf, tensionPatch, toggleKnit, sketchInfos, surfaceInfos } from './surfaceRules';
+import { continuitiesFor, patchChoice, patchOf, guidesPatch, loftGuides, loftProfiles, move, nextFree, sweepGuides, sweepGuidesPatch, tensionOf, tensionPatch, toggleKnit, sketchInfos, surfaceInfos } from './surfaceRules';
 import { boundaryLoop, boundaryRefs, knitOps, openEdgesOf, thickenOps, trimSurfaceOps } from './featureCreators';
 import { pickValue, type ViewEdge } from './featureCommands';
 import './i18n';
@@ -16,6 +16,20 @@ const sk = (id: string, closed: boolean): Wire => closed
   ? { type: 'sketch', id, name: 'S' + id, points: [{ id: 'c' }], entities: [{ id: 'k', type: 'circle', c: 'c', r: 1 }] }
   : { type: 'sketch', id, name: 'S' + id, points: [{ id: 'a' }, { id: 'b' }], entities: [{ id: 'l0', type: 'line', p1: 'a', p2: 'b' }] };
 const DOC = { features: [sk('A', true), sk('B', true), sk('C', true), sk('G', false), { type: 'surfaceExtrude', id: 'W', sketch: 'A' }, { type: 'loft', id: 'L', sketches: ['A', 'B'], surface: true }] } as unknown as PartDoc;
+
+describe('fill patch rules', () => {
+  it('reads the patch (single unless it says nSided) and the continuities it takes', () => {
+    expect([patchOf({}), patchOf({ patch: 'nSided' }), patchOf({ patch: 'x' })]).toEqual(['single', 'nSided', 'single']);
+    expect(continuitiesFor('single')).toEqual(['G0', 'G1', 'G2', 'G3']);
+    expect(continuitiesFor('nSided')).toEqual(['G0', 'G1']);
+  });
+  it('choosing N-sided keeps G0 or G1, replaces G2 and G3 by G0, and keeps a tolerance already set', () => {
+    expect(patchChoice({ continuity: 'G1' }, 'nSided')).toEqual({ patch: 'nSided', patchTolerance: 1e-4 });
+    expect(patchChoice({ continuity: 'G3' }, 'nSided')).toEqual({ patch: 'nSided', continuity: 'G0', patchTolerance: 1e-4 });
+    expect(patchChoice({ patchTolerance: 0.5 }, 'nSided')).toMatchObject({ patchTolerance: 0.5 });
+    expect(patchChoice({ patch: 'nSided', patchTolerance: 0.5 }, 'single')).toEqual({ patch: null, patchTolerance: null });
+  });
+});
 
 describe('surface rules', () => {
   it('lists sketches by kind and surfaces by feature', () => {
@@ -129,6 +143,25 @@ describe('surface editors', () => {
     expect(m.drafts.at(-1)).toMatchObject({ continuity: 'G2' });
     fireEvent.change(m.q('[data-path="fairing"] select')!, { target: { value: 'plate' } });
     expect(m.drafts.at(-1)).toMatchObject({ fairing: 'plate' });
+  });
+  it('fill: the Patch choice (Single / N-sided) shows the tolerance and G0 / G1 only for N-sided', () => {
+    const m = mount({ type: 'fill', id: 'F9', edges: [], continuity: 'G2', fairing: 'plate', merge: true });
+    expect([...(m.q('[data-path="patch"] select') as HTMLSelectElement).options].map((o) => o.value)).toEqual(['single', 'nSided']);
+    expect((m.q('[data-path="patch"] select') as HTMLSelectElement).value).toBe('single');
+    expect(m.q('[data-path="patchTolerance"]')).toBeNull();
+    expect([...(m.q('[data-path="continuity"] select') as HTMLSelectElement).options].map((o) => o.value)).toEqual(['G0', 'G1', 'G2', 'G3']);
+    fireEvent.change(m.q('[data-path="patch"] select')!, { target: { value: 'nSided' } });
+    // G2 is refused by an N-sided patch, so it falls back to G0; the tolerance starts at the kernel default
+    expect(m.drafts.at(-1)).toMatchObject({ patch: 'nSided', continuity: 'G0', patchTolerance: 1e-4 });
+  });
+  it('fill: an N-sided fill offers G0 and G1, a tolerance, no fairing, and goes back to Single cleanly', () => {
+    const m = mount({ type: 'fill', id: 'F9', edges: [], continuity: 'G1', merge: true, patch: 'nSided', patchTolerance: 0.01 });
+    expect([...(m.q('[data-path="continuity"] select') as HTMLSelectElement).options].map((o) => o.value)).toEqual(['G0', 'G1']);
+    expect(m.q('[data-path="fairing"]')).toBeNull();
+    expect(m.q('[data-note="nSided"]')).not.toBeNull();
+    expect(m.container.querySelector('[data-path="patchTolerance"] input')).not.toBeNull();
+    fireEvent.change(m.q('[data-path="patch"] select')!, { target: { value: 'single' } });
+    expect(m.drafts.at(-1)).toMatchObject({ patch: null, patchTolerance: null });
   });
   it('knit: one check per surface body, the knit itself excluded', () => {
     const m = mount({ type: 'knit', id: 'K9', surfaces: ['W'], solid: false });

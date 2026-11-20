@@ -531,11 +531,37 @@ export function loftOps(c: Ctx, surface = false): EditOp[] | null {
   if (ids.length < 2) return null;
   return [{ op: 'add', feature: { type: 'loft', op: 'add', sketches: ids, ...(surface ? { surface: true } : {}) } }];
 }
-/** A sweep of the newest unused closed sketch along the newest unused open one. */
+/** A sweep of the newest unused closed sketch along a curve feature selected in the tree, else the newest unused open sketch, else the last curve feature no sweep uses (the kernel's `{kind: 'curve'}` path). */
 export function sweepOps(c: Ctx): EditOp[] | null {
   const profile = freeSketches(c, isClosedSketch).at(-1);
-  const path = freeSketches(c, isOpenSketch, true).at(-1);   // a path may be a 3D sketch with one spline
-  return profile && path ? [{ op: 'add', feature: { type: 'sweep', op: 'add', sketch: profile.id, path: { kind: 'sketch', id: path.id } } }] : null;
+  const curves = curveFeatures(c);
+  const picked = curves.find((f) => f.id === c.selectedId);
+  const sketch = picked ? undefined : freeSketches(c, isOpenSketch, true).at(-1);   // a path may be a 3D sketch with one spline
+  // the fallback curve is one no sweep runs along yet (as the sketches are the unused ones)
+  const used = new Set(feats(c).filter((f) => f.type === 'sweep').map((f) => (f.path as { kind?: string; id?: string } | undefined)).filter((p) => p?.kind === 'curve').map((p) => p!.id));
+  const curve = picked ?? (sketch ? undefined : curves.filter((f) => !used.has(f.id)).at(-1));
+  const path = sketch ? { kind: 'sketch', id: sketch.id } : curve ? { kind: 'curve', id: curve.id } : null;
+  return profile && path ? [{ op: 'add', feature: { type: 'sweep', op: 'add', sketch: profile.id, path } }] : null;
+}
+
+/** Sweep a profile along a path as a surface (a sheet kept as its definition). The path is the open sketch or curve feature selected in the tree, else the last open sketch, else the last curve feature; the profile is the selected or last closed sketch (else any sketch with a curve) that is not the path. Tangent frame, no caps: the form changes that. */
+export function sweepSurfaceOps(c: Ctx): EditOp[] | null {
+  const curves = curveFeatures(c);
+  const sel = c.selectedId;
+  const openSketches = feats(c).filter((f) => f.type === 'sketch' && isOpenSketch(f));
+  const path: Feat | null = curves.find((f) => f.id === sel) ?? openSketches.find((f) => f.id === sel)
+    ?? openSketches.at(-1) ?? curves.at(-1) ?? null;
+  if (!path) return null;
+  const sketches = feats(c).filter((f) => f.type === 'sketch' && f.id !== path.id && hasCurves(f));
+  const profile = sketches.find((f) => f.id === sel && isClosedSketch(f)) ?? sketches.filter(isClosedSketch).at(-1) ?? sketches.at(-1) ?? null;
+  return profile ? [{ op: 'add', feature: { type: 'sweepSurface', profile: profile.id, path: path.id, frame: 'tangent', tolerance: 0.001 } }] : null;
+}
+/** The default radius of a new blend: a tenth of the smallest dimension of the model, rounded. */
+const blendRadius = (c: Ctx): number => niceSize(c.box ?? surfaceBox(c), 0.1);
+/** A rolling-ball blend between two picked faces (of the part or of a sheet); the radius, the side of each face and the span are set in the form. */
+export function blendSurfaceOps(c: Ctx): EditOp[] | null {
+  const faces = faceMode(c);
+  return faces.length >= 2 ? [{ op: 'add', feature: { type: 'blendSurface', faces: faces.slice(0, 2), radius: blendRadius(c), tolerance: 0.001 } }] : null;
 }
 
 const near = (a?: number[], b?: number[], tol = 1e-3): boolean => !!a && !!b && Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) < tol;
@@ -597,7 +623,7 @@ function surfaceBox(c: Ctx): Box | null {
 // ---- curves: project curve, edit curve, freeform ----
 
 /** Curve features whose result is a curve a later feature can take (`curves[]` of the kernel result). */
-const curveFeatures = (c: Ctx): Feat[] => feats(c).filter((f) => f.type === 'editCurve' || f.type === 'projectCurve' || f.type === 'helix');
+const curveFeatures = (c: Ctx): Feat[] => feats(c).filter((f) => f.type === 'editCurve' || f.type === 'projectCurve' || f.type === 'offsetCurve' || f.type === 'compositeCurve' || f.type === 'helix');
 const hasSurfaceBody = (c: Ctx): boolean => surfaceFeatures(c).length > 0;
 /** Project a sketch (the one selected in the tree, else the last that holds a curve) or a selected Edit / Project curve onto the picked faces; no face picked projects onto every face of the part. */
 export function projectCurveOps(c: Ctx): EditOp[] | null {
@@ -605,6 +631,25 @@ export function projectCurveOps(c: Ctx): EditOp[] | null {
   const sk = curve ? null : sketchWhere(c, hasCurves);
   const src = curve ? { curve: curve.id } : sk ? { sketch: sk.id } : null;
   return src ? [{ op: 'add', feature: { type: 'projectCurve', ...src, faces: faceMode(c), degree: 3, tolerance: 0.001, direction: 'both' } }] : null;
+}
+/** What an Offset curve or Composite curve starts from: the picked edges (in the order picked), else the curve feature selected in the tree, else a sketch that holds curves (the selected one, else the last). */
+function chainSource(c: Ctx): Record<string, unknown> | null {
+  const edges = c.mode === 'edge' ? edgeRefs(c.selection, c.edges) : [];
+  if (edges.length) return { curves: edges.map((e) => ({ kind: 'edge', faces: e.faces, at: e.at })) };
+  const curve = curveFeatures(c).find((f) => f.id === c.selectedId);
+  if (curve) return { curve: curve.id };
+  const sk = sketchWhere(c, hasCurves);
+  return sk ? { sketch: sk.id } : null;
+}
+/** Offset the curves of a sketch, a selected curve or the picked edges by 5 mm in their own plane; the distance, the plane or face to offset in and the tolerances are set in the form. */
+export function offsetCurveOps(c: Ctx): EditOp[] | null {
+  const src = chainSource(c);
+  return src ? [{ op: 'add', feature: { type: 'offsetCurve', ...src, distance: 5, tolerance: 0.001 } }] : null;
+}
+/** Join the curves of a sketch (walked into one chain), a selected curve or the picked edges (in the order picked) into one curve. */
+export function compositeCurveOps(c: Ctx): EditOp[] | null {
+  const src = chainSource(c);
+  return src ? [{ op: 'add', feature: { type: 'compositeCurve', ...src, tolerance: 0.001 } }] : null;
 }
 /** The curves an Edit curve starts from: the picked edges, else the curve feature selected in the tree, else the curves of the sketch (selected, else last), else the last curve feature. */
 export function editCurveOps(c: Ctx): EditOp[] | null {
@@ -680,6 +725,8 @@ export const CREATORS: Creator[] = [
   { id: 'add-helix', tab: 'Features', group: 'Curves', enabled: ok((c) => sketchWhere(c, hasCircle)), ops: helixOps },
   { id: 'add-project-curve', tab: 'Features', group: 'Curves', tip: true, enabled: (c) => (hasSolid(c) || hasSurfaceBody(c)) && projectCurveOps(c) !== null, ops: projectCurveOps },
   { id: 'add-edit-curve', tab: 'Features', group: 'Curves', tip: true, enabled: (c) => doc(c) && editCurveOps(c) !== null, ops: editCurveOps },
+  { id: 'add-offset-curve', tab: 'Features', group: 'Curves', tip: true, enabled: (c) => doc(c) && offsetCurveOps(c) !== null, ops: offsetCurveOps },
+  { id: 'add-composite-curve', tab: 'Features', group: 'Curves', tip: true, enabled: (c) => doc(c) && compositeCurveOps(c) !== null, ops: compositeCurveOps },
   { id: 'add-pipe-cut', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c) && pipeCutOps(c) !== null, ops: pipeCutOps },
   { id: 'add-delete-body', tab: 'Features', group: 'Bodies', enabled: (c) => hasSolid(c) && faceMode(c).length > 0, ops: deleteBodyOps },
   { id: 'add-surface-planar', tab: 'Surfaces', group: 'Create', tip: true, enabled: ok((c) => sketchWhere(c, isClosedSketch)), ops: surfacePlanarOps },
@@ -691,6 +738,8 @@ export const CREATORS: Creator[] = [
   { id: 'add-loft', tab: 'Surfaces', group: 'Create', keys: 'Shift+O', tip: true, enabled: (c) => doc(c) && loftOps(c) !== null, ops: (c) => loftOps(c) },
   { id: 'add-sweep', tab: 'Surfaces', group: 'Create', keys: 'Shift+W', tip: true, enabled: (c) => doc(c) && sweepOps(c) !== null, ops: sweepOps },
   { id: 'add-surface-loft', tab: 'Surfaces', group: 'Create', tip: true, enabled: (c) => doc(c) && loftOps(c, true) !== null, ops: (c) => loftOps(c, true) },
+  { id: 'add-sweep-surface', tab: 'Surfaces', group: 'Create', tip: true, enabled: (c) => doc(c) && sweepSurfaceOps(c) !== null, ops: sweepSurfaceOps },
+  { id: 'add-blend-surface', tab: 'Surfaces', group: 'Create', tip: true, enabled: (c) => doc(c) && blendSurfaceOps(c) !== null, ops: blendSurfaceOps },
   { id: 'add-fill', tab: 'Surfaces', group: 'Edit', keys: 'Shift+I', tip: true, enabled: (c) => doc(c) && fillOps(c) !== null, ops: fillOps },
   { id: 'add-extend', tab: 'Surfaces', group: 'Edit', keys: 'Shift+X', tip: true, enabled: (c) => doc(c) && extendOps(c) !== null, ops: extendOps },
   { id: 'add-freeform', tab: 'Surfaces', group: 'Edit', tip: true, enabled: (c) => (hasSolid(c) || hasSurfaceBody(c)) && faceMode(c).length > 0, ops: freeformOps },

@@ -22,9 +22,9 @@ export const SLOTS: Record<string, string[]> = {
   pattern: ['add-lpattern', 'add-cpattern', 'add-pathpattern'],
   'loft-sweep': ['add-loft', 'add-sweep'],
   gear: ['add-gear', 'add-gear-pair', 'add-propeller', 'add-impeller', 'add-knurl', 'add-screw', 'add-washer', 'fasten-hole', 'add-spring', 'add-nut', 'add-standoff', 'add-insert', 'add-case', 'add-tray', 'add-bearing'],
-  reference: ['add-plane', 'add-axis', 'add-helix', 'add-project-curve', 'add-edit-curve'],
+  reference: ['add-plane', 'add-axis', 'add-helix', 'add-project-curve', 'add-edit-curve', 'add-offset-curve', 'add-composite-curve'],
   'delete-geom': ['add-delete-body', 'add-delete-face'],
-  'surface-new': ['add-surface-planar', 'add-surface-extrude', 'add-surface-revolve', 'add-surface-loft'],
+  'surface-new': ['add-surface-planar', 'add-surface-extrude', 'add-surface-revolve', 'add-surface-loft', 'add-sweep-surface', 'add-blend-surface'],
   'surface-reshape': ['add-fill', 'add-extend', 'add-offset-surface'],
   'surface-edit': ['add-trim-surface', 'add-knit', 'add-thicken', 'add-freeform'],
   history: ['rebuild', 'rename', 'suppress-selected', 'delete-feature', 'roll-forward'],
@@ -37,7 +37,7 @@ export const SLOTS: Record<string, string[]> = {
   'pick-mode': ['sel-face', 'sel-edge', 'sel-vertex', 'sel-body'],
   'pick-grow': ['select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', 'select-same-size', 'select-junction'],
   'pick-set': ['select-all', 'select-invert', 'select-none', 'select-box', 'select-body', 'show-in-tree'],
-  measure: ['measure', 'mass-props', 'interference', 'section-view'],
+  measure: ['measure', 'mass-props', 'interference', 'check-intersection', 'section-view'],
   'surface-check': ['analysis-zebra', 'analysis-gaussian', 'analysis-mean', 'analysis-draft', 'analysis-comb'],
   'asm-parts': ['insert-part', 'mate'],
   'asm-review': ['bom', 'explode', 'asm-interference'],
@@ -56,7 +56,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
   ],
   Features: [
     // Plain buttons where there is room: the tab is wide and short. Only the long parts family (15 commands) stays a dropdown.
-    { id: 'Reference', entries: ['add-plane', 'add-axis', 'add-helix', 'add-project-curve', 'add-edit-curve'] },
+    { id: 'Reference', entries: ['add-plane', 'add-axis', 'add-helix', 'add-project-curve', 'add-edit-curve', 'add-offset-curve', 'add-composite-curve'] },
     { id: 'Create', entries: [slot('gear'), 'add-plugin'] },
     { id: 'Modify', entries: ['add-draft', 'add-rib', 'add-lip', 'add-dome', 'add-mirror', 'add-scale', 'add-split', 'add-split-face', 'add-combine', 'add-lip-joint', 'add-pipe-cut'] },
     { id: 'Bodies', entries: ['add-delete-body', 'add-delete-face'] },
@@ -74,7 +74,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
   ],
   // Surfaces: plain buttons, no dropdown (like Frame and Sheet metal), so every surface command is on show. The tool palette still groups them (RAIL_SECTIONS).
   Surfaces: [
-    { id: 'Create', entries: ['add-surface-planar', 'add-surface-extrude', 'add-surface-revolve', 'add-surface-loft', 'add-fill'] },
+    { id: 'Create', entries: ['add-surface-planar', 'add-surface-extrude', 'add-surface-revolve', 'add-surface-loft', 'add-sweep-surface', 'add-blend-surface', 'add-fill'] },
     { id: 'Edit', entries: ['add-offset-surface', 'add-extend', 'add-trim-surface', 'add-knit', 'add-thicken', 'add-freeform'] },
   ],
   View: [
@@ -119,13 +119,13 @@ export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
  *  and the command search only. Everything else (every modelling, surface, inspect, assembly and selection command) must be on it. */
 export const notOnRail = (id: string): boolean =>
   /^(layer-|export|view-|style-|light-|bg-|sheet-(dxf|bends))/.test(id) ||
-  ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'sketch-import-dxf', 'sketch-import-svg', 'import-skp-hidden', 'rotate-skp', 'recognise-features', 'palette', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'toggle-up-axis', 'fit', 'hide-selection', 'show-all', 'group-selected'].includes(id);
+  ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'mesh-to-solid', 'sketch-import-dxf', 'sketch-import-svg', 'import-skp-hidden', 'rotate-skp', 'recognise-features', 'palette', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'toggle-up-axis', 'fit', 'hide-selection', 'show-all', 'group-selected'].includes(id);
 
 // ---- contextual ribbon: which tab shows, which commands are idle -----------------------------------------------------------
 
 /** File commands live in the top bar (New, Open, Save, Export, Samples and its file menu), never on a ribbon tab. The ribbon leaves them out. */
 export const isFileCommand = (id: string): boolean =>
-  /^export/.test(id) || ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'sketch-import-dxf', 'sketch-import-svg', 'import-skp-hidden', 'rotate-skp', 'recognise-features'].includes(id);
+  /^export/.test(id) || ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'mesh-to-solid', 'sketch-import-dxf', 'sketch-import-svg', 'import-skp-hidden', 'rotate-skp', 'recognise-features'].includes(id);
 
 /** The contextual tab that replaces the others while a sketch is open. */
 export const SKETCH_TAB = 'Sketch';

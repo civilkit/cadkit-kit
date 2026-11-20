@@ -7,7 +7,7 @@
 #             the kernel's tools/remote_build.sh when none exists or the kernel changed. Not needed with --typecheck.
 # --typecheck run `tsc --noEmit` on the kit (the kit's `typecheck` script) instead of vitest; no wasm is built or copied
 # Host: $REMOTE_BUILD_HOST, else the host part of the kernel checkout's `ci` git remote (as tools/remote_build.sh).
-# Everything on the box lives under ~/ci-cad/remote-vitest/<name>; nothing outside it is written or deleted. Results print here.
+# Everything on the box lives under ~/ci/remote-vitest/<name>; nothing outside it is written or deleted. Results print here.
 set -uo pipefail
 HERE=$(cd "$(dirname "$0")/.." && pwd -P)
 WT="$HERE"; KERNEL=""; WASM=""; TMO=1500; WORKERS=1; TC=0
@@ -42,17 +42,17 @@ if [ -z "$H" ]; then
 fi
 NAME="$(basename "$WT" | tr -c 'A-Za-z0-9._\n-' '_')-$(printf '%s' "$WT" | cksum | cut -d' ' -f1)"
 SSHO=(-o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=30)
-R='$HOME/ci-cad/remote-vitest'          # expanded on the box only
+R='$HOME/ci/remote-vitest'          # expanded on the box only
 ssh "${SSHO[@]}" "$H" "mkdir -p $R/$NAME/kit $R/$NAME/kernel/packages" 2>/dev/null || { echo "cannot reach the CI box" >&2; exit 69; }
 RSH="ssh ${SSHO[*]}"
 # copy only, never remove: a file deleted here stays on the box until the box directory is cleared by hand
 SYNC=(rsync -a -e "$RSH" --exclude node_modules --exclude 'dist*' --exclude .git --exclude .DS_Store --exclude 'target' --exclude '.serve-local-*')
-"${SYNC[@]}" "$WT/" "$H:ci-cad/remote-vitest/$NAME/kit/" >/dev/null || { echo "sync of the kit failed" >&2; exit 70; }
+"${SYNC[@]}" "$WT/" "$H:ci/remote-vitest/$NAME/kit/" >/dev/null || { echo "sync of the kit failed" >&2; exit 70; }
 # the kernel packages go with their built dist/ (the worker host the session spawns lives there)
 SYNCK=(rsync -a -e "$RSH" --exclude node_modules --exclude .DS_Store)
-"${SYNCK[@]}" "$KERNEL/packages/" "$H:ci-cad/remote-vitest/$NAME/kernel/packages/" >/dev/null || { echo "sync of the kernel packages failed" >&2; exit 70; }
-[ "$TC" = 1 ] || rsync -a -e "$RSH" "$WASM" "$H:ci-cad/remote-vitest/$NAME/ck_wasm.wasm" || { echo "sync of the wasm failed" >&2; exit 70; }
-# a run directory without the kernel packages' built dist (the session's worker host lives there) takes a copy of the shared one, ci-cad/remote-vitest/.kernel-dist
+"${SYNCK[@]}" "$KERNEL/packages/" "$H:ci/remote-vitest/$NAME/kernel/packages/" >/dev/null || { echo "sync of the kernel packages failed" >&2; exit 70; }
+[ "$TC" = 1 ] || rsync -a -e "$RSH" "$WASM" "$H:ci/remote-vitest/$NAME/ck_wasm.wasm" || { echo "sync of the wasm failed" >&2; exit 70; }
+# a run directory without the kernel packages' built dist (the session's worker host lives there) takes a copy of the shared one, ci/remote-vitest/.kernel-dist
 # (build it once on the box with `npm run build` in the kernel's packages/, then copy that dist/ there)
 [ "$TC" = 1 ] || ssh "${SSHO[@]}" "$H" "d=$R/$NAME/kernel/packages/dist; [ -f \$d/kernel-client/src/worker-host.js ] || { [ -d $R/.kernel-dist ] && cp -r $R/.kernel-dist \$d; }" || true
 # the vitest args cross ssh as one quoted string

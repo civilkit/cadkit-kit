@@ -4,7 +4,7 @@ import type { Store } from '@kit/store';
 import { boxRange, facePlane, type FaceMesh, type V3 } from './geometry';
 import { copyText, measure, resolvePick, type EdgeInfo, type KernelMeasure, type Outcome, type Pick } from './measure';
 import { densityOf, massView, type MassRaw, type MassView } from './mass';
-import type { Interference } from './kernel';
+import type { Interference, IntersectionCheck } from './kernel';
 import type { Box, InspectProps, SectionState } from './InspectPanel';
 import { STD_SECTION_NORMAL, type SectionSpec } from '@kit/viewport';
 import { t } from '../i18n';
@@ -23,6 +23,8 @@ export interface InspectHost {
   massProps(): Promise<MassRaw | null>;
   measure(refs: Array<Record<string, unknown>>): Promise<KernelMeasure | null>;
   interference(): Promise<Interference | null>;
+  /** The intersection check of the given faces against the part (all faces of the part when none are given); throws the kernel's message when it refuses. */
+  intersection(faces: string[]): Promise<IntersectionCheck | null>;
 }
 export interface InspectView {
   setSection(s: SectionSpec | null): void;
@@ -97,6 +99,21 @@ export function useInspect(host: InspectHost, store: Store, getView: () => Inspe
     try { const d = await host.interference(); if (d) setInter({ data: d, revision: rev }); } finally { setIbusy(false); }
   };
 
+  // ---- intersection check
+  const [xing, setXing] = useState<{ data: IntersectionCheck; revision: number; faces: number } | null>(null);
+  const [xerr, setXerr] = useState<string | null>(null);
+  const [xbusy, setXbusy] = useState(false);
+  /** The selected faces of the part: the check covers these against the rest, or the whole part when none are selected. */
+  const selectedFaces = (): string[] => { const ids = host.bodyFaces()?.faceIds ?? []; return store.selection.value.filter((n) => ids.includes(n)); };
+  const runIntersection = async () => {
+    if (xbusy) return;
+    setXbusy(true); setXerr(null);
+    const faces = selectedFaces();
+    try { const d = await host.intersection(faces); if (d) setXing({ data: d, revision: rev, faces: faces.length }); }
+    catch (e) { setXing(null); setXerr(String((e as Error)?.message ?? e)); }
+    finally { setXbusy(false); }
+  };
+
   // ---- section
   const [section, setSectionState] = useState<SectionState>(defaultSection);
   const box = host.bodyBox();
@@ -144,6 +161,8 @@ export function useInspect(host: InspectHost, store: Store, getView: () => Inspe
     onCopy: (text) => copy(text),
     interference: inter ? inter.data : null, interferenceStale: !!inter && inter.revision !== rev, interferenceBusy: ibusy,
     onInterference: () => void runInterference(),
+    intersection: xing ? xing.data : null, intersectionStale: !!xing && xing.revision !== rev, intersectionBusy: xbusy, intersectionError: xerr, intersectionFaces: xing ? xing.faces : selectedFaces().length,
+    onIntersection: () => void runIntersection(),
     onPair: (a, b) => { store.mode.value = 'face'; store.select([a, b]); getView()?.frameNames([a, b]); },
     section, sectionRange: range,
     onSectionPlane: (p) => { temp.current = false; cutOn(p); },
@@ -151,5 +170,5 @@ export function useInspect(host: InspectHost, store: Store, getView: () => Inspe
     onSectionOff: sectionOff,
     onVisible: () => { if (hasSolid() && (!raw || raw.revision !== rev)) void runMass(); },
   };
-  return { props, toggleMeasure, measuring, runMass, runInterference, toggleSection, cutPlane, sectionOff, section, sectionRange: range, setSection, sectionOn: section.on, copy, copyMeasure: () => outcome && copy(copyText(outcome.out.rows, (id) => t('measure.' + id))) };
+  return { props, toggleMeasure, measuring, runMass, runInterference, runIntersection, toggleSection, cutPlane, sectionOff, section, sectionRange: range, setSection, sectionOn: section.on, copy, copyMeasure: () => outcome && copy(copyText(outcome.out.rows, (id) => t('measure.' + id))) };
 }

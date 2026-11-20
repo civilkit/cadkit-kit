@@ -41,11 +41,11 @@ describe('token budgets (4 characters per token)', () => {
     console.log('SKILL index tokens', t, 'methods', listMethods().length);
     expect(t).toBeLessThan(5000);
   });
-  it('the system prompt fragment stays under 3.2k tokens (the sheet metal methods took it past 2.4k, the twelve direct-edit methods past 2.6k, the fasteners, springs, split and lip joint past 3k)', () => {
+  it('the system prompt fragment stays under 3.3k tokens (the sheet metal methods took it past 2.4k, the twelve direct-edit methods past 2.6k, the fasteners, springs, split and lip joint past 3k, the procedural curves and surfaces past 3.2k)', () => {
     const t = tokens(systemPromptFragment());
     console.log('SKILL prompt fragment tokens', t);
     expect(t).toBeGreaterThan(700);
-    expect(t).toBeLessThan(3200);
+    expect(t).toBeLessThan(3300);
   });
   it('the prompt fragment names the rule, the conventions and every method', () => {
     const p = systemPromptFragment();

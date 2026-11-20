@@ -13,17 +13,19 @@ export function loadCollapsed(): Record<string, boolean> {
     return v && typeof v === 'object' ? v : {};
   } catch { return {}; }
 }
-export function rememberCollapsed(id: string, closed: boolean): void {
+/** `dflt`: whether the section starts closed when the user never chose (stored only when the choice differs from it). */
+export function rememberCollapsed(id: string, closed: boolean, dflt = false): void {
   try {
     const all = loadCollapsed();
-    if (closed) all[id] = true; else delete all[id];
+    if (closed === dflt) delete all[id]; else all[id] = closed;
     localStorage.setItem(KEY, JSON.stringify(all));
   } catch { /* storage unavailable: the state just is not remembered */ }
 }
 
-export function EditorSection(p: { id: string; title: string; summary?: string; children: ComponentChildren }): JSX.Element {
-  const [closed, setClosedState] = useState(() => loadCollapsed()[p.id] === true);
-  const toggle = (): void => { const next = !closed; setClosedState(next); rememberCollapsed(p.id, next); };
+export function EditorSection(p: { id: string; title: string; summary?: string; defaultClosed?: boolean; children: ComponentChildren }): JSX.Element {
+  const dflt = p.defaultClosed === true;
+  const [closed, setClosedState] = useState(() => loadCollapsed()[p.id] ?? dflt);
+  const toggle = (): void => { const next = !closed; setClosedState(next); rememberCollapsed(p.id, next, dflt); };
   return (
     <div class={'fedit-sec' + (closed ? ' closed' : '')} data-section={p.id}>
       <div class="fedit-sec-head" role="button" tabIndex={0} aria-expanded={!closed} onClick={toggle}

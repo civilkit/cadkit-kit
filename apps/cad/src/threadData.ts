@@ -210,21 +210,24 @@ export function suggestedSize(params: unknown): string | null {
 
 export type { FeatureWarning };
 
-/** Warnings `[featureId, {code, params}]` from a regen result as the store keeps them: the first per feature, the rest in `all`. */
+/** Warnings `[featureId, {code, params, message?}]` (or `{feature, code, params, message?}`) from a regen result as the store
+ *  keeps them: the first per feature, the rest in `all`. */
 export function warningsById(list: unknown): Record<string, FeatureWarning> {
   const out: Record<string, FeatureWarning> = {};
   if (!Array.isArray(list)) return out;
   for (const item of list) {
-    if (!Array.isArray(item) || typeof item[0] !== 'string') continue;
-    const w = (item[1] ?? {}) as { code?: unknown; params?: Record<string, unknown> };
+    const obj = !Array.isArray(item) && item && typeof item === 'object' && typeof (item as { feature?: unknown }).feature === 'string' ? item as { feature: string } : null;
+    if (!obj && (!Array.isArray(item) || typeof item[0] !== 'string')) continue;
+    const id = obj ? obj.feature : (item as [string])[0];
+    const w = (obj ?? (item as unknown[])[1] ?? {}) as { code?: unknown; params?: Record<string, unknown>; message?: unknown };
     const code = typeof w.code === 'string' ? w.code : 'warning';
     // What is wrong (params.detail, e.g. "sketch has no field `x`; it is ignored") ahead of what to do (params.hint).
-    const detail = typeof w.params?.detail === 'string' && w.params.detail ? w.params.detail : '';
+    const detail = typeof w.params?.detail === 'string' && w.params.detail ? w.params.detail : typeof w.message === 'string' ? w.message : '';
     const advice = typeof w.params?.hint === 'string' ? w.params.hint : '';
     const hint = detail && advice ? `${detail}. ${advice}` : detail || advice || code;
     const one = { code, hint, ...(w.params ? { params: w.params } : {}) };
-    const cur = out[item[0]];
-    if (!cur) out[item[0]] = { ...one };
+    const cur = out[id];
+    if (!cur) out[id] = { ...one };
     else { cur.all = [...(cur.all ?? [{ code: cur.code, hint: cur.hint, params: cur.params }]), one]; cur.hint = cur.all.map((x) => x.hint).join('; '); }
   }
   return out;

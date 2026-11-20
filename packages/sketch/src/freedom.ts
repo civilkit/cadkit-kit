@@ -151,15 +151,32 @@ export function applySuggestion(draft: SketchDraft, s: Suggestion): { draft: Ske
   return { ...r, dimension: s.kind === 'dimension' && typeof s.value === 'number' };
 }
 
+/** What the viewport paints amber for the free items: their curves, and their points (a radius is a size, not a point). Null when nothing is free, so the highlight clears. */
+export function freedomHighlight(items: FreeItem[]): { entities: string[]; points: string[] } | null {
+  if (!items.length) return null;
+  return { entities: [...new Set(items.map((i) => i.entityId).filter(Boolean))], points: items.filter((i) => i.role !== 'radius').map((i) => i.partId) };
+}
+
+/** The analysis with an applied suggestion's chip taken out, so it cannot be run twice while the new analysis is on its way. */
+export function withoutSuggestion<T extends { items: FreeItem[]; suggestions: Suggestion[] }>(state: T, applied: Suggestion): T {
+  return { ...state, suggestions: state.suggestions.filter((s) => !(s.itemKey === applied.itemKey && s.type === applied.type && s.refs.join(',') === applied.refs.join(','))) };
+}
+
 export interface TooltipItem { id: string; type: string; value?: number; /** Dimensions and relations drive; a reference dimension only measures. */ driving: boolean; blame?: 'conflict' | 'redundant' }
 
-/** The constraints and dimensions attached to a point or entity: those naming it, or (for an entity) any of its points. Reference dimensions come last, as not driving. */
+/** The constraints and dimensions attached to a point or entity, one row each: those naming it, or (for an entity) any of its points; for a point also
+ *  those of the curves it ends (a horizontal line, a tangent, an equal radius ...), after its own. Reference dimensions come last, as not driving. */
 export function tooltipItems(draft: SketchDraft, status: SketchSolverStatus | null, target: string): TooltipItem[] {
   const e = draft.entities.find((x) => x.id === target);
   const ids = new Set<string>([target, ...(e ? entityPoints(e) : [])]);
+  const via = new Set<string>(e ? [] : draft.entities.filter((x) => entityPoints(x).includes(target)).map((x) => x.id));
   const blame = (id: string) => (status?.conflicts.includes(id) ? { blame: 'conflict' as const } : status?.redundant.includes(id) ? { blame: 'redundant' as const } : {});
-  const out: TooltipItem[] = draft.constraints.filter((c) => (c.refs ?? []).some((r) => ids.has(r))).map((c) => ({ id: c.id, type: c.type, driving: true, ...(typeof c.value === 'number' ? { value: c.value } : {}), ...blame(c.id) }));
-  for (const r of refDimsOf(draft)) if (r.refs.some((x) => ids.has(x))) out.push({ id: r.id, type: r.type, driving: false });
+  const row = (c: SketchDraft['constraints'][number]): TooltipItem => ({ id: c.id, type: c.type, driving: true, ...(typeof c.value === 'number' ? { value: c.value } : {}), ...blame(c.id) });
+  const own = draft.constraints.filter((c) => (c.refs ?? []).some((r) => ids.has(r)));
+  const ownIds = new Set(own.map((c) => c.id));
+  const ends = draft.constraints.filter((c) => !ownIds.has(c.id) && (c.refs ?? []).some((r) => via.has(r)));
+  const out: TooltipItem[] = [...own, ...ends].map(row);
+  for (const r of refDimsOf(draft)) if (r.refs.some((x) => ids.has(x) || via.has(x))) out.push({ id: r.id, type: r.type, driving: false });
   return out;
 }
 

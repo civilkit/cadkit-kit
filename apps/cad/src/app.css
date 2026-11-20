@@ -303,7 +303,7 @@ svg.icon-sc[data-sc="construction"] { --sc-a1: var(--sc-construction-1); --sc-a2
 .sketch-fields label:focus-within { color: var(--accent); font-weight: 700; }   /* the box being typed into */
 .sketch-fields label:focus-within input { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .sketch-fields label.locked input { border-color: var(--accent); background: var(--accent-soft); }
-.sketch-pending { position: absolute; z-index: 6; font: 600 11px system-ui; color: #e0a030; pointer-events: none; }
+.sketch-pending { position: absolute; z-index: 6; font: 600 11px system-ui; color: #e0a030; pointer-events: none; padding: 2px 7px; border-radius: 5px; background: rgba(20, 26, 34, .92); border: 1px solid rgba(255, 255, 255, .12); box-shadow: 0 2px 8px rgba(0, 0, 0, .35); white-space: nowrap; }   /* a dark pill: the hint stays readable over a shaded face or the grid */
 .sketch-pending.model { color: #30c0d8; }
 
 /* sketch annotations: dimension labels and constraint symbols over the sketch, and the constraints panel */
@@ -366,12 +366,31 @@ svg.icon-sc[data-sc="construction"] { --sc-a1: var(--sc-construction-1); --sc-a2
 .sketch-contip button:hover, .sketch-contip button.sel { background: var(--accent-soft); }
 .sketch-contip button.bad { color: var(--err); } .sketch-contip button.warn { color: var(--warn); }
 .sketch-contip button small { color: var(--text-2); }
-.sketch-free { border-bottom: 1px solid var(--line); margin-bottom: 6px; padding-bottom: 6px; max-width: 280px; }
-.sketch-free ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
-.sketch-free .free-text { display: block; color: #b36b00; font-weight: 600; }
-.sketch-free .free-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
-.sketch-free .free-chip { font: 11px system-ui; padding: 1px 8px; border-radius: 10px; border: 1px solid #f59f00; background: none; color: var(--text); cursor: pointer; }
-.sketch-free .free-chip:hover:not(:disabled) { background: #f59f0033; }
+.sketch-free { border-bottom: 1px solid var(--line); margin-bottom: 8px; padding-bottom: 8px; }
+.sketch-free .free-head { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-2); }
+.sketch-free ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sketch-free li { border-left: 3px solid var(--warn); padding-left: 8px; min-width: 0; }
+.sketch-free .free-line { display: block; line-height: 1.35; overflow-wrap: anywhere; }
+.sketch-free .free-what { color: var(--text-2); }
+.sketch-free .free-chips { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 3px; }
+.sketch-free .free-chip { font: 11px/1.4 system-ui; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); cursor: pointer; white-space: nowrap; }
+.sketch-free .free-chip:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.sketch-free .free-chip:disabled { opacity: .5; cursor: default; }
+.sketch-free .free-more { margin-top: 8px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; text-decoration: underline; }
+/* the badge popover: a solid panel under the badge, header pinned, body scrolls */
+.dof-pop { position: fixed; z-index: 45; display: flex; flex-direction: column; box-sizing: border-box; width: 340px; min-width: 300px; overflow: hidden; border-radius: 10px; background: var(--panel); color: var(--text); border: 1px solid var(--line); box-shadow: 0 6px 22px #0004; font-size: 12px; text-align: left; }
+.dof-pop.sheet { width: auto; min-width: 0; }
+.dof-pop-head { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.dof-pop-head b { font-size: 13px; }
+.dof-pop-close { border: 0; background: none; color: var(--text-2); cursor: pointer; font-size: 18px; line-height: 1; width: 28px; height: 28px; border-radius: 6px; }
+.dof-pop-close:hover { background: var(--panel-2); color: var(--text); }
+.dof-pop-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px; }
+.dof-pop .sketch-cons { width: auto; max-height: none; overflow: visible; padding: 0; background: none; backdrop-filter: none; outline: none; }
+.dof-pop .sketch-cons header { margin-bottom: 4px; }
+.dof-pop .cons-fold { display: inline-flex; align-items: center; gap: 4px; padding: 2px 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.dof-pop .cons-chev { width: 12px; color: var(--text-2); }
+.dof-pop .sketch-cons li { min-width: 0; }
+.dof-pop .sketch-cons .cdel, .dof-pop .sketch-cons .cdrv { flex: none; }
 .face-sketch-chip { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); z-index: 6; font: inherit; padding: 5px 12px; border-radius: 16px; border: 0; cursor: pointer; background: var(--accent); color: #fff; box-shadow: 0 3px 12px #0004; }
 .set-section { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 .set-head { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
@@ -574,6 +593,9 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .row-warn { flex: 0 0 auto; width: 15px; height: 15px; border-radius: 50%; background: var(--warn); color: #fff; font-size: 10px; font-weight: 700; line-height: 15px; text-align: center; cursor: pointer; }
 .insp-warn { margin: 0 0 8px; padding: 6px 8px; border-left: 3px solid var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); font-size: 12px; line-height: 1.4; }
 .warn-head { margin: 10px 0 4px; font-size: 12px; }
+.diag-tag { display: inline-block; padding: 0 6px; border-radius: 4px; background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); font-size: 11px; font-weight: 600; }
+.diag-warning .diag-item { display: inline; width: auto; padding: 0 2px; color: var(--text); text-decoration: underline dotted; }
+.diag-warning .diag-advice { font-style: normal; }
 .fedit-warn { color: var(--warn); font-size: 12px; line-height: 1.35; padding: 4px 0; }
 .fedit-warn button { margin-left: 6px; font: inherit; font-size: 12px; cursor: pointer; }
 .thread-card { border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); padding: 6px 10px 8px; display: grid; gap: 4px; min-width: 0; }
@@ -1110,7 +1132,6 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .sketch-bar .rb-btn.ok { color: var(--ok); font-weight: 700; font-size: 15px; }
 .sketch-bar .rb-btn.no { color: var(--err); font-weight: 700; font-size: 15px; }
 .sketch-bar-wrap .sketch-hint { color: var(--warn, #b8860b); font-size: 12px; background: var(--panel); border-radius: 8px; padding: 1px 8px; outline: 1px solid var(--line); }
-.sb-list { z-index: 20; box-shadow: 0 6px 22px #0004; border-radius: 10px; }
 .dof-chip { font: inherit; font-weight: 600; padding: 2px 9px; border-radius: 999px; border: 1px solid currentColor; cursor: pointer; background: none; }
 .dof-chip.under { color: var(--warn, #b8860b); background: #b8860b14; }
 .dof-chip.full { color: var(--ok, #1c9a4a); background: #1c9a4a14; }
@@ -2056,7 +2077,7 @@ label.set-row:has(> input[type="checkbox"]:first-child) { justify-content: flex-
 .section-bar { position: relative; margin-top: 6px; align-self: flex-end; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; max-width: min(560px, calc(100vw - 24px)); padding: 4px 6px; border-radius: 8px; background: var(--panel, #fff); border: 1px solid var(--line, #8884); box-shadow: 0 3px 12px #0003; }
 .section-bar input[type="range"] { width: 120px; }
 .section-bar input[type="number"] { width: 70px; }
-.fedit-memory { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0 0; font-size: 12px; opacity: 0.85; }
+.fedit-memory { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px 10px; font-size: 12px; opacity: 0.85; }
 .fedit-memory .linklike { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
 
 /* the sketch ribbon's Status group: a small text pill for the definition state, then square icon buttons */
@@ -2071,3 +2092,18 @@ label.set-row:has(> input[type="checkbox"]:first-child) { justify-content: flex-
 .aux-item { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .aux-item[aria-pressed="true"] { color: var(--accent); font-weight: 600; }
 .aux-item[disabled] { opacity: .5; cursor: default; }
+
+/* Compact floating feature editor (the card over the viewport): narrower, one-line rows, tight sections and a see-through background, so it covers less of the part. Phone and docked panels keep the roomy layout. */
+.editor-card { width: 292px; background: color-mix(in srgb, var(--panel) 94%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.editor-card .fedit-head { padding: 6px 8px 6px 10px; gap: 6px; }
+.editor-card .fedit-title { font-size: 13.5px; }
+.editor-card .fedit-confirm, .editor-card .fedit-cancel { width: 26px; height: 26px; }
+.editor-card .fedit-sec { padding: 0 10px 6px; }
+.editor-card .fedit-sec-head { min-height: 24px; }
+.editor-card .fedit-sec-title { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); }
+.editor-card .fedit-sec-fields { gap: 4px; }
+.editor-card .fedit-fld { grid-template-columns: minmax(64px, 36%) minmax(0, 1fr); gap: 6px; }
+.editor-card .fedit-fld-label { font-size: 12px; }
+.editor-card .fedit-fld input[type="text"], .editor-card .fedit-fld input[type="number"], .editor-card .fedit-fld select { padding: 3px 6px; font-size: 12.5px; border-radius: 5px; }
+.editor-card .fedit-fld.ref { grid-template-columns: 1fr; gap: 2px; }
+.editor-card .fedit-hint, .editor-card .fedit-fix, .editor-card .fedit-memory { padding-inline: 10px; }

@@ -3,7 +3,7 @@ import { useEffect } from 'preact/hooks';
 import { t } from '../i18n';
 import { copyText, fmt, rowText, type Outcome, type Pick, type Row } from './measure';
 import { massText, matrixText, type MassView } from './mass';
-import type { Interference } from './kernel';
+import type { Interference, IntersectionCheck } from './kernel';
 import { numberAttrs } from '@kit/ui';
 
 export interface Box { min: number[]; max: number[] }
@@ -19,6 +19,9 @@ export interface InspectProps {
   onMass(): void;
   measuring: boolean; onMeasure(): void; picks: Pick[]; outcome: Outcome | null; onClearPicks(): void; onCopy(text: string): void;
   interference: Interference | null; interferenceStale: boolean; interferenceBusy: boolean; onInterference(): void; onPair(a: string, b: string): void;
+  intersection: IntersectionCheck | null; intersectionStale: boolean; intersectionBusy: boolean; intersectionError: string | null;
+  /** how many faces are selected now (the check covers these against the part), or were when the shown result was made */
+  intersectionFaces: number; onIntersection(): void;
   section: SectionState; sectionRange: [number, number] | null; onSectionPlane(p: SectionPlane): void; onSection(patch: Partial<SectionState>): void; onSectionOff(): void;
   /** the tab was opened: compute what is cheap to compute */
   onVisible(): void;
@@ -38,7 +41,7 @@ export function scrollMassIntoView(doc: Document = document): boolean {
   return true;
 }
 
-/** The Inspect tab of the drawer: four cards, each a tool. All state comes in as props (see useInspect). */
+/** The Inspect tab of the drawer: five cards, each a tool. All state comes in as props (see useInspect). */
 export function InspectPanel(p: InspectProps): JSX.Element {
   useEffect(() => { p.onVisible(); }, []);
   return (
@@ -47,6 +50,7 @@ export function InspectPanel(p: InspectProps): JSX.Element {
       <MeasureCard {...p} />
       <SectionCard {...p} />
       <InterferenceCard {...p} />
+      <IntersectionCard {...p} />
     </div>
   );
 }
@@ -158,6 +162,43 @@ function InterferenceCard(p: InspectProps): JSX.Element {
               <span class="val">{q.error ? q.error : `${fmt(Math.abs(q.volume ?? 0), 3)} mm³`}</span>
             </button>
           ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+/** How many spans the card lists; the rest is counted. */
+const MAX_ISSUES = 20;
+/** The kernel's message for too many face pairs (`checkIntersection: N face pairs (at most 400 per request)`) is asked to be narrowed by selecting faces; any other refusal is shown as it came. */
+const tooManyPairs = (e: string): boolean => /face pairs/.test(e);
+
+function IntersectionCard(p: InspectProps): JSX.Element {
+  const r = p.intersection;
+  const open = r ? r.issues.filter((i) => !i.repaired) : [];
+  return (
+    <section class="insp-card" aria-label={t('inspect.intersection')}>
+      <h4>{t('inspect.intersection')}</h4>
+      <div class="insp-bar"><button class="btn" disabled={!p.hasSolid || p.intersectionBusy} onClick={p.onIntersection}>{p.intersectionBusy ? t('inspect.intersection.running') : t('inspect.intersection.run')}</button></div>
+      <div class="insp-note" data-note="scope">{p.intersectionFaces ? t('inspect.intersection.scopeFaces', { n: p.intersectionFaces }) : t('inspect.intersection.scopeBody')}</div>
+      {p.intersectionStale && r ? <div class="insp-note warn">{t('inspect.stale')}</div> : null}
+      {p.intersectionError ? <div class="insp-note warn" role="alert" data-note="error">{tooManyPairs(p.intersectionError) ? t('inspect.intersection.tooMany') : t('inspect.intersection.failed', { detail: p.intersectionError })}</div> : null}
+      {!r && !p.intersectionError ? <div class="insp-note">{t('inspect.intersection.none')}</div> : null}
+      {r && r.pairs === 0 ? <div class="insp-note">{t('inspect.intersection.noPairs')}</div> : null}
+      {r && r.pairs > 0 && r.spans === 0 ? <div class="insp-ok">{t('inspect.intersection.exact', { curves: r.curves })}</div> : null}
+      {r && r.spans > 0 ? <div class="insp-note" data-note="summary">{t('inspect.intersection.summary', { pairs: r.pairs, curves: r.curves, proved: r.proved + r.repaired, spans: r.spans, repaired: r.repaired })}</div> : null}
+      {r && r.spans > 0 && r.unresolved === 0 ? <div class="insp-ok">{t('inspect.intersection.clean')}</div> : null}
+      {r && r.unresolved > 0 ? <div class="insp-note warn" data-note="unresolved">{t('inspect.intersection.unresolved', { n: r.unresolved })}</div> : null}
+      {r && r.truncated ? <div class="insp-note warn" data-note="truncated">{t('inspect.intersection.truncated')}</div> : null}
+      {open.length ? (
+        <div class="insp-pairs" aria-label={t('inspect.intersection.issues')}>
+          {open.slice(0, MAX_ISSUES).map((q, i) => (
+            <button key={i} class="insp-pair" onClick={() => p.onPair(q.a, q.b)}>
+              <span>{q.a} ∩ {q.b}</span>
+              <span class="val">{t('inspect.intersection.reason.' + q.reason, undefined, q.reason)}</span>
+            </button>
+          ))}
+          {open.length > MAX_ISSUES ? <div class="insp-note">{t('inspect.intersection.more', { n: open.length - MAX_ISSUES })}</div> : null}
         </div>
       ) : null}
     </section>

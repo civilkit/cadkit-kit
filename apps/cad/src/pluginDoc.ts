@@ -10,6 +10,8 @@ export interface PluginDoc {
   parameters: Array<{ name: string; expression: string; value: number }>;
   /** what generators stored for the components they made, from the runs recorded in the document */
   components: Record<string, Record<string, unknown>>;
+  /** the display mesh and each body's faces (in the order of a face selection's `index`): what a plugin's `model.mesh` reads. The arrays are shared, not copied. */
+  meshes?: { mesh: { positions: ArrayLike<number>; triFace: ArrayLike<number>; faceIds: string[] }; faces: Record<string, string[]> };
 }
 
 const nameOf = (r: BodyRow): string => r.docName ?? r.name;
@@ -28,9 +30,9 @@ function planeNormal(mesh: SelMesh, face: string): number[] | undefined {
   return n;
 }
 
-export function pluginDocContext(rows: readonly BodyRow[], mesh: SelMesh | null, selection: readonly string[], variables: ReadonlyArray<{ name?: unknown; expr?: unknown }> = [], runs: Record<string, { meta?: Record<string, unknown> }> = {}): PluginDoc {
-  const owner = new Map<string, number>();
-  rows.forEach((r, i) => { for (const f of r.faces) owner.set(f, i); });
+export function pluginDocContext(rows: readonly BodyRow[], mesh: SelMesh | null, selection: readonly string[], variables: ReadonlyArray<{ name?: unknown; expr?: unknown }> = [], runs: Record<string, { meta?: Record<string, unknown> }> = {}, opts: { /** picked edges too (a selection field that takes edges); the plugin's own `selection.get` keeps to bodies and faces, as before */ edges?: boolean } = {}): PluginDoc {
+  const owner = new Map<string, number>(), edgeOwner = new Map<string, number>();
+  rows.forEach((r, i) => { for (const f of r.faces) owner.set(f, i); for (const e of r.edges ?? []) edgeOwner.set(e, i); });
   const lo = rows.map(() => [Infinity, Infinity, Infinity]), hi = rows.map(() => [-Infinity, -Infinity, -Infinity]);
   if (mesh) for (let t = 0; t < mesh.triFace.length; t++) {
     const i = owner.get(mesh.faceIds[mesh.triFace[t]]);
@@ -42,15 +44,17 @@ export function pluginDocContext(rows: readonly BodyRow[], mesh: SelMesh | null,
   const sel: PluginDoc['selection'] = [];
   for (const s of selection) {
     if (s.startsWith(BODY_PREFIX)) { const r = rows.find((x) => x.key === s); if (r) sel.push({ type: 'body', name: nameOf(r) }); continue; }
+    const ei = owner.has(s) ? undefined : edgeOwner.get(s);
+    if (ei !== undefined && opts.edges) { sel.push({ type: 'edge', body: nameOf(rows[ei]), index: rows[ei].edges.indexOf(s) }); continue; }
     const i = owner.get(s);
-    if (i === undefined) continue;   // a name that is not a face of a body (an edge, a vertex, a sketch entity): not offered
+    if (i === undefined) continue;   // a name that is not a face or edge of a body (a vertex, a sketch entity): not offered
     const normal = mesh ? planeNormal(mesh, s) : undefined;
     sel.push({ type: 'face', body: nameOf(rows[i]), index: rows[i].faces.indexOf(s), ...(normal ? { normal } : {}) });
   }
   const parameters = variables.filter((v) => typeof v?.name === 'string').map((v) => ({ name: String(v.name), expression: String(v.expr ?? ''), value: Number.isFinite(Number(v.expr)) ? Number(v.expr) : 0 }));
   const components: PluginDoc['components'] = {};
   for (const r of Object.values(runs)) { const c = r?.meta?.components; if (c && typeof c === 'object') Object.assign(components, c as PluginDoc['components']); }
-  return { bodies, selection: sel, parameters, components };
+  return { bodies, selection: sel, parameters, components, ...(mesh ? { meshes: { mesh, faces: Object.fromEntries(rows.map((r) => [nameOf(r), r.faces])) } } : {}) };
 }
 
 /** The bodies of a scratch build for a plugin's measure: the kernel's mass properties give each body's name and volume (no box), the display mesh gives the boxes.
@@ -74,13 +78,14 @@ export function scratchRows(mesh: SelMesh | null, faceLumps: Record<string, numb
   return mass.filter((m) => m.name).map((m) => ({ name: m.name!, volume: m.volume, bbox: byName.get(m.name!) ?? (mass.length === 1 && boxes.size === 1 ? [...boxes.values()][0] : null) }));
 }
 
-/** What a selection field takes from the document's selection: the bodies and faces it accepts, as the references a plugin receives (`{type:'body', name}`,
- *  `{type:'face', body, index, normal?}`), or the bodies' names for a field that takes names. With a maximum, the last picks win. */
+/** What a selection field takes from the document's selection: the bodies, faces and edges it accepts, as the references a plugin receives (`{type:'body', name}`,
+ *  `{type:'face', body, index, normal?}`, `{type:'edge', body, index}`), or the bodies' names for a field that takes names. With a maximum, the last picks win. */
 export function selectionItems(sel: PluginDoc['selection'], d: { accept?: readonly string[]; asNames?: boolean; maxItems?: number }): SelItem[] {
   const out: SelItem[] = [];
   for (const s of sel) {
     if (s.type === 'body' && s.name && d.accept?.includes('body')) out.push(d.asNames ? s.name : { type: 'body', name: s.name });
     else if (s.type === 'face' && s.body && d.accept?.includes('face') && !d.asNames) out.push({ type: 'face', body: s.body, ...(s.index !== undefined && s.index >= 0 ? { index: s.index } : {}), ...(s.normal ? { normal: s.normal } : {}) });
+    else if (s.type === 'edge' && s.body && d.accept?.includes('edge') && !d.asNames) out.push({ type: 'edge', body: s.body, ...(s.index !== undefined && s.index >= 0 ? { index: s.index } : {}) });
   }
   return d.maxItems !== undefined && out.length > d.maxItems ? out.slice(out.length - d.maxItems) : out;
 }

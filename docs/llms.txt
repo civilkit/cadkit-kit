@@ -267,10 +267,16 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 
 ### surfaces
 
+* `.blendSurface(faces, radius, o?)`: Rolling-ball blend of two faces.
+* `.compositeCurve(o?)`: Join curves into one exact curve.
+* `.fillNSided(loop, o?)`: Fill a loop of sheet edges with N faces.
 * `.knit(o?)`: Surface: sew all surfaces so far into one body (a solid when they close).
+* `.offsetCurve(distance, o?)`: Offset a curve or chain by a distance.
+* `.projectCurve(onto, o?)`: Project a curve onto faces (exact on one).
 * `.surfaceExtrude(depth, o?)`: Surface: extrude the last sketch into a sheet (no end caps, not a solid).
 * `.surfaceLoft(sections)`: Surface: loft a sheet through section sketches (open or closed curves).
 * `.surfacePlanar()`: Surface: a flat sheet filling the last closed sketch.
+* `.sweepSurface(profile, path, o?)`: Sweep a profile along a path.
 * `.thicken(thickness, o?)`: Surface: give the last surface a wall thickness and make it a solid.
 
 ### assembly
@@ -288,6 +294,7 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `.bbox()`: Read the bounding box of the part built so far.
 * `.bodyName(target, name)`: Name the bodies a feature made (shown in the Bodies list; the default is Body 1, 2, ...).
 * `.centreOfMass()`: Read the centre of mass of the part built so far.
+* `.checkIntersection(faces?)`: Proof check of face intersection curves.
 * `.edgeCount()`: Read the number of edges of the part built so far.
 * `.edges()`: Read the edges of the part built so far: key, midpoint, length, adjacent faces.
 * `.expectBBox(box, o?)`: Check the bounding box of the part built so far.

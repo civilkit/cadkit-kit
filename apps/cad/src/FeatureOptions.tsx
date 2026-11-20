@@ -4,7 +4,7 @@
 // the shape list. Only fields the kernel really reads are offered.
 import { cutFromPatch, nextBodyName, opChoiceOf, opChoices, opPatch, targetBodiesOf, targetBodyOf, targetPatch } from './extrudeOp';
 import { usedBodyNames } from './bodyOps';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import type { PartDoc } from '@ck/part-model';
 import { EditorSection as Section, ExprInput, Icon, fmtNum, type OptionsArgs, type OptionsResult, numberAttrs, textAttrs } from '@kit/ui';
@@ -33,12 +33,16 @@ import {
   type Axis, type DistanceType, type Sfx, type StartMode,
 } from './patternRules';
 import {
-  DEGREE_RANGE, EDIT_METHODS, FREEFORM_FRAMES, PROJECT_DIRECTIONS, addableCurves, curveRefLabel, curveRefs, curvesPatch, degreeOf, degreeOutOfRange, directionOf, edits as ffEdits, editsNeedOneFace,
+  DEGREE_RANGE, EDIT_METHODS, FREEFORM_FRAMES, OFFSET_IN, PROJECT_ALONG, PROJECT_DIRECTIONS, addableCurves, alongPatch, projectAlongOf, distanceIsZero, hasCurveList, isVec3, normalPatch, offsetInOf, offsetNeedsFace, patchAlong, patchOffsetIn, proceduralNeedsOneFace, proceduralOn, proceduralPatch, curveRefLabel, curveRefs, curvesPatch, degreeOf, degreeOutOfRange, directionOf, edits as ffEdits, editsNeedOneFace,
   entries as curveEntries, entriesPatch, entryFrameOf, faceList, frameOf, keepEndsOn, keepEndsPatch, methodOf, netSize, newEdit, newEntry, parsePoints, patchEntry, patchFrame, patchMethod,
   planarOn, planarPatch, planeChoices, planeRef, planeValue, pointsText, retargetSketchCurve, sourceChoices, sourcePatch, sourceValue,
 } from './curveRules';
 import {
-  CONTINUITIES, FAIRINGS, MAX_STOPS, THICKEN_AXES, addStop, alongOf, centreLineOf, centreLinePatch, connectorPatch, connectorsOf, continuityOf, curveEntities, fairingOf, guidesPatch, knitIds, loftGuides, loftProfiles, move, nextFree, patchStop, patchThickenAxis, patchThickenVariable, pathOf, pathPatch, removeAt, removeStop, replaceAt, stopsOf, thickenAxisOf, thickenVariable,
+  SPANS, SWEEP_FRAMES, UP_CHOICES, atOn, atPatch, autoSidesPatch, blendNeedsTwoFaces, blendSameFace, capsOffered, capsPatch, flipSide, inputChoices, inputId, inputIsCustom, inputMissing, inputSummary, radiusEnd, radiusEndPatch,
+  radiusInvalid, radiusStart, radiusStartPatch, radiusVaries, sameInput, sweepPathChoices, sweepPathPatch, sweepPathValue, type BlendSpan, sidesInForce, sidesOf, spanIsPoint, spanOf, spanPatch, sweepFrameOf, sweepFramePatch, toleranceInvalid, upChoiceOf, upComponentPatch, upIsZero, upPatch, varyPatch, vecPatch,
+} from './procSurfaceRules';
+import {
+  CONTINUITIES, DEFAULT_PATCH_TOLERANCE, FAIRINGS, MAX_STOPS, PATCHES, continuitiesFor, patchChoice, patchOf, THICKEN_AXES, addStop, alongOf, centreLineOf, centreLinePatch, connectorPatch, connectorsOf, continuityOf, curveEntities, fairingOf, guidesPatch, knitIds, loftGuides, loftProfiles, move, nextFree, patchStop, patchThickenAxis, patchThickenVariable, pathOf, pathPatch, removeAt, removeStop, replaceAt, stopsOf, thickenAxisOf, thickenVariable,
   sketchInfos, surfaceInfos, sweepGuides, sweepGuidesPatch, tensionOf, tensionPatch, toggleKnit, type CurveRef, type SketchInfo,
 } from './surfaceRules';
 
@@ -396,6 +400,13 @@ function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | n
   const draftAngle = typeof eff.draft === 'number' ? eff.draft : 0;
   const axisOf = p.revolve ? revolveAxisField(p.doc, eff) : null;
   const miss = cutMissOffers(eff, p.revolve ? null : p.actions?.cutSide ?? null);
+  // the rarely used options fold away while they are all neutral (a through-all end keeps them open: its Both directions box is a common choice); what is set shows as a one-line summary, and a feature that uses one opens it
+  const optionsSet = [
+    eff.flip ? t('opt.flip') : '',
+    !p.revolve && draftAngle !== 0 ? `${t('opt.draft')} ${fmtNum(draftAngle)}°` : '',
+    !p.revolve && endScaleOf(eff) !== 1 ? `${t('opt.endScale')} ×${fmtNum(endScaleOf(eff))}` : '',
+    !p.revolve && twistOf(eff) !== 0 ? `${t('opt.twist')} ${fmtNum(twistOf(eff))}°` : '',
+  ].filter(Boolean).join(' · ');
   return (
     <>
       <Section id="end" title={t('opt.section.end')}>
@@ -430,7 +441,7 @@ function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | n
           </div>
         ) : null}
       </Section>
-      <Section id="options" title={t('opt.section.options')}>
+      <Section id="options" title={t('opt.section.options')} summary={optionsSet} defaultClosed={optionsSet === '' && (p.revolve || !endHasBothWays(end))}>
         {!p.revolve && endHasBothWays(end) ? <Check name="bothWays" label={t('opt.bothWays')} value={bothWaysOf(eff)} onChange={(v) => change(patchBothWays(eff, v))} /> : null}
         {end !== 'mid' && end !== 'throughBoth' ? <Check name="flip" label={t('opt.flip')} value={eff.flip} onChange={(v) => change({ flip: v ? true : null })} /> : null}
         {!p.revolve && endAllowsDraft(end) && twistOf(eff) === 0 && endScaleOf(eff) === 1 ? <>
@@ -470,6 +481,10 @@ export interface ThinActions {
   chainEdges?(eff: Wire): Promise<unknown[] | null>;
   /** Press Pull: the kernel's faceRun of flat faces as they are before the feature `beforeId` (reach and area of each), for the scale taper's angle readout. */
   faceRun?(faces: string[], beforeId?: string): Promise<FaceRunItem[] | null>;
+  /** Blend surface: the sides (+1 / -1 against each face's outward normal) the kernel chose for the feature as it is built now, for the Flip buttons and the side text (null: not built). */
+  blendSides?(id: string): number[] | null;
+  /** Blend surface: the default two-point span of the two faces (blendSpanFromFaces on the meshes on screen; null when it cannot be told). */
+  blendSpan?(faces: string[]): BlendSpan | null;
 }
 
 const ARCH = 'M3 14 Q12 0 21 14';
@@ -787,7 +802,10 @@ function SweepOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JS
         <label class="fedit-fld" data-path="sketch"><span class="fedit-fld-label">{t('opt.sweep.profileSketch')}</span>
           <SketchSelect name="sketch" value={profile} list={all.filter((s) => s.closed || s.id === profile)} onChange={(v) => change({ sketch: v })} /></label>
         <label class="fedit-fld" data-path="path"><span class="fedit-fld-label">{t('opt.sweep.pathSketch')}</span>
-          <SketchSelect name="path" value={path} list={all.filter((s) => (s.open || s.id === path) && s.id !== profile)} blank={t('opt.none')} onChange={(v) => change(pathPatch(v))} /></label>
+          <select data-path="path" value={sweepPathValue(eff)} onChange={(e) => change(sweepPathPatch((e.currentTarget as HTMLSelectElement).value))}>
+            <option value="">{t('opt.none')}</option>
+            {sweepPathChoices(p.doc, String(eff.id ?? ''), eff, all.filter((s) => (s.open || s.id === path) && s.id !== profile)).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select></label>
       </Section>
       <Section id="sweepGuides" title={t('opt.sweep.guides')}>
         <div class="fedit-order" data-path="guides">
@@ -986,11 +1004,15 @@ function PatternOptions(p: { eff: Wire; change: Change; doc: PartDoc | null } & 
 
 function FillOptions(p: { eff: Wire; change: Change }): JSX.Element {
   const { eff, change } = p;
+  const patch = patchOf(eff);
+  const nSided = patch === 'nSided';
   return (
     <Section id="fill" title={t('opt.section.fill')}>
-      <Select name="continuity" label={t('opt.fill.continuity')} value={continuityOf(eff)} options={CONTINUITIES.map((c): [string, string] => [c, t('opt.fill.continuity.' + c)])} onChange={(v) => change({ continuity: v })} />
-      <Select name="fairing" label={t('opt.fill.fairing')} value={fairingOf(eff)} options={FAIRINGS.map((f): [string, string] => [f, t('opt.fill.fairing.' + f)])} onChange={(v) => change({ fairing: v === 'meowNURBS' ? null : v })} />
+      <Select name="patch" label={t('opt.fill.patch')} value={patch} options={PATCHES.map((x): [string, string] => [x, t('opt.fill.patch.' + x)])} onChange={(v) => change(patchChoice(eff, v === 'nSided' ? 'nSided' : 'single'))} />
+      <Select name="continuity" label={t('opt.fill.continuity')} value={continuityOf(eff)} options={continuitiesFor(patch).map((c): [string, string] => [c, t('opt.fill.continuity.' + c)])} onChange={(v) => change({ continuity: v })} />
+      {nSided ? <Num name="patchTolerance" label={t('opt.fill.patchTolerance')} value={eff.patchTolerance ?? DEFAULT_PATCH_TOLERANCE} unit="mm" plain onChange={(v) => change({ patchTolerance: v })} /> : <Select name="fairing" label={t('opt.fill.fairing')} value={fairingOf(eff)} options={FAIRINGS.map((f): [string, string] => [f, t('opt.fill.fairing.' + f)])} onChange={(v) => change({ fairing: v === 'meowNURBS' ? null : v })} />}
       <Check name="merge" label={t('opt.fill.merge')} value={eff.merge !== false} onChange={(v) => change({ merge: v })} />
+      {nSided ? <div class="fedit-hint-line" data-note="nSided">{t('opt.fill.nSidedNote')}</div> : null}
     </Section>
   );
 }
@@ -1072,17 +1094,37 @@ function ProjectCurveOptions(p: { eff: Wire; change: Change; doc: PartDoc | null
   const { eff, change } = p;
   const cur = sourceValue(eff);
   const choices = sourceChoices(p.doc, String(eff.id ?? ''), eff);
+  const exact = proceduralOn(eff);
+  const along = projectAlongOf(eff);
+  // keep exact takes several curves in chain order (`curves`, like Offset curve and Composite curve); the spline projection one sketch or curve
   return (
+    <>
+    {exact ? <ChainInput eff={eff} change={change} doc={p.doc} id="projectCurveCurves" /> : null}
     <Section id="projectCurve" title={t('opt.section.projectCurve')}>
-      <Select name="source" label={t('opt.projectCurve.source')} value={cur} options={cur ? choices : [['', t('opt.none')], ...choices]} onChange={(v) => { if (v) change(sourcePatch(v)); }} />
+      {exact ? null : <Select name="source" label={t('opt.projectCurve.source')} value={cur} options={cur ? choices : [['', t('opt.none')], ...choices]} onChange={(v) => { if (v) change(sourcePatch(v)); }} />}
       <FacesField eff={eff} label={t('opt.projectCurve.faces')} pickingPath={p.pickingPath} onPick={p.onPick} />
-      {faceList(eff).length ? null : <div class="fedit-hint-line" data-note="allFaces">{t('opt.projectCurve.allFaces')}</div>}
-      <Select name="direction" label={t('opt.projectCurve.direction')} value={directionOf(eff)} options={PROJECT_DIRECTIONS.map((d): [string, string] => [d, t('opt.projectCurve.direction.' + d)])} onChange={(v) => change({ direction: v === 'both' ? null : v })} />
-      <Num name="degree" label={t('opt.curve.degree')} value={eff.degree ?? 3} unit="" plain onChange={(v) => change({ degree: v })} />
-      {degreeOutOfRange(eff.degree) ? <div class="fedit-note fedit-warn" role="alert" data-note="degree">{t('opt.curve.degreeRange', { min: String(DEGREE_RANGE.min), max: String(DEGREE_RANGE.max) })}</div> : null}
-      <Num name="tolerance" label={t('opt.projectCurve.tolerance')} value={eff.tolerance ?? 0.001} unit="mm" plain onChange={(v) => change({ tolerance: v })} />
-      <div class="fedit-hint-line">{t('opt.projectCurve.note')}</div>
+      {faceList(eff).length || exact ? null : <div class="fedit-hint-line" data-note="allFaces">{t('opt.projectCurve.allFaces')}</div>}
+      <Check name="procedural" label={t('opt.projectCurve.procedural')} value={exact} onChange={(v) => change(proceduralPatch(v))} />
+      {proceduralNeedsOneFace(eff) ? <div class="fedit-note fedit-warn" role="alert" data-note="oneFace">{t('opt.projectCurve.oneFace')}</div> : null}
+      {exact ? (
+        <>
+          <Select name="along" label={t('opt.projectCurve.along')} value={along} options={PROJECT_ALONG.map((a): [string, string] => [a, t('opt.projectCurve.along.' + a)])} onChange={(v) => change(patchAlong(eff, v as (typeof PROJECT_ALONG)[number]))} />
+          {along === 'vector' && isVec3(eff.along) ? (['x', 'y', 'z'] as const).map((k, i) => <Num key={k} name={`along.${i}`} label={t('opt.projectCurve.along.' + k)} value={(eff.along as number[])[i]} unit="" plain onChange={(v) => change(alongPatch(eff, i, Number(v)))} />) : null}
+          <Num name="gapTolerance" label={t('opt.curve.gapTolerance')} value={eff.gapTolerance ?? 1e-5} unit="mm" plain onChange={(v) => change({ gapTolerance: v })} />
+          <Num name="tolerance" label={t('opt.projectCurve.tolerance')} value={eff.tolerance ?? 0.001} unit="mm" plain onChange={(v) => change({ tolerance: v })} />
+          <div class="fedit-hint-line" data-note="procedural">{t('opt.projectCurve.proceduralNote')}</div>
+        </>
+      ) : (
+        <>
+          <Select name="direction" label={t('opt.projectCurve.direction')} value={directionOf(eff)} options={PROJECT_DIRECTIONS.map((d): [string, string] => [d, t('opt.projectCurve.direction.' + d)])} onChange={(v) => change({ direction: v === 'both' ? null : v })} />
+          <Num name="degree" label={t('opt.curve.degree')} value={eff.degree ?? 3} unit="" plain onChange={(v) => change({ degree: v })} />
+          {degreeOutOfRange(eff.degree) ? <div class="fedit-note fedit-warn" role="alert" data-note="degree">{t('opt.curve.degreeRange', { min: String(DEGREE_RANGE.min), max: String(DEGREE_RANGE.max) })}</div> : null}
+          <Num name="tolerance" label={t('opt.projectCurve.tolerance')} value={eff.tolerance ?? 0.001} unit="mm" plain onChange={(v) => change({ tolerance: v })} />
+          <div class="fedit-hint-line">{t('opt.projectCurve.note')}</div>
+        </>
+      )}
     </Section>
+    </>
   );
 }
 
@@ -1155,6 +1197,221 @@ function EditCurveOptions(p: { eff: Wire; change: Change; doc: PartDoc | null })
           ))}
           <button type="button" class="fedit-pick" data-act="add-edit" onClick={() => setEntries([...list, newEntry(list)])}>{t('opt.editCurve.addEdit')}</button>
         </div>
+      </Section>
+    </>
+  );
+}
+
+/** The curves an Offset curve or Composite curve takes: a sketch or a curve feature, or (when curves are listed) those curves in the order listed. */
+function ChainInput(p: { eff: Wire; change: Change; doc: PartDoc | null; id: string }): JSX.Element {
+  const { eff, change, doc } = p;
+  const refs = curveRefs(eff);
+  const listed = hasCurveList(eff);
+  const cur = sourceValue(eff);
+  const choices = sourceChoices(doc, String(eff.id ?? ''), eff, true);
+  const free = addableCurves(doc, String(eff.id ?? ''), refs);
+  return (
+    <Section id={p.id} title={t('opt.chain.curves')}>
+      {listed ? null : <Select name="source" label={t('opt.chain.source')} value={cur} options={cur ? choices : [['', t('opt.none')], ...choices]} onChange={(v) => { if (v) change(sourcePatch(v)); }} />}
+      <div class="fedit-order" data-path="curves">
+        <div class="fedit-fld-label">{t(listed ? 'opt.chain.listNote' : 'opt.chain.sourceNote')}</div>
+        {refs.map((_, i) => <CurveRow key={i} i={i} refs={refs} doc={doc} change={change} />)}
+        <button type="button" class="fedit-pick" data-act="add" disabled={!free.length} onClick={() => free.length && change(curvesPatch([...refs, free[0]]))}>{t('opt.editCurve.addCurve')}</button>
+      </div>
+    </Section>
+  );
+}
+
+function OffsetCurveOptions(p: { eff: Wire; change: Change; doc: PartDoc | null } & PickArgs): JSX.Element {
+  const { eff, change, doc } = p;
+  const mode = offsetInOf(eff);
+  const picking = p.pickingPath === 'face';
+  return (
+    <>
+      <ChainInput eff={eff} change={change} doc={doc} id="offsetCurveCurves" />
+      <Section id="offsetCurve" title={t('opt.section.offsetCurve')}>
+        <Num name="distance" label={t('opt.offsetCurve.distance')} value={eff.distance} unit="mm" onChange={(v) => change({ distance: v })} />
+        {distanceIsZero(eff.distance) ? <div class="fedit-note fedit-warn" role="alert" data-note="distance">{t('opt.offsetCurve.distanceZero')}</div> : null}
+        <Select name="offsetIn" label={t('opt.offsetCurve.in')} value={mode} options={OFFSET_IN.map((m): [string, string] => [m, t('opt.offsetCurve.in.' + m)])} onChange={(v) => change(patchOffsetIn(eff, v as (typeof OFFSET_IN)[number]))} />
+        {mode === 'plane' ? <Select name="plane" label={t('opt.offsetCurve.plane')} value={planeValue(eff.plane)} options={planeChoices(doc, String(eff.id ?? ''), eff.plane)} onChange={(v) => change({ plane: planeRef(v) })} /> : null}
+        {mode === 'normal' && isVec3(eff.normal) ? (['x', 'y', 'z'] as const).map((k, i) => <Num key={k} name={`normal.${i}`} label={t('opt.offsetCurve.normal.' + k)} value={(eff.normal as number[])[i]} unit="" plain onChange={(v) => change(normalPatch(eff, i, Number(v)))} />) : null}
+        {mode === 'face' ? (
+          <label class={'fedit-fld ref' + (picking ? ' picking' : '')} data-path="face">
+            <span class="fedit-fld-label">{t('opt.offsetCurve.face')}</span>
+            <span class="fedit-ref">
+              <input type="text" value={typeof eff.face === 'string' ? eff.face : ''} readonly />
+              {p.onPick ? <button type="button" class={'fedit-pick' + (picking ? ' on' : '')} aria-pressed={picking} onClick={() => p.onPick!('face')}>{picking ? t('ui.editor.pickDone') : t('ui.editor.pickSelection')}</button> : null}
+            </span>
+          </label>
+        ) : null}
+        {offsetNeedsFace(eff) ? <div class="fedit-note fedit-warn" role="alert" data-note="needFace">{t('opt.offsetCurve.needFace')}</div> : null}
+        <Num name="tolerance" label={t('opt.curve.splineTolerance')} value={eff.tolerance ?? 0.001} unit="mm" plain onChange={(v) => change({ tolerance: v })} />
+        <Num name="gapTolerance" label={t('opt.curve.gapTolerance')} value={eff.gapTolerance ?? 1e-5} unit="mm" plain onChange={(v) => change({ gapTolerance: v })} />
+        <div class="fedit-hint-line">{t('opt.offsetCurve.note')}</div>
+      </Section>
+    </>
+  );
+}
+
+function CompositeCurveOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const { eff, change, doc } = p;
+  return (
+    <>
+      <ChainInput eff={eff} change={change} doc={doc} id="compositeCurveCurves" />
+      <Section id="compositeCurve" title={t('opt.section.compositeCurve')}>
+        <Num name="gapTolerance" label={t('opt.curve.gapTolerance')} value={eff.gapTolerance ?? 1e-5} unit="mm" plain onChange={(v) => change({ gapTolerance: v })} />
+        <Num name="tolerance" label={t('opt.curve.splineTolerance')} value={eff.tolerance ?? 0.001} unit="mm" plain onChange={(v) => change({ tolerance: v })} />
+        <div class="fedit-hint-line">{t('opt.compositeCurve.note')}</div>
+      </Section>
+    </>
+  );
+}
+
+/** A profile or a path of a Sweep surface: a sketch or a curve feature picked from a list; curve references written by a script (edges, curves of a sketch) are shown as they are, with a way back to a plain choice. */
+function CurveInputField(p: { name: 'profile' | 'path'; label: string; eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const { name, eff, change, doc } = p;
+  const v = eff[name];
+  const choices = inputChoices(doc, String(eff.id ?? ''), v, name);
+  return (
+    <>
+      {inputIsCustom(v) ? (
+        <div class="fedit-fld ref" data-path={name}>
+          <span class="fedit-fld-label">{p.label}</span>
+          <span class="fedit-ref">
+            <span class="fedit-ref-text" data-custom={name}>{inputSummary(doc, v)}</span>
+            <button type="button" class="fedit-mini" data-act="clear" title={t('opt.order.remove')} aria-label={t('opt.order.remove')} onClick={() => change({ [name]: null })}>×</button>
+          </span>
+        </div>
+      ) : <Select name={name} label={p.label} value={inputId(v)} options={inputId(v) ? choices : [['', t('opt.none')], ...choices]} onChange={(id) => { if (id) change({ [name]: id }); }} />}
+      {inputMissing(v) ? <div class="fedit-note fedit-warn" role="alert" data-note={name + 'Missing'}>{t('opt.sweepSurface.' + name + 'Missing')}</div> : null}
+    </>
+  );
+}
+
+function SweepSurfaceOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const { eff, change, doc } = p;
+  const frame = sweepFrameOf(eff);
+  const up = upChoiceOf(eff);
+  const tol = toleranceInvalid(eff.tolerance) || toleranceInvalid(eff.gapTolerance);
+  return (
+    <>
+      <Section id="sweepSurfaceInputs" title={t('opt.section.sweepSurfaceInputs')}>
+        <CurveInputField name="profile" label={t('opt.sweepSurface.profile')} eff={eff} change={change} doc={doc} />
+        <CurveInputField name="path" label={t('opt.sweepSurface.path')} eff={eff} change={change} doc={doc} />
+        {sameInput(eff) ? <div class="fedit-note fedit-warn" role="alert" data-note="same">{t('opt.sweepSurface.same')}</div> : null}
+        <div class="fedit-hint-line">{t('opt.sweepSurface.inputNote')}</div>
+      </Section>
+      <Section id="sweepSurface" title={t('opt.section.sweepSurface')}>
+        <Select name="frame" label={t('opt.sweepSurface.frame')} value={frame} options={SWEEP_FRAMES.map((f): [string, string] => [f, t('opt.sweepSurface.frame.' + f)])} onChange={(v) => change(sweepFramePatch(v === 'translate' ? 'translate' : 'tangent'))} />
+        {frame === 'tangent' ? (
+          <>
+            <Select name="upChoice" label={t('opt.sweepSurface.up')} value={up} options={UP_CHOICES.map((u): [string, string] => [u, t('opt.sweepSurface.up.' + (u.startsWith('-') ? 'neg' + u.slice(1) : u))])} onChange={(v) => change(upPatch(eff, v as (typeof UP_CHOICES)[number]))} />
+            {up === 'vector' && Array.isArray(eff.up) ? (['x', 'y', 'z'] as const).map((k, i) => <Num key={k} name={`up.${i}`} label={t('opt.sweepSurface.up.' + k)} value={(eff.up as number[])[i]} unit="" plain onChange={(v) => change(upComponentPatch(eff, i, Number(v)))} />) : null}
+            {upIsZero(eff) ? <div class="fedit-note fedit-warn" role="alert" data-note="upZero">{t('opt.sweepSurface.upZero')}</div> : null}
+            <div class="fedit-hint-line" data-note="upNote">{t('opt.sweepSurface.upNote')}</div>
+          </>
+        ) : <div class="fedit-hint-line" data-note="translateNote">{t('opt.sweepSurface.translateNote')}</div>}
+        {capsOffered(doc, eff) ? <Check name="caps" label={t('opt.sweepSurface.caps')} value={eff.caps === true} onChange={(v) => change(capsPatch(v))} /> : null}
+        {eff.caps === true ? <div class="fedit-hint-line" data-note="capsNote">{t('opt.sweepSurface.capsNote')}</div> : null}
+        {tol ? <div class="fedit-note fedit-warn" role="alert" data-note="tolerance">{t('opt.sweepSurface.toleranceInvalid')}</div> : null}
+      </Section>
+      <Section id="sweepSurfaceAdvanced" title={t('opt.section.advanced')} defaultClosed>
+        <Num name="tolerance" label={t('opt.curve.splineTolerance')} value={eff.tolerance ?? 0.001} unit="mm" plain onChange={(v) => change({ tolerance: v })} />
+        <Num name="gapTolerance" label={t('opt.curve.gapTolerance')} value={eff.gapTolerance ?? 1e-5} unit="mm" plain onChange={(v) => change({ gapTolerance: v })} />
+      </Section>
+    </>
+  );
+}
+
+/** The face with the ball on one side of it: the line is the face, the arrow its outward normal. */
+function SideGlyph(p: { side: number | null }): JSX.Element {
+  const y = p.side === 1 ? 6 : 17;
+  return (
+    <svg class="fedit-side-glyph" viewBox="0 0 28 24" width="28" height="24" aria-hidden="true" data-side={String(p.side)}>
+      <path d="M3 12h22" fill="none" stroke="currentColor" stroke-width="1.6" />
+      <path d="M6 12V6M4.5 7.5 6 6l1.5 1.5" fill="none" stroke="currentColor" stroke-opacity=".6" stroke-width="1.2" />
+      {p.side === null ? null : <circle cx="17" cy={y} r="4" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="1.2" />}
+    </svg>
+  );
+}
+
+/** The side a face's ball lies on, in words: written by the user (`own`), or the kernel's own choice (toward the other face). */
+function sideText(own: boolean, side: number | null): string {
+  if (own) return side === 1 ? t('opt.blendSurface.side.out') : t('opt.blendSurface.side.in');
+  if (side === null) return t('opt.blendSurface.side.auto');
+  return side === 1 ? t('opt.blendSurface.side.auto.out') : t('opt.blendSurface.side.auto.in');
+}
+
+function BlendSurfaceOptions(p: { eff: Wire; change: Change; actions?: ThinActions } & PickArgs): JSX.Element {
+  const { eff, change } = p;
+  const faces = faceList(eff);
+  const built = p.actions?.blendSides?.(String(eff.id ?? '')) ?? null;
+  const force = sidesInForce(eff, built);
+  const own = sidesOf(eff);
+  const span = spanOf(eff);
+  const varies = radiusVaries(eff);
+  // two points start from the span of the picked faces, and follow the faces when another pair is picked (the fields stay editable)
+  const derived = () => (faces.length === 2 ? p.actions?.blendSpan?.(faces) ?? null : null);
+  const facesKey = faces.join('|');
+  const seenFaces = useRef(facesKey);
+  useEffect(() => {
+    if (seenFaces.current === facesKey) return;
+    seenFaces.current = facesKey;
+    const d = span === 'points' ? derived() : null;
+    if (d) change({ from: d.from, to: d.to });
+  }, [facesKey]);
+  const vec = (key: 'from' | 'to' | 'at') => (['x', 'y', 'z'] as const).map((k, i) => <Num key={key + k} name={`${key}.${i}`} label={t(`opt.blendSurface.${key}.${k}`)} value={Array.isArray(eff[key]) ? (eff[key] as number[])[i] : 0} unit="mm" plain onChange={(v) => change(vecPatch(eff, key, i, Number(v)))} />);
+  return (
+    <>
+      <Section id="blendSurfaceFaces" title={t('opt.section.blendSurfaceFaces')}>
+        <FacesField eff={eff} label={t('opt.blendSurface.faces')} pickingPath={p.pickingPath} onPick={p.onPick} />
+        {blendSameFace(eff) ? <div class="fedit-note fedit-warn" role="alert" data-note="sameFace">{t('opt.blendSurface.sameFace')}</div>
+          : blendNeedsTwoFaces(eff) ? <div class="fedit-note fedit-warn" role="alert" data-note="twoFaces">{t('opt.blendSurface.twoFaces', { count: String(faces.length) })}</div> : null}
+        <div class="fedit-hint-line">{t('opt.blendSurface.facesNote')}</div>
+      </Section>
+      <Section id="blendSurface" title={t('opt.section.blendSurface')}>
+        <Num name="radius" label={t('opt.blendSurface.radius')} value={radiusStart(eff)} unit="mm" onChange={(v) => change(radiusStartPatch(eff, v))} />
+        <Check name="vary" label={t('opt.blendSurface.vary')} value={varies} onChange={(v) => change(varyPatch(eff, v))} />
+        {varies ? <Num name="radiusEnd" label={t('opt.blendSurface.radiusEnd')} value={radiusEnd(eff)} unit="mm" onChange={(v) => change(radiusEndPatch(eff, v))} /> : null}
+        {toleranceInvalid(eff.tolerance) ? <div class="fedit-note fedit-warn" role="alert" data-note="tolerance">{t('opt.sweepSurface.toleranceInvalid')}</div> : null}
+        {radiusInvalid(eff) ? <div class="fedit-note fedit-warn" role="alert" data-note="radius">{t('opt.blendSurface.radiusInvalid')}</div> : null}
+        {varies ? <div class="fedit-hint-line" data-note="varyNote">{t('opt.blendSurface.varyNote')}</div> : null}
+        <div class="fedit-order" data-path="sides">
+          <div class="fedit-fld-label">{t('opt.blendSurface.sides')}</div>
+          {[0, 1].map((i) => {
+            const side = force ? force[i] : null;
+            return (
+              <div class="fedit-order-row" key={i} data-index={i} data-side={String(side)}>
+                <span class="fedit-order-n">{i + 1}</span>
+                <SideGlyph side={side} />
+                <span class="fedit-ref-text" data-path={`sides.${i}`}>{faces[i] ? `${faces[i]}: ` : ''}{sideText(Boolean(own), side)}</span>
+                <button type="button" class="fedit-pick" data-act="flip" onClick={() => change(flipSide(eff, i as 0 | 1, built))}>{t('opt.blendSurface.flip')}</button>
+              </div>
+            );
+          })}
+          {own ? <button type="button" class="fedit-pick" data-act="auto" onClick={() => change(autoSidesPatch())}>{t('opt.blendSurface.autoSides')}</button> : null}
+          <div class="fedit-hint-line" data-note="sidesNote">{t('opt.blendSurface.sidesNote')}</div>
+        </div>
+      </Section>
+      <Section id="blendSurfaceSpan" title={t('opt.section.blendSurfaceSpan')}>
+        <Select name="span" label={t('opt.blendSurface.span')} value={span} options={SPANS.map((s): [string, string] => [s, t('opt.blendSurface.span.' + s)])} onChange={(v) => change(spanPatch(eff, v === 'points' ? 'points' : 'edge', v === 'points' ? derived() : null))} />
+        {span === 'points' ? (
+          <>
+            {vec('from')}
+            {vec('to')}
+            {spanIsPoint(eff) ? <div class="fedit-note fedit-warn" role="alert" data-note="spanPoint">{t('opt.blendSurface.spanPoint')}</div> : null}
+            <div class="fedit-hint-line" data-note="pointsNote">{t('opt.blendSurface.pointsNote')}</div>
+          </>
+        ) : (
+          <>
+            <Check name="nearOn" label={t('opt.blendSurface.near')} value={atOn(eff)} onChange={(v) => change(atPatch(eff, v))} />
+            {atOn(eff) ? vec('at') : null}
+            <div class="fedit-hint-line" data-note="edgeNote">{t('opt.blendSurface.edgeNote')}</div>
+          </>
+        )}
+      </Section>
+      <Section id="blendSurfaceAdvanced" title={t('opt.section.advanced')} defaultClosed>
+        <Num name="tolerance" label={t('opt.curve.splineTolerance')} value={eff.tolerance ?? 0.001} unit="mm" plain onChange={(v) => change({ tolerance: v })} />
       </Section>
     </>
   );
@@ -1260,6 +1517,10 @@ function optionsForType(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null, act
     case 'trimSurface': return { hide, node: <TrimOptions {...common} doc={doc} /> };
     case 'projectCurve': return { hide, node: <ProjectCurveOptions {...common} doc={doc} pickingPath={a.pickingPath} onPick={a.onPickRequest} /> };
     case 'editCurve': return { hide, node: <EditCurveOptions {...common} doc={doc} /> };
+    case 'offsetCurve': return { hide, node: <OffsetCurveOptions {...common} doc={doc} pickingPath={a.pickingPath} onPick={a.onPickRequest} /> };
+    case 'compositeCurve': return { hide, node: <CompositeCurveOptions {...common} doc={doc} /> };
+    case 'sweepSurface': return { hide, node: <SweepSurfaceOptions {...common} doc={doc} /> };
+    case 'blendSurface': return { hide, node: <BlendSurfaceOptions {...common} actions={actions} pickingPath={a.pickingPath} onPick={a.onPickRequest} /> };
     case 'freeform': return { hide, node: <FreeformOptions {...common} doc={doc} pickingPath={a.pickingPath} onPick={a.onPickRequest} /> };
     default: return null;
   }

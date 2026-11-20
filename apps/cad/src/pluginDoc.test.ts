@@ -76,3 +76,12 @@ describe('the bodies of a scratch build, for a plugin that measures', () => {
     expect(scratchRows(null, undefined, [{ name: 'X', volume: 5, com: [0, 0, 0] }, { volume: 3 }])).toEqual([{ name: 'X', volume: 5, bbox: null }]);
   });
 });
+
+describe('the mesh a plugin reads with model.mesh', () => {
+  it('is the display mesh and each body\'s faces, shared and not copied; absent without a mesh', () => {
+    const d = pluginDocContext(rows, mesh, []);
+    expect(d.meshes?.mesh).toBe(mesh);
+    expect(d.meshes?.faces).toEqual({ Rail: rows[0].faces });
+    expect(pluginDocContext(rows, null, []).meshes).toBeUndefined();
+  });
+});

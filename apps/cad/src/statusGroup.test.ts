@@ -45,6 +45,9 @@ describe('statusItems', () => {
     expect(statusAria({ label: 'X', tip: 'does x', keys: 'Q' })).toBe('X: does x (Q)');
   });
   it('toggles report their state; Fully define is disabled when full or busy and shows Defining... while busy', () => {
+    const sc = (o: Partial<StatusItemInput>) => statusItems(input(o)).find((i) => i.id === 'show-constraints')!;
+    expect([sc({ showConstraints: false }).label, sc({ showConstraints: false }).tip]).toEqual(['Show constraints', 'Draw every constraint symbol and dimension (Shift+C)']);
+    expect([sc({ showConstraints: true }).label, sc({ showConstraints: true }).tip]).toEqual(['Hide constraints', 'Draw constraint symbols and dimensions only for what is hovered or selected (Shift+C)']);
     const on = statusItems(input({ showConstraints: true, reportOpen: true, showFree: true }));
     expect(on.filter((i) => i.pressed !== undefined).map((i) => [i.id, i.pressed])).toEqual([['show-freedom', true], ['show-constraints', true], ['sketch-report', true]]);
     expect(statusItems(input({ level: 'full' }))[0]).toMatchObject({ disabled: true, cls: 'done' });

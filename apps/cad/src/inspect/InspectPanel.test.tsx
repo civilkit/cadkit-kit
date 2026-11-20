@@ -1,6 +1,6 @@
 import '../i18n';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render } from '@testing-library/preact';
+import { cleanup, fireEvent, render, within } from '@testing-library/preact';
 import { InspectPanel, scrollMassIntoView, type InspectProps } from './InspectPanel';
 import { massView } from './mass';
 
@@ -12,6 +12,7 @@ function setup(o: Partial<InspectProps> = {}) {
     mass: null, massBusy: false, massStale: false, box: null, hasSolid: true, onMass: vi.fn(),
     measuring: false, onMeasure: vi.fn(), picks: [], outcome: null, onClearPicks: vi.fn(), onCopy: vi.fn(),
     interference: null, interferenceStale: false, interferenceBusy: false, onInterference: vi.fn(), onPair: vi.fn(),
+    intersection: null, intersectionStale: false, intersectionBusy: false, intersectionError: null, intersectionFaces: 0, onIntersection: vi.fn(),
     section: { on: false, plane: 'front', faceId: null, offset: 0, flip: false }, sectionRange: [0, 10],
     onSectionPlane: vi.fn(), onSection: vi.fn(), onSectionOff: vi.fn(), onVisible: vi.fn(), ...o,
   };
@@ -151,7 +152,7 @@ describe('InspectPanel', () => {
   it('interference card: not checked, a single body, no interference, and pairs that select on click', () => {
     const a = setup();
     expect(card(a.container, 'Interference check').textContent).toContain('Not checked yet');
-    fireEvent.click(a.getByText('Check'));
+    fireEvent.click(within(card(a.container, 'Interference check')).getByText('Check'));
     expect(a.p.onInterference).toHaveBeenCalled();
     cleanup();
     expect(card(setup({ interference: { bodies: 1, pairs: [] } }).container, 'Interference check').textContent).toContain('Needs two or more solid bodies');
@@ -164,5 +165,51 @@ describe('InspectPanel', () => {
     expect(pairs[1].disabled).toBe(true);
     fireEvent.click(pairs[0]);
     expect(p.onPair).toHaveBeenCalledWith('F2.C0', 'F5.C1');
+  });
+
+  describe('intersection card', () => {
+    const NAME = 'Intersection check';
+    const result = (o: Partial<NonNullable<InspectProps['intersection']>> = {}): InspectProps['intersection'] => ({ curves: 4, marched: 2, spans: 790, proved: 790, repaired: 0, unresolved: 0, pairs: 2, issues: [], ...o });
+    it('says what it covers, runs on the button, and is not checked yet', () => {
+      const a = setup();
+      expect(card(a.container, NAME).textContent).toContain('Not checked yet');
+      expect(card(a.container, NAME).textContent).toContain('Checks the whole part');
+      fireEvent.click(card(a.container, NAME).querySelector('button.btn')!);
+      expect(a.p.onIntersection).toHaveBeenCalled();
+      cleanup();
+      expect(card(setup({ intersectionFaces: 3 }).container, NAME).textContent).toContain('Checks 3 selected faces');
+    });
+    it('a clean result, an all-exact result and a part with no meeting faces', () => {
+      expect(card(setup({ intersection: result() }).container, NAME).textContent).toContain('790 of 790 spans proved');
+      cleanup();
+      expect(card(setup({ intersection: result() }).container, NAME).textContent).toContain('Every span is proved');
+      cleanup();
+      expect(card(setup({ intersection: result({ marched: 0, spans: 0, proved: 0 }) }).container, NAME).textContent).toContain('Every intersection is exact (4 found)');
+      cleanup();
+      expect(card(setup({ intersection: result({ pairs: 0, curves: 0, marched: 0, spans: 0, proved: 0 }) }).container, NAME).textContent).toContain('No two faces meet');
+    });
+    it('unproved spans are listed with their reason and select the two faces on click; repaired ones are not listed', () => {
+      const issues = [{ a: 'F2.C0', b: 'F5.S', curve: 0, span: 12, reason: 'singular' }, { a: 'F2.C1', b: 'F5.S', curve: 0, span: 30, reason: 'noContraction', repaired: true }];
+      const { p, container } = setup({ intersection: result({ proved: 788, unresolved: 1, issues }) });
+      const c = card(container, NAME);
+      expect(c.textContent).toContain('1 spans could not be proved');
+      expect(c.textContent).toContain('not an error');
+      const rows = [...c.querySelectorAll('.insp-pair')] as HTMLButtonElement[];
+      expect(rows).toHaveLength(1);
+      expect(rows[0].textContent).toContain('tangent contact or pole');
+      fireEvent.click(rows[0]);
+      expect(p.onPair).toHaveBeenCalledWith('F2.C0', 'F5.S');
+    });
+    it('a refusal shows its detail, and too many face pairs ask for a selection', () => {
+      expect(card(setup({ intersectionError: 'checkIntersection: bad' }).container, NAME).textContent).toContain('The check could not run: checkIntersection: bad');
+      cleanup();
+      expect(card(setup({ intersectionError: 'checkIntersection: 812 face pairs (at most 400 per request)' }).container, NAME).textContent).toContain('Select the faces to check first');
+    });
+    it('a stale result and a busy button', () => {
+      expect(card(setup({ intersection: result(), intersectionStale: true }).container, NAME).textContent).toContain('Out of date');
+      cleanup();
+      const b = card(setup({ intersectionBusy: true }).container, NAME).querySelector('button.btn') as HTMLButtonElement;
+      expect(b.disabled).toBe(true);
+    });
   });
 });

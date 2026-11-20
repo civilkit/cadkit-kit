@@ -1910,7 +1910,7 @@
    "domain": "features",
    "signature": ".feature(json: Record<string, unknown>)",
    "summary": "Append any kernel feature as raw JSON (escape hatch for features without a helper).",
-   "description": "Validates json.type against the kernel's feature list, assigns the id and adds the feature after the previous step. face(sel) inside the JSON becomes the persistent face name (or a { kind: 'face', id } reference under plane / neutral / axis), edges(sel) becomes the edge references (spliced into arrays), at(plane, offset) becomes a reference plane feature, and the strings '$last' and '$sketch' stand for the id of the previous feature / sketch. Use it for a type without a helper (surface features such as fill, trimSurface, extend, pipeCut, projectCurve, frame); draft, moveFace, pressPull, lip, scale, split, deleteBody, deleteFace, helix, axis, sphere and moveBody have typed methods, so prefer those. dome is not built in the kernel. Field names are the kernel's (docs/spec-agent-interface.md).",
+   "description": "Validates json.type against the kernel's feature list, assigns the id and adds the feature after the previous step. face(sel) inside the JSON becomes the persistent face name (or a { kind: 'face', id } reference under plane / neutral / axis), edges(sel) becomes the edge references (spliced into arrays), at(plane, offset) becomes a reference plane feature, and the strings '$last' and '$sketch' stand for the id of the previous feature / sketch. Use it for a type without a helper (surface features such as a single-patch fill, trimSurface, extend, pipeCut, frame; projectCurve, offsetCurve, compositeCurve, sweepSurface, blendSurface and fillNSided have typed methods); draft, moveFace, pressPull, lip, scale, split, deleteBody, deleteFace, helix, axis, sphere and moveBody have typed methods, so prefer those. dome is not built in the kernel. Field names are the kernel's (docs/spec-agent-interface.md).",
    "parameters": [
     {
      "name": "json",
@@ -4557,6 +4557,175 @@
    ]
   },
   {
+   "id": "part.blendSurface",
+   "kind": "method",
+   "domain": "surfaces",
+   "signature": ".blendSurface(faces: FacesSel | [FaceSel, FaceSel], radius: Num | [Num, Num], o: { sides?: [number, number]; at?: Vec; from?: Vec; to?: Vec; tolerance?: Num; name?: string } = {})",
+   "summary": "Rolling-ball blend of two faces.",
+   "description": "faces is faces(sel) matching two faces, or [face(a), face(b)]; radius a number or [start, end] for a radius that varies along the span. The span is the edge the faces share (at [x, y, z] picks the nearest when they share several) or the line from o.from to o.to. sides [s1, s2] (+1 the side a face's normal points to, -1 the other) picks where the ball rolls; default each face turns toward the other. Refusals: blendSurfaceRadius (with the largest radius that fits), blendSurfaceNoContact.",
+   "parameters": [
+    {
+     "name": "faces",
+     "type": "FacesSel | [FaceSel, FaceSel]",
+     "optional": false,
+     "description": "the two faces"
+    },
+    {
+     "name": "radius",
+     "type": "Num | [Num, Num]",
+     "optional": false,
+     "description": "radius in mm, or [start, end]"
+    },
+    {
+     "name": "o",
+     "type": "{ sides?: [number, number]; at?: Vec; from?: Vec; to?: Vec; tolerance?: Num; name?: string }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "sides",
+       "type": "[number, number]",
+       "optional": true,
+       "description": "[1 | -1, 1 | -1]"
+      },
+      {
+       "name": "at",
+       "type": "Vec",
+       "optional": true,
+       "description": "with a shared edge: the point the chosen edge is nearest"
+      },
+      {
+       "name": "from",
+       "type": "Vec",
+       "optional": true,
+       "description": "start of a two-point span [x, y, z]"
+      },
+      {
+       "name": "to",
+       "type": "Vec",
+       "optional": true,
+       "description": "end of a two-point span [x, y, z]"
+      },
+      {
+       "name": "tolerance",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    }
+   ],
+   "example": "part('Round').sketch('front', (s) => s.rect(40, 25)).extrude(10)\n  .blendSurface([face('>Z'), face('<Y')], 3);",
+   "related": [
+    "part.fillet",
+    "part.sweepSurface",
+    "part.knit"
+   ]
+  },
+  {
+   "id": "part.compositeCurve",
+   "kind": "method",
+   "domain": "surfaces",
+   "signature": ".compositeCurve(o: { curves?: CurveIn[]; gapTolerance?: Num; tolerance?: Num; name?: string } = {})",
+   "summary": "Join curves into one exact curve.",
+   "description": "Joins the curves of the last sketch (walked into one chain), or o.curves: a list of { on, draw } sketches, curve handles and edges(sel), in the order they join. Pieces are turned to run end to end; ends further apart than gapTolerance (default 1e-5 mm) are refused. Adds no body: take part.handle() for a sweep path or an offset.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "{ curves?: CurveIn[]; gapTolerance?: Num; tolerance?: Num; name?: string }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "curves",
+       "type": "CurveIn[]",
+       "optional": true,
+       "description": "the curves in chain order; default the last sketch"
+      },
+      {
+       "name": "gapTolerance",
+       "type": "Num",
+       "optional": true,
+       "description": "largest gap between pieces in mm"
+      },
+      {
+       "name": "tolerance",
+       "type": "Num",
+       "optional": true,
+       "description": "spline tolerance in mm, default 0.001"
+      },
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    }
+   ],
+   "example": "part('Chain').sketch('front', (s) => s.polyline([[0, 0], [20, 0], [20, 10]])).compositeCurve();",
+   "related": [
+    "part.offsetCurve",
+    "part.sweepSurface"
+   ]
+  },
+  {
+   "id": "part.fillNSided",
+   "kind": "method",
+   "domain": "surfaces",
+   "signature": ".fillNSided(loop: string | Array<{ faces: string[]; at: Vec }>, o: { continuity?: 'G0' | 'G1'; tolerance?: Num; name?: string } = {})",
+   "summary": "Fill a loop of sheet edges with N faces.",
+   "description": "loop is where the open (one-face) edges of a sheet are: '>Z' / '<Z' (likewise X, Y) the open edges lying in the top / bottom plane, 'all' every open edge, or a list of edge references [{ faces: ['F2.S.e1'], at: [x, y, z] }]. They must close one loop (chained here end to end); the fill is N bicubic faces meeting at a centre vertex, one per edge, merged with the sheet. continuity 'G0' (default) touches the boundary, 'G1' is tangent to the sheet (G2, G3: fillContinuity). tolerance (default 1e-4 mm) bounds the patch.",
+   "parameters": [
+    {
+     "name": "loop",
+     "type": "string | Array<{ faces: string[]; at: Vec }>",
+     "optional": false,
+     "description": "'>Z' | '<Z' | ... | 'all', or a list of { faces, at }"
+    },
+    {
+     "name": "o",
+     "type": "{ continuity?: 'G0' | 'G1'; tolerance?: Num; name?: string }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "continuity",
+       "type": "'G0' | 'G1'",
+       "optional": true,
+       "description": "'G0' (default) or 'G1'"
+      },
+      {
+       "name": "tolerance",
+       "type": "Num",
+       "optional": true,
+       "description": "patch tolerance in mm, default 1e-4"
+      },
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    }
+   ],
+   "example": "part('Bin').sketch('front', (s) => s.rect(20, 10)).surfaceExtrude(5)\n  .sketch('front', (s) => s.rect(20, 10)).surfacePlanar().knit()\n  .fillNSided('>Z', { continuity: 'G1' });",
+   "related": [
+    "part.knit",
+    "part.surfaceExtrude"
+   ]
+  },
+  {
    "id": "part.knit",
    "kind": "method",
    "domain": "surfaces",
@@ -4587,6 +4756,158 @@
     "part.thicken"
    ],
    "notes": "- Sews all earlier surface features. solid: true needs a CLOSED set (a tube sheet plus its two planar caps): gaps give knitNotClosed. Check the end sketches are at the sheet ends (at('front', depth))."
+  },
+  {
+   "id": "part.offsetCurve",
+   "kind": "method",
+   "domain": "surfaces",
+   "signature": ".offsetCurve(distance: Num, o: { curve?: CurveIn | CurveIn[]; plane?: 'front' | 'top' | 'right' | FeatureHandle; face?: FaceSel; normal?: Vec; tolerance?: Num; gapTolerance?: Num; name?: string } = {})",
+   "summary": "Offset a curve or chain by a distance.",
+   "description": "Offsets the last sketch (or o.curve: { on, draw }, a curve handle, edges(sel) or a list in chain order) by distance in its own plane: positive to the right of travel seen from the plane normal. o.plane, o.face (offset in the face's tangent planes) or o.normal [x, y, z] say where instead; a straight line alone has no plane (offsetCurvePlane). Lines and arcs stay lines and arcs, so a sweep along it is exact. Adds no body: take part.handle().",
+   "parameters": [
+    {
+     "name": "distance",
+     "type": "Num",
+     "optional": false,
+     "description": "offset in mm, not 0"
+    },
+    {
+     "name": "o",
+     "type": "{ curve?: CurveIn | CurveIn[]; plane?: 'front' | 'top' | 'right' | FeatureHandle; face?: FaceSel; normal?: Vec; tolerance?: Num; gapTolerance?: Num; name?: string }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "curve",
+       "type": "CurveIn | CurveIn[]",
+       "optional": true,
+       "description": "what to offset; default the last sketch"
+      },
+      {
+       "name": "plane",
+       "type": "'front' | 'top' | 'right' | FeatureHandle",
+       "optional": true,
+       "description": "plane to offset in: 'front' | 'top' | 'right' or a plane handle"
+      },
+      {
+       "name": "face",
+       "type": "FaceSel",
+       "optional": true,
+       "description": "face(sel) whose tangent planes the offset runs in"
+      },
+      {
+       "name": "normal",
+       "type": "Vec",
+       "optional": true,
+       "description": "the normal of the offset plane [x, y, z]"
+      },
+      {
+       "name": "tolerance",
+       "type": "Num",
+       "optional": true,
+       "description": "spline tolerance in mm, default 0.001"
+      },
+      {
+       "name": "gapTolerance",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    }
+   ],
+   "example": "const p = part('Rail').sketch('front', (s) => s.arc([0, 0], [6, 0], [0, 6])).offsetCurve(-1);\nconst rail = p.handle();",
+   "related": [
+    "part.compositeCurve",
+    "part.projectCurve",
+    "part.sweepSurface"
+   ]
+  },
+  {
+   "id": "part.projectCurve",
+   "kind": "method",
+   "domain": "surfaces",
+   "signature": ".projectCurve(onto: FaceSel | FacesSel, o: { curve?: CurveIn | CurveIn[]; keepExact?: boolean; along?: 'normal' | Vec; direction?: 'both' | 'forward' | 'reverse'; degree?: Num; tolerance?: Num; gapTolerance?: Num; name?: string } = {})",
+   "summary": "Project a curve onto faces (exact on one).",
+   "description": "Projects the last sketch (or o.curve: { on, draw }, a curve handle, or edges(sel)) onto the faces given (none: every face). By default the result is one fitted B-spline (degree, tolerance; direction 'both' | 'forward' | 'reverse' from the sketch plane). keepExact: true keeps the projection as its definition onto exactly ONE face, so it stays exact when the face or sketch changes; it then takes a list of curves in chain order and along: 'normal' (closest point) or [x, y, z]. A projection that leaves the face is projectCurveMisses. Adds no body: take part.handle() for a sweep path or a later curve.",
+   "parameters": [
+    {
+     "name": "onto",
+     "type": "FaceSel | FacesSel",
+     "optional": false,
+     "description": "face(sel) or faces(sel) to project onto; keepExact needs exactly one"
+    },
+    {
+     "name": "o",
+     "type": "{ curve?: CurveIn | CurveIn[]; keepExact?: boolean; along?: 'normal' | Vec; direction?: 'both' | 'forward' | 'reverse'; degree?: Num; tolerance?: Num; gapTolerance?: Num; name?: string }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "curve",
+       "type": "CurveIn | CurveIn[]",
+       "optional": true,
+       "description": "what to project; default the last sketch; with keepExact also a list"
+      },
+      {
+       "name": "keepExact",
+       "type": "boolean",
+       "optional": true,
+       "description": "keep the exact projection (procedural) instead of a fitted spline"
+      },
+      {
+       "name": "along",
+       "type": "'normal' | Vec",
+       "optional": true,
+       "description": "keepExact: 'normal' or a direction [x, y, z]; default the sketch normal"
+      },
+      {
+       "name": "direction",
+       "type": "'both' | 'forward' | 'reverse'",
+       "optional": true,
+       "description": "fitted: 'both' (default), 'forward' or 'reverse'"
+      },
+      {
+       "name": "degree",
+       "type": "Num",
+       "optional": true,
+       "description": "fitted: B-spline degree 2 to 9, default 3"
+      },
+      {
+       "name": "tolerance",
+       "type": "Num",
+       "optional": true,
+       "description": "largest deviation in mm, default 0.001"
+      },
+      {
+       "name": "gapTolerance",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    }
+   ],
+   "example": "part('Mark').sketch('front', (s) => s.rect(40, 25)).extrude(10)\n  .sketch(at('front', 20), (s) => s.circle(6, [20, 10]))\n  .projectCurve(face('>Z'), { keepExact: true });",
+   "related": [
+    "part.offsetCurve",
+    "part.compositeCurve",
+    "part.sweepSurface"
+   ]
   },
   {
    "id": "part.surfaceExtrude",
@@ -4658,6 +4979,79 @@
    "related": [
     "part.knit",
     "part.surfaceExtrude"
+   ]
+  },
+  {
+   "id": "part.sweepSurface",
+   "kind": "method",
+   "domain": "surfaces",
+   "signature": ".sweepSurface(profile: CurveIn | CurveIn[], path: CurveIn | CurveIn[], o: { frame?: 'tangent' | 'translate'; up?: Vec; caps?: boolean; tolerance?: Num; gapTolerance?: Num; name?: string } = {})",
+   "summary": "Sweep a profile along a path.",
+   "description": "profile and path are each { on, draw }, a curve handle (helix, offsetCurve, compositeCurve, projectCurve; a procedural one is swept along its definition) or edges(sel). frame 'tangent' (default) turns the profile with the path, 'translate' keeps its orientation; up [x, y, z] fixes the roll. caps: true closes a closed planar profile at both ends, so knit({ solid: true }) makes a solid. Refusals: sweepSurfaceFrame (up along the path), sweepSurfaceFold (profile wider than the bend), sweepSurfaceCaps.",
+   "parameters": [
+    {
+     "name": "profile",
+     "type": "CurveIn | CurveIn[]",
+     "optional": false,
+     "description": "the curve swept"
+    },
+    {
+     "name": "path",
+     "type": "CurveIn | CurveIn[]",
+     "optional": false,
+     "description": "the curve it travels along"
+    },
+    {
+     "name": "o",
+     "type": "{ frame?: 'tangent' | 'translate'; up?: Vec; caps?: boolean; tolerance?: Num; gapTolerance?: Num; name?: string }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "frame",
+       "type": "'tangent' | 'translate'",
+       "optional": true,
+       "description": "'tangent' (default) or 'translate'"
+      },
+      {
+       "name": "up",
+       "type": "Vec",
+       "optional": true,
+       "description": "a fixed up direction [x, y, z]"
+      },
+      {
+       "name": "caps",
+       "type": "boolean",
+       "optional": true,
+       "description": "close the ends (closed planar profile)"
+      },
+      {
+       "name": "tolerance",
+       "type": "Num",
+       "optional": true,
+       "description": "spline tolerance in mm, default 0.001"
+      },
+      {
+       "name": "gapTolerance",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    }
+   ],
+   "example": "part('Tube').sweepSurface(\n  { on: 'front', draw: (s) => s.circle(2) },\n  { on: 'right', draw: (s) => s.line([0, 0], [25, 0]) }, { caps: true })\n  .knit({ solid: true });",
+   "related": [
+    "part.offsetCurve",
+    "part.sweep",
+    "part.knit"
    ]
   },
   {
@@ -4968,6 +5362,27 @@
    "example": "const p = part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20);\nconst c = await p.centreOfMass();   // [0, 0, 10]",
    "related": [
     "part.volume"
+   ]
+  },
+  {
+   "id": "part.checkIntersection",
+   "kind": "method",
+   "domain": "utilities",
+   "signature": ".checkIntersection(faces?: FaceSel | FacesSel)",
+   "summary": "Proof check of face intersection curves.",
+   "description": "await part.checkIntersection(faces?) builds what is recorded so far and asks the kernel to march the intersection curves of the faces given (face(sel) or faces(sel)) against every face of the part, or (none given) of the part against itself, and to prove each span lies on one arc of the true intersection. Returns { pairs, curves, marched, spans, proved, repaired, unresolved, issues }: unresolved 0 means every marched span is proved; issues name the faces and the reason. Read only: adds no feature. Needs await.",
+   "parameters": [
+    {
+     "name": "faces",
+     "type": "FaceSel | FacesSel",
+     "optional": true,
+     "description": "face(sel) or faces(sel); default every face"
+    }
+   ],
+   "example": "const p = part('Cross').sketch('top', (s) => s.circle(10)).extrude(20, { mid: true });\nconst r = await p.checkIntersection();",
+   "related": [
+    "part.isValid",
+    "part.faces"
    ]
   },
   {

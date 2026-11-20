@@ -15,7 +15,9 @@ const labelOf = (f: Feat): string => (f.name ? `${f.name} (${f.id})` : f.id);
 /** The fields these forms own; the generic editor hides them. */
 export function curveManaged(type: string): Set<string> {
   switch (type) {
-    case 'projectCurve': return new Set(['sketch', 'curve', 'faces', 'degree', 'tolerance', 'direction']);
+    case 'projectCurve': return new Set(['sketch', 'curve', 'curves', 'faces', 'degree', 'tolerance', 'direction', 'procedural', 'along', 'gapTolerance']);
+    case 'offsetCurve': return new Set(['sketch', 'curve', 'curves', 'distance', 'normal', 'plane', 'face', 'tolerance', 'gapTolerance']);
+    case 'compositeCurve': return new Set(['sketch', 'curve', 'curves', 'tolerance', 'gapTolerance']);
     case 'editCurve': return new Set(['curves', 'method', 'degree', 'count', 'tolerance', 'keepEnds', 'keepTangents', 'keepCorners', 'planar', 'plane', 'entries']);
     case 'freeform': return new Set(['faces', 'degreeU', 'degreeV', 'spansU', 'spansV', 'edits']);
     default: return new Set();
@@ -25,7 +27,7 @@ export function curveManaged(type: string): Set<string> {
 // ---- shared ----
 
 /** The curve features a later curve feature can take as input (their result is a curve in `curves[]`). */
-export const CURVE_FEATURES = ['editCurve', 'projectCurve'] as const;
+export const CURVE_FEATURES = ['editCurve', 'projectCurve', 'offsetCurve', 'compositeCurve'] as const;
 /** The Plane features before `selfId` (a curve or face edit may reference them), as `[value, label]`; `std:` planes first. */
 export function planeChoices(doc: PartDoc | null | undefined, selfId: string, current: unknown): Array<[string, string]> {
   const out: Array<[string, string]> = viewPlaneIds().map((id): [string, string] => ['std:' + id, planeName(id)]);
@@ -60,13 +62,13 @@ export const degreeOutOfRange = (v: unknown): boolean => typeof v === 'number' &
 export const sourceValue = (eff: Wire): string =>
   typeof eff.curve === 'string' && eff.curve ? `curve:${eff.curve}` : typeof eff.sketch === 'string' && eff.sketch ? `sketch:${eff.sketch}` : '';
 /** The choice list: the sketches that hold a curve, then the curve features before this one; the current source is kept even when it no longer fits. */
-export function sourceChoices(doc: PartDoc | null | undefined, selfId: string, eff: Wire): Array<[string, string]> {
+export function sourceChoices(doc: PartDoc | null | undefined, selfId: string, eff: Wire, withHelix = false): Array<[string, string]> {
   const out: Array<[string, string]> = [];
   const sk = sketchInfos(doc);
   for (const s of sk) if (hasCurves(feats(doc).find((f) => f.id === s.id) as never)) out.push([`sketch:${s.id}`, s.name]);
   for (const f of feats(doc)) {
     if (f.id === selfId) break;
-    if ((CURVE_FEATURES as readonly string[]).includes(f.type)) out.push([`curve:${f.id}`, `${t('feature.' + f.type, undefined, f.type)}: ${labelOf(f)}`]);
+    if ((CURVE_FEATURES as readonly string[]).includes(f.type) || (withHelix && f.type === 'helix')) out.push([`curve:${f.id}`, `${t('feature.' + f.type, undefined, f.type)}: ${labelOf(f)}`]);
   }
   const cur = sourceValue(eff);
   if (cur && !out.some(([v]) => v === cur)) out.unshift([cur, cur.slice(cur.indexOf(':') + 1)]);
@@ -78,6 +80,55 @@ export function sourcePatch(value: string): Wire {
   return kind === 'curve' ? { curve: id, sketch: null } : { sketch: id, curve: null };
 }
 export const faceList = (eff: Wire): string[] => (Array.isArray(eff.faces) ? (eff.faces as unknown[]).filter((x): x is string => typeof x === 'string') : []);
+
+/** Keep the projection as its definition (`procedural`): exactly one face, the curve kept exact instead of fitted. */
+export const proceduralOn = (eff: Wire): boolean => eff.procedural === true;
+/** Switching it on drops nothing; off removes the fields only a procedural projection reads (the direction, the gap tolerance and the
+ *  `curves` list: the spline projection takes one sketch or one curve feature, so its source select is what is left). */
+export const proceduralPatch = (on: boolean): Wire => (on ? { procedural: true } : { procedural: null, along: null, gapTolerance: null, curves: null });
+/** A procedural projection works on exactly one face (`projectCurveMisses` or a refusal otherwise). */
+export const proceduralNeedsOneFace = (eff: Wire): boolean => proceduralOn(eff) && faceList(eff).length !== 1;
+/** Where the projection runs: `sketch` (along the sketch plane normal, or the plane of the curve), `normal` (to the closest point of the face) or `vector`. */
+export const PROJECT_ALONG = ['sketch', 'normal', 'vector'] as const;
+export type ProjectAlong = (typeof PROJECT_ALONG)[number];
+export const isVec3 = (v: unknown): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === 'number' && Number.isFinite(x));
+export const projectAlongOf = (eff: Wire): ProjectAlong => (eff.along === 'normal' ? 'normal' : isVec3(eff.along) ? 'vector' : 'sketch');
+export function patchAlong(eff: Wire, a: ProjectAlong): Wire {
+  return a === 'normal' ? { along: 'normal' } : a === 'vector' ? { along: isVec3(eff.along) ? eff.along : [0, 0, -1] } : { along: null };
+}
+/** One component of a vector `along` (0, 1, 2). */
+export const alongPatch = (eff: Wire, i: number, v: number): Wire => {
+  const cur = isVec3(eff.along) ? eff.along : [0, 0, -1];
+  return { along: cur.map((x, k) => (k === i ? v : x)) };
+};
+
+// ---- Offset curve and Composite curve ----
+
+/** The curves a chain starts from, listed in order (`curves`), and the source (a sketch or a curve feature) used when no curve is listed. */
+export const hasCurveList = (eff: Wire): boolean => curveRefs(eff).length > 0;
+/** Where the offset runs: in the plane of the curve (`auto`), a reference plane, the tangent planes of a face, or a plane given by its normal. */
+export const OFFSET_IN = ['auto', 'plane', 'face', 'normal'] as const;
+export type OffsetIn = (typeof OFFSET_IN)[number];
+export const offsetInOf = (eff: Wire): OffsetIn =>
+  typeof eff.face === 'string' ? 'face' : eff.plane && typeof eff.plane === 'object' ? 'plane' : isVec3(eff.normal) ? 'normal' : 'auto';
+/** Choosing where to offset: the fields of the other choices go; a plane starts on Front, a face empty (picked next), a normal along Z. */
+export function patchOffsetIn(eff: Wire, m: OffsetIn): Wire {
+  const none = { plane: null, face: null, normal: null };
+  switch (m) {
+    case 'plane': return { ...none, plane: eff.plane && typeof eff.plane === 'object' ? eff.plane : { kind: 'std', id: 'front' } };
+    case 'face': return { ...none, face: typeof eff.face === 'string' ? eff.face : '' };
+    case 'normal': return { ...none, normal: isVec3(eff.normal) ? eff.normal : [0, 0, 1] };
+    default: return none;
+  }
+}
+export const normalPatch = (eff: Wire, i: number, v: number): Wire => ({ normal: (isVec3(eff.normal) ? eff.normal : [0, 0, 1]).map((x, k) => (k === i ? v : x)) });
+/** The kernel refuses a distance of 0 (`invalidValue`). */
+export const distanceIsZero = (v: unknown): boolean => v === 0;
+/** An offset in a face needs one picked (`missingReference`). */
+export const offsetNeedsFace = (eff: Wire): boolean => offsetInOf(eff) === 'face' && !eff.face;
+/** The defaults of a new Offset curve or Composite curve. */
+export const OFFSET_DEFAULTS = { distance: 5, tolerance: 0.001 } as const;
+export const COMPOSITE_DEFAULTS = { tolerance: 0.001 } as const;
 
 // ---- Edit curve ----
 

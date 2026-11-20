@@ -69,7 +69,7 @@ describe('helpMap covers the app', () => {
     expect(missing).toEqual([]);
   });
   it('the wizards of the app have a topic', () => {
-    for (const w of ['gear', 'propeller', 'marine', 'impeller', 'bearing', 'screw', 'washer', 'nut', 'standoff', 'insert', 'spring', 'case', 'fasten', 'knurl', 'cornerHoles', 'mesh', 'material']) expect(HELP['wizard:' + w], w).toBeTruthy();
+    for (const w of ['gear', 'propeller', 'marine', 'impeller', 'bearing', 'screw', 'washer', 'nut', 'standoff', 'insert', 'spring', 'case', 'fasten', 'knurl', 'cornerHoles', 'mesh', 'meshSolid', 'material']) expect(HELP['wizard:' + w], w).toBeTruthy();
   });
   it('no entry is for a sketch tool the app does not have', () => {
     const tools = new Set(['select', ...sketchTools().map((x) => x.id)]);

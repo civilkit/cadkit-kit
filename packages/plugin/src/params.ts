@@ -3,11 +3,12 @@
 import type { Schema } from '@kit/agent-tools';
 
 export type ParamType = 'number' | 'integer' | 'boolean' | 'string' | 'enum' | 'selection';
-/** What a selection field may take from the viewport (SolidCraft's `x-solidcraft-selection` categories). */
-export type SelCategory = 'profile' | 'edge' | 'face' | 'body' | 'sketch_point' | 'sketch_curve';
-export const SEL_CATEGORIES: readonly SelCategory[] = ['profile', 'edge', 'face', 'body', 'sketch_point', 'sketch_curve'];
+/** What a selection field may take from the viewport (SolidCraft's `x-solidcraft-selection` categories, and `sketch`: a whole sketch, picked in the Features list).
+ *  Every category is opt-in: a field gets only the kinds it declares. */
+export type SelCategory = 'profile' | 'edge' | 'face' | 'body' | 'sketch' | 'sketch_point' | 'sketch_curve';
+export const SEL_CATEGORIES: readonly SelCategory[] = ['profile', 'edge', 'face', 'body', 'sketch', 'sketch_point', 'sketch_curve'];
 /** The `type` an item of each category carries (the app's selection reference, as `select.set` takes it). */
-export const SEL_TYPE: Record<SelCategory, string> = { profile: 'profile', edge: 'edge', face: 'face', body: 'body', sketch_point: 'external_sketch_point', sketch_curve: 'external_sketch_curve' };
+export const SEL_TYPE: Record<SelCategory, string> = { profile: 'profile', edge: 'edge', face: 'face', body: 'body', sketch: 'sketch', sketch_point: 'external_sketch_point', sketch_curve: 'external_sketch_curve' };
 /** One pick: a reference object (`{type:'body', name}`, `{type:'face', body, index}`), or just a body's name for a field that takes names. */
 export type SelItem = Record<string, unknown> | string;
 export interface ParamOption { value: string | number; label?: string }

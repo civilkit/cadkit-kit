@@ -49,3 +49,11 @@ export function tooltipText(it: TooltipItem): string {
   const val = typeof it.value === 'number' ? ' ' + Math.round(it.value * 100) / 100 : '';
   return it.driving ? name + val : `(${name})`;
 }
+
+/** The same finding split for a compact row: a bold name ("Line 1 start") and a short meaning ("x and y", "can change"). */
+export function freeParts(it: FreeItem): { name: string; meaning: string } {
+  const role = it.role === 'centre' ? t('app.sketch.free.role.centre') : it.role === 'start' ? t('app.sketch.free.role.start') : it.role === 'end' ? t('app.sketch.free.role.end') : '';
+  const what = `${typeName(it.entityType)} ${it.ordinal}${role ? ' ' + role : ''}`;
+  if (it.role === 'radius') return { name: t('app.sketch.free.name.radius', { what }), meaning: t('app.sketch.free.short.radius') };
+  return { name: what, meaning: it.axes === 'x' ? t('app.sketch.free.axes.x') : it.axes === 'y' ? t('app.sketch.free.axes.y') : t('app.sketch.free.axes.xy') };
+}

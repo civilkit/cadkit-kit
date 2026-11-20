@@ -135,6 +135,9 @@ A sketch on a face has its normal pointing out of the body.
 | `.spring(...)`, `.extensionSpring(...)`, `.torsionSpring(...)` | The Spring wizard's three types, each as its own body. |
 | `.thread(...)` | A cosmetic or modelled thread on a hole or cylinder. |
 | `.surfaceExtrude`, `.surfacePlanar`, `.surfaceLoft`, `.thicken`, `.knit` | Surface bodies. |
+| `.projectCurve`, `.offsetCurve`, `.compositeCurve` | Curve features (Project curve with Keep exact, Offset curve, Composite curve). Take `part.handle()` to use one as a sweep path. |
+| `.sweepSurface`, `.blendSurface`, `.fillNSided` | Sweep surface, Blend surface and the N-sided Fill. |
+| `await .checkIntersection(faces?)` | The Check intersection tool as a read: how many spans of the intersection curves the kernel proves. |
 | `.insertPart(doc, {...})`, `.mate({...})` | Assemblies inside the part. |
 | `.appearance({...})`, `.bodyName(handle, name)` | Colour, opacity, finish and body names. They add no feature and no history step. |
 | `.feature(json)`, `.sketchFeature(on, {...})` | Raw features, for anything without a helper. |

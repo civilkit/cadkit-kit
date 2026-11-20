@@ -134,6 +134,20 @@ export const CONTINUITIES = ['G0', 'G1', 'G2', 'G3'] as const;
 export const FAIRINGS = ['meowNURBS', 'plate', 'curvature', 'variation'] as const;
 export type Continuity = (typeof CONTINUITIES)[number];
 export const continuityOf = (eff: Wire): Continuity => (CONTINUITIES.includes(eff.continuity as never) ? (eff.continuity as Continuity) : 'G0');
+/** `single` (one planar or ruled face, the default) or `nSided`: N bicubic faces round a centre vertex, G0 or G1 only. */
+export const PATCHES = ['single', 'nSided'] as const;
+export type FillPatch = (typeof PATCHES)[number];
+export const patchOf = (eff: Wire): FillPatch => (eff.patch === 'nSided' ? 'nSided' : 'single');
+export const N_SIDED_CONTINUITIES = ['G0', 'G1'] as const;
+/** The continuities a patch takes. */
+export const continuitiesFor = (p: FillPatch): readonly Continuity[] => (p === 'nSided' ? N_SIDED_CONTINUITIES : CONTINUITIES);
+/** The kernel's default `patchTolerance` (mm). */
+export const DEFAULT_PATCH_TOLERANCE = 1e-4;
+/** Choosing the patch: N-sided keeps G0 or G1 (a G2 or G3 fill falls back to G0, which the kernel would refuse), and drops the fields of the other patch. */
+export function patchChoice(eff: Wire, p: FillPatch): Wire {
+  if (p === 'nSided') return { patch: 'nSided', ...((N_SIDED_CONTINUITIES as readonly string[]).includes(continuityOf(eff)) ? {} : { continuity: 'G0' }), patchTolerance: typeof eff.patchTolerance === 'number' ? eff.patchTolerance : DEFAULT_PATCH_TOLERANCE };
+  return { patch: null, patchTolerance: null };
+}
 export const fairingOf = (eff: Wire): string => (typeof eff.fairing === 'string' ? eff.fairing : 'meowNURBS');
 
 // ---- knit ----

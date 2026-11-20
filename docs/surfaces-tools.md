@@ -12,6 +12,8 @@ Tests: `surfaceRules.test.tsx`, `surfaceCreators.kernel.test.ts`, `surfaceSample
 | Loft (`add-loft`) | Shift+O | `loft {sketches:[a,b]}` solid | the two newest closed sketches no other feature uses |
 | Lofted surface (`add-surface-loft`) | | `loft {surface:true}` | same, open or closed (all of one kind) |
 | Sweep (`add-sweep`) | Shift+W | `sweep {sketch, path:{kind:'sketch',id}}` | newest unused closed sketch (profile), newest unused open sketch (path) |
+| Sweep surface (`add-sweep-surface`) | | `sweepSurface {profile, path, frame:'tangent', tolerance}` | the selected curve or newest open sketch (path), the closed sketch before it (profile) |
+| Blend surface (`add-blend-surface`) | | `blendSurface {faces, radius, tolerance}` | two picked faces |
 | Planar / Extruded / Revolved surface | | existing | closed sketch / any curves / sketch with axis line |
 | Fill surface (`add-fill`) | Shift+I | `fill {edges, continuity:'G0', merge:true}` | picked edges (edge mode), else the first open loop of the surface selected in the tree or owning a picked face |
 | Extend surface (`add-extend`) | Shift+X | `extend {edges, distance, shape:'same'}` | picked border edge, else the first open edge of the surface |

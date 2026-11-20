@@ -1,6 +1,8 @@
 import { describe, expect, it, afterEach } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/preact';
-import { DiagnosticsCard } from './DiagnosticsCard';
+import { DiagnosticsCard, DiagnosticsWarnings } from './DiagnosticsCard';
+import { warningEntries } from './featureWarnings';
+import { warningsById } from './threadData';
 import { diagnose, type DiagFeature } from './errorSummary';
 import { adviceOf, summaryLine } from './diagnosticsText';
 import './locales/en';
@@ -79,5 +81,33 @@ describe('rounding refusals', () => {
     const { container } = render(<DiagnosticsCard diagnosis={dd} variant="editor" onSelect={() => {}} />);
     expect(container.querySelector('.diag-summary')!.textContent).toContain('spring leaves its face');
     expect(container.querySelector('.diag-advice')!.textContent).toContain('smaller radius');
+  });
+});
+
+describe('DiagnosticsWarnings', () => {
+  it('one entry per warning: the Warning tag, the feature as a link that selects it, the text and the advice', () => {
+    const picked: string[] = [];
+    const w = warningsById([
+      ['F3', { code: 'blendRoundsCross', params: { detail: 'x', width: 4, radii: [3, 3], meetRadius: 2 } }],
+      ['F3', { code: 'endRefRelinked', params: { from: 'a', to: 'b' } }],
+    ]);
+    const entries = warningEntries(w, [{ id: 'F3', type: 'fillet', name: 'Top rounds' }]);
+    const { container } = render(<DiagnosticsWarnings entries={entries} onSelect={(id) => picked.push(id)} />);
+    const items = container.querySelectorAll('.diag-warning');
+    expect(items.length).toBe(2);
+    expect(items[0].getAttribute('data-warning')).toBe('blendRoundsCross');
+    expect(items[0].querySelector('.diag-tag')!.textContent).toBe('Warning');
+    expect(items[0].querySelector('.why')!.textContent).toMatch(/^The two roundings are wider than the face between them/);
+    expect(items[0].querySelector('.diag-advice')!.textContent).toBe(en['diag.advice.blendRoundsCross']);
+    expect(items[1].querySelector('.why')!.textContent).toBe('This feature built with a warning: endRefRelinked');
+    expect(items[1].querySelector('.diag-advice')).toBeNull();
+    const link = items[0].querySelector('button.diag-item') as HTMLElement;
+    expect(link.textContent).toBe('F3 Top rounds');
+    fireEvent.click(link);
+    expect(picked).toEqual(['F3']);
+  });
+  it('nothing without warnings', () => {
+    const { container } = render(<DiagnosticsWarnings entries={[]} onSelect={() => {}} />);
+    expect(container.innerHTML).toBe('');
   });
 });

@@ -116,6 +116,7 @@ export function pickValue(path: string, selection: string[], edges: ViewEdge[], 
     return all.length ? all : null;
   }
   if (path === 'faces') { const r = faceNames(selection); return r.length ? r : null; }
+  if (path === 'face') return faceNames(selection)[0] ?? null;   // an offset curve's support face
   if (path === 'side1' || path === 'center' || path === 'side2') return faceNames(selection)[0] ?? null;   // a full round's faces
   // a plane or neutral-plane field takes a face as a reference object (the kernel rejects a bare name)
   if (path === 'neutral' || path === 'plane' || path === 'to' || path === 'to2') { const f = faceNames(selection)[0]; return f ? { kind: 'face', id: f } : null; }

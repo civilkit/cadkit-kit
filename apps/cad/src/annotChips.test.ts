@@ -100,9 +100,8 @@ describe('which constraint chips show', () => {
     expect(ids({ mode: 'hover', focus: none, hot: 'eq' })).toEqual(['d', 'eq', 'bad']);
     expect(ids({ mode: 'hover', focus: none, selected: 'v1' })).toEqual(['d', 'v1', 'bad']);
   });
-  it('always shows every chip except the repeated rectangle locks, which wait for a hover', () => {
-    expect(ids({ mode: 'always', focus: none })).toEqual(['d', 'h1', 'v1', 'eq', 'bad']);
-    expect(ids({ mode: 'always', focus: new Set(['e2']) })).toEqual(['d', 'h1', 'v1', 'eq', 'bad', 'lock2']);
+  it('always shows every chip, rectangle locks included (Show constraints on never draws nothing on a rectangle)', () => {
+    expect(ids({ mode: 'always', focus: none })).toEqual(['d', 'h1', 'v1', 'eq', 'bad', 'lock1', 'lock2']);
   });
   it('off hides every glyph chip but a conflicting one, and never a value chip', () => {
     expect(ids({ mode: 'off', focus: new Set(['e1', 'e2', 'e3']), hot: 'eq' })).toEqual(['d', 'bad']);

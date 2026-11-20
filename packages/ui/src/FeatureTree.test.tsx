@@ -55,6 +55,19 @@ describe('FeatureTree', () => {
     expect(w.getAttribute('aria-label')).toBe(hint);
   });
 
+  it('several warnings read one per line; no mark on a suppressed row or one after the rollback marker', () => {
+    const warnings = { F2: { code: 'blendRoundsCross', hint: 'first\nsecond' }, F3: { code: 'x', hint: 'h' }, F4: { code: 'x', hint: 'h' } };
+    const { container } = render(
+      <FeatureTree rows={[{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'fillet' }, { id: 'F3', type: 'chamfer', suppressed: true }, { id: 'F4', type: 'fillet' }]}
+        status={[]} warnings={warnings} rollback={3} onRollback={() => {}}
+        selectedId={null} onSelect={() => {}} onMove={() => {}} onRemove={() => {}} onToggleSuppress={() => {}} />,
+    );
+    const marks = container.querySelectorAll('.row-warn');
+    expect(marks.length).toBe(1);
+    expect(marks[0].getAttribute('title')!.split('\n')).toEqual(['first', 'second']);
+    expect(marks[0].getAttribute('data-warning')).toBe('blendRoundsCross');
+  });
+
   it('clicking the warning mark reports the feature without selecting the row', () => {
     const got: string[] = []; const sel: string[] = [];
     const { container } = render(

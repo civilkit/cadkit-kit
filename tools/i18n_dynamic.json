@@ -269,6 +269,10 @@
   "feature.pipeCut",
   "feature.plane",
   "feature.projectCurve",
+  "feature.offsetCurve",
+  "feature.compositeCurve",
+  "feature.sweepSurface",
+  "feature.blendSurface",
   "feature.revolve",
   "feature.rib",
   "feature.scale",
@@ -320,6 +324,68 @@
   "opt.fill.continuity.G1",
   "opt.fill.continuity.G2",
   "opt.fill.continuity.G3"
+ ],
+ "opt.fill.patch.+": [
+  "opt.fill.patch.single",
+  "opt.fill.patch.nSided"
+ ],
+ "opt.projectCurve.along.+": [
+  "opt.projectCurve.along.sketch",
+  "opt.projectCurve.along.normal",
+  "opt.projectCurve.along.vector",
+  "opt.projectCurve.along.x",
+  "opt.projectCurve.along.y",
+  "opt.projectCurve.along.z"
+ ],
+ "opt.offsetCurve.in.+": [
+  "opt.offsetCurve.in.auto",
+  "opt.offsetCurve.in.plane",
+  "opt.offsetCurve.in.face",
+  "opt.offsetCurve.in.normal"
+ ],
+ "opt.sweepSurface.+": [
+  "opt.sweepSurface.profileMissing",
+  "opt.sweepSurface.pathMissing"
+ ],
+ "opt.sweepSurface.frame.+": [
+  "opt.sweepSurface.frame.tangent",
+  "opt.sweepSurface.frame.translate"
+ ],
+ "opt.sweepSurface.up.+": [
+  "opt.sweepSurface.up.auto",
+  "opt.sweepSurface.up.x",
+  "opt.sweepSurface.up.y",
+  "opt.sweepSurface.up.z",
+  "opt.sweepSurface.up.negx",
+  "opt.sweepSurface.up.negy",
+  "opt.sweepSurface.up.negz",
+  "opt.sweepSurface.up.vector"
+ ],
+ "opt.blendSurface.${key}.${k}": [
+  "opt.blendSurface.from.x",
+  "opt.blendSurface.from.y",
+  "opt.blendSurface.from.z",
+  "opt.blendSurface.to.x",
+  "opt.blendSurface.to.y",
+  "opt.blendSurface.to.z",
+  "opt.blendSurface.at.x",
+  "opt.blendSurface.at.y",
+  "opt.blendSurface.at.z"
+ ],
+ "opt.blendSurface.span.+": [
+  "opt.blendSurface.span.edge",
+  "opt.blendSurface.span.points"
+ ],
+ "opt.offsetCurve.normal.+": [
+  "opt.offsetCurve.normal.x",
+  "opt.offsetCurve.normal.y",
+  "opt.offsetCurve.normal.z"
+ ],
+ "inspect.intersection.reason.+": [
+  "inspect.intersection.reason.unsupported",
+  "inspect.intersection.reason.singular",
+  "inspect.intersection.reason.noContraction",
+  "inspect.intersection.reason.degenerate"
  ],
  "opt.projectCurve.direction.+": [
   "opt.projectCurve.direction.both",
@@ -980,6 +1046,7 @@
   "cmd.export-stl-ascii"
  ],
  "diag.reason.+": [
+  "diag.reason.blendRoundsCross",
   "diag.reason.booleanFailed",
   "diag.reason.cutNoEffect",
   "diag.reason.fillInvalid",
@@ -997,6 +1064,7 @@
   "diag.reason.trimNoIntersection"
  ],
  "diag.advice.+": [
+  "diag.advice.blendRoundsCross",
   "diag.advice.booleanFailed",
   "diag.advice.cutNoEffect",
   "diag.advice.fillInvalid",
@@ -1962,6 +2030,26 @@
  "bearing.issue.+": [
   "bearing.issue.size"
  ],
+ "m2s.advice.+": [
+  "m2s.advice.meshBadInput",
+  "m2s.advice.meshDegenerate",
+  "m2s.advice.meshGapAmbiguous",
+  "m2s.advice.meshHoleSelfIntersects",
+  "m2s.advice.meshHoleTooLarge",
+  "m2s.advice.meshNonManifold",
+  "m2s.advice.meshNotWatertight",
+  "m2s.advice.meshTooLarge"
+ ],
+ "m2s.code.+": [
+  "m2s.code.meshBadInput",
+  "m2s.code.meshDegenerate",
+  "m2s.code.meshGapAmbiguous",
+  "m2s.code.meshHoleSelfIntersects",
+  "m2s.code.meshHoleTooLarge",
+  "m2s.code.meshNonManifold",
+  "m2s.code.meshNotWatertight",
+  "m2s.code.meshTooLarge"
+ ],
  "mesh.err.+": [
   "mesh.err.allDegenerate",
   "mesh.err.badAccessor",
@@ -2111,6 +2199,10 @@
   "help.feature.pipeCut.name",
   "help.feature.plane.name",
   "help.feature.projectCurve.name",
+  "help.feature.offsetCurve.name",
+  "help.feature.compositeCurve.name",
+  "help.feature.sweepSurface.name",
+  "help.feature.blendSurface.name",
   "help.feature.refold.name",
   "help.feature.repairPart.name",
   "help.feature.revolve.name",
@@ -2247,6 +2339,10 @@
   "help.feature.pipeCut.sum",
   "help.feature.plane.sum",
   "help.feature.projectCurve.sum",
+  "help.feature.offsetCurve.sum",
+  "help.feature.compositeCurve.sum",
+  "help.feature.sweepSurface.sum",
+  "help.feature.blendSurface.sum",
   "help.feature.refold.sum",
   "help.feature.repairPart.sum",
   "help.feature.revolve.sum",

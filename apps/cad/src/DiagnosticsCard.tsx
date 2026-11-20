@@ -3,6 +3,7 @@ import { useState } from 'preact/hooks';
 import { t } from '@kit/i18n';
 import { adviceOf, consequenceText, featureTag, summaryLine } from './diagnosticsText';
 import { rawErrorText, type Diagnosis } from './errorSummary';
+import type { WarningEntry } from './featureWarnings';
 
 export interface DiagnosticsCardProps {
   diagnosis: Diagnosis;
@@ -72,6 +73,24 @@ export function DiagnosticsCard(p: DiagnosticsCardProps) {
           {d.roots.slice(1).map((r) => <li key={r.id}><button type="button" class="diag-item" data-id={r.id} onClick={() => p.onSelect(r.id)}>{featureTag(r)}: {r.code}</button></li>)}
         </ul>
       ) : null}
+    </div>
+  );
+}
+
+/** The committed build's warnings (features that built but are flagged), below the errors: one entry per warning with a
+ *  Warning tag, the feature as a link that selects it in the tree, what is wrong and what to do. */
+export function DiagnosticsWarnings(p: { entries: WarningEntry[]; onSelect(id: string): void }) {
+  if (!p.entries.length) return null;
+  return (
+    <div class="diag-warnings">
+      {p.entries.map((e, i) => (
+        <div key={e.featureId + ':' + i} class="issue warn diag-warning" data-warning={e.code} data-id={e.featureId}>
+          <span class="diag-tag">{t('diag.warning.tag')}</span>{' '}
+          <button type="button" class="diag-item" data-id={e.featureId} onClick={() => p.onSelect(e.featureId)}>{featureTag({ id: e.featureId, label: e.label })}</button>
+          <div class="why">{e.text}</div>
+          {e.advice ? <div class="why diag-advice">{e.advice}</div> : null}
+        </div>
+      ))}
     </div>
   );
 }

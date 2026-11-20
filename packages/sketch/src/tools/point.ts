@@ -5,8 +5,8 @@
  *
  * Typed points (hole centres): Tab shows X and Y fields (Tab or Enter locks each). Once both are locked the point is
  * placed there and dimensioned from the sketch origin (`hdist` + `vdist`, or `coincident` at 0, 0), so it is fully
- * defined; the fields stay up for the next point until Escape. A click with only one of them locked takes the other
- * from the pointer (and dimensions the typed one).
+ * defined; the fields stay up for the next point until Escape. A click, or Enter, with only one of them locked takes the
+ * other from the pointer (and dimensions the typed one).
  */
 import type { SketchDraft } from '../index';
 import { addConstraintOf, addPoint } from './builders';
@@ -82,6 +82,13 @@ export const pointTool: Tool<PointState> = {
       }
       case 'key': {
         if (ev.key === 'Tab' && !state.typing) return out({ ...state, typing: { live: {}, locked: {} } }, draft);
+        // Enter in a coordinate box with only one of X / Y typed: the point goes there, the other coordinate being what its box shows (typed so far, else the pointer's)
+        if (ev.key === 'Enter' && state.typing && (state.typing.locked.x !== undefined || state.typing.locked.y !== undefined)) {
+          const v = { ...state.typing.live, ...state.typing.locked };
+          const at = { x: v.x ?? state.cursor?.x ?? 0, y: v.y ?? state.cursor?.y ?? 0 };
+          const r = place(draft, at, undefined, state.typing.locked);
+          return out({ ...state, typing: { live: {}, locked: {} } }, r.draft, r.hint);
+        }
         if (ev.key === 'Escape' && state.typing) { const { typing: _t, ...rest } = state; return out(rest, draft); }
         return out(state, draft);
       }

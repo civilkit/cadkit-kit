@@ -12,7 +12,7 @@ export type FolderFormat = 'step' | 'stl' | 'ckpart';
 type Feat = { id: string; type?: string; suppressed?: boolean; [k: string]: unknown };
 
 /** Features that make no solid: a folder holding only these has nothing to export. */
-const NO_SOLID = new Set(['sketch', 'sketch3d', 'plane', 'axis', 'helix', 'projectCurve', 'editCurve', 'splitLine']);
+const NO_SOLID = new Set(['sketch', 'sketch3d', 'plane', 'axis', 'helix', 'projectCurve', 'editCurve', 'offsetCurve', 'compositeCurve', 'splitLine']);
 
 /** The feature ids a face name belongs to: the one that made it and the ones that repeated it (`F4.S.h1@F9.2`). */
 export function faceFeatures(face: string): string[] {

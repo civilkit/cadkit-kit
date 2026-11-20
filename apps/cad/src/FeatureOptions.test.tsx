@@ -8,7 +8,9 @@ import './i18n';
 afterEach(cleanup);
 type Wire = Record<string, unknown>;
 
-function mount(feature: Wire, extra: Partial<Parameters<typeof FeatureEditor>[0]> = {}) {
+function mount(feature: Wire, extra: Partial<Parameters<typeof FeatureEditor>[0]> = {}, opts: { foldOptions?: boolean } = {}) {
+  // the Options section folds while its values are neutral; these tests look inside it, so it starts open unless a test is about the fold
+  try { if (opts.foldOptions) localStorage.removeItem('kit.editor.collapsed'); else localStorage.setItem('kit.editor.collapsed', JSON.stringify({ options: false })); } catch { /* none */ }
   const drafts: Wire[] = [];
   const picks: string[] = [];
   const r = render(<FeatureEditor feature={feature} onDraft={(d) => drafts.push(d)} onConfirm={() => {}} onCancel={() => {}} onPickRequest={(p) => picks.push(p)} options={optionsFor} {...extra} />);
@@ -30,6 +32,19 @@ describe('extrude options', () => {
     expect(m.q('endRef')).toBeNull();
     expect(m.q('sketch')).not.toBeNull();   // the generic profile section stays
     expect(m.container.querySelectorAll('[data-path="depth"]').length).toBe(1);   // not drawn twice
+  });
+  it('the Options section is folded while flip, draft, end scale and twist are all neutral, and says what is set once one is', () => {
+    const neutral = mount(EXTRUDE, {}, { foldOptions: true });
+    expect(neutral.container.querySelector('[data-section="options"]')!.classList.contains('closed')).toBe(true);
+    expect(neutral.q('draft')).toBeNull();
+    cleanup();
+    const tapered = mount({ ...EXTRUDE, draft: 5 }, {}, { foldOptions: true });
+    const sec = tapered.container.querySelector('[data-section="options"]')!;
+    expect(sec.classList.contains('closed')).toBe(false);   // a feature that uses an option shows it
+    expect(tapered.q('draft')).not.toBeNull();
+    cleanup();
+    const flipped = mount({ ...EXTRUDE, flip: true }, {}, { foldOptions: true });
+    expect(flipped.q('flip')).not.toBeNull();
   });
   it('through hides the depth and removes it from the draft; blind brings it back', () => {
     const m = mount(EXTRUDE);

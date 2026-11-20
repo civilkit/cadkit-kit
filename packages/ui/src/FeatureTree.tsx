@@ -61,7 +61,8 @@ export type TreeDrop = { kind: 'row'; id: string } | { kind: 'folder'; name: str
 export function FeatureTree(p: {
   rows: FeatureRow[];
   status: FeatureStatus[];
-  /** Regen warnings by feature id (amber hint under the row; the feature still works). */
+  /** Regen warnings by feature id (amber mark on the row, its tooltip `hint`, one warning per line; the feature still works).
+   *  Not shown on a suppressed row or one after the rollback marker. */
   warnings?: Record<string, { code: string; hint: string }>;
   selectedId: string | null;
   /** Every selected row when several are (Ctrl/Shift click); `selectedId` is then the one clicked last. */
@@ -295,7 +296,7 @@ export function FeatureTree(p: {
             : <span class="row-name" title={t('feature.' + r.type, undefined, r.type)}>{hl(label)}</span>}
           {r.name && !renamingThis && !r.name.toLowerCase().startsWith(kindLabel(r.type).toLowerCase()) ? <span class="row-type">{hl(t('feature.' + r.type, undefined, r.type))}</span> : null}
           {r.note && !renamingThis ? <span class="row-note" data-note={r.note}>{r.note}</span> : null}
-          {!failed && p.warnings?.[r.id] ? <span class="row-warn" data-warning={p.warnings[r.id].code} title={p.warnings[r.id].hint ?? p.warnings[r.id].code} aria-label={p.warnings[r.id].hint ?? p.warnings[r.id].code} role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); p.onWarning?.(r.id); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); p.onWarning?.(r.id); } }}>!</span> : null}
+          {!failed && !r.suppressed && i < upTo && p.warnings?.[r.id] ? <span class="row-warn" data-warning={p.warnings[r.id].code} title={p.warnings[r.id].hint ?? p.warnings[r.id].code} aria-label={p.warnings[r.id].hint ?? p.warnings[r.id].code} role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); p.onWarning?.(r.id); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); p.onWarning?.(r.id); } }}>!</span> : null}
           <span class="row-id">{hl(r.id)}</span>
           <span class="row-actions">
             {p.onSelectFaces && !isSketch(r.type) && r.type !== 'plane' ? (

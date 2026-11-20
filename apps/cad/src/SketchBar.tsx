@@ -5,6 +5,7 @@ import { Icon, Tip } from '@kit/ui';
 import { t } from './i18n';
 import type { SketchPrefs } from './sketchPrefs';
 import { HelpButton } from './HelpButton';
+import { popoverLayout } from './dofPopover';
 import { statusAria, statusItems, statusMode, type StatusItem } from './statusGroup';
 
 /** 'under' blue, 'full' dark, 'over' red: the same three colours the geometry takes on the canvas. */
@@ -130,21 +131,38 @@ export function DofBadge(p: Pick<SketchControls, 'status' | 'list'> & { autoOpen
   }, [bad, level]);
   const wasOpen = useRef(false);
   useEffect(() => { if (listOpen !== wasOpen.current) { wasOpen.current = listOpen; p.onOpenChange?.(listOpen); } }, [listOpen]);
+  const chip = useRef<HTMLButtonElement>(null);
+  const close = () => { setListOpen(false); chip.current?.focus(); };
+  const [, resized] = useState(0);
   useEffect(() => {
     if (!listOpen) return;
     const away = (e: Event) => { if (!wrap.current?.contains(e.target as Node)) setListOpen(false); };
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setListOpen(false); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    const size = () => resized((n) => n + 1);
     document.addEventListener('pointerdown', away, true);
     document.addEventListener('keydown', key);
-    return () => { document.removeEventListener('pointerdown', away, true); document.removeEventListener('keydown', key); };
+    window.addEventListener('resize', size);
+    return () => { document.removeEventListener('pointerdown', away, true); document.removeEventListener('keydown', key); window.removeEventListener('resize', size); };
   }, [listOpen]);
+  const open = listOpen && !!p.list && !!p.status;
+  const r = open ? chip.current?.getBoundingClientRect() : undefined;
+  const lay = r ? popoverLayout(r.bottom, window.innerWidth, window.innerHeight) : null;
+  const style = lay ? { position: 'fixed', top: lay.top + 'px', right: lay.right + 'px', left: lay.left === null ? 'auto' : lay.left + 'px', maxWidth: lay.maxWidth + 'px', maxHeight: lay.maxHeight + 'px' } as const : undefined;
   return (
     <span class="sk-badge" ref={wrap}>
       {p.status ? (
-        <button class={`dof-chip ${level}`} data-level={level} aria-expanded={listOpen} aria-haspopup="true" onClick={() => setListOpen(!listOpen)}
+        <button ref={chip} class={`dof-chip ${level}`} data-level={level} aria-expanded={listOpen} aria-haspopup="true" onClick={() => setListOpen(!listOpen)}
           title={t('app.sketch.defstate.' + (level === 'none' ? 'under' : level)) + ' - ' + t('app.sketch.constraints')}>{badgeText(p.status)}</button>
       ) : null}
-      <Drop open={listOpen && !!p.list && !!p.status} anchor={wrap} class="sb-list">{p.list}</Drop>
+      {open ? (
+        <div class={'dof-pop' + (lay?.sheet ? ' sheet' : '')} role="dialog" aria-label={t('app.sketch.constraints')} style={style}>
+          <header class="dof-pop-head">
+            <b>{level === 'under' && p.status ? t('app.sketch.dofPop.title', { count: p.status.dof }) : t('app.sketch.constraints')}</b>
+            <button class="dof-pop-close" data-action="dof-close" aria-label={t('app.sketch.dofPop.close')} title={t('app.sketch.dofPop.close')} onClick={close}>×</button>
+          </header>
+          <div class="dof-pop-body">{p.list}</div>
+        </div>
+      ) : null}
     </span>
   );
 }

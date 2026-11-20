@@ -17,3 +17,4 @@ export { springEditOps, extensionEditOps, torsionEditOps, springGeometry, extens
 export { sanitizeCosmeticKnurls, cosmeticToOpts, type CosmeticKnurl } from './cosmeticKnurl';
 export { SHEET_CATALOG, SHEET_REQUESTS, SHEET_FEATURE_TYPES, SHEET_COMING_TYPES, SHEET_ERROR_CODES, ruleAdvice, type SheetFeatureDoc, type SheetField, type SheetStatus } from './sheetCatalog';
 export type { SheetPick } from './features/sheet';
+export { openSheetEdges, type CurveIn, type IntersectionReport } from './features/procedural';

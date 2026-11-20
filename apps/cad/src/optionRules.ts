@@ -8,6 +8,7 @@ import { t } from './i18n';
 import { sheetManagedPaths } from './sheet/options';
 import { featureLabel } from './featureCreators';
 import { curveManaged } from './curveRules';
+import { procSurfaceManaged } from './procSurfaceRules';
 
 type Wire = Record<string, unknown>;
 
@@ -92,7 +93,7 @@ export function managedPaths(type: string): Set<string> {
     case 'split': return new Set(['offset', 'flip', 'names', 'keep', 'target']);
     case 'lipJoint': return new Set(['offset', 'flip', 'names', 'target', 'tongue', 'height', 'width', 'widthRatio', 'inset', 'clearance']);
     case 'deleteBody': return new Set(['bodies']);
-    case 'fill': return new Set(['continuity', 'fairing', 'merge']);
+    case 'fill': return new Set(['continuity', 'fairing', 'merge', 'patch', 'patchTolerance']);
     case 'extend': return new Set(['distance', 'shape', 'end']);
     case 'lpattern': return new Set(['carryThreads', ...['dir', 'count', 'spacing', 'reverse', 'distanceType', 'extent', 'to', 'toOffset'].flatMap((b) => [b, b + '2'])]);
     case 'curvepattern': return new Set(['carryThreads', 'path', 'count', 'spacing', 'distanceType', 'extent', 'start', 'startFraction', 'flip', 'orientation']);
@@ -102,7 +103,7 @@ export function managedPaths(type: string): Set<string> {
     case 'trimSurface': return new Set(['surface', 'toolSurface', 'flip', 'mutual', 'deleteTool']);
     case 'plane': return new Set(['base']);
     case 'thicken': return new Set(['thickness', 'thicknessAt']);
-    default: { const sheet = sheetManagedPaths(type); return sheet.size ? sheet : curveManaged(type); }
+    default: { const sheet = sheetManagedPaths(type); if (sheet.size) return sheet; const curve = curveManaged(type); return curve.size ? curve : procSurfaceManaged(type); }
   }
 }
 export const hasOptions = (type: string): boolean => managedPaths(type).size > 0;

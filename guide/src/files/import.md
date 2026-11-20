@@ -69,7 +69,35 @@ A file that holds several objects comes in as **one** mesh (one row in the tree)
 
 **What is stored.** The mesh travels in the `.ckpart` as welded vertices and triangle indices, packed and compressed (about 1.2 MB for a 500,000 triangle scan; see [Imported meshes and STEP data in the file](files.md#imported-meshes-and-step-data-in-the-file)), with the vertices rounded to a grid of at most one micron. The browser's automatic backup keeps a mesh up to about 2 MB packed and otherwise leaves it out and says so, so save to a file. Save as to a new name, dragging the saved file back in, and inserting the part from a library all keep the mesh; exporting a folder's geometry or extracting a folder does not (those are bodies and features, not meshes). A mesh that is damaged in a file is left out with a notice and the rest of the part opens. The mesh is not sent to the kernel, is not counted in mass or volume, and is not in STL, STEP or other exports.
 
-**Not done**: converting a mesh to a solid, remeshing or simplifying, mesh booleans, repairing holes (the dialog only reports them), colours or textures from an STL file, textures from any mesh file, importing the parts of a multi-part file as separate meshes, and constraints to mesh points.
+**Not done**: keeping a converted mesh in the part (see the next section for the preview), remeshing or simplifying, mesh booleans, repairing holes (the dialog only reports them), colours or textures from an STL file, textures from any mesh file, importing the parts of a multi-part file as separate meshes, and constraints to mesh points.
+
+## Convert a mesh to a solid (preview)
+
+**Convert mesh to solid** (the **Convert mesh to solid** button in the Mesh panel, the top bar's file menu, or the command search) asks the kernel to turn a reference mesh into a real solid: coplanar triangles become one flat face, and smooth areas that fit a cylinder, cone or sphere become one exact face of that kind; the rest stays as flat facets. With no mesh in the part, the command asks for an STL, OBJ, GLB or 3MF file and converts that (an STL or OBJ is read in the unit that gives it a likely size, which the panel says; import it as a reference mesh first to choose the unit or to place it).
+
+**This is a preview for now.** The solid is drawn tinted beside the part and is not saved: closing the panel removes it, and **Add to part** stays disabled (the panel says so under it) until the kernel can keep a converted mesh as a feature.
+
+1. The panel shows the mesh, its triangle count and the limit (200,000 triangles; above 20,000 it warns that the conversion can take a minute or more, a scan most of all, above the limit **Convert** is disabled: simplify the mesh in a mesh tool first).
+2. **Close gaps and holes** is off by default. An open mesh is then refused, and the panel marks where its gaps are. Turn it on to let the kernel weld vertices across small gaps, stitch cracks and fill holes. This invents geometry, so the report lists every filled hole under **Invented geometry**. With it on: **Gap size** (mm; `auto` is chosen from the size of the mesh), **Fill holes** (off: weld and stitch only) and **Fill holes up to** (a number of edges; `auto` is 500).
+3. **Advanced** (closed at first): **Plane tolerance**, **Angle tolerance**, **Fit tolerance** and **Analytic fit (planes, cylinders, cones, spheres)**. Empty fields use the kernel's defaults, which scale with the size of the mesh. A noisy scan needs tolerances above its noise.
+4. **Convert** (at the bottom of the panel, always in view; Enter in a field does the same, Esc closes the panel). The kernel runs the conversion to the end once it has started; **Cancel** stops waiting and drops its answer.
+
+**The result** comes first, in a green card: the number of faces and the volume, the time, the faces by kind (planar, cylinders, cones, spheres, and small flat faces left on curved areas that did not fit), and one sentence on the fit. **Show** right under it switches between **Both** (the mesh faded with its triangle edges over the solid), the **Solid** alone, or the **Mesh** alone. **Details** (open by itself when anything was invented) has the filled holes, the deviation of the solid from the mesh (largest and rms, about the chord height of the tessellation that made the mesh; *Exact* when there is none worth a number), the volume of the mesh and of the solid with the change in percent, and the time. Click a filled hole to point the view at it: it is marked with a cross.
+
+**When the mesh is refused** a red card gives a short title and what to do about it, and the places are marked in the view (red crosses at open edges, orange at holes that could not be filled); click a place in **Details** to centre the view on it. The kernel's own message and hint are under **Technical detail**. When the mesh only has gaps and **Close gaps and holes** is off, the card has a **Close the gaps and try again** button that ticks it and converts again in one click.
+
+| Title | What it means |
+|---|---|
+| The mesh has gaps | Some edges belong to one triangle only. Turn on Close gaps and holes, or close it in a mesh tool |
+| Edges shared by more than two triangles | Two bodies touch along an edge, or there are internal faces |
+| The mesh has no volume | Too few triangles, or a flat or empty piece |
+| Too many triangles | Above 200,000 triangles (or the result would have more than 50,000 faces) |
+| The mesh data is damaged | A coordinate that is not a number, or a triangle that points outside the mesh |
+| A hole is too large to fill | More edges than Fill holes up to, or more than a quarter of the surface |
+| A hole cannot be filled without crossing the mesh | The fill would cross itself, another fill or the mesh |
+| A gap cannot be closed without guessing | Welding would make an edge shared by three triangles, or two holes touch at a vertex |
+
+Not converted (they stay faceted, still a valid solid): tori, free-form surfaces, rounded box corners, cylinders cut at an angle and crossing cylinders.
 
 ## SolidWorks parts
 

@@ -19,6 +19,8 @@ export interface FileActions {
   recogniseFeatures(): void;
   /** a STEP file was imported in this session */
   hasStep(): boolean;
+  /** open Convert mesh to solid on the part's reference mesh, or pick a mesh file when the part has none (meshes/useMeshSolid.ts) */
+  meshToSolid(): void;
 }
 
 /** Save as (Ctrl+Shift+S) and Import STEP. */
@@ -31,5 +33,6 @@ export function fileCommands(f: FileActions, hasDocument: () => boolean): Comman
     { id: 'rotate-skp', label: t('cmd.rotate-skp'), tab: 'Home', group: 'File', enabled: f.hasSkp, run: f.rotateSkp },
     { id: 'recognise-features', label: t('cmd.recognise-features'), tab: 'Home', group: 'File', enabled: f.hasStep, run: f.recogniseFeatures },
     { id: 'import-step', label: t('cmd.import-step'), tab: 'Home', group: 'File', run: f.importStep },
+    { id: 'mesh-to-solid', label: t('cmd.mesh-to-solid'), tab: 'Home', group: 'File', enabled: hasDocument, run: f.meshToSolid },
   ];
 }

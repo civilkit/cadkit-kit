@@ -17,8 +17,9 @@ import { shapeFeatures } from './shapes';
 import { sketchCurves } from './sketchCurves';
 import { sketchOffset } from './sketchOffset';
 import { sketchPattern } from './sketchPattern';
+import { proceduralFeatures } from './procedural';
 
-export const partFeatures = { ...shapeFeatures, ...miscFeatures, ...editFeatures, ...knurlFeatures, ...screwFeatures, ...washerFeatures, ...springFeatures, ...fastenerFeatures, ...bearingFeatures, ...sheetFeatures, ...enclosureFeatures, ...trayFeatures };
+export const partFeatures = { ...shapeFeatures, ...miscFeatures, ...editFeatures, ...knurlFeatures, ...screwFeatures, ...washerFeatures, ...springFeatures, ...fastenerFeatures, ...bearingFeatures, ...sheetFeatures, ...enclosureFeatures, ...trayFeatures, ...proceduralFeatures };
 export const sketchFeatures = { ...sketchCurves, ...sketchPattern, ...sketchOffset };
 
 declare module '../recorder' {
