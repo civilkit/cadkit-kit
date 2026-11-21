@@ -4,7 +4,7 @@ import {
   bridgeTool, centerlineTool, centerRectangleTool, centreArcTool, chamferTool, circleTool, circularPatternTool, constructionTool, coincidentTool, collinearTool,
   concentricTool, cvsplineTool, dimensionTool, ellipseTool, equalTool, extendTool, filletTool, fixTool, horizontalTool, lineTool, linearPatternTool,
   midpointTool, mirrorTool, offsetTool, parallelTool, perpendicularTool, pointTool, polygonTool, projectTool, rectangleTool, roundedRectangleTool, slotTool, arcSlotTool, splineTool,
-  symmetricTool, textTool, equationTool, moveTool, copyTool, rotateTool, scaleTool, tangentArcTool, tangentTool, threePointArcTool, trimTool, splitTool, splineAddTool, verticalTool,
+  symmetricTool, textTool, equationTool, moveTool, copyTool, rotateTool, scaleTool, tangentArcTool, tangentTool, threePointArcTool, trimTool, splitTool, breakTool, splineAddTool, verticalTool,
 } from './tools/index';
 import type { Tool } from './tools/types';
 
@@ -39,7 +39,7 @@ const build = (): ToolEntry[] => [
   e('constrain', equalTool), e('constrain', parallelTool), e('constrain', perpendicularTool), e('constrain', collinearTool),
   e('constrain', midpointTool), e('constrain', tangentTool), e('constrain', symmetricTool), e('constrain', fixTool),
   e('constrain', concentricTool),
-  e('edit', filletTool), e('edit', chamferTool), e('edit', trimTool, 't'), e('edit', extendTool, 'e'), e('edit', splitTool), e('edit', mirrorTool), e('edit', offsetTool, 'o'), e('edit', constructionTool, 'x'), e('edit', projectTool, 'p'), e('edit', linearPatternTool), e('edit', circularPatternTool),
+  e('edit', filletTool), e('edit', chamferTool), e('edit', trimTool, 't'), e('edit', extendTool, 'e'), e('edit', splitTool), e('edit', breakTool), e('edit', mirrorTool), e('edit', offsetTool, 'o'), e('edit', constructionTool, 'x'), e('edit', projectTool, 'p'), e('edit', linearPatternTool), e('edit', circularPatternTool),
   e('edit', moveTool), e('edit', copyTool), e('edit', rotateTool), e('edit', scaleTool),
 ];
 

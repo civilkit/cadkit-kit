@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/preact';
-import { MeshSolidPanel, faceChips, fitLine, inventedLine, optionsOf, refusalAdvice, refusalTitle, type MeshSolidPanelProps } from './MeshSolidPanel';
+import { MeshSolidPanel, decimationLine, faceChips, fitLine, inventedLine, optionsOf, refusalAdvice, refusalTitle, type MeshSolidPanelProps } from './MeshSolidPanel';
 import { DEFAULT_MESH_SOLID_OPTIONS, readOutcome, REFUSAL_CODES } from './meshSolid';
 import { fileCommands, type FileActions } from '../files/fileCommands';
 import { isFileCommand, notOnRail } from '../toolbarModel';
@@ -248,5 +248,44 @@ describe('the Convert mesh to solid command', () => {
     expect(isFileCommand('mesh-to-solid')).toBe(true);
     expect(notOnRail('mesh-to-solid')).toBe(true);
     expect(t('cmd.mesh-to-solid.tip')).toMatch(/preview/i);
+  });
+});
+
+describe('MeshSolidPanel: Decimate', () => {
+  const scan = (tris = 250000, diagonal = 400) => props({ sources: [{ id: 'mesh1', name: 'Scan', tris, diagonal }] });
+  it('is off by default; ticking it shows the fields with a suggested tolerance and lifts the triangle limit', () => {
+    const r = render(<MeshSolidPanel {...scan()} />);
+    expect(r.getByTestId('m2s-tris-over')).toBeTruthy();
+    expect((r.getByTestId('m2s-run') as HTMLButtonElement).disabled).toBe(true);
+    expect(r.queryByTestId('m2s-decimate-options')).toBeNull();
+    fireEvent.click(r.getByTestId('m2s-decimate'));
+    expect(r.queryByTestId('m2s-tris-over')).toBeNull();
+    expect(r.getByTestId('m2s-tris-thinned')).toBeTruthy();
+    expect((r.getByTestId('m2s-decimateTol') as HTMLInputElement).placeholder).toBe('0.2');   // 0.05 percent of 400 mm
+    expect((r.getByTestId('m2s-run') as HTMLButtonElement).disabled).toBe(false);
+  });
+  it('Convert sends the suggested tolerance, or what was typed with the target and crease angle', () => {
+    const p = scan();
+    const r = render(<MeshSolidPanel {...p} />);
+    fireEvent.click(r.getByTestId('m2s-decimate'));
+    fireEvent.click(r.getByTestId('m2s-run'));
+    expect(p.onRun).toHaveBeenLastCalledWith({ ...DEFAULT_MESH_SOLID_OPTIONS, decimate: true, decimateTol: 0.2 });
+    fireEvent.input(r.getByTestId('m2s-decimateTol'), { target: { value: '0.05' } });
+    fireEvent.input(r.getByTestId('m2s-decimateTarget'), { target: { value: '15000' } });
+    fireEvent.input(r.getByTestId('m2s-decimateKeepAngle'), { target: { value: '30' } });
+    fireEvent.click(r.getByTestId('m2s-run'));
+    expect(p.onRun).toHaveBeenLastCalledWith({ ...DEFAULT_MESH_SOLID_OPTIONS, decimate: true, decimateTol: 0.05, decimateTarget: 15000, decimateKeepAngle: 30 });
+  });
+  it('with no size to suggest a tolerance from, one has to be typed; a junk value in the hidden fields does not block', () => {
+    const f = { closeTolerance: '', maxHoleEdges: '', planeTol: '', angleTolDeg: '', fitTol: '', decimateTol: 'x' };
+    expect(optionsOf(f, false, true, true).invalid).toEqual([]);
+    expect(optionsOf({ ...f, decimateTol: '' }, false, true, true, 'default', true).invalid).toEqual(['decimateTol']);
+    expect(optionsOf({ ...f, decimateTol: '' }, false, true, true, 'default', true, 200).options.decimateTol).toBe(0.1);
+    expect(optionsOf(f, false, true, true, 'default', true, 200).invalid).toEqual(['decimateTol']);
+  });
+  it('the result card says what the thinning did', () => {
+    const d = { inputTriangles: 120000, triangles: 14800, tol: 0.1, deviation: 0.043, stoppedBy: 'tolerance' };
+    expect(decimationLine(d, 'mm')).toBe('Decimated from 120\u00a0000 to 14\u00a0800 triangles (deviation at most 0.043\u00a0mm of 0.1\u00a0mm allowed).');
+    expect(decimationLine({ ...d, triangles: 120000 }, 'mm')).toMatch(/^Decimate found nothing it could remove within 0\.1\u00a0mm/);
   });
 });

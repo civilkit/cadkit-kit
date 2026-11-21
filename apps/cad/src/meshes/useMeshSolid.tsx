@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import type { HandleSpec, ViewSurface } from '@kit/viewport';
 import { t } from '../i18n';
-import { meshesOf, type MeshRec, type V3 } from './meshDoc';
+import { meshesOf, worldBox, type MeshRec, type V3 } from './meshDoc';
 import { buildMeshRecord, guessUnit, meshKindOf, probeMesh } from './meshImport';
 import {
   MESH_SOLID_TAG, crossLines, marksOf, releasePreview, runMeshToSolid, withPreview, previewSurface, worldMesh,
@@ -78,6 +78,11 @@ export interface MeshSolidUi {
   panel: JSX.Element | null;
 }
 
+/** The diagonal of a mesh's box where it lies, mm (undefined for a mesh that cannot be read). */
+function diagonalOf(rec: MeshRec): number | undefined {
+  try { const b = worldBox(rec); const d = Math.hypot(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]); return Number.isFinite(d) && d > 0 ? d : undefined; } catch { return undefined; }
+}
+
 export function useMeshSolid(d: MeshSolidDeps): MeshSolidUi {
   const [sourceId, setSourceId] = useState<string | null>(null);
   const [file, setFile] = useState<MeshRec | null>(null);
@@ -94,8 +99,8 @@ export function useMeshSolid(d: MeshSolidDeps): MeshSolidUi {
   deps.current = d;
 
   const sources = (): MeshSolidSource[] => [
-    ...meshesOf(d.doc()).map((m) => ({ id: m.id, name: m.name, tris: m.tris })),
-    ...(file ? [{ id: file.id, name: file.name, tris: file.tris, fileUnit: file.unit }] : []),
+    ...meshesOf(d.doc()).map((m) => ({ id: m.id, name: m.name, tris: m.tris, diagonal: diagonalOf(m) })),
+    ...(file ? [{ id: file.id, name: file.name, tris: file.tris, diagonal: diagonalOf(file), fileUnit: file.unit }] : []),
   ];
   const recOf = (id: string | null): MeshRec | null => (id === FILE_SOURCE_ID ? file : meshesOf(deps.current.doc()).find((m) => m.id === id) ?? null);
 

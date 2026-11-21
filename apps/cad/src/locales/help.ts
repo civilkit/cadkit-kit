@@ -82,6 +82,8 @@ export const helpStrings: Record<string, string | Record<string, string>> = {
   'help.sketch.trim.sum': 'Click a part of a line, arc or circle to remove it back to the nearest crossings.',
   'help.sketch.extend.name': 'Extend',
   'help.sketch.extend.sum': 'Click a line or arc near the end you want to lengthen; it runs on to the first curve it meets.',
+  'help.sketch.break.name': 'Break',
+  'help.sketch.break.sum': 'Click a line, arc or circle to split it at every place another curve crosses it.',
   'help.sketch.split.name': 'Split entity',
   'help.sketch.split.sum': 'Click a place on a curve to break it in two at a shared point.',
   'help.sketch.fillet.name': 'Sketch fillet',

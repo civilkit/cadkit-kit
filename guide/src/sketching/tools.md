@@ -82,6 +82,7 @@ With the **Select** tool:
 | <a id="tool-trim"></a>**Trim** (`T`) | Click a part of a line, arc or circle. It is removed back to the nearest crossings with other curves. A part with no crossings is deleted. A circle needs two crossings. Hover shows what will go. Splines and ellipses are not trimmed. |
 | <a id="tool-extend"></a>**Extend** (`E`) | Click a line or arc near the end you want to lengthen. It runs on to the first curve it meets. A circle cannot be extended. |
 | <a id="tool-split"></a>**Split entity** | Click a place on a line, arc, circle or fit spline. It is broken there into two pieces that share one new point, so an outline through it stays closed and still extrudes. Picking an end of the curve is refused. Control-point splines and ellipses cannot be split. Constraints that cannot carry over to both pieces are dropped, and the status line names them. |
+| <a id="tool-break"></a>**Break** | Click a line, arc or circle. It is split at every place another line, arc or circle crosses it, in one step, so each stretch between crossings is its own curve. Hover shows the crossings. A crossing at an end is skipped, and a curve nothing crosses is refused. Constraints carry over as for Split entity. Splines and ellipses are not broken. |
 | <a id="tool-fillet"></a>**Fillet** | Click two lines that meet at a corner (or click the corner), then type or accept a radius to replace the corner with a tangent arc. A radius you type before picking is applied as soon as you pick the corner and is kept as a dimension. |
 | <a id="tool-chamfer"></a>**Chamfer** | The same picks as the fillet. The distance is the length cut from the corner along both lines. |
 | <a id="tool-offset"></a>**Offset** (`O`) | Click a line, arc, circle or spline. For lines and arcs, the whole connected chain is selected. Press `Enter`, then move the pointer to the side you want. The pointer's distance is the offset distance, or type digits for the single field, `dist`, and press `Enter` to lock it. `F` flips the side. Click to place. See [Offsets and references](offset-reference.md). |
@@ -132,6 +133,16 @@ The **Construction** button in the **Reference** group is a mode: while it is on
 ## Importing a drawing
 
 While a sketch is open, the **Import** group of the ribbon has **Import DXF** and **Import SVG**. **Import DXF into sketch** (also in command search) adds the lines, arcs, circles, polylines and splines of an ASCII DXF file to the current sketch. **New sketch from DXF** makes a new sketch from a file. Binary DXF is not supported. **Import SVG into sketch** and **New sketch from SVG** do the same for an SVG drawing: paths (curves become splines, circular arcs stay arcs), rectangles, circles, ellipses, lines and polygons, with the file's size in millimetres, centimetres or inches. See [Importing](../files/import.md).
+
+## An image to trace
+
+**Image** (in the Import group of the sketch tab) puts a photo or a scanned drawing (PNG, JPEG, WebP or GIF, up to 6 MB) on the plane of the open sketch, so you can trace it with the sketch tools. It starts 100 mm wide, centred on the origin, half see-through, under the grid and your lines. A sketch has one image; **Replace** in the panel swaps it.
+
+The **Image to trace** panel sets the **Width** (the height follows the picture), the **Centre X** and **Centre Y** and the **Turn** in degrees; type a number and press Enter or leave the field, each change one undo step. **Opacity** runs from 5 to 100 percent, **Show the image** hides it without removing it, and **Lock it in place** keeps the fields and Calibrate from changing it.
+
+**Calibrate** gives the picture its true size. Click two points of the image that you know the real distance between (the two ends of a ruler, the edges of a part you measured), type that distance, and the image is scaled so the points are exactly that far apart, with the first point staying where it is. Click the **Image** button again to bring the panel back after closing it.
+
+The image is kept in the part file, belongs to the sketch it was added to, and is shown only while that sketch is open. It is not part of the model and is not exported or printed; cancelling a new sketch removes its image.
 
 ## 3D sketch tools
 

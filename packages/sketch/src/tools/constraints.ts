@@ -320,6 +320,12 @@ export function refusal(d: SketchDraft, s: Spec): Refusal | undefined {
 
 export const refusalHint = (r: Refusal): string => HINT[r];
 
+/** For a spec refused as a 'conflict': the existing constraints that, taken out, let it stand (each tried alone; newest first). */
+export function blockers(d: SketchDraft, s: Spec): string[] {
+  if (refusal(d, s) !== 'conflict') return [];
+  return [...d.constraints].reverse().filter((k) => refusal({ ...d, constraints: d.constraints.filter((x) => x.id !== k.id) }, s) === undefined).map((k) => k.id);
+}
+
 // ---- reading the solver status -----------------------------------------------------------------------------------
 
 /** A coded problem in the kernel's sketch status (docs/sketch-status.md "Problems" in the kernel repo). */

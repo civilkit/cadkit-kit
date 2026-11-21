@@ -4,6 +4,19 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.8.7 - 2026-11-21
+
+- **A round or chamfer on an edge that runs into a peg is now exact.** On a block whose front edge runs tangent into a cylinder, the round or chamfer used to build a body that passed validation but removed too much material (34.3 mm3 where 32.3 is correct); it now follows the peg and gives the exact volume.
+- **STEP files that store lines, circles and planes as splines open as clean solids.** Such a file now imports with real lines, circles, planes, cylinders and tori, so Fillet, Chamfer, Shell and Move face work on it instead of refusing, and a file that holds no solid says what it does contain.
+- **A shell next to a boss fillet no longer hangs.** Meshing a face with two nearly overlapping edges now stops at a bound and reports the face, instead of running for minutes.
+- **More thread sizes.** Ninety-nine fine-series sizes (M1x0.2 to M64x4, including M44x1, M44x1.5 and M48x0.75) and the missing UNC, G (BSP), trapezoidal and Acme rows are in the Thread tables.
+- **A fillet that is too big names the largest radius that builds.** The refusal gives the size to try instead of only saying no.
+- **An image to trace in the sketcher.** The Image button puts a photo or scanned drawing on the sketch plane, sized, moved, turned and faded from a panel, and Calibrate sets its true size from two points of a known distance; it is saved with the part.
+- **Convert mesh to solid: Decimate.** Tick Reduce the triangles first and a scan of 100,000 or more triangles is thinned to a fraction before it becomes a solid, never moving the surface by more than the deviation you set, and the result says what it did (for example, 120 000 down to 14 800 triangles, at most 0.043 mm off).
+- **A hex bolt stays a body of its own.** The hex head of a screw or the Screw wizard no longer fuses with the plate it sits on, and each screw of a part gets its own name (Screw, Screw 2).
+- **Sketch: Break, Replace, Select unconstrained.** Break splits a line, arc or circle at every crossing; a constraint that contradicts another offers a Replace button (Shift swaps at once); Show freedom gets a Select them button.
+- **Orientation cube size.** The view navigation menu sets the cube to 75, 100, 125 or 150 percent.
+
 ## 0.8.6 - 2026-11-21
 
 - **Motion studies.** A new Motion tab drives any mate with a slider, Find limits says where a swing stops and why (a limit, or two parts touching), and a study of keyframes plays along a timeline docked under the view. Export a study as WebM, MP4, GIF or PNG frames; scripts and MCP tools can drive and sweep too.

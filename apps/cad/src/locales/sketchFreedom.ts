@@ -10,6 +10,7 @@ export const sketchFreedomStrings: Record<string, string | Record<string, string
   'app.sketch.free.move': '{what} can move in {axes}',
   'app.sketch.free.radius': '{what} radius can change',
   'app.sketch.free.name.radius': '{what} radius', 'app.sketch.free.short.radius': 'can change',
+  'app.sketch.free.select': 'Select them', 'app.sketch.free.select.tip': 'Select every curve that is not fully fixed yet, to move, delete or constrain them together',
   'app.sketch.free.showAll': 'Show all ({count})', 'app.sketch.free.showFewer': 'Show fewer',
   'app.sketch.dofPop.title': 'Degrees of freedom: {count}', 'app.sketch.dofPop.close': 'Close',
   'app.sketch.constraints.count': 'Constraints ({count})',

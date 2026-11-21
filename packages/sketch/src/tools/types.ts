@@ -102,6 +102,8 @@ export interface ToolOutput<S> {
   anchor?: Pt;
   /** Constraint kinds a tool had to drop because they cannot carry over (Split Entity): the hint names them (`{kinds}`). */
   dropped?: string[];
+  /** The step was refused because the new constraint contradicts an existing one: the draft with that one swapped for the new (Replace). */
+  replace?: { draft: SketchDraft; remove: string; type: string };
   /** The mode of a tool that has more than one (the line tool: `line` or `arc`). */
   mode?: string;
 }

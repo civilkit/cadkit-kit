@@ -24,7 +24,7 @@ import { blendSpanFromFaces } from './procSurfaceRules';
 import { tangentChainOn, chainSelection, chainRefs, edgeRuns, noRoundEdges, refEdgeKey } from './roundChain';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, revolveOps, type FeatureActions } from './featureCommands';
 import { selectionInField } from './listPick';
-import { annotate, gridCapture, expandFocus, rectangleAxisLocks, layoutDimensions, placementsOf, placementFromPointer, setDimPlacement, resetDimPlacement, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, pickEntity, withPickedEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, alignSourceAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, constrainTypedPoint, newPointAt, opensCoordBox, coordBoxText, EMPTY_MODEL_SNAPS, type TypedPoint, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type PanelSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput, describeFree, freeParts, suggestionsFor, applySuggestion, tooltipItems, effectiveMarkMode, freedomHighlight, withoutSuggestion, type FreeItem, type Suggestion } from '@kit/sketch';
+import { annotate, gridCapture, expandFocus, rectangleAxisLocks, layoutDimensions, placementsOf, placementFromPointer, setDimPlacement, resetDimPlacement, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, replaceCandidates, withoutConstraint, blewUp, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, pickEntity, withPickedEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, alignSourceAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, constrainTypedPoint, newPointAt, opensCoordBox, coordBoxText, EMPTY_MODEL_SNAPS, type TypedPoint, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type PanelSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput, describeFree, freeParts, suggestionsFor, applySuggestion, tooltipItems, effectiveMarkMode, freedomHighlight, withoutSuggestion, type FreeItem, type Suggestion } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
   errorText, PanelBoundary, BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, NotificationHistory, VarsContext, Sheet, BottomNav,
@@ -172,7 +172,9 @@ import { recogniseInBrowser } from './recognise/quiddityClient';
 import './recognise/strings';
 import { orientOf, SKP_MESH_MAX_FACES, SKP_ROT, skpMeshRecord } from './files/skpMesh';
 import { refMeshBodies, type RefMeshExport } from './meshes/meshExport';
-import { meshesOf, matRuns, nextMeshId, matrixOf, decode as decodeMesh, pickMeshes, nearestOnMeshes, projectAlong, allWorldBox, worldBox, MESH_KEY, type MeshRec } from './meshes/meshDoc';
+import { UnderlayPanel, type Calibration } from './UnderlayPanel';
+import { MAX_UNDERLAY_BYTES, UNDERLAY_ACCEPT, UNDERLAY_KEY, calibrated, mimeOfName, newUnderlay, pruneUnderlays, readImage, shapeOf, underlayFor, underlaysOf, withUnderlay, withoutUnderlay, type Underlay } from './underlay';
+import { meshesOf, bytesToBase64Async, matRuns, nextMeshId, matrixOf, decode as decodeMesh, pickMeshes, nearestOnMeshes, projectAlong, allWorldBox, worldBox, MESH_KEY, type MeshRec } from './meshes/meshDoc';
 import { buildMeshRecord, guessUnit, meshNoteLines, probeMesh, type MeshKind, type MeshProbe } from './meshes/meshImport';
 import { planeThrough, type PlaneKind } from './meshes/meshEdit';
 import { treeMeshRows } from './meshes/meshTree';
@@ -790,6 +792,10 @@ function App() {
   const seedBufRef = useRef('');
   /** The coordinate box (a first point typed as x,y) and the typed point waiting for the tool to make its point (then it gets its dimensions). */
   const [coordBox, setCoordBox] = useState<{ initial: string } | null>(null);
+  // the picture to trace on the open sketch (underlay.ts, UnderlayPanel.tsx) and its calibration (two clicks, then the real distance)
+  const [underlayOpen, setUnderlayOpen] = useState(false);
+  const [calib, setCalibState] = useState<Calibration | null>(null);
+  const calibRef = useRef<Calibration | null>(null);
   const pendingTypedRef = useRef<TypedPoint | null>(null);
   /** typed variables / expressions of committed tool fields, by value (x1e6): put on the dimension the tool creates */
   const typedExprRef = useRef(new Map<string, string>());
@@ -2736,6 +2742,7 @@ function App() {
     });
   };
   const selectTool = (id: string | null) => {
+    if (calibRef.current) { calibRef.current = null; setCalibState(null); }   // choosing a tool ends a calibration
     // leaving the Line tool mid-chain (Escape, another tool): the tool ends its chain first, which removes a start point nothing was drawn from
     for (let i = 0; i < 3 && sketchToolRef.current === 'line' && (toolStateRef.current as { last?: string } | null)?.last; i++) runTool({ type: 'key', key: 'Escape' });
     const entry = id ? toolById(id) : undefined;
@@ -2854,6 +2861,13 @@ function App() {
     setToolOut({ fields: out.fields, ...(out.panel ? { panel: out.panel } : {}), x: lastPosRef.current.x, y: lastPosRef.current.y, pending: out.pending, snapLabel: snap ? t('app.sketch.snap.' + (snap.model ?? (snap.kind === 'point' ? snap.role ?? 'point' : snap.kind))) : undefined, snapModel: !!snap?.model });
     const toolHint = (): string => t(out.hint!, out.dropped ? { kinds: out.dropped.map((k) => t('app.sketch.constraint.' + k, undefined, k)).join(', ') } : undefined);
     if (out.hint) setSketchHint(toolHint());
+    if (out.replace && !dry) {   // a constraint refused because it contradicts one that is there: offer to swap them
+      const rep = out.replace, before = draft, name = t('app.sketch.constraint.' + rep.type, undefined, rep.type);
+      store.notify(t('app.sketch.replace.offer', { old: name }), 'info', { label: t('app.sketch.replace.action'), run: () => {
+        if (controller.sketchDraft()?.id !== rep.draft.id) return;   // the sketch was closed meanwhile
+        applyDraft(rep.draft, (r) => finishReplace(r, rep.draft.id, before, name));
+      } });
+    }
     if (out.draft !== draft) {
       if (['move', 'copy', 'rotate', 'scale', 'mirror', 'pattern-linear', 'pattern-circular'].includes(entry.id)) toolEntitiesRef.current = [];   // done: the next run picks again
       const before = new Set(draft.constraints.map((c) => c.id));
@@ -2861,7 +2875,7 @@ function App() {
       void controller.applySketchDraft(out.draft).then((r) => {
         setSketchHint(r.ok || r.stale ? (out.hint ? toolHint() : null) : (r.hint ? t(r.hint) : null));
         viewTick((n) => n + 1);   // the solver's answer (degrees of freedom, constraint list) arrives after the tool's own redraw
-        if (r.ok && !r.stale) settleDimensions(before, r.status);
+        if (r.ok && !r.stale) { void offerReplace(before, r.status, ev.type === 'click' && !!ev.mods?.shift); settleDimensions(before, r.status); }
         // a placed text or equation curve is edited in its panel: back to Select mode with the new entity picked
         if (placed && r.ok) { selectTool(null); selectEntity(placed, lastPosRef.current.x, lastPosRef.current.y); }
         // a circle dragged out by a finger: it is picked and its radius field takes the focus (the digit keypad), so an exact size can be typed
@@ -3141,6 +3155,35 @@ function App() {
       then?.(r);
     });
   };
+  /** After a swap: say so; if the solve threw the sketch far away or was refused, take it back and say that instead. */
+  function finishReplace(r: Awaited<ReturnType<typeof controller.applySketchDraft>>, sketchId: string, before: import('@kit/sketch').SketchDraft, name: string) {
+    if (!r.ok) return;   // refused: the hint on the status line says why, and the draft was left as it was
+    const now = controller.sketchDraft();
+    if (now && now.id === sketchId && blewUp(before, now)) {
+      void controller.undoSketch().then(() => { viewTick((n) => n + 1); applyHighlight(); store.notify(t('app.sketch.replace.failed', { old: name }), 'warn'); });
+      return;
+    }
+    store.notify(t('app.sketch.replace.done', { old: name }));
+  }
+  /** A constraint or dimension that clashes with one already there: find the earlier one whose removal lets the new one stand and
+   *  offer to swap (a Replace button in the notice; Shift held while adding does it at once). */
+  async function offerReplace(before: Set<string>, status: import('@ck/part-model').SketchSolverStatus | undefined, now: boolean) {
+    const draft = controller.sketchDraft();
+    if (!draft || !status) return;
+    const bad = new Set([...status.conflicts, ...status.redundant]);
+    const added = draft.constraints.find((c) => !before.has(c.id) && bad.has(c.id));
+    if (!added) return;
+    const ids = await replaceCandidates(draft, added.id, (d) => controller.probeSketch(d));
+    const old = ids.length ? draft.constraints.find((c) => c.id === ids[0]) : undefined;
+    if (!old) return;
+    const name = t('app.sketch.constraint.' + old.type, undefined, old.type);
+    const run = () => {
+      if (controller.sketchDraft()?.id !== draft.id) return;   // the sketch was closed meanwhile
+      applyDraft(withoutConstraint(draft, old.id), (r) => finishReplace(r, draft.id, draft, name));
+    };
+    if (now) run();
+    else store.notify(t('app.sketch.replace.offer', { old: name }), 'info', { label: t('app.sketch.replace.action'), run });
+  }
   /** A dimension the solver finds already fixed by others (or in conflict) is kept as a reference dimension instead of
    *  over-constraining the sketch. `before` is the ids of the constraints before the step that added it. */
   function settleDimensions(before: Set<string>, status: import('@ck/part-model').SketchSolverStatus | undefined) {
@@ -3278,6 +3321,15 @@ function App() {
     return snaps;
   };
   sketchPointerRef.current = (ev) => {
+    const cal = calibRef.current;
+    if (cal && (ev.type === 'click' || ev.type === 'move')) {   // Calibrate: the first point, then the second, then the real distance is asked for
+      const p = { x: ev.u, y: ev.v };
+      toolTolRef.current = ev.tol;
+      if (ev.type === 'move') { if (cal.step === 'b') setCalib(cal, p); return; }
+      if (cal.step === 'a') setCalib({ step: 'b', a: p });
+      else if (cal.step === 'b' && Math.hypot(p.x - cal.a.x, p.y - cal.a.y) > ev.tol) setCalib({ step: 'dist', a: cal.a, b: p });
+      return;
+    }
     if (!sketchToolRef.current) return;
     if (ev.type === 'leave') {
       // the pointer may leave the canvas while a value is being typed into the fields: they stay
@@ -3340,6 +3392,7 @@ function App() {
   // Enter and its own keys; an idle tool lets Escape leave the tool and letters pick tools; Enter is ignored while a tool is active (only with no tool does it confirm the sketch).
   sketchKeyRef.current = (e) => {
     if (!sketching) return false;
+    if (calibRef.current && e.key === 'Escape') { e.preventDefault(); setCalib(null); return true; }
     if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'C' || e.key === 'c') && !sketchToolRef.current) { e.preventDefault(); toggleShowConstraints(); return true; }
     const sel = selEntityRef.current;
     if (!sketchToolRef.current && selConstraintRef.current && !sel && !multiSelRef.current.length) {
@@ -3581,13 +3634,57 @@ function App() {
     if (ops) await createFeature(ops); else store.notify(t('app.noAxis'), 'error');
   };
   /** `fromKey`: Escape reached the end of its steps. A sketch with geometry is never discarded by a key (the Cancel button discards it), so then it only says so. */
+  // ---- the picture to trace on the open sketch
+  const underlayNow = (): Underlay | null => (sketching ? underlayFor(underlaysOf(controller.document()), sketching.id) : null);
+  const writeUnderlays = (list: Underlay[]): void => { controller.setUndoableExtra(UNDERLAY_KEY, list.length ? list : null); redraw((n) => n + 1); };
+  const changeUnderlay = (patch: Partial<Underlay>): void => { const u = underlayNow(); if (u) writeUnderlays(withUnderlay(underlaysOf(controller.document()), { ...u, ...patch })); };
+  /** Calibration markers: the two points and the line between them, drawn as the sketch tool's preview. */
+  const setCalib = (c: Calibration | null, at?: { x: number; y: number }): void => {
+    calibRef.current = c; setCalibState(c);
+    viewport?.setSketchTool(!!c || !!sketchToolRef.current);
+    const r = Math.max((toolTolRef.current || 1) * 0.7, 0.3);
+    const shapes: import('@kit/viewport').SketchPreviewShape[] = [];
+    if (c && c.step !== 'a') {
+      shapes.push({ kind: 'circle', c: c.a, r });
+      const b = c.step === 'dist' ? c.b : at;
+      if (b) { shapes.push({ kind: 'line', a: c.a, b }); if (c.step === 'dist') shapes.push({ kind: 'circle', c: c.b, r }); }
+    }
+    viewport?.setSketchPreview(shapes);
+  };
+  const addUnderlay = async (): Promise<void> => {
+    if (!sketching) { store.notify(t('ul.noSketch'), 'warn'); return; }
+    const f = await platform.openFile({ accept: UNDERLAY_ACCEPT });
+    if (!f) return;
+    const mime = mimeOfName(f.name);
+    if (!mime) { store.notify(t('ul.badType', { name: f.name }), 'warn'); return; }
+    if (!f.bytes) { store.notify(t('ul.unreadable', { name: f.name, reason: 'no data' }), 'error'); return; }
+    if (f.bytes.byteLength > MAX_UNDERLAY_BYTES) { store.notify(t('ul.tooBig', { name: f.name, mb: (f.bytes.byteLength / 1048576).toFixed(1), max: MAX_UNDERLAY_BYTES / 1048576 }), 'warn'); return; }
+    let size: { pxW: number; pxH: number };
+    try { size = await readImage(f.bytes, mime); } catch (e) { store.notify(t('ul.unreadable', { name: f.name, reason: (e as Error).message }), 'error'); return; }
+    const data = await bytesToBase64Async(f.bytes);
+    writeUnderlays(withUnderlay(underlaysOf(controller.document()), newUnderlay(sketching.id, f.name, mime, data, size.pxW, size.pxH, 'u' + Date.now().toString(36))));
+    setCalib(null);
+    setUnderlayOpen(true);
+    store.notify(t('ul.added', { name: f.name }));
+  };
+  /** The ribbon's Image tile: add a picture to this sketch, or show the panel of the one it has. */
+  const underlayTile = (): void => { if (!sketching) { store.notify(t('ul.noSketch'), 'warn'); return; } if (underlayNow()) setUnderlayOpen(!underlayOpen); else void addUnderlay(); };
+  const calibrateApply = (mm: number): void => {
+    const u = underlayNow(), c = calibRef.current;
+    if (u && c && c.step === 'dist') { const k = calibrated(u, c.a, c.b, mm); if (k) { changeUnderlay({ w: k.w, x: k.x, y: k.y }); store.notify(t('ul.calibrated', { mm: String(Math.round(mm * 1000) / 1000) })); } }
+    setCalib(null);
+  };
   const cancelSketch = async (fromKey = false) => {
     if (!sketching) return;
     if (fromKey === true && !escapeCancelsSketch(controller.sketchDraft())) { setSketchHint(t('app.sketch.escapeKeeps')); return; }
     selectTool(null);
     selectEntity(null, 0, 0);
     setDimEdit(null); hoverRef.current = {}; setHotConstraint(null); setSelConstraint(null); setShowFree(false); setFreeState(null); setConTip(null);
+    const cancelled = sketching.id;
     await controller.cancelSketch();
+    // a sketch that was never kept takes its picture with it
+    { const all = underlaysOf(controller.document()); const kept = pruneUnderlays(all, new Set((controller.document()?.features ?? []).map((f) => f.id))); if (kept.length !== all.length && all.some((u) => u.sketch === cancelled)) controller.setDocExtra(UNDERLAY_KEY, kept.length ? kept : null); }
+    setCalib(null); setUnderlayOpen(false);
     holeSketchRef.current = false; setHoleCorner(null);
     projectSelRef.current = [];
     setSketching(null); setSketchHint(null); multiSelRef.current = []; toolEntitiesRef.current = [];
@@ -3601,6 +3698,11 @@ function App() {
   useSketchSessionGone(!!sketching, () => !!controller.sketchDraft(), () => resetSketchShell());
   useEffect(() => { viewport?.setSketchGrid({ base: sketchPrefs.gridSpacing, visible: sketchPrefs.gridSnap }); }, [viewport, sketching?.id, sketchPrefs.gridSpacing, sketchPrefs.gridSnap]);
   useEffect(() => { if (!sketching) { clearReadout(); setReportOpen(false); } }, [!!sketching]);
+  // the picture on this sketch, drawn on its plane while the sketch is open
+  const ulNow = underlayNow();
+  const ulKey = ulNow ? [ulNow.id, ulNow.w, ulNow.x, ulNow.y, ulNow.rot, ulNow.opacity, ulNow.visible, ulNow.data.length].join('|') : '';
+  useEffect(() => { viewport?.setSketchUnderlay(sketching && ulNow ? shapeOf(ulNow, controller.sketchFrame()) : null); }, [viewport, sketching?.id, ulKey]);
+  useEffect(() => { if (!ulNow) { setUnderlayOpen(false); if (calibRef.current) setCalib(null); } }, [!!ulNow]);
   sketchConfirmRef.current = confirmSketch;
   sketchCancelRef.current = cancelSketch;
   // Dimensions and constraint symbols, projected onto the screen for this frame.
@@ -3699,7 +3801,7 @@ function App() {
     onOk: () => void confirmSketch(),
     ...(holeSketchRef.current ? {} : { onExtrude: () => void finishAnd('extrude'), onRevolve: () => void finishAnd('revolve') }),
     onCancel: () => void cancelSketch(),
-    onImportDxf: () => void importDxf(), onImportSvg: () => void importSvg(),
+    onImportDxf: () => void importDxf(), onImportSvg: () => void importSvg(), onUnderlay: underlayTile,
     construction: constructionMode, onConstruction: () => setConstructionMode(!constructionMode),
     ...((entityOut && selEntityRef.current?.kind === 'entity' || multiSelRef.current.length > 1) && !sketchToolId ? { onToggleSelected: toggleSelectedConstruction } : {}),
     tool: sketchToolId, onLookNormal: lookNormal, lookChip, hint: sketchHint,
@@ -3710,7 +3812,7 @@ function App() {
     onReport: () => setReportOpen((v) => !v), reportOpen,
     selected: selectedEntityIds().length > 1 ? selectedEntityIds().length : 0,
     onClearSelection: () => setMultiSelection([]),
-    list: <><SketchFreedomList items={showFree ? freeState?.items ?? null : null} suggestions={freeState?.suggestions ?? []} busy={defining} onRun={runSuggestion} onAnalyse={toggleFree} /><SketchConstraintList collapsed={constraintsStartFolded(showFree ? freeState?.items?.length ?? 0 : 0)} rows={conRows} status={stNow} hot={hotConstraint} selected={selConstraint} onSelect={(id) => { selectEntity(null, 0, 0); setSelConstraint(id); }} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} onToggleDriven={toggleDriven} /></>,
+    list: <><SketchFreedomList items={showFree ? freeState?.items ?? null : null} suggestions={freeState?.suggestions ?? []} busy={defining} onRun={runSuggestion} onAnalyse={toggleFree} onSelectAll={setMultiSelection} /><SketchConstraintList collapsed={constraintsStartFolded(showFree ? freeState?.items?.length ?? 0 : 0)} rows={conRows} status={stNow} hot={hotConstraint} selected={selConstraint} onSelect={(id) => { selectEntity(null, 0, 0); setSelConstraint(id); }} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} onToggleDriven={toggleDriven} /></>,
   } : null;
   const chrome = sketchChrome(ws, !!sketching);
   // the side panel and the tool column are drawn from rules over the workspace on every render (chromeModel.ts); nothing here is stored
@@ -5491,6 +5593,9 @@ function App() {
             onDone={() => selectEntity(null, 0, 0)}
             onDelete={() => { void controller.applySketchDraft(deleteEntity(d, id)).then(() => selectEntity(null, 0, 0)); }} />;
         })() : null}
+        {sketching && ulNow && underlayOpen ? <UnderlayPanel u={ulNow} calibration={calib} {...(calib?.step === 'dist' ? { measured: Math.hypot(calib.b.x - calib.a.x, calib.b.y - calib.a.y) } : {})}
+          onChange={changeUnderlay} onCalibrate={() => setCalib({ step: 'a' })} onCalibrateCancel={() => setCalib(null)} onCalibrateApply={calibrateApply}
+          onReplace={() => void addUnderlay()} onRemove={() => { writeUnderlays(withoutUnderlay(underlaysOf(controller.document()), ulNow.id)); setCalib(null); store.notify(t('ul.removed')); }} onClose={() => { setCalib(null); setUnderlayOpen(false); }} /> : null}
         {sketching && toolOut?.panel ? <PatternPanel panel={toolOut.panel} onField={fieldEvent} onKey={(key) => runTool({ type: 'key', key })} onCancel={() => selectTool(null)} /> : null}
         {sketching ? <KeyboardPrimer /> : null}
         {sketching && coordBox && sketchToolId ? <CoordBox initial={coordBox.initial} x={lastPosRef.current.x} y={lastPosRef.current.y} onSubmit={placeTyped} onCancel={() => setCoordBox(null)} /> : null}

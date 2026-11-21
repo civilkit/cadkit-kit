@@ -1,4 +1,16 @@
 {
+  "0.8.7": [
+    {
+      "id": "decimate-scan",
+      "title": "Thin a big scan before converting it",
+      "blurb": "Tick Reduce the triangles first in Convert mesh to solid and a scan is thinned to a fraction, never moving the surface by more than the deviation you set."
+    },
+    {
+      "id": "image-trace",
+      "title": "Trace over an image in the sketcher",
+      "blurb": "The Image button puts a photo or scanned drawing on the sketch plane; Calibrate sets its true size from two points a known distance apart."
+    }
+  ],
   "0.8.6": [
     {
       "id": "motion-studies",

@@ -32,6 +32,11 @@ Dropping one file (or choosing it in Open) routes by extension: `.ckpart`/`.json
 `.step`/`.stp` import as a new part; `.dxf` and `.svg` go into the open sketch, else a new sketch on the front plane; `.stl` says mesh
 import is not available; anything else gets a notice. More than one file: notice. A dashed overlay shows while dragging.
 
+## Pictures to trace (underlays)
+`apps/cad/src/underlay.ts`, panel `UnderlayPanel.tsx`, drawn by `packages/viewport/src/underlay.ts`. A viewer-side document field like the meshes: `doc.underlays = [{ id, sketch, name, mime, data, pxW, pxH, w, x, y, rot, opacity, locked, visible }]`
+(`data` is the file as base64, at most 6 MB; `sketch` is the feature id of the sketch it lies on, one per sketch; `w` mm wide, `x`, `y` the centre in sketch coordinates, `rot` degrees). The kernel never sees it
+(`load` keeps it with the other viewer-side fields) and a frozen folder export leaves it out. Changes are `setUndoableExtra('underlays', ...)`, one undo step each; a cancelled sketch drops its record.
+
 ## Imported meshes and STEP in the file (assets)
 `apps/cad/src/files/assets.ts`, codec `packages/io/src/meshPack.ts`. In memory a mesh is a `doc.meshes` record (base64 of raw Float32 / Uint32 arrays, optional `mats` and `m` for SketchUp
 materials) and the STEP text of an `importStep` feature is `doc.blobs[<sha256>]`; the kernel needs the blobs, never the meshes. Everything that leaves the app is packed and everything that comes in is unpacked:

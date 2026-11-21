@@ -40,6 +40,8 @@ A constraint that would add nothing, or would contradict what is already there, 
 - **That conflicts with the existing constraints.**
 - **That cannot be picked here**, **Pick a different item** or **Nothing to pick there**, when a click does not fit what the tool needs.
 
+When the refusal is a contradiction (for example Vertical on a line that is already Horizontal, or Parallel on two lines that are Perpendicular), a notice offers **Replace**: it takes out the constraint that is in the way and adds the new one, as one undo step. Hold `Shift` while you pick the last item to do this at once, without the notice. A constraint that only repeats what is there has nothing to replace.
+
 <a id="tool-dimension"></a>
 ## Dimensions
 

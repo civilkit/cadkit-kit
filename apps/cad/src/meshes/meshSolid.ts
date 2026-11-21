@@ -38,10 +38,19 @@ export interface MeshSolidOptions {
   analytic: boolean;
   /** the analytic fit's work budget: null the kernel default (3 work units; the fit stops there and the rest stays faceted), 0 unlimited (can take minutes on a scan) */
   maxSeconds: number | null;
+  /** thin the triangles first, within a stated deviation (a scan of 100 000 triangles or more): the kernel's `opts.decimate` */
+  decimate: boolean;
+  /** with `decimate`: the largest distance of the thinned mesh from the original, mm (required by the kernel; the panel suggests one from the size of the mesh) */
+  decimateTol: number | null;
+  /** with `decimate`: stop at this many triangles (default: as far as the tolerance allows) */
+  decimateTarget: number | null;
+  /** with `decimate`: edges where faces meet at more than this angle, degrees, are kept as creases (default none) */
+  decimateKeepAngle: number | null;
 }
 
 export const DEFAULT_MESH_SOLID_OPTIONS: Readonly<MeshSolidOptions> = Object.freeze({
   close: false, closeTolerance: null, fill: true, maxHoleEdges: null, planeTol: null, angleTolDeg: null, fitTol: null, analytic: true, maxSeconds: null,
+  decimate: false, decimateTol: null, decimateTarget: null, decimateKeepAngle: null,
 });
 
 /** The request's `opts`: only what the user changed from the kernel's defaults; undefined when nothing was. */
@@ -52,6 +61,12 @@ export function requestOpts(o: MeshSolidOptions): Record<string, unknown> | unde
   if (o.fitTol !== null) out.fitTol = o.fitTol;
   if (!o.analytic) out.analytic = false;
   if (o.maxSeconds !== null) out.maxSeconds = o.maxSeconds;
+  if (o.decimate && o.decimateTol !== null) {
+    const d: Record<string, unknown> = { tol: o.decimateTol };
+    if (o.decimateTarget !== null) d.targetTriangles = o.decimateTarget;
+    if (o.decimateKeepAngle !== null) d.keepAngleDeg = o.decimateKeepAngle;
+    out.decimate = d;
+  }
   if (o.close) {
     const c: Record<string, unknown> = {};
     if (o.closeTolerance !== null) c.tolerance = o.closeTolerance;
@@ -71,8 +86,22 @@ export function parseTol(text: string, integer = false): { value: number | null;
   return { value: n, invalid: false };
 }
 
+/** The most triangles Decimate takes in: it brings a scan under MAX_TRIANGLES, but the mesh still has to be sent and welded. */
+export const MAX_DECIMATE_INPUT = 2_000_000;
+
 export type TriangleLimit = 'ok' | 'warn' | 'over';
-export const triangleLimit = (tris: number): TriangleLimit => (tris > MAX_TRIANGLES ? 'over' : tris > WARN_TRIANGLES ? 'warn' : 'ok');
+/** With `decimate` the mesh may exceed the kernel's limit (the limit then applies to the thinned mesh); it still warns above WARN_TRIANGLES. */
+export const triangleLimit = (tris: number, decimate = false): TriangleLimit =>
+  (tris > (decimate ? MAX_DECIMATE_INPUT : MAX_TRIANGLES) ? 'over' : tris > WARN_TRIANGLES ? 'warn' : 'ok');
+
+/**
+ * A starting tolerance for Decimate from the size of the mesh: 0.05 percent of its diagonal, two significant digits (a 200 mm part: 0.1 mm), never
+ * below 0.001 mm. Null when the size is unknown. The user changes it; this only saves typing a number for a first look.
+ */
+export function suggestDecimateTol(diagonal: number | null | undefined): number | null {
+  if (!diagonal || !Number.isFinite(diagonal) || diagonal <= 0) return null;
+  return Math.max(0.001, Number((diagonal * 0.0005).toPrecision(2)));
+}
 
 /** Welded vertices and triangle corners, millimetres, in world coordinates. */
 export interface MeshInput { vertices: Float32Array; indices: Uint32Array }
@@ -123,6 +152,8 @@ export interface MeshSolidReport {
   /** curved areas the fit declined, with the kernel's reason */
   declined: Array<{ reason: string; detail: string }>;
   deviation: { max: number; rms: number } | null;
+  /** the thinning, when Decimate ran: triangles before and after, the tolerance, and the largest distance measured on the thinned mesh (mm) */
+  decimation: { inputTriangles: number; triangles: number; tol: number; deviation: number; stoppedBy: string } | null;
   volume: { mesh: number | null; body: number | null; relative: number | null };
   /** repairs the kernel did and reports (welded, dropped, flipped ...): count by name, only the ones above 0 */
   repairs: Array<{ key: string; n: number }>;
@@ -166,6 +197,7 @@ export function readReport(imp: unknown, ms: number): MeshSolidReport {
   const other = listed - (plane + cylinder + cone + sphere) + Math.max(0, faces - listed);
   const repairs = ['collapsed', 'duplicates', 'slivers', 'flipped', 'insideOut', 'voids'].map((key) => ({ key, n: n0(r[key]) })).filter((x) => x.n > 0);
   const faceted = Math.min(plane, n0(an.faceted));
+  const dc = r.decimation ? obj(r.decimation) : null;
   return {
     triangles: n0(r.triangles), faces, diagonal: n0(r.diagonal),
     kinds: { planar: plane - faceted, faceted, cylinder, cone, sphere, other },
@@ -173,6 +205,7 @@ export function readReport(imp: unknown, ms: number): MeshSolidReport {
     budgetExhausted: an.budgetExhausted === true,
     declined: Array.isArray(an.declined) ? an.declined.map((d) => ({ reason: str(obj(d).reason), detail: str(obj(d).detail) })) : [],
     deviation: num(dev.max) !== null ? { max: num(dev.max)!, rms: n0(dev.rms) } : null,
+    decimation: dc && num(dc.inputTriangles) !== null ? { inputTriangles: n0(dc.inputTriangles), triangles: n0(dc.triangles), tol: n0(dc.tol), deviation: n0(obj(dc.deviation).max), stoppedBy: str(dc.stoppedBy) } : null,
     volume: { mesh: num(vol.mesh), body: num(vol.body), relative: num(vol.relative) },
     repairs,
     closing: cl ? {

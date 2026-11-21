@@ -5,7 +5,7 @@ import { t } from './i18n';
 import { freeText, freeParts, suggestionText } from './freedomText';
 import { FREE_VISIBLE, freeVisibleCount } from './dofPopover';
 
-export function SketchFreedomList(p: { items: FreeItem[] | null; suggestions: Suggestion[]; busy: boolean; onRun(s: Suggestion): void; onAnalyse(): void }) {
+export function SketchFreedomList(p: { items: FreeItem[] | null; suggestions: Suggestion[]; busy: boolean; onRun(s: Suggestion): void; onAnalyse(): void; /** select the curves that are not fully fixed (the entities behind the items) */ onSelectAll?(ids: string[]): void }) {
   const [all, setAll] = useState(false);
   if (!p.items) return <p class="free-none"><button class="rb-btn" data-action="analyse-freedom" onClick={p.onAnalyse}>{t('app.sketch.free.show')}</button></p>;
   if (!p.items.length) return null;
@@ -13,6 +13,7 @@ export function SketchFreedomList(p: { items: FreeItem[] | null; suggestions: Su
   return (
     <section class="sketch-free" aria-label={t('app.sketch.free.title')}>
       <b class="free-head">{t('app.sketch.free.title')}</b>
+      {p.onSelectAll ? <button class="free-more" data-action="free-select-all" title={t('app.sketch.free.select.tip')} onClick={() => p.onSelectAll!([...new Set(p.items!.map((i) => i.entityId).filter(Boolean))])}>{t('app.sketch.free.select')}</button> : null}
       <ul>
         {shown.map((it) => {
           const w = freeParts(it);

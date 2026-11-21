@@ -51,6 +51,7 @@ export const HELP: Record<string, HelpEntry> = {
   'sketch:symmetric': { page: 'sketching/constraints.html', anchor: 'tool-symmetric' },
   'sketch:trim': { page: 'sketching/tools.html', anchor: 'tool-trim' },
   'sketch:extend': { page: 'sketching/tools.html', anchor: 'tool-extend' },
+  'sketch:break': { page: 'sketching/tools.html', anchor: 'tool-break' },
   'sketch:split': { page: 'sketching/tools.html', anchor: 'tool-split' },
   'sketch:fillet': { page: 'sketching/tools.html', anchor: 'tool-fillet' },
   'sketch:chamfer': { page: 'sketching/tools.html', anchor: 'tool-chamfer' },

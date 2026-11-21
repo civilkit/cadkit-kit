@@ -188,6 +188,7 @@ export type StdView = 'iso' | 'front' | 'top' | 'right' | 'back' | 'left' | 'bot
 import { SectionView } from './sectionView';
 import type { SectionSpec } from './section';
 import { buildMeasureMarks, type MeasureMark } from './measureMarks';
+import { underlayPlacement, type UnderlayShape } from './underlay';
 
 export class Viewport {
   private readonly renderer: THREE.WebGLRenderer;
@@ -288,6 +289,7 @@ export class Viewport {
   private sketchPreviewGroup: THREE.Group | null = null;
   private sketchPreviewShapes: SketchPreviewShape[] = [];
   private sketchGridGroup: THREE.Group | null = null;
+  private underlay: { mesh: THREE.Mesh; url: string } | null = null;
   private gridBase = 0;
   private gridVisible = true;
   private sketchRefreshPending = false;
@@ -630,7 +632,7 @@ export class Viewport {
   setSketchEdit(v: SketchEditShape | null): void {
     this.clearSketchOverlay();
     if (this.groundGrid) this.groundGrid.visible = !v && this.layerOn('grid');   // the sketch has its own grid
-    if (!v) { this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; this.sketchDef = null; this.sketchConflict = null; this.sketchFree = null; }
+    if (!v) { this.setSketchUnderlay(null); this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; this.sketchDef = null; this.sketchConflict = null; this.sketchFree = null; }
     this.sketchDefLines = [];
     const leaving = !v && !!this.sketchEdit;
     // a drag goes on through the solver's new frames of the same sketch; it ends when the sketch or its point goes away
@@ -693,6 +695,33 @@ export class Viewport {
     this.sketchOverlay = group;
     this.rebuildSketchDef();
     this.rebuildSketchGrid();
+    this.dirty = true;
+  }
+
+  /** A picture on the sketch plane to trace, drawn under the sketch's lines and never picked. Null removes it. */
+  setSketchUnderlay(s: UnderlayShape | null): void {
+    if (!s || !(s.w > 0)) {
+      if (this.underlay) { this.scene.remove(this.underlay.mesh); this.underlay.mesh.geometry.dispose(); (this.underlay.mesh.material as THREE.MeshBasicMaterial).map?.dispose(); (this.underlay.mesh.material as THREE.Material).dispose(); this.underlay = null; this.dirty = true; }
+      return;
+    }
+    const p = underlayPlacement(s);
+    if (!this.underlay || this.underlay.url !== s.url) {
+      this.setSketchUnderlay(null);
+      const tex = new THREE.TextureLoader().load(s.url, () => { this.dirty = true; });
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
+      mesh.userData.pickable = false;
+      mesh.renderOrder = -10;   // before the sketch's lines, which are drawn over it
+      mesh.matrixAutoUpdate = false;
+      this.scene.add(mesh);
+      this.underlay = { mesh, url: s.url };
+    }
+    const m = this.underlay.mesh;
+    (m.material as THREE.MeshBasicMaterial).opacity = Math.min(1, Math.max(0.05, s.opacity));
+    // the unit plane is stretched to the picture and put on the sketch plane's frame, turned by `rot`
+    m.matrix.makeBasis(new THREE.Vector3(...p.right).multiplyScalar(p.width), new THREE.Vector3(...p.up).multiplyScalar(p.height), new THREE.Vector3(...p.normal)).setPosition(p.centre[0], p.centre[1], p.centre[2]);
+    m.matrixWorldNeedsUpdate = true;
     this.dirty = true;
   }
 

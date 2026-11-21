@@ -52,6 +52,8 @@ export interface SketchControls {
   /** Draw a DXF / SVG file into this sketch (the ribbon's Import group). */
   onImportDxf?: () => void;
   onImportSvg?: () => void;
+  /** put a picture on the sketch plane to trace (or show the panel of the one it has) */
+  onUnderlay?: () => void;
   /** Finish the sketch (as OK does) and open the Extrude card on it. Absent for a hole sketch. */
   onExtrude?: () => void;
   /** Finish the sketch and open the Revolve card on it. Absent for a hole sketch. */

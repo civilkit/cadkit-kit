@@ -75,6 +75,7 @@ const ICONS: Record<string, string> = {
   fillet: C('M4 12v8h8') + P('M4 4v8a8 8 0 008 8h8'),
   chamfer: C('M4 11v9h9') + P('M4 4v7l9 9h7'),
   trim: P('M12 3v18') + P('M3 12h9') + C('M12 12h9') + `<path d="m15.5 9 5 6M20.5 9l-5 6" stroke-width="1.5"/>`,
+  break: P('M3 12h3.5M10 12h4M17.5 12h3.5') + C('M8.2 4v16M15.8 4v16') + D(8.2, 12, 1.4) + D(15.8, 12, 1.4),
   split: P('M3 12h18') + C('M12 4v16') + D(12, 12, 2.2) + `<path d="M12 12l-4-3M12 12l4 3" stroke-width="1.5"/>`,
   project: T('M4 4h16v6H4z') + C('M8 10v6M16 10v6') + P('M5 20h14') + D(8, 16, 1.4) + D(16, 16, 1.4),
   'pattern-linear': P('M3 8h5v8H3z') + T('M10 8h5v8h-5z') + C('M17 8h4v8h-4z') + C('M3 20h18'),
@@ -97,6 +98,7 @@ const ICONS: Record<string, string> = {
   samples: P('M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4z') + A('M13 13h7v7h-7z'),
   // ---- import and export: a page for a drawing file, the cube for a solid, an accent arrow for the direction
   'sketch-import-dxf': P('M6 3h8l4 4v14H6z') + T('M14 3v4h4') + A('M9.5 17.5 12 12.5l2.5 5z'),
+  'sketch-underlay': P('M4 5h16v14H4z') + A('M4 16l4-4 3 3 4-5 5 6') + D(8.5, 9.5, 1.3),
   'sketch-import-svg': P('M6 3h8l4 4v14H6z') + T('M14 3v4h4') + A('M8.5 17c1.5-4 3-4 3.5-1s2 2 3.5-2'),
   'add-sketch3d': T('M4 19V5M4 19h16M4 19l5-4') + A('M6 15c2-7 6-1 8-6s3-2 4-4') + D(6, 15) + D(18, 5),
   'sketch-from-dxf': C('M3 20l4-5h14l-4 5z') + P('M8 3h6l3 3v8H8z') + A('M12 8.5v3.5M10.2 10.5 12 12.3l1.8-1.8'),

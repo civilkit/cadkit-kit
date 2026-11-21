@@ -205,17 +205,13 @@ export function freeName(base: string, taken: Set<string>, many: boolean): strin
 /** The screw as its own body (shank and head), the hex head united into it by name so it never fuses with the part it sits on, and the drive cut reaching this bolt only. */
 function boltOps(o: { size: string; length: number; type: BoltType; origin: V3; axis: V3 }, seq: number, body: string): EditOp[] {
   const h = HEAD[o.type];
-  const ops = screwEditOps({ size: o.size, length: o.length, head: h.head, drive: h.drive, origin: o.origin, axis: o.axis }, seq) as unknown as Array<{ op: string; feature: Wire }>;
-  let hexHead = false;
+  const ops = screwEditOps({ size: o.size, length: o.length, head: h.head, drive: h.drive, origin: o.origin, axis: o.axis, name: body }, seq) as unknown as Array<{ op: string; feature: Wire }>;
   for (const op of ops) {
     const f = op.feature;
-    if (f.type === 'revolve' && f.op === 'newBody') { f.body = body; f.name = body; }
-    else if (f.type === 'extrude' && f.op === 'add') { f.op = 'newBody'; f.body = `${body} head`; hexHead = true; }
-    else if ((f.type === 'extrude' || f.type === 'revolve') && f.op === 'cut' && !f.target) f.target = [{ body }];
+    if ((f.type === 'extrude' || f.type === 'revolve') && f.op === 'cut' && !f.target) f.target = [{ body }];
+    else if (f.type === 'combine') f.body = body;   // the united bolt keeps its name
   }
-  const out = ops as unknown as EditOp[];
-  if (hexHead) out.push({ op: 'add', feature: { type: 'combine', id: `F${maxId(out, seq)}`, op: 'union', target: { body }, tools: [{ body: `${body} head` }], body } as never });
-  return out;
+  return ops as unknown as EditOp[];
 }
 function washerBodyOps(inner: number, outer: number, thickness: number, origin: V3, axis: V3, seq: number, body: string): EditOp[] {
   const ops = washerEditOps({ kind: 'flat', inner, outer, thickness, origin, axis, name: body }, seq) as unknown as Array<{ feature: Wire }>;

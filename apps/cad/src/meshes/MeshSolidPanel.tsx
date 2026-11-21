@@ -9,14 +9,14 @@ import { Icon, numberAttrs } from '@kit/ui';
 import { t } from '../i18n';
 import { HelpButton } from '../HelpButton';
 import {
-  DEFAULT_MESH_SOLID_OPTIONS, MAX_TRIANGLES, fmtArea, fmtDeviation, fmtMs, fmtPercent, fmtVolume, parseTol, triangleLimit,
+  DEFAULT_MESH_SOLID_OPTIONS, MAX_DECIMATE_INPUT, MAX_TRIANGLES, fmtArea, fmtLength, suggestDecimateTol, fmtDeviation, fmtMs, fmtPercent, fmtVolume, parseTol, triangleLimit,
   type LengthUnit, type MeshSolidOptions, type MeshSolidOutcome, type MeshSolidRefusal, type MeshSolidReport,
 } from './meshSolid';
 import { MESH_SOLID_ACCEPT_READY } from './meshSolidAccept';
 import './mesh.css';
 
 export type MeshSolidShow = 'both' | 'solid' | 'mesh';
-export interface MeshSolidSource { id: string; name: string; tris: number; /** read from a file for this panel (not in the part); the unit it was read in */ fileUnit?: string }
+export interface MeshSolidSource { id: string; name: string; tris: number; /** the diagonal of its box, mm (a starting tolerance for Decimate comes from it) */ diagonal?: number; /** read from a file for this panel (not in the part); the unit it was read in */ fileUnit?: string }
 
 export interface MeshSolidPanelProps {
   sources: MeshSolidSource[];
@@ -39,8 +39,8 @@ export interface MeshSolidPanelProps {
 }
 
 /** The text of the numeric fields; an empty field is the kernel's default. */
-interface Fields { closeTolerance: string; maxHoleEdges: string; planeTol: string; angleTolDeg: string; fitTol: string }
-const EMPTY: Fields = { closeTolerance: '', maxHoleEdges: '', planeTol: '', angleTolDeg: '', fitTol: '' };
+interface Fields { closeTolerance: string; maxHoleEdges: string; planeTol: string; angleTolDeg: string; fitTol: string; decimateTol?: string; decimateTarget?: string; decimateKeepAngle?: string }
+const EMPTY: Fields = { closeTolerance: '', maxHoleEdges: '', planeTol: '', angleTolDeg: '', fitTol: '', decimateTol: '', decimateTarget: '', decimateKeepAngle: '' };
 
 /** How much work the analytic fit may do: the kernel's default, more, or no limit. */
 export type Effort = 'default' | 'more' | 'most' | 'unlimited';
@@ -48,15 +48,21 @@ export const EFFORTS: readonly Effort[] = ['default', 'more', 'most', 'unlimited
 const EFFORT_UNITS: Record<Effort, number | null> = { default: null, more: 10, most: 30, unlimited: 0 };
 
 /** The options the fields and toggles say, and whether a field holds something that is not a number above 0. */
-export function optionsOf(f: Fields, close: boolean, fill: boolean, analytic: boolean, effort: Effort = 'default'): { options: MeshSolidOptions; invalid: Array<keyof Fields> } {
+export function optionsOf(f: Fields, close: boolean, fill: boolean, analytic: boolean, effort: Effort = 'default', decimate = false, diagonal?: number): { options: MeshSolidOptions; invalid: Array<keyof Fields> } {
   const invalid: Array<keyof Fields> = [];
-  const get = (k: keyof Fields, integer = false): number | null => { const r = parseTol(f[k], integer); if (r.invalid) invalid.push(k); return r.value; };
+  const get = (k: keyof Fields, integer = false): number | null => { const r = parseTol(f[k] ?? '', integer); if (r.invalid) invalid.push(k); return r.value; };
   const options: MeshSolidOptions = {
     ...DEFAULT_MESH_SOLID_OPTIONS, close, fill, analytic, maxSeconds: EFFORT_UNITS[effort],
     closeTolerance: get('closeTolerance'), maxHoleEdges: get('maxHoleEdges', true), planeTol: get('planeTol'), angleTolDeg: get('angleTolDeg'), fitTol: get('fitTol'),
+    decimate, decimateTol: get('decimateTol'), decimateTarget: get('decimateTarget', true), decimateKeepAngle: get('decimateKeepAngle'),
   };
-  // fields that are switched off do not count against Convert
-  return { options, invalid: invalid.filter((k) => close || (k !== 'closeTolerance' && k !== 'maxHoleEdges')).filter((k) => fill || k !== 'maxHoleEdges') };
+  // an empty Decimate tolerance is the suggestion from the size of the mesh (the kernel has no default for it)
+  if (decimate && options.decimateTol === null) options.decimateTol = suggestDecimateTol(diagonal);
+  const off = (k: keyof Fields): boolean => (k === 'closeTolerance' || k === 'maxHoleEdges') ? !close : (k === 'decimateTol' || k === 'decimateTarget' || k === 'decimateKeepAngle') ? !decimate : false;
+  // fields that are switched off do not count against Convert; Decimate with no tolerance and no size to suggest one from needs one typed
+  const bad = invalid.filter((k) => !off(k)).filter((k) => fill || k !== 'maxHoleEdges');
+  if (decimate && options.decimateTol === null && !bad.includes('decimateTol')) bad.push('decimateTol');
+  return { options, invalid: bad };
 }
 
 // ---- the words of the report (pure apart from t) ----
@@ -90,6 +96,13 @@ export function fitLine(r: MeshSolidReport, analyticOn: boolean): string {
   return t('m2s.fit.none');
 }
 
+/** What Decimate did: 'Decimated from 120 000 to 14 800 triangles (deviation at most 0.043 mm of 0.1 mm allowed)'. */
+export function decimationLine(d: NonNullable<MeshSolidReport['decimation']>, unit: LengthUnit): string {
+  const n = (v: number): string => v.toLocaleString('en-US').replace(/,/g, '\u00a0');
+  if (d.triangles >= d.inputTriangles) return t('m2s.decimated.none', { n: n(d.inputTriangles), tol: fmtLength(d.tol, unit) });
+  return t('m2s.decimated', { from: n(d.inputTriangles), to: n(d.triangles), dev: fmtLength(d.deviation, unit, 2), tol: fmtLength(d.tol, unit, 2) });
+}
+
 /** What closing did, in one line with only the things that happened: 'Filled 1 hole (200 mm²); 3 open edges found'. */
 export function inventedLine(c: NonNullable<MeshSolidReport['closing']>, unit: LengthUnit): string {
   const parts: string[] = [];
@@ -111,16 +124,18 @@ export function MeshSolidPanel(p: MeshSolidPanelProps): JSX.Element {
   const [fill, setFill] = useState(DEFAULT_MESH_SOLID_OPTIONS.fill);
   const [analytic, setAnalytic] = useState(DEFAULT_MESH_SOLID_OPTIONS.analytic);
   const [effort, setEffort] = useState<Effort>('default');
+  const [decimate, setDecimate] = useState(DEFAULT_MESH_SOLID_OPTIONS.decimate);
   /** the options of the run on screen (the report's words depend on them, not on what the toggles say now) */
   const [ran, setRan] = useState<MeshSolidOptions>(DEFAULT_MESH_SOLID_OPTIONS);
   const runBtn = useRef<HTMLButtonElement>(null);
   const src = p.sources.find((s) => s.id === p.sourceId) ?? p.sources[0];
-  const limit = src ? triangleLimit(src.tris) : 'ok';
-  const { options, invalid } = optionsOf(fields, close, fill, analytic, effort);
+  const limit = src ? triangleLimit(src.tris, decimate) : 'ok';
+  const { options, invalid } = optionsOf(fields, close, fill, analytic, effort, decimate, src?.diagonal);
+  const suggested = suggestDecimateTol(src?.diagonal);
   const canRun = !!src && !p.busy && limit !== 'over' && invalid.length === 0;
   const run = (): void => { if (!canRun) return; setRan(options); p.onRun(options); };
   /** The refusal card's one-click way out of gaps: tick Close gaps and holes and convert again. */
-  const closed = optionsOf(fields, true, fill, analytic, effort);
+  const closed = optionsOf(fields, true, fill, analytic, effort, decimate, src?.diagonal);
   const retryClosed = !close && !!src && !p.busy && limit !== 'over' && closed.invalid.length === 0
     ? () => { setClose(true); setRan(closed.options); p.onRun(closed.options); } : null;
   const live = useRef({ run, p });
@@ -137,11 +152,11 @@ export function MeshSolidPanel(p: MeshSolidPanelProps): JSX.Element {
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, []);
-  const field = (k: keyof Fields, label: string, unit: string, integer = false): JSX.Element => (
+  const field = (k: keyof Fields, label: string, unit: string, integer = false, hold?: string): JSX.Element => (
     <label class="fedit-fld m2s-fld" data-path={k}>
       <span class="fedit-fld-label">{label}</span>
       <span class="fedit-num m2s-num">
-        <input {...numberAttrs(integer ? 'integer' : 'positive')} type="text" value={fields[k]} placeholder={t('m2s.auto')} title={t('m2s.auto.tip')} aria-label={label} data-testid={'m2s-' + k}
+        <input {...numberAttrs(integer ? 'integer' : 'positive')} type="text" value={fields[k] ?? ''} placeholder={hold ?? t('m2s.auto')} title={t('m2s.auto.tip')} aria-label={label} data-testid={'m2s-' + k}
           aria-invalid={invalid.includes(k) ? 'true' : undefined} onInput={(e) => setFields({ ...fields, [k]: (e.currentTarget as HTMLInputElement).value })} />
         <span class="fedit-unit">{unit}</span>
       </span>
@@ -168,7 +183,8 @@ export function MeshSolidPanel(p: MeshSolidPanelProps): JSX.Element {
         {src ? <div class="m2s-note" data-testid="m2s-tris">{t('m2s.tris', { tris: src.tris.toLocaleString('en-US'), limit: MAX_TRIANGLES.toLocaleString('en-US') })}</div> : null}
         {src?.fileUnit ? <div class="m2s-note">{t('m2s.fileUnit', { unit: src.fileUnit })}</div> : null}
         {limit === 'warn' ? <p class="m2s-warn" data-testid="m2s-tris-warn">{t('m2s.tris.warn')}</p> : null}
-        {limit === 'over' ? <p class="m2s-err" data-testid="m2s-tris-over">{t('m2s.tris.over', { limit: MAX_TRIANGLES.toLocaleString('en-US') })}</p> : null}
+        {limit === 'over' ? <p class="m2s-err" data-testid="m2s-tris-over">{t('m2s.tris.over', { limit: (decimate ? MAX_DECIMATE_INPUT : MAX_TRIANGLES).toLocaleString('en-US') })}</p> : null}
+        {decimate && src && src.tris > MAX_TRIANGLES && limit !== 'over' ? <p class="m2s-note" data-testid="m2s-tris-thinned">{t('m2s.tris.thinned', { limit: MAX_TRIANGLES.toLocaleString('en-US') })}</p> : null}
 
         {p.busy && src ? (
           <div class="m2s-busy" role="status" data-testid="m2s-busy">
@@ -183,6 +199,18 @@ export function MeshSolidPanel(p: MeshSolidPanelProps): JSX.Element {
         {!p.busy && p.outcome ? <Outcome {...p} ran={ran} retryClosed={retryClosed} /> : null}
 
         <div class="m2s-options">
+          <label class="fedit-fld sk3d-check" data-path="decimate">
+            <input type="checkbox" checked={decimate} aria-label={t('m2s.decimate')} data-testid="m2s-decimate" disabled={p.busy} onChange={(e) => setDecimate((e.currentTarget as HTMLInputElement).checked)} />
+            <span>{t('m2s.decimate')}</span>
+          </label>
+          <p class="m2s-note">{t('m2s.decimate.note')}</p>
+          {decimate ? (
+            <div class="m2s-sub" data-testid="m2s-decimate-options">
+              {field('decimateTol', t('m2s.decimateTol'), 'mm', false, suggested !== null ? fmtLength(suggested).replace(/\s?mm$/, '') : undefined)}
+              {field('decimateTarget', t('m2s.decimateTarget'), t('m2s.unit.tris'), true)}
+              {field('decimateKeepAngle', t('m2s.decimateKeep'), '°')}
+            </div>
+          ) : null}
           <label class="fedit-fld sk3d-check" data-path="close">
             <input type="checkbox" checked={close} aria-label={t('m2s.closeGaps')} data-testid="m2s-close" disabled={p.busy} onChange={(e) => setClose((e.currentTarget as HTMLInputElement).checked)} />
             <span>{t('m2s.closeGaps')}</span>
@@ -291,6 +319,7 @@ function Report(p: MeshSolidPanelProps & { r: MeshSolidReport; ran: MeshSolidOpt
           <ul class="m2s-chips" data-testid="m2s-kinds">{faceChips(r).map((c) => <li key={c.kind} data-kind={c.kind}>{c.text}</li>)}</ul>
           <span class="m2s-took" data-testid="m2s-took">{fmtMs(r.ms)}</span>
         </div>
+        {r.decimation ? <p class="m2s-card-text" data-testid="m2s-decimated">{decimationLine(r.decimation, u)}</p> : null}
         <p class="m2s-card-text" data-testid="m2s-faceted">{fitLine(r, p.ran.analytic)}</p>
         {r.budgetExhausted ? <p class="m2s-card-text m2s-budget" data-testid="m2s-budget">{t('m2s.fit.budget')}</p> : null}
       </div>

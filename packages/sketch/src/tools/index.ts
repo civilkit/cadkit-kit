@@ -19,6 +19,7 @@ export { tangentArcTool, type TangentArcState } from './tangentArc';
 export { filletTool } from './fillet';
 export { chamferTool } from './chamfer';
 export { trimTool } from './trim';
+export { breakTool, breakAt, crossings, type BreakState, type BreakRes } from './break';
 export { splitTool, splitAt, splitPoint, type SplitState, type SplitRes } from './split';
 export { splineAddTool, addSplinePoint, type SplineAddState, type SplineAddRes } from './splineAdd';
 export { extendTool, extendAt, planExtend, type ExtendState } from './extend';

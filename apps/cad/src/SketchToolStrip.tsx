@@ -19,7 +19,7 @@ export const PALETTE_SLOTS: Record<ToolGroup, string[][]> = {
     ['horizontal', 'vertical'], ['coincident', 'midpoint', 'fix'], ['equal', 'parallel', 'perpendicular', 'collinear'],
     ['tangent', 'concentric', 'symmetric'],
   ],
-  edit: [['trim', 'extend', 'split'], ['fillet', 'chamfer'], ['offset', 'mirror', 'pattern-linear', 'pattern-circular'], ['project', 'construction'], ['move', 'copy', 'rotate', 'scale']],
+  edit: [['trim', 'extend', 'split', 'break'], ['fillet', 'chamfer'], ['offset', 'mirror', 'pattern-linear', 'pattern-circular'], ['project', 'construction'], ['move', 'copy', 'rotate', 'scale']],
 };
 
 export interface PaletteSlot { id: string; tools: ToolEntry[] }
@@ -157,6 +157,7 @@ export function sketchRibbonGroups(p: {
     { id: 'Import', entries: c?.onImportDxf && c.onImportSvg ? [
       tile('sketch-import-dxf', 'sketch-import-dxf', t('rb.sketch-import-dxf'), t('cmd.sketch-import-dxf'), c.onImportDxf),
       tile('sketch-import-svg', 'sketch-import-svg', t('rb.sketch-import-svg'), t('cmd.sketch-import-svg'), c.onImportSvg),
+      ...(c.onUnderlay ? [tile('sketch-underlay', 'sketch-underlay', t('rb.sketch-underlay'), t('tip.sketch-underlay'), c.onUnderlay)] : []),
     ] : [] },
     { id: 'Draw', entries: slotsFor('draw', tools).map(cell) },
     { id: 'Dimension', entries: slotsFor('dimension', tools).map(cell) },

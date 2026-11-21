@@ -50,7 +50,12 @@ export const SCREW_SIZES = {
   M16:  { d: 16,  pitch: 2,    button: { dk: 28,   k: 8.8,  rise: 0.8, t: 5.2 },  countersunk: { dk: 33.6,  k: 8.8 },   hex: { dk: 24, k: 10 },   socket: 10 },
 } satisfies Record<string, ScrewSize>;
 
+/** How many screws each part has made, so a second screw gets its own body name ('Screw 2') and a hex head can be united by name into the right shank. */
+const made = new WeakMap<object, number>();
+
 export interface ScrewOpts {
+  /** the body's name (default 'Screw', then 'Screw 2', 'Screw 3' ... for each further screw of the part); the screw stays a body of its own and never fuses with what it sits on */
+  name?: string;
   /** metric size designation: M2, M2.5, M3, M4, M5, M6, M8, M10, M12 or M16 (fills in every dimension below) */
   size: keyof typeof SCREW_SIZES | string;
   /** shank length in mm, measured from the bearing face to the tip (a countersunk screw: from the flat top, the head included) */
@@ -214,12 +219,16 @@ export const screwFeatures = {
         tip(pen, 0); pen.line([0, L], [0, -k]);
       }
     };
-    this.sketch(axial, body, 'Screw profile').revolve(360, { op: 'newBody' as 'add', name: 'Screw' });
+    const nth = (made.get(this) ?? 0) + 1;
+    made.set(this, nth);
+    const name = o.name ?? (nth === 1 ? 'Screw' : `Screw ${nth}`);
+    this.sketch(axial, body, 'Screw profile').revolve(360, { newBody: name, name });
     if (head === 'hex') {
       const R = (2 * Rh) / Math.sqrt(3);   // circumradius from the width across flats
       const hexPts: Pt[] = Array.from({ length: 6 }, (_, i) => [R * Math.cos((Math.PI / 3) * i), R * Math.sin((Math.PI / 3) * i)]);
-      this.sketch(across(0), (s) => new Pen(s).poly(hexPts), 'Hex head').extrude(k);
-      return this;
+      // the head is made as a body of its own and united into the shank by name: an add would fuse it with the plate it sits on
+      this.sketch(across(0), (s) => new Pen(s).poly(hexPts), 'Hex head').extrude(k, { newBody: `${name} head` });
+      return this.combine('union', name, `${name} head`);
     }
 
     // ---- drive ----

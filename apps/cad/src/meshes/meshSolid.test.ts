@@ -6,7 +6,7 @@ import { cube } from '../../../../packages/io/src/testmesh';
 import { base64ToBytes, meshRecFromStl } from './meshDoc';
 import {
   DEFAULT_MESH_SOLID_OPTIONS, MAX_TRIANGLES, MESH_SOLID_TAG, PREVIEW_ID, crossLines, fmtArea, fmtDeviation, fmtLength, fmtMs, fmtPercent, fmtVolume, marksOf,
-  meshSolidRequest, parseTol, previewSurface, readOutcome, requestOpts, runMeshToSolid, plainNum, triangleLimit, withPreview, worldMesh,
+  meshSolidRequest, parseTol, suggestDecimateTol, previewSurface, readOutcome, requestOpts, runMeshToSolid, plainNum, triangleLimit, withPreview, worldMesh,
   type MeshSolidOptions,
 } from './meshSolid';
 
@@ -80,6 +80,36 @@ const IMPORT = {
   analytic: { applied: true, faceted: 0, fitted: [{ kind: 'cylinder' }], declined: [] },
   deviation: { max: 0.02397, rms: 0.01446 },
 };
+
+describe('Decimate: the request and the report', () => {
+  it('goes into opts.decimate only when on and with a tolerance; the target and the crease angle only when set', () => {
+    expect(requestOpts(opts({ decimate: false, decimateTol: 0.1 }))).toBeUndefined();
+    expect(requestOpts(opts({ decimate: true, decimateTol: null }))).toBeUndefined();
+    expect(requestOpts(opts({ decimate: true, decimateTol: 0.1 }))).toEqual({ decimate: { tol: 0.1 } });
+    expect(requestOpts(opts({ decimate: true, decimateTol: 0.05, decimateTarget: 15000, decimateKeepAngle: 30 }))).toEqual({ decimate: { tol: 0.05, targetTriangles: 15000, keepAngleDeg: 30 } });
+    expect(requestOpts(opts({ decimate: true, decimateTol: 0.05, close: true }))).toEqual({ decimate: { tol: 0.05 }, close: true });
+  });
+  it('the triangle limit rises to the input cap with it on, and still warns above 20 000', () => {
+    expect(triangleLimit(250000)).toBe('over');
+    expect(triangleLimit(250000, true)).toBe('warn');
+    expect(triangleLimit(2_500_000, true)).toBe('over');
+    expect(triangleLimit(5000, true)).toBe('ok');
+  });
+  it('a starting tolerance is 0.05 percent of the diagonal, two digits, at least 0.001 mm; none without a size', () => {
+    expect(suggestDecimateTol(200)).toBe(0.1);
+    expect(suggestDecimateTol(1234)).toBe(0.62);
+    expect(suggestDecimateTol(1)).toBe(0.001);
+    expect(suggestDecimateTol(undefined)).toBeNull();
+    expect(suggestDecimateTol(0)).toBeNull();
+  });
+  it('the reply\'s import.decimation is read into the report', () => {
+    const decimation = { triangles: 14800, vertices: 7400, inputTriangles: 120000, inputVertices: 60000, tol: 0.1, stoppedBy: 'tolerance', deviation: { max: 0.043, rms: 0.01 } };
+    const o = readOutcome({ ok: true, result: { body: {}, import: { faces: 9, faceTypes: { plane: 9 }, decimation } } }, 4000);
+    expect(o.ok && o.report.decimation).toEqual({ inputTriangles: 120000, triangles: 14800, tol: 0.1, deviation: 0.043, stoppedBy: 'tolerance' });
+    const none = readOutcome({ ok: true, result: { body: {}, import: { faces: 9, faceTypes: { plane: 9 } } } }, 0);
+    expect(none.ok && none.report.decimation).toBeNull();
+  });
+});
 
 describe('readOutcome: the reply as the panel shows it', () => {
   it('a solid: faces by kind, faceted count, deviation, volume, repairs, time', () => {

@@ -59,6 +59,24 @@ describe('ViewNav', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Roll view clockwise' }));
     expect(q.onRoll).toHaveBeenCalledWith('cw', 45);
   });
+  it('the menu sets the cube size from 75 to 150 percent, which is remembered and scales the cube through --vn-scale', () => {
+    const { container } = render(<div id="vp"><ViewNav onTurn={vi.fn()} onRoll={vi.fn()} onHome={vi.fn()} /></div>);
+    const vp = container.querySelector('#vp') as HTMLElement;
+    fireEvent.click(screen.getByRole('button', { name: t('viewnav.options') }));
+    expect(['75%', '100%', '125%', '150%'].every((n) => screen.getByRole('menuitemradio', { name: n }))).toBe(true);
+    expect(screen.getByRole('menuitemradio', { name: '100%' }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(screen.getByRole('menuitemradio', { name: '150%' }));
+    expect(vp.style.getPropertyValue('--vn-scale')).toBe('1.5');
+    expect(localStorage.getItem('cad.viewnav.size')).toBe('150');
+    cleanup();
+    const again = render(<div id="vp"><ViewNav onTurn={vi.fn()} onRoll={vi.fn()} onHome={vi.fn()} /></div>);
+    expect((again.container.querySelector('#vp') as HTMLElement).style.getPropertyValue('--vn-scale')).toBe('1.5');
+  });
+  it('a stored size that is not one of the choices falls back to 100', () => {
+    localStorage.setItem('cad.viewnav.size', '999');
+    const { container } = render(<div id="vp"><ViewNav onTurn={vi.fn()} onRoll={vi.fn()} onHome={vi.fn()} /></div>);
+    expect((container.querySelector('#vp') as HTMLElement).style.getPropertyValue('--vn-scale')).toBe('1');
+  });
   const NAMES: Record<string, string[]> = { yaw: ['Turn view left', 'Turn view right'], pitch: ['Turn view up', 'Turn view down'], roll: ['Roll view clockwise', 'Roll view counter-clockwise'], home: ['Home view'] };
   const shown = () => Object.entries(NAMES).filter(([, ns]) => ns.every((n) => screen.queryByRole('button', { name: n }))).map(([g]) => g);
   const toggle = (g: string) => {

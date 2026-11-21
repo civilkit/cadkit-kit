@@ -17,6 +17,7 @@ import { sheetStrings } from './sheet';
 import { sketch3dStrings } from './sketch3d';
 import { meshStrings } from './mesh';
 import { meshSolidStrings } from './meshSolid';
+import { underlayStrings } from './underlay';
 import { screwStrings } from './screw';
 import { fastenStrings } from './fasten';
 import { washerStrings } from './washer';
@@ -318,7 +319,7 @@ export const en: Catalog = {
   'app.more.licences': 'Licences', 'app.more.docs': 'Documentation',
   'viewnav.group': 'View navigation', 'viewnav.up': 'Turn view up', 'viewnav.down': 'Turn view down', 'viewnav.left': 'Turn view left', 'viewnav.right': 'Turn view right',
   'viewnav.rollCw': 'Roll view clockwise', 'viewnav.rollCcw': 'Roll view counter-clockwise', 'viewnav.home': 'Home view', 'viewnav.options': 'View navigation options',
-  'viewnav.gYaw': 'Turn left/right', 'viewnav.gPitch': 'Turn up/down', 'viewnav.gRoll': 'Roll', 'viewnav.gHome': 'Home', 'viewnav.step': 'Step', 'viewnav.degrees': '{n}°',
+  'viewnav.gYaw': 'Turn left/right', 'viewnav.gPitch': 'Turn up/down', 'viewnav.gRoll': 'Roll', 'viewnav.gHome': 'Home', 'viewnav.step': 'Step', 'viewnav.size': 'Cube size', 'viewnav.percent': '{n}%', 'viewnav.degrees': '{n}°',
   'cmd.view-iso': 'Iso', 'cmd.view-back': 'Back', 'cmd.view-left': 'Left', 'cmd.view-bottom': 'Bottom', 'cmd.view-front': 'Front', 'cmd.view-top': 'Top', 'cmd.view-right': 'Right', 'cmd.fit': 'Fit',
   'cmd.group-selected': 'Group into folder',
   'cmd.rename': 'Rename', 'cmd.delete-feature': 'Delete feature', 'cmd.suppress-selected': 'Suppress / unsuppress', 'cmd.rebuild': 'Rebuild', 'cmd.roll-forward': 'Roll forward', 'cmd.select-all': 'Select all',
@@ -637,7 +638,7 @@ export const en: Catalog = {
   'app.sketch.tool.equal': 'Equal', 'app.sketch.tool.parallel': 'Parallel', 'app.sketch.tool.perpendicular': 'Perpendicular',
   'app.sketch.tool.collinear': 'Collinear', 'app.sketch.tool.midpoint': 'Midpoint', 'app.sketch.tool.tangent': 'Tangent',
   'app.sketch.tool.symmetric': 'Symmetric', 'app.sketch.tool.fix': 'Fix', 'app.sketch.tool.concentric': 'Concentric',
-  'app.sketch.tool.fillet': 'Fillet', 'app.sketch.tool.chamfer': 'Chamfer', 'app.sketch.tool.trim': 'Trim', 'app.sketch.tool.extend': 'Extend', 'app.sketch.tool.split': 'Split entity', 'app.sketch.tool.mirror': 'Mirror', 'app.sketch.tool.offset': 'Offset', 'app.sketch.tool.construction': 'Construction', 'app.sketch.tool.project': 'Project edges', 'app.sketch.tool.pattern-linear': 'Linear pattern', 'app.sketch.tool.pattern-circular': 'Circular pattern',
+  'app.sketch.tool.fillet': 'Fillet', 'app.sketch.tool.chamfer': 'Chamfer', 'app.sketch.tool.trim': 'Trim', 'app.sketch.tool.extend': 'Extend', 'app.sketch.tool.split': 'Split entity', 'app.sketch.tool.break': 'Break', 'app.sketch.tool.mirror': 'Mirror', 'app.sketch.tool.offset': 'Offset', 'app.sketch.tool.construction': 'Construction', 'app.sketch.tool.project': 'Project edges', 'app.sketch.tool.pattern-linear': 'Linear pattern', 'app.sketch.tool.pattern-circular': 'Circular pattern',
   'app.sketch.constructionMode': 'Construction', 'app.sketch.constructionMode.tip': 'Draw new geometry as construction (dashed, not extruded)', 'app.sketch.toggleConstruction': 'Make construction', 'app.sketch.toggleConstruction.tip': 'Switch the selected entity between normal and construction',
   'app.sketch.field.length': 'len', 'app.sketch.field.angle': 'ang', 'app.sketch.field.width': 'w', 'app.sketch.field.height': 'h',
   'app.sketch.field.radius': 'rad', 'app.sketch.field.radiusTip': 'Radius (mm): half the width of the circle', 'app.sketch.field.diameterTip': 'Diameter (mm): the full width of the circle', 'app.sketch.field.cornerRadius': 'corner', 'app.sketch.field.sweep': 'sweep', 'app.sketch.field.count': 'count', 'app.sketch.field.spacing': 'space', 'app.sketch.field.diameter': 'dia', 'app.sketch.field.distance': 'dist', 'app.sketch.field.pldist': 'distance', 'app.sketch.field.overall': 'overall',
@@ -687,6 +688,7 @@ export const en: Catalog = {
   'app.sketch.hint.pickLine': 'Pick a line', 'app.sketch.hint.pickOtherLine': 'Pick the other line',
   'app.sketch.hint.pickCurve': 'Pick a line, arc or circle', 'app.sketch.hint.pickEntity': 'Pick an entity',
   'app.sketch.hint.trimOneCut': 'Only 1 cut found on this circle: trimming a circle needs 2. A tangent arc or line counts only if it reaches the point where it touches the circle',
+  'app.sketch.hint.breakPick': 'Pick a line, arc or circle to break at every place another curve crosses it', 'app.sketch.hint.breakNone': 'Nothing crosses that curve inside it: draw the crossing curve first, or use Split entity to break at a chosen place', 'app.sketch.hint.breakUnsupported': 'Only a line, arc or circle can be broken at crossings: use Split entity on a spline',
   'app.sketch.hint.splitPick': 'Pick a line, arc, circle or spline where it should break', 'app.sketch.hint.splitAtEnd': 'That is already an end: pick a place along the curve', 'app.sketch.hint.splitUnsupported': 'Split entity works on lines, arcs, circles and fit splines',
   'app.sketch.hint.splineAddPick': 'Pick a spline where it should get a point', 'app.sketch.hint.splineAddAtPoint': 'There already is a point there: pick a place between two points',
   'app.sketch.hint.splineAdded': 'Point added. The spline is fitted through all its points again, so it may differ slightly from before',
@@ -1247,6 +1249,7 @@ export const en: Catalog = {
   'app.sketch.dim.editTip': 'Double-click (or select it and press Enter) to change the value; drag to move it; right-click for more', 'app.sketch.dim.resetPosition': 'Reset position', 'app.sketch.driven': 'Reference', 'app.sketch.driven.tip': 'Make this a reference dimension: it measures but no longer drives',
   'app.sketch.driving.tip': 'Make this a driving dimension at its present value',
   'app.sketch.dim.toDiameter': 'Change to diameter', 'app.sketch.dim.toRadius': 'Change to radius', 'app.sketch.dim.makeReference': 'Make reference', 'app.sketch.dim.makeDriving': 'Make driving', 'app.sketch.dim.delete': 'Delete dimension',
+  'app.sketch.replace.offer': 'That clashes with the {old} already there. Replace it with what you just added?', 'app.sketch.replace.action': 'Replace', 'app.sketch.replace.done': 'Replaced the {old}', 'app.sketch.replace.failed': 'Could not swap the {old}: the lines cannot follow from where they are, so nothing changed. Turn one of them part of the way first, or delete the old constraint yourself.', 'app.sketch.hint.constraint.replaced': 'Replaced the constraint it contradicted',
   'app.sketch.madeReference': 'That dimension was already fixed by others: it was added as a reference dimension',
   'cmd.sketch-pick-plane': 'New sketch: pick a plane in the view', 'app.sketch.pickPlane': 'Pick a plane, a flat face or a datum plane to sketch on', 'app.sketch.pickPlane.cancel': 'Cancel',
   'app.sketch.report': 'Sketch Report', 'app.sketch.report.tip': 'Counts, definition state and conflicting constraints of this sketch',
@@ -1276,6 +1279,7 @@ export const en: Catalog = {
   ...sketch3dStrings,
   ...meshStrings,
   ...meshSolidStrings,
+  ...underlayStrings,
   ...screwStrings,
   ...fastenStrings,
   ...washerStrings,

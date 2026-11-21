@@ -6,6 +6,10 @@ import { t } from './i18n';
 const ARROWS_KEY = 'cad.viewnav.arrows';
 const GROUPS_KEY = 'cad.viewnav.groups';
 const STEP_KEY = 'cad.viewnav.step';
+const SIZE_KEY = 'cad.viewnav.size';
+/** The cube's size as a percentage of the standard one (the arrows keep their size and stay round it). */
+export const CUBE_SIZES = [75, 100, 125, 150] as const;
+export const sanitizeCubeSize = (n: number): number => (CUBE_SIZES as readonly number[]).includes(n) ? n : 100;
 const read = (k: string): string | null => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private window */ } };
 
@@ -59,6 +63,7 @@ const Curve = () => <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden=
 export function ViewNav(p: ViewNavProps) {
   const [groups, setGroups] = useState<NavGroup[]>(() => loadGroups(!!p.phone));
   const [step, setStep] = useState(() => sanitizeStep(Number(read(STEP_KEY) ?? DEFAULT_STEP)));
+  const [size, setSize] = useState(() => sanitizeCubeSize(Number(read(SIZE_KEY) ?? 100)));
   const [menu, setMenu] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const on = (g: NavGroup) => groups.includes(g);
@@ -68,6 +73,12 @@ export function ViewNav(p: ViewNavProps) {
     if (host) host.setAttribute('data-vn', groups.join(' '));
     return () => host?.removeAttribute('data-vn');
   }, [groups]);
+  // the cube canvas and the arrows' reserved width follow --vn-scale (app.css multiplies the cube side by it)
+  useLayoutEffect(() => {
+    const host = box.current?.parentElement;
+    if (host) host.style.setProperty('--vn-scale', String(size / 100));
+    return () => host?.style.removeProperty('--vn-scale');
+  }, [size]);
   useEffect(() => {
     if (!menu) return;
     const away = (e: Event) => { if (box.current && !box.current.contains(e.target as Node)) setMenu(false); };
@@ -77,6 +88,7 @@ export function ViewNav(p: ViewNavProps) {
     return () => { document.removeEventListener('pointerdown', away, true); document.removeEventListener('keydown', esc); };
   }, [menu]);
   const pick = (n: number) => { setStep(n); write(STEP_KEY, String(n)); };
+  const pickSize = (n: number) => { setSize(n); write(SIZE_KEY, String(n)); };
   const toggle = (g: NavGroup) => { const next = NAV_GROUPS.filter((x) => (x === g ? !on(g) : on(x))); setGroups(next); write(GROUPS_KEY, next.join(',')); };
   const labels: Record<ViewTurn, string> = { up: t('viewnav.up'), down: t('viewnav.down'), left: t('viewnav.left'), right: t('viewnav.right') };
   return (
@@ -98,6 +110,10 @@ export function ViewNav(p: ViewNavProps) {
           <div class="vn-steps" role="group" aria-label={t('viewnav.step')}>
             <span>{t('viewnav.step')}</span>
             {STEP_SIZES.map((n) => <button key={n} type="button" role="menuitemradio" aria-checked={step === n} class={step === n ? 'on' : ''} onClick={() => pick(n)}>{t('viewnav.degrees', { n })}</button>)}
+          </div>
+          <div class="vn-steps" role="group" aria-label={t('viewnav.size')}>
+            <span>{t('viewnav.size')}</span>
+            {CUBE_SIZES.map((n) => <button key={n} type="button" role="menuitemradio" aria-checked={size === n} class={size === n ? 'on' : ''} data-size={n} onClick={() => pickSize(n)}>{t('viewnav.percent', { n })}</button>)}
           </div>
           {p.onLookNormal ? <button type="button" role="menuitem" onClick={() => { setMenu(false); p.onLookNormal?.(); }}>{t('app.sketch.lookNormal')}</button> : null}
         </div>

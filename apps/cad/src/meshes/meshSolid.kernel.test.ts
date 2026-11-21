@@ -53,6 +53,32 @@ describe('Convert mesh to solid, real kernel', { skip: !process.env.CK_WASM }, (
     expect(flat.ok && flat.report.kinds.cylinder).toBe(0);
     expect(flat.ok && flat.report.kinds.planar).toBeGreaterThan(30);
   });
+  it('Decimate thins a dense mesh within the deviation set, reports before and after, and the solid still has the volume', async () => {
+    const { k } = await opened();
+    const dense = rec(cylinder(5, 10, 240));
+    const plain = await runMeshToSolid(k, worldMesh(dense), opts({ analytic: false }), { name: 'dense' });
+    expect(plain.ok && plain.report.decimation).toBeNull();
+    const o = await runMeshToSolid(k, worldMesh(dense), opts({ analytic: false, decimate: true, decimateTol: 0.05 }), { name: 'dense' });
+    expect(o.ok).toBe(true);
+    if (!o.ok || !plain.ok) return;
+    const d = o.report.decimation!;
+    expect(d.inputTriangles).toBe(dense.tris);
+    expect(d.triangles).toBeLessThan(d.inputTriangles / 2);
+    expect(d.tol).toBe(0.05);
+    expect(d.deviation).toBeLessThanOrEqual(0.05 + 1e-9);
+    expect(Math.abs(o.report.volume.body! - plain.report.volume.body!) / plain.report.volume.body!).toBeLessThan(0.02);
+    await releasePreview(k, MESH_SOLID_TAG);
+  });
+  it('Decimate with a target stops at it, and a tolerance of nothing to remove leaves the mesh as it was', async () => {
+    const { k } = await opened();
+    const dense = rec(cylinder(5, 10, 240));
+    const t = await runMeshToSolid(k, worldMesh(dense), opts({ analytic: false, decimate: true, decimateTol: 0.5, decimateTarget: 400 }), { name: 'dense' });
+    expect(t.ok && t.report.decimation!.triangles).toBeGreaterThanOrEqual(400);
+    expect(t.ok && t.report.decimation!.triangles).toBeLessThan(600);
+    const none = await runMeshToSolid(k, worldMesh(rec(cube(10))), opts({ decimate: true, decimateTol: 0.0001 }), { name: 'cube' });
+    expect(none.ok && none.report.decimation!.triangles).toBe(12);
+    await releasePreview(k, MESH_SOLID_TAG);
+  });
   it('a cube with a hole is refused with the places of the open edges; a moved mesh gives moved places', async () => {
     const { k } = await opened();
     const o = await runMeshToSolid(k, worldMesh(rec(holedCube())), opts(), { name: 'holed' });

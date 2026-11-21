@@ -695,10 +695,10 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 /* the view cube and its arrow ring: the cube canvas sits in the middle, the buttons around it overlap its empty margin (the cube itself never reaches them) */
 /* --vn-c cube, --vn-b the touch target of a button, --vn-inset how much smaller it is drawn than hit, --vn-pad how far the ring's rows and columns reach beyond the cube canvas, --vn-foot the bottom row when only the menu button is in it.
    ViewNav writes the groups in play to #vp[data-vn]: a side column exists only with turn left/right, roll, up/down or Home, a top row only with up/down or roll, a full bottom row only with up/down or Home, so a group that is off takes no space. */
-#vp { --vn-c: 112px; --vn-b: 32px; --vn-inset: 0px; --vn-pad: 20px; --vn-foot: var(--vn-pad); --vn-top: 54px; --vn-right: 12px; --vn-px: 0px; --vn-pt: 0px; --vn-pb: var(--vn-foot);
+#vp { --vn-scale: 1; --vn-c: calc(112px * var(--vn-scale)); --vn-b: 32px; --vn-inset: 0px; --vn-pad: 20px; --vn-foot: var(--vn-pad); --vn-top: 54px; --vn-right: 12px; --vn-px: 0px; --vn-pt: 0px; --vn-pb: var(--vn-foot);
   --vn-w: calc(var(--vn-c) + 2 * var(--vn-px)); --vn-h: calc(var(--vn-pt) + var(--vn-c) + var(--vn-pb)); }
-#app[data-layout="phone"] #vp, #app[data-layout="tablet"] #vp { --vn-c: 104px; --vn-b: var(--tap); --vn-pad: 28px; --vn-top: 60px; --vn-right: 8px; }
-#app[data-layout="phone"] #vp { --vn-c: 96px; --vn-inset: 6px; --vn-inset-more: 8px; --vn-pad: 32px; --vn-foot: 32px; }
+#app[data-layout="phone"] #vp, #app[data-layout="tablet"] #vp { --vn-c: calc(104px * var(--vn-scale)); --vn-b: var(--tap); --vn-pad: 28px; --vn-top: 60px; --vn-right: 8px; }
+#app[data-layout="phone"] #vp { --vn-c: calc(96px * var(--vn-scale)); --vn-inset: 6px; --vn-inset-more: 8px; --vn-pad: 32px; --vn-foot: 32px; }
 #vp[data-vn~="yaw"], #vp[data-vn~="pitch"], #vp[data-vn~="roll"], #vp[data-vn~="home"] { --vn-px: var(--vn-pad); }
 #vp[data-vn~="pitch"], #vp[data-vn~="roll"] { --vn-pt: var(--vn-pad); }
 #vp[data-vn~="pitch"], #vp[data-vn~="home"] { --vn-pb: var(--vn-pad); }
@@ -2166,3 +2166,12 @@ label.set-row:has(> input[type="checkbox"]:first-child) { justify-content: flex-
 #app[data-layout="phone"] .motion-panel input[type="range"], #app[data-layout="tablet"] .motion-panel input[type="range"] { min-height: var(--tap, 44px); }
 .motion-panel .asm-bar .btn { min-height: 30px; }
 
+
+/* The picture to trace on a sketch (UnderlayPanel.tsx): a card at the upper left of the view, clear of the view navigation at the right; its buttons stay in view */
+.underlay-panel { position: absolute; left: 296px; top: 166px; width: 270px; max-height: calc(100% - 230px); display: flex; flex-direction: column; z-index: 6; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 24px rgba(0, 0, 0, .35); }
+.underlay-panel .prop-body { flex: 1 1 auto; overflow: auto; min-height: 0; }
+.underlay-panel .ul-name { margin: 0 0 6px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.underlay-panel .ul-cal p { margin: 4px 0 8px; }
+.underlay-panel .ul-cal .fedit-card-btn { margin-right: 6px; }
+.underlay-panel .ul-nav { flex: none; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--line); }
+.underlay-panel input[type="range"] { width: 100px; }

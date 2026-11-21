@@ -135,6 +135,7 @@ export * from './annotations';
 export * from './extrude';
 export * from './shapes';
 export * from './define';
+export * from './replace';
 export * from './freedom';
 export * from './equation';
 export * from './refdims';

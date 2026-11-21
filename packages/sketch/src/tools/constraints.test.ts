@@ -337,3 +337,25 @@ describe('pointer path of the constraint tools (what the app does before the too
     expect(added(o)).toEqual([{ type: 'horizontal', refs: ['c1', 'p1'] }]);
   });
 });
+
+describe('Replace: a constraint refused as a contradiction offers the swap', () => {
+  const horiz: SketchDraft = { ...D, constraints: [{ id: 'k1', type: 'horizontal', refs: ['e1'] }] };
+  it('vertical on a horizontal line is refused and carries the swapped draft', () => {
+    const out = run(verticalTool, [ent('e1')], horiz);
+    expect(out.hint).toBe('app.sketch.hint.constraint.conflict');
+    expect(out.draft).toBe(horiz);                                     // nothing changed yet
+    expect(out.replace).toMatchObject({ remove: 'k1', type: 'horizontal' });
+    expect(out.replace!.draft.constraints.map((c) => ({ type: c.type, refs: c.refs }))).toEqual([{ type: 'vertical', refs: ['e1'] }]);
+  });
+  it('Shift while picking swaps at once', () => {
+    const shifted = (id: string): ToolEvent => ({ type: 'click', at: { x: 0, y: 0 }, snap: { kind: 'grid', at: { x: 0, y: 0 }, entityId: id }, mods: { ...M, shift: true } }) as ToolEvent;
+    const out = run(verticalTool, [shifted('e1')], horiz);
+    expect(out.hint).toBe('app.sketch.hint.constraint.replaced');
+    expect(out.draft.constraints.map((c) => c.type)).toEqual(['vertical']);
+  });
+  it('a constraint that only repeats what is there has nothing to replace', () => {
+    const out = run(horizontalTool, [ent('e1')], horiz);
+    expect(out.hint).toBe('app.sketch.hint.constraint.exists');
+    expect(out.replace).toBeUndefined();
+  });
+});

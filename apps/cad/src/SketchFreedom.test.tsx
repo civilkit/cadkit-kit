@@ -33,6 +33,16 @@ describe('SketchFreedomList', () => {
     fireEvent.click(screen.getByText('Radius 5'));
     expect(onRun).toHaveBeenCalledWith(sug[2]);
   });
+  it('Select them hands over each free entity once, and is absent without a handler', () => {
+    const onSelectAll = vi.fn();
+    const { rerender } = render(<SketchFreedomList items={items} suggestions={[]} busy={false} onRun={vi.fn()} onAnalyse={vi.fn()} onSelectAll={onSelectAll} />);
+    fireEvent.click(screen.getByText('Select them'));
+    const ids = onSelectAll.mock.calls[0][0] as string[];
+    expect(ids.length).toBe(new Set(ids).size);
+    expect(ids.every((i) => i !== '')).toBe(true);
+    rerender(<SketchFreedomList items={items} suggestions={[]} busy={false} onRun={vi.fn()} onAnalyse={vi.fn()} />);
+    expect(screen.queryByText('Select them')).toBeNull();
+  });
   it('before an analysis it offers the button; with nothing free it is empty', () => {
     const onAnalyse = vi.fn();
     const { container, rerender } = render(<SketchFreedomList items={null} suggestions={[]} busy={false} onRun={vi.fn()} onAnalyse={onAnalyse} />);
