@@ -79,13 +79,13 @@ export function DiagnosticsCard(p: DiagnosticsCardProps) {
 
 /** The committed build's warnings (features that built but are flagged), below the errors: one entry per warning with a
  *  Warning tag, the feature as a link that selects it in the tree, what is wrong and what to do. */
-export function DiagnosticsWarnings(p: { entries: WarningEntry[]; onSelect(id: string): void }) {
+export function DiagnosticsWarnings(p: { entries: WarningEntry[]; onSelect(id: string): void; /** the entries only inform (what a feature did): an Info tag, not a Warning */ info?: boolean }) {
   if (!p.entries.length) return null;
   return (
     <div class="diag-warnings">
       {p.entries.map((e, i) => (
-        <div key={e.featureId + ':' + i} class="issue warn diag-warning" data-warning={e.code} data-id={e.featureId}>
-          <span class="diag-tag">{t('diag.warning.tag')}</span>{' '}
+        <div key={e.featureId + ':' + i} class={p.info ? 'issue diag-warning diag-info' : 'issue warn diag-warning'} data-warning={e.code} data-id={e.featureId}>
+          <span class={p.info ? 'diag-tag diag-tag-info' : 'diag-tag'}>{t(p.info ? 'diag.info.tag' : 'diag.warning.tag')}</span>{' '}
           <button type="button" class="diag-item" data-id={e.featureId} onClick={() => p.onSelect(e.featureId)}>{featureTag({ id: e.featureId, label: e.label })}</button>
           <div class="why">{e.text}</div>
           {e.advice ? <div class="why diag-advice">{e.advice}</div> : null}

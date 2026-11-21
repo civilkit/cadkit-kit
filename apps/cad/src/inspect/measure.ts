@@ -1,7 +1,7 @@
 // The Measure tool: turns one or two picked vertices / edges / faces into labelled results and the leaders to draw.
 // Vertices and edges are measured here from the polylines the view already has; anything that involves a face asks the
 // kernel's `measure` request (exact on the analytic surface), and a vertex against a face uses the face's triangles.
-import { parseVertexName } from '@kit/store';
+import { parseMeshPointName, parseVertexName } from '@kit/store';
 import {
   angleDeg, dist, facePlane, faceAreaFromMesh, lineAngleDeg, pointFace, pointPolyline, polylineLength, polylinePolyline, sub,
   type FaceMesh, type V3,
@@ -10,7 +10,8 @@ import {
 export interface EdgeInfo { key?: string; faces?: string[]; mid?: number[]; pts?: number[][]; line?: boolean; circle?: { c: number[]; n: number[]; r: number } }
 
 export type Pick =
-  | { kind: 'vertex'; name: string; p: V3 }
+  /** a corner of the body, or (with `mesh`, the reference mesh's id) a point picked on a reference mesh's triangles */
+  | { kind: 'vertex'; name: string; p: V3; mesh?: string }
   | { kind: 'edge'; name: string; edge: EdgeInfo }
   | { kind: 'face'; name: string };
 
@@ -18,6 +19,9 @@ export type Pick =
 export function resolvePick(name: string, edges: EdgeInfo[]): Pick | null {
   const v = parseVertexName(name);
   if (v && v.length === 3 && v.every(Number.isFinite)) return { kind: 'vertex', name, p: v };
+  const mp = parseMeshPointName(name);
+  if (mp) return { kind: 'vertex', name, p: mp.p, mesh: mp.mesh };
+  if (name.startsWith('mp:')) return null;   // a damaged mesh point name is nothing, never a face
   if (name.includes('|')) {
     const e = edges.find((x) => x.key === name);
     return e ? { kind: 'edge', name, edge: e } : null;
@@ -30,7 +34,7 @@ export type Unit = 'mm' | 'mm2' | 'deg' | 'text';
 export interface Row { id: string; value: number | V3 | string; unit: Unit }
 /** A leader drawn in the 3D view: a line from a to b with the text at its middle. */
 export interface Mark { a: V3; b: V3; text: string }
-export interface Outcome { rows: Row[]; marks: Mark[]; /** the surface kind of a single face ("plane", "cylinder" ...) */ surface?: string; error?: string }
+export interface Outcome { rows: Row[]; marks: Mark[]; /** the surface kind of a single face ("plane", "cylinder" ...) */ surface?: string; error?: string; /** a pick is a point on a reference mesh: the values are to its triangles, not to an exact surface */ onMesh?: boolean }
 
 /** The kernel's `measure` reply (the part that is used). */
 export interface KernelMeasure {
@@ -161,9 +165,14 @@ function fromKernel(r: KernelMeasure, picks: Pick[]): Outcome {
 /** The kernel reports angles in radians. */
 const toDeg = (rad: number): number => (rad * 180) / Math.PI;
 
-/** Measure the picks (at most two are used). Never throws. */
+/** Measure the picks (at most two are used). Never throws. A point on a reference mesh is measured as a point, like a corner. */
 export async function measure(picks: Pick[], ctx: MeasureCtx): Promise<Outcome> {
   const used = picks.slice(0, 2);
+  const out = await measureUsed(used, ctx);
+  return used.some((p) => p.kind === 'vertex' && p.mesh) ? { ...out, onMesh: true } : out;
+}
+
+async function measureUsed(used: Pick[], ctx: MeasureCtx): Promise<Outcome> {
   const local = measureLocal(used);
   if (local) return local;
   // vertex against face: the face's triangles

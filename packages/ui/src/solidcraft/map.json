@@ -55,6 +55,7 @@
   "export": "model/export",
   "export-stl": "model/export",
   "export-stl-ascii": "model/export",
+  "export-stl-bodies": "model/export",
   "export-obj": "model/export",
   "export-3mf": "model/export",
   "export-glb": "model/export",

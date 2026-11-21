@@ -5,7 +5,7 @@ import { add, angleDeg, cross, dist, dot, len, polylineLength, scale, sub, unit,
 
 export interface SelMesh { positions: ArrayLike<number>; normals: ArrayLike<number>; triFace: ArrayLike<number>; faceIds: string[] }
 export interface SelEdge { key?: string; faces?: string[]; pts?: number[][] }
-export interface SelData { mesh: SelMesh | null; edges: SelEdge[]; /** the surface body (feature id) that owns a face or edge name; null for the solid */ surfaceOf?(name: string): string | null }
+export interface SelData { mesh: SelMesh | null; edges: SelEdge[]; /** the kernel's body index of each solid face, in `mesh.faceIds` order from the start (faces after them, the surface bodies', have none) */ faceBody?: ArrayLike<number>; /** the name of the body with each index (null: unnamed) */ bodyNames?: ReadonlyArray<string | null>; /** the surface body (feature id) that owns a face or edge name; null for the solid */ surfaceOf?(name: string): string | null }
 
 /** Selection name of one body: the smallest face name in it, so it survives rebuilds that keep the face names. */
 export const BODY_PREFIX = '@body:';
@@ -16,7 +16,7 @@ export const edgeNameOf = (e: SelEdge, i: number): string => e.key ?? `edge#${i}
 export type FaceKind = { type: 'plane'; normal: V3 } | { type: 'cylinder'; radius: number; axis: V3 } | { type: 'other' };
 export type EdgeKind = { type: 'line'; dir: V3 } | { type: 'circle' | 'arc'; radius: number; normal: V3 } | { type: 'curve' };
 
-export interface Body { name: string; faces: string[]; edges: string[]; surface: boolean }
+export interface Body { name: string; faces: string[]; edges: string[]; surface: boolean; /** the name its document gave the body (the kernel's body identity); null or absent when unnamed or unknown */ kernelName?: string | null }
 
 const TOL_PARALLEL_DEG = 0.5;
 const rel = (a: number, b: number, tol = 1e-3): boolean => Math.abs(a - b) <= tol * Math.max(Math.abs(a), Math.abs(b)) + 1e-9;
@@ -73,6 +73,21 @@ export class SelModel {
     if (this.bodyCache) return this.bodyCache;
     const seen = new Set<string>();
     const out: Body[] = [];
+    // The kernel says which body each solid face belongs to: bodies that only touch (share no edge) or that share edges stay what the kernel made them.
+    const fb = this.data.faceBody, ids = this.data.mesh?.faceIds;
+    if (fb && ids && fb.length > 0) {
+      const groups = new Map<number, string[]>();
+      for (let i = 0; i < fb.length && i < ids.length; i++) {
+        if (seen.has(ids[i])) continue;
+        seen.add(ids[i]);
+        const g = groups.get(fb[i]);
+        if (g) g.push(ids[i]); else groups.set(fb[i], [ids[i]]);
+      }
+      for (const [idx, comp] of groups) {
+        const edges = [...new Set(comp.flatMap((x) => this.edgesOf(x)))];
+        out.push({ name: bodyNameOf(comp), faces: comp, edges, surface: false, kernelName: this.data.bodyNames?.[idx] ?? null });
+      }
+    }
     for (const f of this.faces) {
       if (seen.has(f)) continue;
       const comp = [f]; seen.add(f);

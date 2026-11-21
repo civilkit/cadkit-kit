@@ -159,17 +159,56 @@ play the study and export a clip.
 
 | Phase | Content | Size |
 |---|---|---|
-| M1 | Driver on any mate kind, slider, live pose, display-only pose banner, `solvePoses` without contact | M |
-| M2 | Mesh-based contact test, Find limits (sweep with bisection), clearance, plain-language stops, highlight | L |
-| M3 | Studies: keyframes, transport, loop, trail, clip and frame export, MCP tools | L |
-| M4 | Physics: MuJoCo simulate mode through `packages/mjcf`, actuators, result stored as a study | L |
+| M1 | Driver on any mate kind (hinge, slot, angle, distance, gear, screw, rackPinion), `solvePoses` without contact, a slider per drivable mate in the Assembly panel's Motion section, display-only pose with a banner and Reset | M |
+| M2 | Mesh-based contact test (a stop by default), `sweepDriver` with bisection (Find limits), clearance, plain-language stops, highlight, copy a found range into a `limits` mate | L |
+| M3 | Studies: keyframes, transport, loop, trail, playback from a cached pose list | L |
+| M4 | Export (WebM, GIF, MP4; PNG frames) and the MCP tools (`motion_drive`, `motion_sweep`, `motion_study_run`, `motion_list`) | L |
+| Later | Physics: MuJoCo simulate mode through `packages/mjcf`; Woodwork joints as drivers | L |
 
 M1 alone answers "slide the part along the slot and see it", M2 answers "where does it stop and why".
 
-## 12. Open questions for the owner
+### M1 as built
 
-1. Contact as a stop by default, or only when the user turns it on (a fast, approximate default is proposed: bounding boxes then triangles)?
-2. Should a driver's range be saved into the `limits` mate (editing the model) or kept as a study setting (display only)? Proposed: study setting, with a button to copy into a `limits` mate.
-3. Is a clip export in the browser (WebM) enough, or is MP4 needed? Proposed: WebM and GIF first.
-4. Should the Woodwork plugin's joints (doors, drawers; see the kernel decision memo on kinematic joints) become drivers here? Proposed: yes, once that
-   memo's joint object exists; the driver model above maps onto its revolute and prismatic joints.
+- Kernel request `solvePoses {tag, poses:[{<mate id>: value}]}` returns `{drivers, poses:[{ok, places, error?, mate?}]}`. Angles are degrees, distances mm.
+  Hinge and slot values are measured from the pose the mate was created at (0 = assembled pose); `angle` and `distance` replace the mate's own value;
+  gear, screw and rackPinion take the drive angle of the driver. A driver a pose does not list is not driven: in the first pose it is at its assembled value, later it stays where the pose before left it. Poses
+  after the first warm-start from the one before. The tag's assembly is copied, never written.
+- M2 (built): `sweepDriver` walks a driver in coarse steps and bisects the first blocked step; the stop is a `limits` mate (named, with its
+  bound), `contact` (the two parts and the point), `solver`, `branchJump` or `range`. Contact is the tessellation: two parts touch when a
+  surface edge of one pierces a triangle of the other by more than 5 um, a part wholly inside another counts, and a pair already touching where
+  the sweep starts (mated faces) only stops it by crossing; with a clearance a pair closer than it stops too (touching pairs are exempt).
+  Closed loops (slider-crank) are solved by least squares over all of a part's mates, the driven part held where the drive put it.
+  The `limits` mate measures its angle unsigned (0 to 180), so a limit of 0 to 110 also lets the door swing the other way, to -110.
+- M3 (built): `doc.motion.studies` hold tracks of keyframes `{t, v, ease}` (linear or inOut) per driver, a duration, a loop mode (once, loop,
+  ping-pong) and a clearance. A study is solved once for 30 frames a second (at most 600 frames) and played from that cache with play, pause,
+  scrub and speed; any edit drops the cache. The panel says the first frame that touches or fails. Not built: the trail of a picked point.
+- M4 (built): export as WebM or MP4 (the browser's own MediaRecorder on the canvas, played at the study's speed: Chrome, Edge and Safari write
+  MP4, Firefox only WebM; no library and no server step), as an animated GIF (own encoder, about 15 frames a second) or as a ZIP of PNG frames.
+  Agent tools `motion_list`, `motion_drive`, `motion_sweep` and `motion_study_run` (read only, plain words next to the numbers).
+- The panel lists every drivable mate; ranges are saved in `doc.motion.drivers` as a view setting (decision 2), defaults are one turn each way
+  and 100 mm each way until Find limits (M2) can say more.
+
+## 12. Decisions (owner, 2026-11-21)
+
+1. **Contact is a stop by default.** The fast approximate check (bounding boxes, then triangles) is on unless a study turns it off.
+2. **A driver's range is a study setting** (display only, the model is untouched). A button copies it into a `limits` mate when it should be permanent.
+3. **Clip export: WebM and GIF first, and MP4 as well.** MP4 is in scope, not deferred (it may need a library or a server-side step: decide in phase M4).
+4. **Woodwork plugin joints become drivers later**, once the kernel's kinematic joint object exists; the driver model maps onto its revolute and prismatic joints.
+
+## 13. UI direction (owner, 2026-11-21)
+
+The Motion section in the Assembly panel (section 8, as built in M1 to M4) is too narrow for sliders, studies, keyframes and export together. Motion
+gets its own place:
+
+1. **A Motion ribbon tab** (next to Assembly, also found by command search `motion`) with the groups Drive (sliders, Find limits), Study (New, Key,
+   Delete), Playback (Play / Pause, loop, speed) and Export (format, Export clip).
+2. **A timeline docked along the bottom of the viewport** while that tab is active: the scrubber, the keyframes of each driver as marks on a track,
+   and the line that says what the study touches ("At 2.4 s Rail would hit Slider"). Keys are added, moved and removed there.
+3. The sliders and Find limits results stay in the left panel as a short list.
+
+The data model, the kernel requests and the pure logic (`packages/motion`) do not change; only the screens move.
+
+Status: built. The ribbon tab (Drive: Sliders, Limits; Study: New study, Key; Playback: Play; Clip: Export) and the timeline are views of one store
+(`apps/cad/src/motion/store.ts`), as is the short list in the left panel (`MotionPanel`); the ribbon commands call the same store actions. The timeline
+reserves the bottom of the view (`data-ovr-reserve`), so the other overlays keep clear of it. Double-click a track to key at that time.
+

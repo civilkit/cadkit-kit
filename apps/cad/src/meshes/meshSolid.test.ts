@@ -87,7 +87,7 @@ describe('readOutcome: the reply as the panel shows it', () => {
     expect(o.ok).toBe(true);
     if (!o.ok) return;
     expect(o.report).toMatchObject({
-      triangles: 128, faces: 3, diagonal: 0, kinds: { planar: 2, faceted: 0, cylinder: 1, cone: 0, sphere: 0, other: 0 }, analyticSkipped: null,
+      triangles: 128, faces: 3, diagonal: 0, kinds: { planar: 2, faceted: 0, cylinder: 1, cone: 0, sphere: 0, other: 0 }, analyticSkipped: null, budgetExhausted: false,
       deviation: { max: 0.02397, rms: 0.01446 }, volume: { mesh: 780.33, body: 785.398, relative: 0.0065 }, closing: null, ms: 180,
       repairs: [{ key: 'flipped', n: 2 }],
     });

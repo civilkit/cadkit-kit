@@ -6,6 +6,9 @@ import { Icon, featureIconName } from './icons';
 import { InlineName } from './InlineName';
 import { textAttrs } from './keypad';
 
+/** Curve features make no faces or bodies, so a row of one has nothing for the select-in-viewport button to pick. */
+const CURVE_ROWS = new Set(['editCurve', 'projectCurve', 'offsetCurve', 'compositeCurve', 'helix']);
+
 export interface RefRow { id: string; label: string; icon: string; /** small muted text at the right, e.g. the axes a plane contains */ tag?: string; /** a plane or the origin can be chosen; the material row is only information */ choosable?: boolean; /** the row opens an editor (click, double-click, Enter or the pencil): the material row */ editable?: boolean; /** tooltip and name of the pencil on an editable row */ editLabel?: string; /** a colour chip after the label (CSS colour), e.g. the part's colour on the material row */ swatch?: string; /** shown or hidden: an eye on the row (needs `onToggleRef`); absent: no eye */ shown?: boolean }
 
 export interface FeatureRow { id: string; type: string; name?: string; op?: string; suppressed?: boolean; /** ids of the sketches this feature is built from; they are shown tucked under it */ uses?: string[]; /** a feature this row hangs under (a thread under its hole); ignored unless that row exists */ under?: string; /** folder name: consecutive rows with the same group are shown under one collapsible folder row */ group?: string; /** small muted text after the name, e.g. `patterned by F7` */ note?: string }
@@ -63,7 +66,7 @@ export function FeatureTree(p: {
   status: FeatureStatus[];
   /** Regen warnings by feature id (amber mark on the row, its tooltip `hint`, one warning per line; the feature still works).
    *  Not shown on a suppressed row or one after the rollback marker. */
-  warnings?: Record<string, { code: string; hint: string }>;
+  warnings?: Record<string, { code: string; hint: string; /** only informs (a summary of what the feature did): an "i" badge, not a "!" */ info?: boolean }>;
   selectedId: string | null;
   /** Every selected row when several are (Ctrl/Shift click); `selectedId` is then the one clicked last. */
   selectedIds?: string[];
@@ -296,10 +299,10 @@ export function FeatureTree(p: {
             : <span class="row-name" title={t('feature.' + r.type, undefined, r.type)}>{hl(label)}</span>}
           {r.name && !renamingThis && !r.name.toLowerCase().startsWith(kindLabel(r.type).toLowerCase()) ? <span class="row-type">{hl(t('feature.' + r.type, undefined, r.type))}</span> : null}
           {r.note && !renamingThis ? <span class="row-note" data-note={r.note}>{r.note}</span> : null}
-          {!failed && !r.suppressed && i < upTo && p.warnings?.[r.id] ? <span class="row-warn" data-warning={p.warnings[r.id].code} title={p.warnings[r.id].hint ?? p.warnings[r.id].code} aria-label={p.warnings[r.id].hint ?? p.warnings[r.id].code} role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); p.onWarning?.(r.id); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); p.onWarning?.(r.id); } }}>!</span> : null}
+          {!failed && !r.suppressed && i < upTo && p.warnings?.[r.id] ? <span class={p.warnings[r.id].info ? 'row-warn row-info' : 'row-warn'} data-warning={p.warnings[r.id].code} title={p.warnings[r.id].hint ?? p.warnings[r.id].code} aria-label={p.warnings[r.id].hint ?? p.warnings[r.id].code} role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); p.onWarning?.(r.id); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); p.onWarning?.(r.id); } }}>{p.warnings[r.id].info ? 'i' : '!'}</span> : null}
           <span class="row-id">{hl(r.id)}</span>
           <span class="row-actions">
-            {p.onSelectFaces && !isSketch(r.type) && r.type !== 'plane' ? (
+            {p.onSelectFaces && !isSketch(r.type) && r.type !== 'plane' && !CURVE_ROWS.has(r.type) ? (
               <button class="row-selfaces row-act" title={t('ui.tree.selectFaces', undefined, 'Select in viewport')} aria-label={t('ui.tree.selectFaces', undefined, 'Select in viewport')}
                 onClick={(e) => { e.stopPropagation(); p.onSelectFaces!(r.id); }}><Icon name="sel-box" size={15} /></button>
             ) : null}

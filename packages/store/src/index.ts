@@ -12,6 +12,18 @@ export const MODE_FILTER: Record<SelectionMode, PickFilterKind> = { face: 'faces
 /** Name of a corner pick: its position, rounded so the same corner always gets the same name (faces and edges have kernel names). */
 export const vertexName = (p: number[]): string => `v:${p.map((x) => (Math.round(x * 1e4) / 1e4).toString()).join(',')}`;
 export const parseVertexName = (n: string): number[] | null => (n.startsWith('v:') ? n.slice(2).split(',').map(Number) : null);
+/** Name of a point picked on a reference mesh (the Measure tool): the mesh's id and the world position on its triangles, rounded like a corner.
+ *  It is not a kernel entity: commands that act on faces, edges or corners leave it out. */
+export const meshPointName = (meshId: string, p: number[]): string => `mp:${meshId}@${p.map((x) => (Math.round(x * 1e4) / 1e4).toString()).join(',')}`;
+export function parseMeshPointName(n: string): { mesh: string; p: [number, number, number] } | null {
+  if (!n.startsWith('mp:')) return null;
+  const at = n.lastIndexOf('@');
+  if (at < 4) return null;
+  const p = n.slice(at + 1).split(',').map(Number);
+  return p.length === 3 && p.every(Number.isFinite) ? { mesh: n.slice(3, at), p: [p[0], p[1], p[2]] } : null;
+}
+/** The position a point-like selection name stands for: a corner of the body, or a point on a reference mesh. */
+export const pointOfName = (n: string): number[] | null => parseVertexName(n) ?? parseMeshPointName(n)?.p ?? null;
 /** Selection name of the whole body (Alt+click in the viewport, the Select body command). */
 export const BODY = '@body';
 import { createNotifications, type Notice, type NoticeLevelInput, type NotifyOptions } from './notifications';

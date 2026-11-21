@@ -67,7 +67,7 @@ export function chainedEdgeRefs(selection: string[], edges: ViewEdge[], chain: b
 }
 
 /** The selected faces, by name. */
-export const faceNames = (selection: string[]): string[] => selection.filter((n) => !isEdgeName(n) && n !== BODY && !n.startsWith('@body:') && !n.startsWith('v:'));
+export const faceNames = (selection: string[]): string[] => selection.filter((n) => !isEdgeName(n) && n !== BODY && !n.startsWith('@body:') && !n.startsWith('v:') && !n.startsWith('mp:'));
 
 /** The edges to round when faces are picked (SolidWorks "face fillet"): every edge two of the faces share. For exactly two faces that is their common edges
  *  (a ring split into arcs gives every arc); for more faces, all shared edges between selected pairs. */
@@ -135,7 +135,7 @@ export function pickValue(path: string, selection: string[], edges: ViewEdge[], 
  *  corner named by the faces of the edges that end there (so it follows them; a point no edge ends at stays a fixed point). */
 export function objectRef(selection: string[], edges: ViewEdge[], body: boolean): unknown {
   const n = selection[0];
-  if (!n || isEdgeName(n) || n === BODY) return null;
+  if (!n || isEdgeName(n) || n === BODY || n.startsWith('mp:')) return null;   // a point on a reference mesh is no kernel entity
   if (n.startsWith('@body:')) return body ? { kind: 'body', name: n.slice(6) } : null;
   if (n.startsWith('v:')) {
     const at = n.slice(2).split(',').map(Number);

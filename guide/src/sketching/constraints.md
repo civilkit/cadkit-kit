@@ -73,6 +73,12 @@ A value can be a number, an expression such as `=width*2+3`, or the name of a va
 - Or select the item in the **Constraints** list and double-click its row.
 - Delete a dimension or any other constraint with the **×** button on its row in the list.
 
+### Move a dimension
+
+CivilKit CAD places the dimensions so that none lies over another or over the geometry. To place one yourself, **drag** its label. The dimension line (or the leader of a radius or diameter, or the arc of an angle) follows the pointer in steps and stays at the step you let go at. This only changes where the dimension is drawn, not the size. A dimension you moved stays where you put it, even over something else, and the automatic ones arrange themselves around it. Dragging is one undo step.
+
+To give a dimension back to the automatic layout, right-click its label and choose **Reset position**. The position is saved with the sketch and goes when you delete the dimension.
+
 When you change an **Angle** dimension by a lot (more than about 90 degrees from the present angle), the solver can end on the opposite solution, with the line pointing the other way. Change the value in steps if that happens.
 
 ### Reference dimensions

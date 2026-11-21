@@ -16,11 +16,16 @@ export interface InspectActions {
   toggleSection(): void;
   isSectioned(): boolean;
   hasSolid(): boolean;
+  /** The part shows at least one reference mesh: Measure works on its points even with no solid (the other tools need a solid). */
+  hasRefMesh?(): boolean;
 }
+
+/** Measure can run with a solid on screen or a shown reference mesh to pick points on. */
+export const canMeasure = (a: Pick<InspectActions, 'hasSolid' | 'hasRefMesh'>): boolean => a.hasSolid() || !!a.hasRefMesh?.();
 
 export function inspectCommands(a: InspectActions): Command[] {
   return [
-    { id: 'measure', label: t('cmd.measure'), tab: 'Evaluate', group: 'Measure', keys: 'M', enabled: a.hasSolid, pressed: a.isMeasuring, run: a.toggleMeasure },
+    { id: 'measure', label: t('cmd.measure'), tab: 'Evaluate', group: 'Measure', keys: 'M', enabled: () => canMeasure(a), pressed: a.isMeasuring, run: a.toggleMeasure },
     { id: 'mass-props', label: t('cmd.mass-props'), tab: 'Evaluate', group: 'Measure', enabled: a.hasSolid, run: a.massProps },
     { id: 'interference', label: t('cmd.interference'), tab: 'Evaluate', group: 'Analyse', enabled: a.hasSolid, run: a.interference },
     { id: 'check-intersection', label: t('cmd.check-intersection'), tab: 'Evaluate', group: 'Analyse', enabled: a.hasSolid, run: a.intersection },

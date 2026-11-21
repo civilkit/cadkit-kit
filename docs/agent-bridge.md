@@ -112,3 +112,12 @@ A part, STEP or SolidCraft file opens in a NEW document tab (the user's part is 
 ## Plugin tools (app_plugin_list, app_plugin_run)
 
 `app_plugin_list` (read) lists the plugin generators the app has switched on, with a JSON schema for each one's parameters. `app_plugin_run` (needs "Allow the agent to change this document") runs one on the open document through the same path as the Plugins panel's Add: one tree folder, one undo step, and the run's parameters are stored in the document so the folder offers Edit parameters. See `docs/plugins.md`.
+
+## Opening a file without the agent link (loopback pages only)
+
+For browser automation on a page served from `localhost`, `127.0.0.1`, `[::1]` or `*.localhost` (never on a published or other host):
+
+- `window.ckOpenFile(blob, name?)` opens the file as if it had been dropped on the window: a part, STEP or SolidCraft file opens in a new tab; a mesh asks for its units (the Import dialog) and is added to the OPEN part, so open or create a part first.
+- `?open=<url>` (repeat the parameter for more files) fetches each URL and opens it the same way, then removes the parameter from the address. A browser page cannot read a file path, so the URL must be one the page can fetch: same origin, or a server that allows it. A failed fetch shows a notice.
+
+This is not the agent link: it needs no pairing and gives the caller no read access to the document. It only does what a user's drop does. Code: `apps/cad/src/openHook.ts`.

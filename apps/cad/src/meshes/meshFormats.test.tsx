@@ -87,6 +87,6 @@ describe('MeshImportDialog for a GLB', () => {
     expect(r.container.textContent).toMatch(/Colours read from the file: 2/);
     expect(r.getAllByTestId('mesh-import-note').some((n) => /Metres|metres and Y up/.test(n.textContent ?? ''))).toBe(true);
     fireEvent.click(r.getByTestId('mesh-import-ok'));
-    expect(onImport).toHaveBeenCalledWith('m', false);
+    expect(onImport).toHaveBeenCalledWith('m', false, 1);
   });
 });

@@ -36,10 +36,12 @@ export interface MeshSolidOptions {
   fitTol: number | null;
   /** refit planes, cylinders, cones and spheres (kernel default true; false keeps every curved area as facets) */
   analytic: boolean;
+  /** the analytic fit's work budget: null the kernel default (3 work units; the fit stops there and the rest stays faceted), 0 unlimited (can take minutes on a scan) */
+  maxSeconds: number | null;
 }
 
 export const DEFAULT_MESH_SOLID_OPTIONS: Readonly<MeshSolidOptions> = Object.freeze({
-  close: false, closeTolerance: null, fill: true, maxHoleEdges: null, planeTol: null, angleTolDeg: null, fitTol: null, analytic: true,
+  close: false, closeTolerance: null, fill: true, maxHoleEdges: null, planeTol: null, angleTolDeg: null, fitTol: null, analytic: true, maxSeconds: null,
 });
 
 /** The request's `opts`: only what the user changed from the kernel's defaults; undefined when nothing was. */
@@ -49,6 +51,7 @@ export function requestOpts(o: MeshSolidOptions): Record<string, unknown> | unde
   if (o.angleTolDeg !== null) out.angleTolDeg = o.angleTolDeg;
   if (o.fitTol !== null) out.fitTol = o.fitTol;
   if (!o.analytic) out.analytic = false;
+  if (o.maxSeconds !== null) out.maxSeconds = o.maxSeconds;
   if (o.close) {
     const c: Record<string, unknown> = {};
     if (o.closeTolerance !== null) c.tolerance = o.closeTolerance;
@@ -115,6 +118,8 @@ export interface MeshSolidReport {
   kinds: { planar: number; faceted: number; cylinder: number; cone: number; sphere: number; other: number };
   /** why the analytic fit did not run (`analytic: false`, nothing to fit ...), or null */
   analyticSkipped: string | null;
+  /** the analytic fit ran out of its work budget: the rest of the curved areas stays faceted */
+  budgetExhausted: boolean;
   /** curved areas the fit declined, with the kernel's reason */
   declined: Array<{ reason: string; detail: string }>;
   deviation: { max: number; rms: number } | null;
@@ -165,6 +170,7 @@ export function readReport(imp: unknown, ms: number): MeshSolidReport {
     triangles: n0(r.triangles), faces, diagonal: n0(r.diagonal),
     kinds: { planar: plane - faceted, faceted, cylinder, cone, sphere, other },
     analyticSkipped: an.applied === false && str(an.reason) ? str(an.reason) : null,
+    budgetExhausted: an.budgetExhausted === true,
     declined: Array.isArray(an.declined) ? an.declined.map((d) => ({ reason: str(obj(d).reason), detail: str(obj(d).detail) })) : [],
     deviation: num(dev.max) !== null ? { max: num(dev.max)!, rms: n0(dev.rms) } : null,
     volume: { mesh: num(vol.mesh), body: num(vol.body), relative: num(vol.relative) },

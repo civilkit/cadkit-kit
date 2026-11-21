@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SketchDraft } from './index';
-import { angleShape, annotate, constraintTargets, dimText, expandFocus, rectangleAxisLocks, formatDimNumber, leaderShape, linearShape, nudgeLabels, removeConstraintById } from './annotations';
+import { dimensionShape, angleShape, annotate, constraintTargets, dimText, expandFocus, rectangleAxisLocks, formatDimNumber, leaderShape, linearShape, nudgeLabels, removeConstraintById } from './annotations';
 
 const d = (): SketchDraft => ({
   id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [],
@@ -100,6 +100,38 @@ describe('dimension numbers and text', () => {
     expect(dimText('radius', 12)).toBe('R12 mm');
     expect(dimText('diameter', 8.25)).toBe('Ø8.25 mm');
     expect(dimText('angle', 110)).toBe('110°');
+  });
+});
+
+describe('an angle between lines that share no end point', () => {
+  const apart = (): SketchDraft => ({
+    id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [],
+    points: [{ id: 'a1', x: -50, y: 0, fixed: true }, { id: 'a2', x: 50, y: 0, fixed: true }, { id: 'b1', x: 0, y: 10 }, { id: 'b2', x: 10, y: 20 }],
+    entities: [{ id: 'e1', type: 'line', p1: 'a1', p2: 'a2', construction: true }, { id: 'e2', type: 'line', p1: 'b1', p2: 'b2' }],
+    constraints: [],
+  });
+  const o = { off: 8 };
+  it('is drawn where the lines cross, with the arc between the rays the value holds', () => {
+    const s = dimensionShape(apart(), 'angle', ['e1', 'e2'], 45, o)!;
+    expect(s.kind).toBe('angle');
+    if (s.kind !== 'angle') return;
+    expect(s.c.x).toBeCloseTo(-10, 9); expect(s.c.y).toBeCloseTo(0, 9);   // the second line, extended, meets the axis line at (-10, 0)
+    expect(Math.abs(s.a1 - s.a0) * 180 / Math.PI).toBeCloseTo(45, 6);
+  });
+  it('the supplementary value takes the wide way round', () => {
+    const s = dimensionShape(apart(), 'angle', ['e1', 'e2'], 135, o)!;
+    if (s.kind !== 'angle') throw new Error('kind');
+    expect(Math.abs(s.a1 - s.a0) * 180 / Math.PI).toBeCloseTo(135, 6);
+  });
+  it('annotate keeps the dimension for lines that share no end point', () => {
+    const dr = apart(); dr.constraints = [{ id: 'k1', type: 'angle', refs: ['e1', 'e2'], value: 45 }];
+    const a = annotate(dr).filter((x) => x.kind === 'dimension');
+    expect(a).toHaveLength(1);
+    expect(a[0]).toMatchObject({ text: '45°' });
+  });
+  it('parallel lines cross nowhere: nothing is drawn', () => {
+    const p = apart(); p.points[3] = { id: 'b2', x: 10, y: 10 };
+    expect(dimensionShape(p, 'angle', ['e1', 'e2'], 0, o)).toBeNull();
   });
 });
 

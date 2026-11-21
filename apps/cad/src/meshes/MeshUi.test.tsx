@@ -25,7 +25,16 @@ describe('MeshImportDialog', () => {
     expect(r.getByTestId('mesh-import-size').textContent).toMatch(/1 x 1 x 1 mm/);
     fireEvent.click(r.getByTestId('mesh-import-ground'));
     fireEvent.click(r.getByTestId('mesh-import-ok'));
-    expect(onImport).toHaveBeenCalledWith('cm', true);
+    expect(onImport).toHaveBeenCalledWith('cm', true, 1);
+  });
+  it('a known length scales the shown size and is passed to Import', () => {
+    const onImport = vi.fn();
+    const r = render(<MeshImportDialog name="a.stl" probe={pr.probe} unit="cm" onImport={onImport} onCancel={() => {}} />);   // 1 mm cube
+    fireEvent.input(r.getByTestId('mesh-import-known-value'), { target: { value: '50' } });
+    expect(r.getByTestId('mesh-import-size').textContent).toMatch(/50 x 50 x 50 mm/);
+    fireEvent.click(r.getByTestId('mesh-import-ok'));
+    expect(onImport.mock.calls[0].slice(0, 2)).toEqual(['cm', false]);
+    expect(onImport.mock.calls[0][2]).toBeCloseTo(50, 4);   // the cube's float32 corners are not exactly 1 mm
   });
   it('Escape cancels', () => {
     const onCancel = vi.fn();

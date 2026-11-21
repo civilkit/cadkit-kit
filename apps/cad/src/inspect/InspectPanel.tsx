@@ -17,7 +17,7 @@ export interface InspectProps {
   /** surface bodies on screen: they have no volume, so mass covers the solid only */
   surfaces?: number;
   onMass(): void;
-  measuring: boolean; onMeasure(): void; picks: Pick[]; outcome: Outcome | null; onClearPicks(): void; onCopy(text: string): void;
+  measuring: boolean; onMeasure(): void; picks: Pick[]; /** reference mesh names by id, for the picks on a mesh */ meshNames?: Record<string, string>; outcome: Outcome | null; onClearPicks(): void; onCopy(text: string): void;
   interference: Interference | null; interferenceStale: boolean; interferenceBusy: boolean; onInterference(): void; onPair(a: string, b: string): void;
   intersection: IntersectionCheck | null; intersectionStale: boolean; intersectionBusy: boolean; intersectionError: string | null;
   /** how many faces are selected now (the check covers these against the part), or were when the shown result was made */
@@ -28,7 +28,7 @@ export interface InspectProps {
 }
 
 const v3 = (v: number[]) => `${v.map((x) => fmt(x, 3)).join(', ')}`;
-const pickLabel = (p: Pick): string => (p.kind === 'vertex' ? t('inspect.pick.vertex', { at: v3(p.p) }) : p.kind === 'edge' ? t('inspect.pick.edge', { name: p.name.split('#')[0] }) : t('inspect.pick.face', { name: p.name }));
+const pickLabel = (p: Pick, meshName: (id: string) => string): string => (p.kind === 'vertex' ? (p.mesh ? t('inspect.pick.meshPoint', { name: meshName(p.mesh), at: v3(p.p) }) : t('inspect.pick.vertex', { at: v3(p.p) })) : p.kind === 'edge' ? t('inspect.pick.edge', { name: p.name.split('#')[0] }) : t('inspect.pick.face', { name: p.name }));
 const feature = (face: string): string => face.split('.')[0];
 
 /** The id of the Mass properties card, so a ribbon button can bring it into view. */
@@ -105,8 +105,9 @@ function MeasureCard(p: InspectProps): JSX.Element {
       </div>
       {!p.measuring ? <div class="insp-note">{t('measure.off')}</div> : null}
       {p.measuring && !p.picks.length ? <div class="insp-note">{t('measure.hint')}</div> : null}
-      {p.picks.length ? <ul class="insp-picks" aria-label={t('measure.items')}>{p.picks.map((k) => <li key={k.name}>{pickLabel(k)}</li>)}</ul> : null}
+      {p.picks.length ? <ul class="insp-picks" aria-label={t('measure.items')}>{p.picks.map((k) => <li key={k.name}>{pickLabel(k, (id) => p.meshNames?.[id] ?? id)}</li>)}</ul> : null}
       {p.outcome?.surface ? <div class="insp-note">{t('measure.surf.' + p.outcome.surface, undefined, p.outcome.surface)}</div> : null}
+      {p.outcome?.onMesh ? <div class="insp-note">{t('measure.meshNote')}</div> : null}
       {p.outcome?.error ? <div class="insp-note warn">{t('measure.unavailable')}</div> : null}
       {rows.length ? (
         <dl class="insp-rows" aria-label={t('measure.results')}>

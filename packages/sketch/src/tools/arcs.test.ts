@@ -185,36 +185,36 @@ describe('three-point arc tool', () => {
   });
 
   it('a counter-clockwise run stores start as p1 and end as p2', () => {
-    const o = run(threePointArcTool, [click(10, 0), click(0, 10), click(-10, 0)]);
+    const o = run(threePointArcTool, [click(10, 0), click(-10, 0), click(0, 10)]);
     expect(o.draft.points.map((p) => [p.id, p.x, p.y])).toEqual([['p1', 10, 0], ['p2', -10, 0], ['p3', 0, 0]]);
     expect(o.draft.entities).toEqual([{ id: 'e1', type: 'arc', c: 'p3', p1: 'p1', p2: 'p2' }]);
   });
 
   it('a clockwise run swaps the ends so the stored arc still runs counter-clockwise', () => {
-    const o = run(threePointArcTool, [click(-10, 0), click(0, 10), click(10, 0)]);
+    const o = run(threePointArcTool, [click(-10, 0), click(10, 0), click(0, 10)]);
     expect(o.draft.entities).toEqual([{ id: 'e1', type: 'arc', c: 'p3', p1: 'p2', p2: 'p1' }]);
     expect(pt(o.draft, 'p2')).toMatchObject({ x: 10, y: 0 });
   });
 
-  it('does not store the through point', () => {
-    const o = run(threePointArcTool, [click(10, 0), click(0, 10), click(-10, 0)]);
+  it('does not store the pointer point', () => {
+    const o = run(threePointArcTool, [click(10, 0), click(-10, 0), click(0, 10)]);
     expect(o.draft.points.some((p) => p.x === 0 && p.y === 10)).toBe(false);
   });
 
   it('refuses collinear points with the collinear hint and keeps the first two clicks', () => {
-    const o = run(threePointArcTool, [click(0, 0), click(5, 5), click(10, 10)]);
+    const o = run(threePointArcTool, [click(0, 0), click(10, 10), click(5, 5)]);
     expect(o.hint).toBe('app.sketch.hint.collinear');
     expect(o.draft.entities).toEqual([]);
-    expect(o.state.through).toBeDefined();
+    expect(o.state.end).toBeDefined();
   });
 
-  it('previews a straight guide while the third point is collinear, with the hint', () => {
-    const o = run(threePointArcTool, [click(0, 0), click(5, 5), move(10, 10)]);
+  it('previews the chord while the pointer is on it, with the hint', () => {
+    const o = run(threePointArcTool, [click(0, 0), click(10, 10), move(5, 5)]);
     expect(o.hint).toBe('app.sketch.hint.collinear');
-    expect(o.preview).toHaveLength(2);
+    expect(o.preview).toHaveLength(1);
   });
 
-  it('refuses closing on the first point, and a through point on the start', () => {
+  it('refuses closing on the first point, and a pointer click on the first end', () => {
     const o = run(threePointArcTool, [click(0, 0), click(5, 5), click(0, 0)]);
     expect(o.hint).toBe('app.sketch.hint.degenerate');
     expect(o.draft.entities).toEqual([]);
@@ -222,14 +222,14 @@ describe('three-point arc tool', () => {
   });
 
   it('reuses snapped start and end points', () => {
-    const base = run(threePointArcTool, [click(10, 0), click(0, 10), click(-10, 0)]).draft;
-    const o = run(threePointArcTool, [click(10, 0, 'p1'), click(0, -10), click(-10, 0, 'p2')], base);
+    const base = run(threePointArcTool, [click(10, 0), click(-10, 0), click(0, 10)]).draft;
+    const o = run(threePointArcTool, [click(10, 0, 'p1'), click(-10, 0, 'p2'), click(0, -10)], base);
     expect(o.draft.points).toHaveLength(4); // only the second centre was added
     expect(o.draft.entities[1]).toMatchObject({ p1: 'p2', p2: 'p1' }); // clockwise through the bottom: ends swapped
   });
 
   it('previews the arc and shows its radius', () => {
-    const o = run(threePointArcTool, [click(10, 0), click(0, 10), move(-10, 0)]);
+    const o = run(threePointArcTool, [click(10, 0), click(-10, 0), move(0, 10)]);
     expect(o.fields[0]).toMatchObject({ id: 'radius' });
     expect(o.fields[0].value).toBeCloseTo(10, 9);
     expect(o.preview.length).toBeGreaterThan(8);
@@ -321,9 +321,9 @@ describe('tangent arc tool', () => {
 describe('arc pick prompts', () => {
   it('3-point arc names the pick it waits for', () => {
     expect(run(threePointArcTool, [move(0, 0)]).hint).toBe('app.sketch.hint.arc3.start');
-    expect(run(threePointArcTool, [click(0, 0)]).hint).toBe('app.sketch.hint.arc3.through');
-    expect(run(threePointArcTool, [click(0, 0), click(5, 5)]).hint).toBe('app.sketch.hint.arc3.end');
-    expect(run(threePointArcTool, [click(10, 0), click(0, 10), click(-10, 0)]).hint).toBe('app.sketch.hint.arc3.start');
+    expect(run(threePointArcTool, [click(0, 0)]).hint).toBe('app.sketch.hint.arc3.end');
+    expect(run(threePointArcTool, [click(0, 0), click(5, 5)]).hint).toBe('app.sketch.hint.arc3.bulge');
+    expect(run(threePointArcTool, [click(10, 0), click(-10, 0), click(0, 10)]).hint).toBe('app.sketch.hint.arc3.start');
   });
   it('centre arc names the pick it waits for', () => {
     expect(run(centreArcTool, [move(0, 0)]).hint).toBe('app.sketch.hint.arcC.centre');

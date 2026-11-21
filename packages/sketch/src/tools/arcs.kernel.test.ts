@@ -98,7 +98,7 @@ describe('drawn circles and arcs are valid for the real kernel', { skip: !proces
     ['counter-clockwise (start right, through top, end left)', [[10, 0], [0, 10], [-10, 0]]],
     ['clockwise (start left, through top, end right)', [[-10, 0], [0, 10], [10, 0]]],
   ] as const)('a three-point arc drawn %s is the upper half disc', async (_n, [a, b, c]) => {
-    const o = run(threePointArcTool, [click(a[0], a[1]), click(b[0], b[1]), click(c[0], c[1])]);
+    const o = run(threePointArcTool, [click(a[0], a[1]), click(c[0], c[1]), click(b[0], b[1])]);
     const d = lines(o.draft, [[c[0], c[1]], [a[0], a[1]]]);
     const s = await solid(d, 2);
     expect(s.box.min[0]).toBeCloseTo(-10, 4); expect(s.box.max[0]).toBeCloseTo(10, 4);

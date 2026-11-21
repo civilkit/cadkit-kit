@@ -309,7 +309,7 @@ svg.icon-sc[data-sc="construction"] { --sc-a1: var(--sc-construction-1); --sc-a2
 /* sketch annotations: dimension labels and constraint symbols over the sketch, and the constraints panel */
 .sketch-annots { position: absolute; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
 .annot { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; font: 600 11px ui-monospace, monospace; border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
-.annot.dimension { background: var(--dim-chip-bg); color: var(--dim-chip-text); outline: 1px solid var(--dim-line); border-radius: 11px; padding: 0 8px; line-height: 22px; height: 22px; box-sizing: border-box; cursor: text; }   /* a value chip: dark pill, monospace value, pale-violet rim */
+.annot.dimension { background: var(--dim-chip-bg); color: var(--dim-chip-text); outline: 1px solid var(--dim-line); border-radius: 11px; padding: 0 8px; line-height: 22px; height: 22px; box-sizing: border-box; cursor: text; touch-action: none; user-select: none; -webkit-user-select: none; }   /* draggable (touch included); a value chip: dark pill, monospace value, pale-violet rim */
 .annot.mark { display: grid; place-items: center; box-sizing: border-box; width: 14px; height: 14px; padding: 0; border-radius: 4px; background: var(--mark-bg); color: var(--mark-text); outline: 0; border: 1px solid var(--mark-line); opacity: .62; cursor: pointer; transition: opacity .12s; }   /* a glyph chip: small, calm, see-through until hovered */
 .annot.mark::before { content: ''; position: absolute; left: 50%; top: 50%; width: 24px; height: 24px; transform: translate(-50%, -50%); }   /* a 24 px hit target on a desktop pointer */
 .annot.mark .glyph { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
@@ -591,9 +591,11 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
   background: rgba(var(--glass-rgb), max(var(--alpha), .9)); color: var(--text); outline: 1px solid var(--accent); outline-offset: -1px; }
 /* thread / feature warnings (amber, the feature still works) */
 .row-warn { flex: 0 0 auto; width: 15px; height: 15px; border-radius: 50%; background: var(--warn); color: #fff; font-size: 10px; font-weight: 700; line-height: 15px; text-align: center; cursor: pointer; }
+.row-info { background: var(--accent, #3b82f6); font-style: italic; }
 .insp-warn { margin: 0 0 8px; padding: 6px 8px; border-left: 3px solid var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); font-size: 12px; line-height: 1.4; }
 .warn-head { margin: 10px 0 4px; font-size: 12px; }
 .diag-tag { display: inline-block; padding: 0 6px; border-radius: 4px; background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); font-size: 11px; font-weight: 600; }
+.diag-tag-info { background: color-mix(in srgb, var(--accent, #3b82f6) 18%, transparent); color: var(--accent, #3b82f6); }
 .diag-warning .diag-item { display: inline; width: auto; padding: 0 2px; color: var(--text); text-decoration: underline dotted; }
 .diag-warning .diag-advice { font-style: normal; }
 .fedit-warn { color: var(--warn); font-size: 12px; line-height: 1.35; padding: 4px 0; }
@@ -2107,3 +2109,60 @@ label.set-row:has(> input[type="checkbox"]:first-child) { justify-content: flex-
 .editor-card .fedit-fld input[type="text"], .editor-card .fedit-fld input[type="number"], .editor-card .fedit-fld select { padding: 3px 6px; font-size: 12.5px; border-radius: 5px; }
 .editor-card .fedit-fld.ref { grid-template-columns: 1fr; gap: 2px; }
 .editor-card .fedit-hint, .editor-card .fedit-fix, .editor-card .fedit-memory { padding-inline: 10px; }
+
+/* ---- Motion timeline: docked along the bottom of the viewport while the Motion tab is open (a phone has it in the bottom sheet) ---- */
+.motion-tl { position: absolute; left: 12px; right: max(12px, env(safe-area-inset-right, 0px)); bottom: calc(10px + var(--ovr-kb, 0px)); z-index: 6; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 4px 16px rgba(0, 0, 0, .22); max-height: min(52%, 420px); overflow: hidden; pointer-events: auto; color: var(--text); font-size: 12px; }
+.motion-tl.embedded { position: static; max-height: none; overflow: visible; border: 0; border-radius: 0; box-shadow: none; padding: 0 12px 16px; background: transparent; }
+.motion-tl :focus-visible { outline: 2px solid var(--accent, #4f9cf5); outline-offset: 2px; }
+/* the controls and the scrubber stay put; only the tracks scroll */
+.mtl-pin { flex: none; display: flex; flex-direction: column; gap: 6px; background: var(--panel); }
+.motion-tl.embedded .mtl-pin { position: sticky; top: 0; z-index: 4; padding: 8px 0 4px; }
+.mtl-tracks { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 6px; overscroll-behavior: contain; }
+.motion-tl.embedded .mtl-tracks { overflow: visible; }
+.mtl-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.mtl-bar select, .mtl-bar input, .mtl-bar .btn, .mtl-more > summary { min-height: 30px; font: inherit; font-size: 12px; box-sizing: border-box; }
+.mtl-bar select, .mtl-bar input { color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; }
+.mtl-group { display: flex; align-items: center; gap: 8px; padding: 0 0 0 8px; border-left: 1px solid var(--line-soft, var(--line)); }
+.mtl-bar > .mtl-group:first-of-type { padding-left: 0; border-left: 0; }
+.mtl-bar > .mtl-group:last-child { margin-left: auto; }
+.mtl-more { display: contents; }
+.mtl-more > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); }
+.mtl-more > summary::-webkit-details-marker { display: none; }
+.mtl-more[open] { display: block; flex: 1 0 100%; }
+.mtl-more[open] > summary { margin-bottom: 8px; }
+.mtl-secondary { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.mtl-primary { min-width: 64px; font-weight: 600; }
+.mtl-f { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--text-2); }
+.mtl-f input { width: 72px; }
+.mtl-time { font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mtl-row { display: grid; grid-template-columns: minmax(120px, 200px) 1fr; gap: 10px; align-items: center; }
+.mtl-label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--text-2); min-width: 0; }
+.mtl-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mtl-key { font-size: 11px; padding: 2px 6px; min-height: 26px; }
+.mtl-lane { position: relative; height: 34px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; touch-action: pan-y; }
+.mtl-ruler .mtl-lane { height: 26px; background: transparent; border: 0; }
+.mtl-scrub { position: absolute; left: 0; right: 0; top: 0; width: 100%; height: 22px; margin: 0; z-index: 2; background: transparent; }
+.mtl-tick { position: absolute; top: 16px; font-size: 10px; color: var(--text-2); transform: translateX(-50%); pointer-events: none; }
+.mtl-hit { position: absolute; top: 50%; width: 28px; height: 28px; margin: 0; padding: 0; transform: translate(-50%, -50%); display: grid; place-items: center; background: none; border: 0; cursor: grab; touch-action: none; z-index: 1; }
+.mtl-hit:active { cursor: grabbing; }
+.mtl-dot { width: 13px; height: 13px; border-radius: 3px; transform: rotate(45deg); border: 1px solid var(--line); background: var(--accent, #e8a33a); box-sizing: border-box; }
+.mtl-hit.on .mtl-dot { outline: 2px solid var(--text); outline-offset: 2px; }
+.mtl-head { position: absolute; top: -4px; bottom: -2px; width: 2px; background: var(--text); opacity: .85; transform: translateX(-1px); pointer-events: none; z-index: 3; }
+.mtl-note { flex: none; font-size: 12px; color: var(--text-2); line-height: 1.35; min-height: 1.35em; }
+.mtl-bad { color: var(--danger, #e5604d); }
+/* narrow: the track label sits above its lane, so the lane gets the whole width */
+@media (max-width: 700px) { .mtl-row { grid-template-columns: 1fr; gap: 4px; } .mtl-label { flex-direction: row; align-items: center; justify-content: space-between; } .mtl-bar > .mtl-group:last-child { margin-left: 0; } }
+/* short (a phone on its side, a small tablet): tighter, tracks keep the room, the longer notes wait */
+@media (max-height: 520px) { .motion-tl:not(.embedded) { max-height: 66%; padding: 6px 10px; gap: 4px; } .mtl-row { grid-template-columns: minmax(96px, 140px) 1fr; } .mtl-note { display: none; } .mtl-lane { height: 30px; } }
+/* touch: finger-sized controls (the layouts set --tap to 44 px) */
+#app[data-layout="phone"] .motion-tl .btn, #app[data-layout="tablet"] .motion-tl .btn, #app[data-layout="phone"] .motion-tl select, #app[data-layout="tablet"] .motion-tl select, #app[data-layout="phone"] .motion-tl input[type="number"], #app[data-layout="tablet"] .motion-tl input[type="number"], #app[data-layout="phone"] .mtl-more > summary, #app[data-layout="tablet"] .mtl-more > summary { min-height: var(--tap, 44px); font-size: 14px; }
+#app[data-layout="phone"] .mtl-hit, #app[data-layout="tablet"] .mtl-hit { width: var(--tap, 44px); height: var(--tap, 44px); }
+#app[data-layout="phone"] .mtl-lane, #app[data-layout="tablet"] .mtl-lane { height: calc(var(--tap, 44px) + 8px); }
+#app[data-layout="phone"] .mtl-ruler .mtl-lane, #app[data-layout="tablet"] .mtl-ruler .mtl-lane { height: calc(var(--tap, 44px) + 4px); }
+#app[data-layout="phone"] .mtl-scrub, #app[data-layout="tablet"] .mtl-scrub { height: var(--tap, 44px); }
+#app[data-layout="phone"] .mtl-tick, #app[data-layout="tablet"] .mtl-tick { top: calc(var(--tap, 44px) - 6px); font-size: 11px; }
+/* the Motion list in the left panel: finger-sized controls on the touch layouts */
+#app[data-layout="phone"] .motion-panel .btn, #app[data-layout="tablet"] .motion-panel .btn, #app[data-layout="phone"] .motion-panel input[type="number"], #app[data-layout="tablet"] .motion-panel input[type="number"] { min-height: var(--tap, 44px); font-size: 14px; }
+#app[data-layout="phone"] .motion-panel input[type="range"], #app[data-layout="tablet"] .motion-panel input[type="range"] { min-height: var(--tap, 44px); }
+.motion-panel .asm-bar .btn { min-height: 30px; }
+

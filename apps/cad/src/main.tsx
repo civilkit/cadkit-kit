@@ -8,7 +8,7 @@ import { emptyPart, type PartDoc } from '@ck/part-model';
 import { signal } from '@preact/signals-core';
 import { appVersion, loadAppVersion, versionLink } from './appVersion';
 import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@kit/i18n';
-import { BODY, createStore, MODE_FILTER, type DisplayLayer, type PickFilterKind, type SelectionMode, type Workspace } from '@kit/store';
+import { BODY, createStore, meshPointName, MODE_FILTER, type DisplayLayer, type PickFilterKind, type SelectionMode, type Workspace } from '@kit/store';
 import { toBodyMode } from './select/actions';
 import { summarize } from './select/actions';
 import { summaryText } from './select/summary';
@@ -24,7 +24,7 @@ import { blendSpanFromFaces } from './procSurfaceRules';
 import { tangentChainOn, chainSelection, chainRefs, edgeRuns, noRoundEdges, refEdgeKey } from './roundChain';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, revolveOps, type FeatureActions } from './featureCommands';
 import { selectionInField } from './listPick';
-import { annotate, gridCapture, expandFocus, rectangleAxisLocks, layoutDimensions, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, pickEntity, withPickedEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, alignSourceAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, constrainTypedPoint, newPointAt, opensCoordBox, coordBoxText, EMPTY_MODEL_SNAPS, type TypedPoint, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type PanelSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput, describeFree, freeParts, suggestionsFor, applySuggestion, tooltipItems, effectiveMarkMode, freedomHighlight, withoutSuggestion, type FreeItem, type Suggestion } from '@kit/sketch';
+import { annotate, gridCapture, expandFocus, rectangleAxisLocks, layoutDimensions, placementsOf, placementFromPointer, setDimPlacement, resetDimPlacement, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, pickEntity, withPickedEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, alignSourceAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, constrainTypedPoint, newPointAt, opensCoordBox, coordBoxText, EMPTY_MODEL_SNAPS, type TypedPoint, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type PanelSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput, describeFree, freeParts, suggestionsFor, applySuggestion, tooltipItems, effectiveMarkMode, freedomHighlight, withoutSuggestion, type FreeItem, type Suggestion } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
   errorText, PanelBoundary, BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, NotificationHistory, VarsContext, Sheet, BottomNav,
@@ -42,7 +42,7 @@ import { showStartCard, isStartDismissed, dismissStart, resetStartDismissal, vie
 import { TabStrip, type TabInfo } from './tabs/TabStrip';
 import { DocSwitcher } from './tabs/DocSwitcher';
 import { DiagnosticsCard, DiagnosticsWarnings } from './DiagnosticsCard';
-import { warningEntries, warningTips } from './featureWarnings';
+import { INFO_WARNING, warningEntries, warningTips } from './featureWarnings';
 import { ViewNav } from './ViewNav';
 import { newBreakage, type DiagRoot, type Diagnosis } from './errorSummary';
 import { maxSizeOf, maxSizeText } from './diagnosticsText';
@@ -50,8 +50,8 @@ import { dxfToSketch, svgToSketch } from '@kit/io';
 import { importDxfIntoSketch, importErrorNotice } from './dxfSketch';
 import { importSvgIntoSketch, svgErrorNotice } from './svgSketch';
 import { bodiesOfFeature, EXTRACT_KEYS, planExtract, planFolderExport, REFUSAL_KEYS, type ExtractRefusal, type FolderFormat } from './folderExport';
-import { fileStem, exportCkpart, exportGlb, exportObj, exportThreeMf, exportSketchDxf, exportStep, exportStl, exportViewsDxf, meshRequest, type ExportNotice, type ExportResult } from './exportFiles';
-import { buildCommands, matchShortcut, EXPORT_KINDS, type ExportKind } from './commands';
+import { fileStem, exportCkpart, exportGlb, exportObj, exportThreeMf, exportStlBodies, exportSketchDxf, exportStep, exportStl, exportViewsDxf, meshRequest, type ExportNotice, type ExportResult } from './exportFiles';
+import { buildCommands, matchShortcut, EXPORT_KINDS, MESH_EXPORT_KINDS, type ExportKind } from './commands';
 import { useTreeInteraction } from './useTreeInteraction';
 import { treeKey } from './treeCommands';
 import { ExportMenu, MESH_QUALITIES, type MeshQuality } from './ExportMenu';
@@ -171,6 +171,7 @@ import { ORIGINAL_BODY } from './referenceBody';
 import { recogniseInBrowser } from './recognise/quiddityClient';
 import './recognise/strings';
 import { orientOf, SKP_MESH_MAX_FACES, SKP_ROT, skpMeshRecord } from './files/skpMesh';
+import { refMeshBodies, type RefMeshExport } from './meshes/meshExport';
 import { meshesOf, matRuns, nextMeshId, matrixOf, decode as decodeMesh, pickMeshes, nearestOnMeshes, projectAlong, allWorldBox, worldBox, MESH_KEY, type MeshRec } from './meshes/meshDoc';
 import { buildMeshRecord, guessUnit, meshNoteLines, probeMesh, type MeshKind, type MeshProbe } from './meshes/meshImport';
 import { planeThrough, type PlaneKind } from './meshes/meshEdit';
@@ -222,6 +223,7 @@ import { legGeometry } from './sheet/legGeometry';
 import { tabForSheetChange } from './sheet/model';
 import { RIBBON_LAYOUT, pluginCommandId, withGearIds, withPluginSlots, slotGroup, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
 import { CoordBox } from './CoordBox';
+import { installOpenHook } from './openHook';
 import { SketchFields, KeyboardPrimer, appendSeed, seedsField, armKeyboardPrime, primeSketchKeyboard, tabIntoFields, seedFirstFieldNow } from './SketchFields';
 import { TextPanel } from './TextPanel';
 import { PatternPanel } from './PatternPanel';
@@ -269,6 +271,9 @@ import { docUpAxis, loadNavPrefs, saveNavPrefs, type NavPrefs } from './navPrefs
 import { loadMassPrefs, saveMassPrefs, setMassPrefs, type MassPrefs } from './massPrefs';
 import { cacheSize, clearOnlineCache, library as onlineLibrary, online, setOnlineEnabled, startOnlineTextures } from './onlineRuntime';
 import { loadTriPrefs, saveTriPrefs, type TriPrefs } from './triball/triballPrefs';
+import { createMotionStore } from './motion/store';
+import { motionDocKey } from './motion/docKey';
+import { MotionTimeline } from './motion/MotionTimeline';
 import { AssemblyPanel, type AsmHost, type Section as AsmSection } from './assembly/AssemblyPanel';
 import { createAssemblyState } from './assembly/state';
 import { DrawingWorkspace } from './drawing/DrawingWorkspace';
@@ -277,7 +282,7 @@ import { resetPageZoom, watchPageZoom } from './pageZoom';
 import { asLayoutPref, effectiveWorkspace, LAYOUT_KEY, migrateEditorCard, layout, layoutPref, narrowTablet, viewportInfo, watchViewport } from './layoutMode';
 import { makeDrawingHost } from './drawing/host';
 import { displayBody } from './assembly/display';
-import { insertIds, isExploded } from './assembly/model';
+import { componentOfName, insertIds, isExploded } from './assembly/model';
 import { faceOwner, viewOwner, componentNames } from './treeActions';
 import './tokens.css';
 import './app.css';
@@ -360,6 +365,7 @@ window.addEventListener('pagehide', () => kernelRouter.dispose());
 let session: Session | null = null;
 let viewport: Viewport | null = null;
 const asmState = createAssemblyState();
+const motionState = createMotionStore();
 const analysisStore = createAnalysisStore();
 let lastBody: unknown = null;
 /** The colours and body names of the plugin run being previewed (its `extras`), drawn over the preview and dropped with it; never saved until Add. `ops` is the last previewed ops, to skip a rebuild when only a colour changed. */
@@ -418,7 +424,7 @@ const shownBody = (b: unknown): unknown => {
   const d = controller.document();
   // a Convert mesh to solid preview is drawn beside the part as a tinted body (meshes/useMeshSolid.ts); it is never part of the document
   if (!b || !d) return meshSolidBody(withSketch3d(b, d) as never);
-  return meshSolidBody(withSketch3d(displayBody(b as never, { inserts: insertIds(d as never), hidden: new Set(asmState.hidden.value), explode: asmState.explode.value, doc: d as never }), d) as never);
+  return meshSolidBody(withSketch3d(displayBody(b as never, { inserts: insertIds(d as never), hidden: new Set(asmState.hidden.value), explode: asmState.explode.value, pose: motionState.pose.value, doc: d as never }), d) as never);
 };
 /** The mesh the Mesh panel is previewing (shown in place of the saved record of that id, never saved until Done) and the one it has open. */
 let meshPreview: MeshRec | null = null;
@@ -628,7 +634,7 @@ function App() {
   const [asmSection, setAsmSection] = useState<AsmSection>('parts');
   const [drawerTab, setDrawerTab] = useState('history');
   /** Phone: which sheet is open (tree, properties or editor, diagnostics and the rest of the drawer) and how high it stands. */
-  const [sheet, setSheet] = useState<'tree' | 'props' | 'diag' | null>(null);
+  const [sheet, setSheet] = useState<'tree' | 'props' | 'diag' | 'motion' | null>(null);
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>('half');
   const [navH, setNavH] = useState(56);
   /** Phone: the tool strip (the ribbon's tools in one row above the bottom bar) is open, and the document list of the top bar. */
@@ -718,6 +724,8 @@ function App() {
       setLeftTab('Editor');
     },
     unit: () => readout.unit.value,
+    apply: (patch, reason) => controller.applyDocPatch(patch, reason),
+    hideMesh: (id) => saveMeshes(meshesOf(controller.document()).map((m) => (m.id === id ? { ...m, visible: false } : m))),
   });
   useEffect(() => { if (meshSolid.open && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || bearingWiz || frameWiz || sk3dWiz || meshWiz || editingId)) meshSolid.close(); }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, bearingWiz, frameWiz, sk3dWiz, meshWiz, editingId]);
   const sk3dMounted = useRef(false);
@@ -845,7 +853,9 @@ function App() {
   const [reportSnap, setReportSnap] = useState<SheetSnap>('half');
   // a small tip beside the pointer in Select mode: the value of what is under it, and that it can be edited
   const [hoverTip, setHoverTip] = useState<{ text: string; x: number; y: number } | null>(null);
-  const [dimMenu, setDimMenu] = useState<{ id: string; type: string; driven: boolean; x: number; y: number } | null>(null);
+  const [dimMenu, setDimMenu] = useState<{ id: string; type: string; driven: boolean; placed: boolean; x: number; y: number } | null>(null);
+  /** A dimension label being dragged: where it would be placed (level and side) until the pointer is let go. */
+  const dimDragRef = useRef<{ id: string; place: { level: number; side: 1 | -1 } } | null>(null);
   const [dimEdit, setDimEdit] = useState<{ id: string; x: number; y: number; value: number; expr?: string } | null>(null);
   const dimTabRef = useRef<1 | -1 | 0>(0);   // Tab / Shift+Tab pressed in the dimension box: the next box opens once the value is applied
   const [, viewTick] = useState(0);
@@ -860,6 +870,10 @@ function App() {
   const setExportVisible = (v: boolean) => { setExportVisibleState(v); try { localStorage.setItem('cad.export.visible', v ? '1' : '0'); } catch { /* private window */ } };
   const [exportQuality, setExportQualityState] = useState<MeshQuality>(() => { try { const q = localStorage.getItem('cad.export.quality'); return MESH_QUALITIES.includes(q as MeshQuality) ? (q as MeshQuality) : 'normal'; } catch { return 'normal'; } });
   const setExportQuality = (q: MeshQuality) => { setExportQualityState(q); try { localStorage.setItem('cad.export.quality', q); } catch { /* private window */ } };
+  // reference meshes in the mesh exports: not kept between sessions (default Not included, as before the choice existed); a ref so the command's enabled test reads it
+  const [exportRefMeshes, setExportRefMeshesState] = useState<RefMeshExport>('none');
+  const exportRefMeshesRef = useRef<RefMeshExport>('none');
+  const setExportRefMeshes = (v: RefMeshExport) => { exportRefMeshesRef.current = v; setExportRefMeshesState(v); };
   const [exportChord, setExportChord] = useState('');   // mm, empty: the quality preset's own chord (not kept between sessions: an absolute tolerance belongs to one part)
   const bodyDoubleRef = useRef<((face: string) => void) | null>(null);
   const treeKeyRef = useRef<(e: KeyboardEvent, onCanvas: boolean) => boolean>(() => false);
@@ -888,9 +902,11 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [drawingOpen, setDrawingOpen] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { importing.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; busyNote.value; store.cached.value; store.hover.value; store.notices.value; store.alerts.history.value; store.alerts.unread.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; viewportContentRev.value; startDismissed.value; localeSignal.value; layout.value; layoutPref.value; viewportInfo.value; narrowTablet.value; safeArea.value; });
+  useSignals(() => { importing.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; busyNote.value; store.cached.value; store.hover.value; store.notices.value; store.alerts.history.value; store.alerts.unread.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; motionState.pose.value; motionState.playing.value; motionState.drivers.value; motionState.motion.value; motionState.studyId.value; rejections.value; viewportContentRev.value; startDismissed.value; localeSignal.value; layout.value; layoutPref.value; viewportInfo.value; narrowTablet.value; safeArea.value; });
   const stored = store.workspace.value;   // what Settings edits and what is saved; the layout draws a variant of it
   const phone = layout.value === 'phone';
+  // on a phone the Motion timeline lives in the bottom sheet (it would sit under the tool tray as an overlay): the Motion tab opens it, another tab closes it
+  useEffect(() => { if (phone && tab === 'Motion' && controller.document()) { setTray(false); setSheet('motion'); } else if (sheet === 'motion') setSheet(null); }, [phone, tab]);
   const phoneOrTablet = layout.value !== 'desktop';
   const ws = effectiveWorkspace(stored, layout.value, narrowTablet.value);
   const safeFolded = useRef(false), safeRefresh = useRef<(() => void) | null>(null);
@@ -1081,13 +1097,13 @@ function App() {
   const an = analysisStore.opts.value;
   useEffect(() => { viewport?.setAnalysis(an); }, [an]);
   // hidden components and the exploded view: only the drawn body changes; the exploded arrangement is kept with the file
-  const asmHidden = asmState.hidden.value, asmExplode = asmState.explode.value;
+  const asmHidden = asmState.hidden.value, asmExplode = asmState.explode.value; const motionPose = motionState.pose.value;
   useEffect(() => {
     controller.setDocExtra('explode', isExploded(asmExplode) ? asmExplode : null);
     if (!viewport || !lastBody) return;
     viewport.setHoldView(true);
     try { viewport.setBody(shownBody(lastBody) as never); viewport.setHighlight(hlNames()); } finally { viewport.setHoldView(false); }
-  }, [asmHidden, asmExplode]);
+  }, [asmHidden, asmExplode, motionPose]);
   useEffect(() => {
     write('cad.workspace', stored);
     viewport?.setHighlightWidth(stored.lineWidth);
@@ -1151,7 +1167,7 @@ function App() {
     files.restore(tb.file); cleanSig.current = tb.cleanSig;
     lookStore.hidden.value = tb.hidden ?? { body: false, ids: [] };
     const d = controller.document();
-    if (d) { asmState.reset(d); showDocUpAxis(d); }
+    if (d) { asmState.reset(d); motionState.reset(); showDocUpAxis(d); }
     store.busy.value = true;
     try { await controller.reshow(); } finally { store.busy.value = false; }
     if (tb.camera) viewport?.setCameraState(tb.camera); else viewport?.requestFit();
@@ -1231,7 +1247,7 @@ function App() {
       // reference meshes and STEP text are stored packed (files/assets.ts); a damaged one is left out and said, the rest of the part opens
       const { doc, problems: assetProblems } = await unpackDoc(packedDoc);
       saveThumbs.remember(thumbnail);
-      asmState.reset(doc);
+      asmState.reset(doc); motionState.reset();
       // While the part loads, controller.document() already changes (and a render can land in between) but the clean
       // signature is still the old part's: that read as "modified". null means "not tracked", so nothing is dirty until markClean.
       cleanSig.current = null;
@@ -1354,6 +1370,10 @@ function App() {
   const showWarning = (id: string) => { selectFailed(id); setDrawerTab('diagnostics'); openDrawer(); };
   const openInspect = () => { setDrawerTab('inspect'); openDrawer(); };
   const inspect = useInspect(controller, store, () => viewport, openInspect, measureRef, !!editingId);
+  // while measuring, a click on a shown reference mesh picks the point on its triangles (through the mesh's picking tree)
+  useEffect(() => {
+    viewport?.setMeshPicker(inspect.measuring ? (ray) => { const h = pickMeshes(meshesShown(), ray); return h ? { name: meshPointName(h.id, h.pos), t: h.t ?? Infinity } : null; } : null);
+  }, [inspect.measuring]);
   /** Fold or unfold the side panel (the chevron on its edge, the top bar button, `[`). Remembered per device with the workspace. The tool column follows: its place and width come from the same rules. */
   const toggleLeftPanel = () => {
     if (layout.value === 'phone') { toggleSheet('tree'); return; }
@@ -1431,6 +1451,8 @@ function App() {
   const canExport = (kind: ExportKind): boolean => {
     if (!controller.document()) return false;
     if (kind === 'dxf-sketch') return sketchToExport() !== null;
+    // a part of reference meshes only can still go out as a mesh file when they are included
+    if (MESH_EXPORT_KINDS.includes(kind) && exportRefMeshesRef.current === 'included' && meshesOf(controller.document()).some((m) => m.visible)) return true;
     return controller.bodyMesh() !== null;
   };
   /** Cosmetic knurls become real cuts: the records are cleared, then the cuts committed (two undo steps: the cuts go first, then the records come back). */
@@ -1487,13 +1509,15 @@ function App() {
       const rows = exportVisible ? bodyRowsFor(false) : [];
       const anyHidden = rows.some((r) => r.hidden);
       let mesh = anyHidden ? visibleMesh(controller.bodyFaces() ?? controller.bodyMesh(), rows) : controller.bodyMesh();
-      const bodyKind = kind === '3mf' || kind === 'glb' || kind === 'obj';   // one object / node per body, so the mesh keeps its face ids and is split by body below
+      const bodyKind = kind === '3mf' || kind === 'glb' || kind === 'obj' || kind === 'stl-bodies';   // one object / node per body, so the mesh keeps its face ids and is split by body below
       let full: Parameters<typeof splitBodies>[0] = bodyKind ? controller.bodyFaces() ?? controller.bodyMesh() : null;
       const meshKind = kind === 'stl' || kind === 'stl-ascii' || kind === 'obj' || bodyKind;
+      // the shown reference meshes, placed in the world, when the Export menu includes them (hidden ones never go out)
+      const refs = meshKind && exportRefMeshesRef.current === 'included' ? refMeshBodies(meshesOf(d)) : [];
       const asked = meshKind && mesh ? meshRequest(exportQuality, exportChord) : ({ custom: false } as const);
       if ('error' in asked) { showNotices([asked.error]); return; }
       // cosmetic knurls: cut into a scratch copy that the file is made from (the open part stays as it is)
-      const recs = ['stl', 'stl-ascii', 'obj', '3mf', 'glb', 'step'].includes(kind) ? readCosmeticKnurls((d as unknown as Record<string, unknown>).cosmeticKnurls) : [];
+      const recs = ['stl', 'stl-ascii', 'stl-bodies', 'obj', '3mf', 'glb', 'step'].includes(kind) ? readCosmeticKnurls((d as unknown as Record<string, unknown>).cosmeticKnurls) : [];
       const hiddenMesh = anyHidden && kind !== 'step';   // the visible bodies cannot be told apart in the copy: the plain solid, with the warning
       let bakedStep: string | null = null, bakedCount = 0, bakedCached = false;
       if (recs.length && !hiddenMesh) {
@@ -1524,14 +1548,15 @@ function App() {
         } finally { store.busy.value = false; }
       }
       if (anyHidden && kind === 'step') store.notify(t('io.visibleStep'), 'warn');
-      if (kind === 'stl') r = exportStl(mesh, d.name, true);
-      else if (kind === 'stl-ascii') r = exportStl(mesh, d.name, false);
+      if (kind === 'stl') r = exportStl(mesh, d.name, true, refs);
+      else if (kind === 'stl-ascii') r = exportStl(mesh, d.name, false, refs);
       else if (bodyKind) {
         // a knurl-cut copy has other faces than the open part, so it goes out as one body; otherwise the bodies keep their names and colours
         const bodies = splitBodies(full, bakedCount ? [] : bodyRowsFor(false), d.name || fileStem(d.name), exportVisible);
-        if (kind === '3mf') { store.busy.value = true; try { r = await exportThreeMf(bodies, d.name); } finally { store.busy.value = false; } }
-        else if (kind === 'obj') r = exportObj(mesh, d.name, bodies);
-        else r = exportGlb(bodies, d.name);
+        if (kind === '3mf') { store.busy.value = true; try { r = await exportThreeMf(bodies, d.name, refs); } finally { store.busy.value = false; } }
+        else if (kind === 'stl-bodies') r = await exportStlBodies(bodies, d.name, refs);
+        else if (kind === 'obj') r = exportObj(mesh, d.name, bodies, refs);
+        else r = exportGlb(bodies, d.name, refs);
       }
       else if (kind === 'dxf-sketch') r = exportSketchDxf(sketchToExport(), d.name);
       else if (kind === 'dxf-views') r = exportViewsDxf(controller.bodyEdges() as Array<{ pts: number[][] }>, controller.bodyBox(), d.name);
@@ -1545,7 +1570,9 @@ function App() {
       // a cosmetic knurl that was not cut into the file (setting Off, the plain solid chosen, hidden bodies) is not in it: say so, and offer the real cut
       else if (recs.length && r.file) store.notify(t(hiddenMesh ? 'knurl.exportHidden' : 'knurl.exportWarn', { count: recs.length, file: r.file.name }), 'warn', { label: t('knurl.exportConvert'), run: () => { void convertCosmeticKnurls(); } });
     } catch (e) {
-      showNotices([{ level: 'error', key: 'io.failed', params: { message: (e as Error).message } }]);
+      const msg = (e as Error).message;
+      // the kernel's refusal for a document with nothing to write: say what to do, not the raw code
+      showNotices([msg.startsWith('stepNothingToExport') ? { level: 'error', key: 'io.stepNothing' } : { level: 'error', key: 'io.failed', params: { message: msg } }]);
     }
   };
 
@@ -2126,10 +2153,23 @@ function App() {
       toggleMeasure: () => inspect.toggleMeasure(), isMeasuring: () => inspect.measuring,
       massProps: () => { openInspect(); void inspect.runMass(); setTimeout(() => scrollMassIntoView(), 120); }, interference: () => { openInspect(); void inspect.runInterference(); }, intersection: () => { openInspect(); void inspect.runIntersection(); },
       toggleSection: inspect.toggleSection, isSectioned: () => inspect.sectionOn, hasSolid: () => controller.bodyBox() !== null,
+      hasRefMesh: () => meshesOf(controller.document()).some((m) => m.visible),
     },
     assembly: {
       open: (sec) => showAssembly(sec), hasDocument: () => controller.document() !== null,
       isExploded: () => isExploded(asmState.explode.value), hasComponents: () => (controller.document()?.features ?? []).some((f) => f.type === 'insertPart'),
+    },
+    motion: {
+      open: () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); revealLeft(); setAsmSection('motion'); setLeftTab('Outliner'); setTab('Motion'); },
+      hasDocument: () => controller.document() !== null,
+      hasDrivers: () => (motionState.drivers.value?.length ?? 0) > 0 || (controller.document()?.features ?? []).some((f) => f.type === 'mate'),
+      hasStudy: () => motionState.study() !== null && (motionState.drivers.value?.length ?? 0) > 0,
+      isPlaying: () => motionState.playing.value,
+      findLimits: () => { const d = motionState.drivers.value?.[0]; if (d) void motionState.findLimits(d.mate); },
+      newStudy: () => { setTab('Motion'); motionState.newStudy(); },
+      keyAll: () => { for (const d of motionState.drivers.value ?? []) motionState.addKey(d.mate); },
+      togglePlay: () => { if (motionState.playing.value) motionState.pause(); else void motionState.play(); },
+      exportClip: () => void motionState.exportClip('webm'),
     },
     tree: ti.actions,
     io: { importDxf: () => void importDxf(), sketchFromDxf: () => void sketchFromDxf(), importSvg: () => void importSvg(), sketchFromSvg: () => void sketchFromSvg(), isSketching: () => sketchingRef.current, exportAs: (k) => void exportAs(k), openExportMenu: () => setExportOpen(true), canExport },
@@ -2249,7 +2289,10 @@ function App() {
   const failures = store.featureStatus.value.filter((s) => !s.ok);
   const warnList = Object.entries(store.featureWarnings.value);
   // one entry per warning of the committed build, none for a suppressed or rolled-back feature (tree marker, Diagnostics tab, status chip)
-  const warnEntries = warningEntries(store.featureWarnings.value, doc?.features ?? [], controller.rollbackCount());
+  const allWarnEntries = warningEntries(store.featureWarnings.value, doc?.features ?? [], controller.rollbackCount());
+  // a feature's own summary of what it did (the mesh conversion report) informs: it is listed as info and never counted as a warning
+  const warnEntries = allWarnEntries.filter((e) => !INFO_WARNING.test(e.code));
+  const infoEntries = allWarnEntries.filter((e) => INFO_WARNING.test(e.code));
   const facts = store.facts.value;
 
   const editShapes = (() => {
@@ -3127,11 +3170,39 @@ function App() {
     setDimMenu(null);
     if (!m || !draft) return;
     if (action === 'driven') { toggleDriven(m.id, m.driven); return; }
+    if (action === 'reset') { applyDraft(resetDimPlacement(draft, m.id)); return; }
     const next = action === 'flip' ? toggleRadiusDiameter(draft, m.id) : action === 'delete' ? removeDimension(draft, m.id) : null;
     if (!next) return;
     hoverRef.current = { ...hoverRef.current, constraint: undefined };
     setHotConstraint(null);
     applyDraft(next);
+  };
+  /** Dragging a dimension label: the level and side nearest the pointer (screen pixels over the viewport), previewed live. */
+  const dragDim = (id: string, clientX: number, clientY: number) => {
+    const draft = controller.sketchDraft();
+    const host = document.getElementById('vp')?.getBoundingClientRect();
+    if (!draft || !host || !viewport) return;
+    const opts = { upp: viewport.sketchViewInfo()?.upp, squareRight: sketchPrefs.rightAngleSquare };
+    const a = [...annotate(draft, opts), ...refAnnotations(draft, opts)].find((x) => x.id === id && x.kind === 'dimension');
+    if (!a || a.value === undefined) return;
+    const vp = viewport;
+    const to = (u: number, v: number) => vp.sketchToScreen(u, v) ?? null;
+    const place = placementFromPointer(draft, { type: a.type ?? '', refs: a.refs, value: a.value }, { x: clientX - host.left, y: clientY - host.top }, { to, squareRight: sketchPrefs.rightAngleSquare });
+    const cur = dimDragRef.current;
+    if (!place || (cur && cur.id === id && cur.place.level === place.level && cur.place.side === place.side)) return;
+    dimDragRef.current = { id, place };
+    viewTick((n) => n + 1);
+  };
+  /** The label is let go: one undo step stores the place (a drag that ended where it began stores nothing). */
+  const dropDim = () => {
+    const drag = dimDragRef.current;
+    dimDragRef.current = null;
+    const draft = controller.sketchDraft();
+    if (drag && draft) {
+      const was = placementsOf(draft)[drag.id];
+      if (!was || was.level !== drag.place.level || was.side !== drag.place.side) { applyDraft(setDimPlacement(draft, drag.id, drag.place)); return; }
+    }
+    viewTick((n) => n + 1);
   };
   /** `name = value` in a value box: define the parameter (or give an existing one the new value) as one undo step. False when it was refused. */
   const defineParam = async (name: string, expr: string, unit?: string): Promise<boolean> => {
@@ -3579,7 +3650,7 @@ function App() {
     // what the constraint chips follow: the above, the pointer's entity or point (a moment after it leaves) and the points of those
     const markFocus = expandFocus(sketchDraftNow, [...focus, ...(hoverFocus && !sketchToolRef.current ? [hoverFocus] : []), ...(hoverRef.current.point ? [hoverRef.current.point] : [])]);
     const axisLocks = rectangleAxisLocks(sketchDraftNow);
-    const placed = new Map(layoutDimensions(sketchDraftNow, all, { to, viewport: { w: host?.width ?? 1200, h: host?.height ?? 800 }, keepOut, display: sketchPrefs.showConstraints === true ? 'all' : sketchPrefs.dimDisplay, squareRight: sketchPrefs.rightAngleSquare, focus, dimensionTool: sketchToolRef.current === 'dimension', measure: (txt) => labelBox(txt) }).map((p) => [p.id, p]));
+    const placed = new Map(layoutDimensions(sketchDraftNow, all, { to, viewport: { w: host?.width ?? 1200, h: host?.height ?? 800 }, keepOut, display: sketchPrefs.showConstraints === true ? 'all' : sketchPrefs.dimDisplay, squareRight: sketchPrefs.rightAngleSquare, placements: dimDragRef.current ? { ...placementsOf(sketchDraftNow), [dimDragRef.current.id]: dimDragRef.current.place } : undefined, focus, dimensionTool: sketchToolRef.current === 'dimension', measure: (txt) => labelBox(txt) }).map((p) => [p.id, p]));
     const bl = (id: string) => (stForKey?.conflicts.includes(id) ? { blame: 'conflict' as const } : stForKey?.redundant.includes(id) ? { blame: 'redundant' as const } : {});
     return separateMarks(visibleChips(all.flatMap((a): AnnotationItem[] => {
       const pd = placed.get(a.id);
@@ -3653,7 +3724,12 @@ function App() {
   const selectGroupFaces = (ids: string[]) => {
     const set = new Set(ids);
     const names = controller.pickableNames('face').filter((n) => { const o = faceOwner(n); return !!o && set.has(o); });
-    if (!names.length) { store.notify(t('select.group.none'), 'warn'); return; }
+    if (!names.length) {
+      // a surface feature (sweep, blend, extrude ...) makes sheets, which are not in the solid's face list: pick its surface bodies instead of saying there is nothing
+      const keys = ids.flatMap((id) => bodiesOfFeature(id, bodyRowsFor(false)).map((r) => r.key));
+      if (keys.length) { store.select(keys); return; }
+      store.notify(t('select.group.none'), 'warn'); return;
+    }
     store.mode.value = 'face'; viewport?.setPickMode('face');
     store.select(names);
   };
@@ -3677,7 +3753,7 @@ function App() {
       selectedRef={refSel} onSelectRef={(id) => { setRefSel(id); if (id) { setSelectedId(null); store.select([]); } }} onHoverRef={setRefHover}
       onToggleRef={(id) => { if (id.startsWith('mesh:')) toggleMeshShown(id.slice(5)); }}
       onOpenRef={(id) => { if (id === 'material') openMaterial(); else if (id.startsWith('mesh:')) openMesh(id.slice(5)); else if (id.startsWith('knurl:')) openKnurlEdit({ cosmeticIndex: Number(id.slice(6)) }); else if (id === 'front' || id === 'top' || id === 'right') startNewSketch(id); }}
-      status={store.featureStatus.value} warnings={warningTips(warnEntries)} selectedId={selectedId} onWarning={showWarning}
+      status={store.featureStatus.value} warnings={warningTips(allWarnEntries)} selectedId={selectedId} onWarning={showWarning}
       hiddenIds={hid.ids} onToggleHide={toggleHideFeature} onHoverFeature={setTreeHover} onHoverFolder={setFolderHover} hoverId={hoverRowId}
       {...ti.treeProps}
       reveal={rev.reveal} onSelectGroup={selectGroupFaces} onSelectFaces={(id) => selectGroupFaces([id])}
@@ -3711,8 +3787,39 @@ function App() {
     toggleHidden: (id) => asmState.toggleHidden(id),
     editPart: editComponent,
     setExplode: (patch) => asmState.setExplode(patch),
+    motion: motionState,
     interference: { data: inspect.props.interference, stale: inspect.props.interferenceStale, busy: inspect.props.interferenceBusy, run: inspect.props.onInterference },
   };
+  motionState.attach({
+    docKey: motionDocKey((doc?.features ?? []) as never), features: (doc?.features ?? []) as never, motion: (doc as { motion?: unknown } | null)?.motion,
+    solve: (poses, o) => controller.solvePoses(poses, o), sweep: (req) => controller.sweepDriver(req), components: () => controller.components(),
+    nameOf: (id) => String((doc?.features.find((f) => f.id === id) as { name?: string } | undefined)?.name ?? id),
+    show: (ids) => { const ins = insertIds(doc as never); const names = (controller.bodyFaces()?.faceIds ?? []).filter((n) => ids.includes(componentOfName(n, ins) ?? '')); store.mode.value = 'face'; viewport?.setPickMode('face'); store.select(names); viewport?.frameNames(names); },
+    clip: {
+      // show a pose and draw it now (the clip export reads the canvas right after)
+      show: (pose) => { motionState.set(pose); if (viewport && lastBody) { viewport.setHoldView(true); try { viewport.setBody(shownBody(lastBody) as never); viewport.setHighlight(hlNames()); } finally { viewport.setHoldView(false); } } },
+      capture: () => (viewport ? viewport.captureFrame() : Promise.resolve(null)),
+      supports: (m) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m),
+      recorder: (mime) => {
+        const stream = viewport?.recordStream(30);
+        if (!stream || typeof MediaRecorder === 'undefined') return null;
+        const r = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
+        const out = { ondata: null as ((b: Blob) => void) | null, onstop: null as (() => void) | null, start: () => r.start(250), stop: () => r.stop() };
+        r.ondataavailable = (ev) => { if (ev.data.size) out.ondata?.(ev.data); };
+        r.onstop = () => out.onstop?.();
+        return out;
+      },
+      save: (name, data, mime) => platform.saveFile(name, data, mime),
+    },
+    copyToLimits: async (mate, min, max) => {
+      const f = doc?.features.find((x) => x.id === mate) as { kind?: string; a?: string; b?: string } | undefined;
+      if (!f?.a || !f.b || !(f.kind === 'distance' || f.kind === 'angle')) return t('motion.limitsFailed');
+      const ok = await asmHost.edit([{ op: 'add', feature: { type: 'mate', kind: 'limits', of: f.kind === 'angle' ? 'angle' : 'distance', min, max, a: f.a, b: f.b } }]);
+      if (ok) store.notify(t('motion.limitsAdded'), 'info');
+      return ok ? null : t('motion.limitsFailed');
+    },
+    save: (m) => controller.setDocExtra('motion', m),
+  });
   const outliner = (
     <div class="outliner">
       <AssemblyPanel host={asmHost} section={asmSection} onSection={setAsmSection} />
@@ -4541,14 +4648,14 @@ function App() {
       setMeshDlg({ name: file, kind, bytes, ...(mtlText !== undefined ? { mtl: mtlText } : {}), probe: r.probe, unit: r.probe.unitFixed ?? guessUnit(r.probe.size) });
     })(), 30);
   };
-  const commitMeshImport = (unit: StlUnit, ground: boolean) => {
+  const commitMeshImport = (unit: StlUnit, ground: boolean, scale = 1) => {
     const dlg = meshDlg;
     if (!dlg) return;
     setMeshDlg(null);
     setTimeout(() => void (async () => {
       try {
         const have = meshesOf(controller.document());
-        const { rec } = await buildMeshRecord(dlg.kind, dlg.bytes, dlg.name, unit, have, ground ? viewport?.getUpAxis() ?? 'y' : null, dlg.mtl);
+        const { rec } = await buildMeshRecord(dlg.kind, dlg.bytes, dlg.name, unit, have, ground ? viewport?.getUpAxis() ?? 'y' : null, dlg.mtl, scale);
         controller.setUndoableExtra(MESH_KEY, [...have, rec]);
         refreshMeshes(true);
           redraw((n) => n + 1);
@@ -5128,6 +5235,8 @@ function App() {
     // an installed PWA opened with a .ckpart (the manifest's file_handlers): the same path as a dropped file
     const lq = (window as unknown as { launchQueue?: { setConsumer(f: (p: { files: { getFile(): Promise<File> }[] }) => void): void } }).launchQueue;
     if (lq) lq.setConsumer((p) => { if (p.files.length) void Promise.all(p.files.map((h) => h.getFile())).then((fs) => dropFilesRef.current(fs)); });
+    // automation on a loopback page: window.ckOpenFile(blob, name) and ?open=<url> (openHook.ts); never on a published page
+    installOpenHook({ loc: location, open: (fs) => dropFilesRef.current(fs), fetch: (u) => fetch(u), replaceUrl: (u) => history.replaceState(null, '', u), target: window as never, onError: (m) => store.notify(t('io.openUrlFailed', { message: m }), 'warn') });
     return () => { removeEventListener('dragenter', enter); removeEventListener('dragover', over); removeEventListener('dragleave', leave); removeEventListener('drop', drop); };
   }, []);
   const [autoUpdate, setAutoUpdate] = useState(loadAutoUpdate);
@@ -5226,13 +5335,13 @@ function App() {
           if (rej) return <DiagnosticsCard diagnosis={rej.diagnosis} onSelect={selectFailed} note={t('diag.rejected')} />;
           return failures.length ? (
             <div>{failures.map((f) => <div key={f.id} class="issue"><b>{f.code ?? t('app.diagnostics.error')}</b> {t('app.diagnostics.on')} {f.id}<div class="why">{f.hint}</div><button class="btn" onClick={() => selectFailed(f.id)}>{t('app.diagnostics.show')}</button></div>)}</div>
-          ) : warnEntries.length ? null : <div class="empty">{t('app.diagnostics.none')}</div>;
+          ) : warnEntries.length || infoEntries.length ? null : <div class="empty">{t('app.diagnostics.none')}</div>;
         })()}{warnEntries.length ? <h4 class="warn-head">{t('app.diagnostics.warnings', { n: warnEntries.length })}</h4> : null}{warnList.flatMap(([id, w]) => (w.all ?? [w]).filter((x) => x.code === 'importStepParts').map((x) => [id, x] as const)).map(([id, w]) => {
           // an import with parts that are not solids: "needs repair", the import report and Repair
           const parts = w.code === 'importStepParts' ? parseParts(w.params?.parts) : [];
           const repair = parts.length && needsRepair(parts) ? () => void repairImport(id) : null;
           return <div key={'w' + id} class="issue warn" data-warning={w.code}><b>{w.code}</b> {t('app.diagnostics.on')} {id}<div class="why">{parts.length ? t('import.needsRepair', { n: parts.filter((x) => x.outcome === 'surface').length }) + ' ' + importSummary(parts, t) : w.hint}</div><button class="btn" onClick={() => selectFailed(id)}>{t('app.diagnostics.show')}</button>{parts.length ? <button class="btn" onClick={() => setImportReport({ name: id, parts, viewOnly: false, repair: () => { setImportReport(null); repair?.(); } })}>{t('import.report.open')}</button> : null}{repair ? <button class="btn" title={t('import.report.repair.tip')} onClick={repair}>{t('import.report.repair')}</button> : null}</div>;
-        })}<DiagnosticsWarnings entries={warnEntries.filter((e) => e.code !== 'importStepParts')} onSelect={selectFailed} /></> },
+        })}<DiagnosticsWarnings entries={warnEntries.filter((e) => e.code !== 'importStepParts')} onSelect={selectFailed} /><DiagnosticsWarnings info entries={infoEntries} onSelect={selectFailed} /></> },
         { id: 'inspect', label: t('app.drawer.inspect'), content: <InspectPanel {...inspect.props} /> },
         { id: 'check', label: t('app.drawer.check'), badge: check.badge, bad: check.badge > 0, content: <CheckPanel {...check.props} /> },
         { id: 'console', label: t('app.drawer.console'), content: (
@@ -5292,7 +5401,7 @@ function App() {
         <Tip label={t('cmd.new-part')} keys="Ctrl+N" side="bottom"><button class="rb-btn tb-icon tb-new" aria-label={t('cmd.new-part')} onClick={() => commands.find((c) => c.id === 'new-part')!.run()}><Icon name="new-part" size={18} /></button></Tip>
         <Tip label={t('cmd.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.open')} onClick={() => commands.find((c) => c.id === 'open')!.run()}><Icon name="open" size={18} /></button></Tip>
         <Tip label={t('cmd.save')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.save')} disabled={!doc} onClick={() => commands.find((c) => c.id === 'save')!.run()}><Icon name="save" size={18} /></button></Tip>
-        <ExportMenu items={EXPORT_KINDS.map((k) => commands.find((c) => c.id === `export-${k}`)!)} open={exportOpen && !!doc} onOpenChange={setExportOpen} keys="Ctrl+E" disabled={!doc} visibleOnly={{ on: exportVisible, onChange: setExportVisible }} meshQuality={{ quality: exportQuality, chord: exportChord, onQuality: setExportQuality, onChord: setExportChord }} />
+        <ExportMenu items={EXPORT_KINDS.map((k) => commands.find((c) => c.id === `export-${k}`)!)} open={exportOpen && !!doc} onOpenChange={setExportOpen} keys="Ctrl+E" disabled={!doc} visibleOnly={{ on: exportVisible, onChange: setExportVisible }} meshQuality={{ quality: exportQuality, chord: exportChord, onQuality: setExportQuality, onChord: setExportChord }} refMeshes={doc && meshesOf(doc).length ? { value: exportRefMeshes, onChange: setExportRefMeshes } : undefined} />
         <Slot id="file-more" variant="icon" side="bottom" menu icon="more" title={t('app.fileMore')} items={['save-as', 'embed-geometry', 'recover-versions', 'import-step', 'mesh-to-solid', 'import-skp-hidden', 'rotate-skp', 'toggle-left-panel', 'reset-layout'].flatMap((id) => { const c = commands.find((x) => x.id === id); return c ? [commandToItem(c)] : []; })} />
         <Tip label={t('cmd.samples')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.samples')} onClick={() => commands.find((c) => c.id === 'samples')!.run()}><Icon name="samples" size={18} /></button></Tip>
         {ti.topRename.active && doc
@@ -5353,8 +5462,8 @@ function App() {
           ) : null;
         })() : null}
         {sketching && !sketchToolId && !entityOut && hoverTip && !conTip ? <div class="sketch-tip" style={{ left: hoverTip.x + 'px', top: hoverTip.y + 'px' }}>{hoverTip.text}</div> : null}
-        {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} touch={layout.value !== 'desktop'} selected={selConstraint} inert={!!sketchToolId} onSelect={(id) => { setSelConstraint(id); selectEntity(null, 0, 0); }} onEdit={startDimEdit} onHover={hoverConstraint} onToggleDriven={toggleDriven} onMenu={(a, x, y) => setDimMenu({ id: a.id, type: a.type ?? '', driven: !!a.driven, x, y })} /> : null}
-        {sketching && dimMenu ? <ContextMenu x={dimMenu.x} y={dimMenu.y} items={dimensionMenu(dimMenu.type, dimMenu.driven)} onRun={runDimMenu} onClose={() => setDimMenu(null)} /> : null}
+        {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} touch={layout.value !== 'desktop'} selected={selConstraint} inert={!!sketchToolId} onSelect={(id) => { setSelConstraint(id); selectEntity(null, 0, 0); }} onEdit={startDimEdit} onHover={hoverConstraint} onToggleDriven={toggleDriven} onDragDim={dragDim} onDropDim={dropDim} onMenu={(a, x, y) => setDimMenu({ id: a.id, type: a.type ?? '', driven: !!a.driven, placed: !!(sketchDraftNow && placementsOf(sketchDraftNow)[a.id]), x, y })} /> : null}
+        {sketching && dimMenu ? <ContextMenu x={dimMenu.x} y={dimMenu.y} items={dimensionMenu(dimMenu.type, dimMenu.driven, dimMenu.placed)} onRun={runDimMenu} onClose={() => setDimMenu(null)} /> : null}
         {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length', ...(dimEdit.expr ? { expr: dimEdit.expr } : {}) }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} onTab={dimTabKey} onDefine={defineParam} /> : null}
         {chrome.rightPalette ? <SketchToolStrip layout="palette" active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
         <ViewNav phone={phone} onTurn={(d, step) => viewport?.turnView(d, step)} onRoll={(d, step) => viewport?.rollView(d, step)} onHome={() => viewport?.homeView()} {...(sketching ? { onLookNormal: lookNormal } : {})} />
@@ -5402,6 +5511,7 @@ function App() {
           ) : null}
           {phone ? null : <button class="nav-handle" data-testid="nav-handle" data-open={sideHidden ? 'false' : 'true'} aria-label={sideHidden ? t('app.nav.show') : t('app.nav.hide')} aria-expanded={!sideHidden} title={(sideHidden ? t('app.nav.show') : t('app.nav.hide')) + ' ([)'} onClick={toggleLeftPanel}><Icon name="chevron" size={18} /></button>}
         </div>
+        {tab === 'Motion' && doc && !sketching && !phone ? <MotionTimeline store={motionState} hasClip /> : null}
         <div id="vp-layer">
           {sketching ? <CursorLabel enabled={sketchPrefs.cursorLabel} /> : null}
           <SignKey />
@@ -5509,8 +5619,8 @@ function App() {
       ) : null}
       {phone ? (
         <Sheet open={sheet !== null} onClose={() => setSheet(null)} snap={sheetSnap} onSnap={setSheetSnap} docked fractions={sheet === 'props' ? SPLIT_FRACTION : BROWSE_FRACTION} modal={sheetSnap === 'full' && sheet !== 'props'} bottom={navH}
-          title={sheet === 'props' ? t('app.nav.props') : sheet === 'diag' ? t('app.nav.diag') : t('app.nav.tree')}>
-          {sheet === 'tree' ? left : sheet === 'props' ? propsBody : sheet === 'diag' ? drawerEl() : null}
+          title={sheet === 'props' ? t('app.nav.props') : sheet === 'diag' ? t('app.nav.diag') : sheet === 'motion' ? t('motion.study.title') : t('app.nav.tree')}>
+          {sheet === 'tree' ? left : sheet === 'props' ? propsBody : sheet === 'diag' ? drawerEl() : sheet === 'motion' ? <MotionTimeline store={motionState} hasClip embedded /> : null}
         </Sheet>
       ) : null}
       {sketching && reportOpen && phoneOrTablet && sketchDraftNow ? <SketchReportSheet report={sketchReport(sketchDraftNow, stNow)} onSelect={selectConstraintTargets} onClose={() => setReportOpen(false)} snap={reportSnap} onSnap={setReportSnap} bottom={phone ? navH : 0} /> : null}

@@ -17,7 +17,7 @@ export const helpStrings: Record<string, string | Record<string, string>> = {
   'help.sketch.centerline.name': 'Centreline',
   'help.sketch.centerline.sum': 'Two clicks make a construction line, which is never extruded and is handy as the axis of a revolve.',
   'help.sketch.arc-three-point.name': '3-point arc',
-  'help.sketch.arc-three-point.sum': 'Click the start, a point the arc passes through, then the end.',
+  'help.sketch.arc-three-point.sum': 'Click one end, then the other, then move to pull the arc out between them and click.',
   'help.sketch.arc-centre.name': 'Centre arc',
   'help.sketch.arc-centre.sum': 'Click the centre, the start (this sets the radius), then the end.',
   'help.sketch.arc-tangent.name': 'Tangent arc',

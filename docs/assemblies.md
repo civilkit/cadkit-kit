@@ -144,3 +144,27 @@ the tab unchanged. Save to a file is refused on that tab. Instances of the same 
 New component in place, replace part, editing a component with the rest of the assembly in view, insert another instance from a component's menu, a real in-viewport drag
 of a component in the exploded view (the offset slider does it), profileCenter / path / linearCoupler / cam / universalJoint mates (kernel),
 edge references (the kernel takes faces only), a Drive for hinge.
+
+## Motion
+
+The Motion tab (next to Assembly) drives a mechanism without changing the model. Its ribbon has Drive (Sliders, Limits), Study (New study, Key), Playback (Play)
+and Clip (Export); the sliders are listed in the left panel and the studies in a timeline along the bottom of the view.
+
+- **Sliders.** Every hinge, slot, angle, distance, gear, screw and rack-and-pinion mate gets a slider and a number field. Moving it shows the
+  assembly in that pose (display only: nothing is rebuilt, there is no undo step, measure, section, mass and export still use the assembled
+  positions; Reset returns to them). Hinge and slot values count from the pose the mate was made in.
+- **Contact is a stop.** If a part would hit another at the slider's value the panel says so ("Rail would hit Slider here") and Show selects
+  both. The Clearance field makes a part stop that far short of another; faces that already touch (mated faces) only count if one pushes through.
+- **Find limits** walks the driver both ways and says where and why it stops: a limit mate, contact with a named part, the mates failing, or the
+  end of the range. Use as range keeps the result as the slider's range (a setting of the view); Copy range to a limit adds a limits mate for
+  distance and angle mates.
+- **Studies.** New study, put the sliders where the mechanism should be at a moment, move the playhead in the timeline there and press Key (or
+  double-click a driver's track to key at that time; click a diamond to go to it, its cross removes it). Duration, what happens at the end (stop, start
+  over, back and forth), play, pause, scrub and speed. The panel says the first moment the motion touches a part
+  or cannot hold. Studies are saved in the file.
+- **Export clip** writes WebM, MP4 (Chrome, Edge, Safari), an animated GIF, or PNG frames in a ZIP.
+- **Agents** get `motion_list`, `motion_drive`, `motion_sweep` and `motion_study_run` (read only).
+
+Where it stops short: the `limits` mate measures its angle unsigned, so a door limited to 0 to 110 degrees also swings to -110; parts made by a
+pattern do not follow a pose; the path trail of a picked point is not built yet.
+

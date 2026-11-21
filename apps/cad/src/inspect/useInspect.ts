@@ -8,6 +8,7 @@ import type { Interference, IntersectionCheck } from './kernel';
 import type { Box, InspectProps, SectionState } from './InspectPanel';
 import { STD_SECTION_NORMAL, type SectionSpec } from '@kit/viewport';
 import { t } from '../i18n';
+import { meshesOf } from '../meshes/meshDoc';
 
 /** What the Inspect tools need from the controller (a fake in tests). */
 export interface InspectHost {
@@ -74,7 +75,12 @@ export function useInspect(host: InspectHost, store: Store, getView: () => Inspe
   const seq = useRef(0);
   useEffect(() => {
     const view = getView();
-    if (!measuring) { seq.current++; setOutcome(null); view?.setMeasure(null); return; }
+    if (!measuring) {
+      seq.current++; setOutcome(null); view?.setMeasure(null);
+      // points on a reference mesh are only for measuring: they leave the selection with the tool, so no command takes them for a face
+      if (sel.some((n) => n.startsWith('mp:'))) store.select(sel.filter((n) => !n.startsWith('mp:')));
+      return;
+    }
     if (sel.length > 2) { store.select(sel.slice(-2)); return; }   // a third pick starts again with the last two
     if (!picks.length) { seq.current++; setOutcome(null); view?.setMeasure(null); return; }
     const mine = ++seq.current;
@@ -156,7 +162,7 @@ export function useInspect(host: InspectHost, store: Store, getView: () => Inspe
     material, density, densityKnown: known !== null, onDensity: (d) => { if (Number.isFinite(d) && d >= 0) setDensity(d); },
     mass: massV, massBusy: mbusy, massStale: !!raw && raw.revision !== rev, box, hasSolid: hasSolid(), surfaces: host.surfaceBodies?.().length ?? 0,
     onMass: () => void runMass(),
-    measuring, onMeasure: () => toggleMeasure(), picks, outcome: outcome && outcome.key === selKey ? outcome.out : null,
+    measuring, onMeasure: () => toggleMeasure(), picks, meshNames: Object.fromEntries(meshesOf(host.document()).map((m) => [m.id, m.name])), outcome: outcome && outcome.key === selKey ? outcome.out : null,
     onClearPicks: () => store.select([]),
     onCopy: (text) => copy(text),
     interference: inter ? inter.data : null, interferenceStale: !!inter && inter.revision !== rev, interferenceBusy: ibusy,

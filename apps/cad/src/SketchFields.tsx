@@ -158,7 +158,9 @@ function FieldInput(p: { f: FieldSpec; index: number; last: boolean; seed?: { n:
             return;
           }
           const q = parseFieldText(el.value);
-          const got = q.kind === 'number' ? { value: q.value } : q.kind === 'expr' ? resolve(q.expr) : null;
+          // a box nobody edited shows the value to 2 decimals: Enter keeps the exact value behind the text (a measured 21.2132 must not become 21.21, which then fights the dimensions that already fix it)
+          const untouched = q.kind === 'number' && latest.current === null && Math.round(f.value * 100) / 100 === q.value && !f.expr;
+          const got = q.kind === 'number' ? { value: untouched ? f.value : q.value } : q.kind === 'expr' ? resolve(q.expr) : null;
           if (got) emit(got.value, true, got.expr);
           latest.current = null;
           if (e.key !== 'Tab') p.onEnter?.();

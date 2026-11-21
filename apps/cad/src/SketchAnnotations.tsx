@@ -5,7 +5,13 @@ import { GLYPH_PATHS } from './annotChips';
  *  the viewport. A dimension can be double-clicked to edit its value; hovering any of them highlights what it constrains. */
 export interface AnnotationItem { id: string; text: string; kind: 'dimension' | 'mark'; /** the constraint type (radius, distance ...) */ type?: string; x: number; y: number; /** a reference (measured, not driving) dimension */ driven?: boolean; /** the solver blames this constraint */ blame?: 'conflict' | 'redundant'; /** linked to a variable by an expression */ fx?: boolean; /** the entities and points the constraint refers to (which chips show for what is hovered) */ refs?: string[]; /** an H / V lock on a side of a closed rectangle (shown on hover only) */ axisLock?: boolean; /** the dimension's drawing in pixels: extension lines, dimension line, arrowheads (the label sits on it) */ dim?: ScreenDim }
 
-export function SketchAnnotations(p: { items: AnnotationItem[]; hot: string | null; /** touch layout (phone, tablet): every chip has a 44 px tap target */ touch?: boolean; /** the selected constraint (Delete removes it) */ selected?: string | null; /** a click on a chip */ onSelect?(id: string): void; /** a sketch tool is active: glyph chips let the pointer through */ inert?: boolean; onEdit(id: string): void; onHover(id: string | null): void; onToggleDriven?(id: string, driven: boolean): void; /** right-click on a dimension (replaces the plain driving toggle) */ onMenu?(a: AnnotationItem, x: number, y: number): void }) {
+/** The label under the pointer: a drag starts once it has moved this far (a click or double-click without movement keeps its meaning). */
+const DRAG_PX = 4;
+let grab: { id: string; pointer: number; x0: number; y0: number; dx: number; dy: number; moved: boolean } | null = null;
+/** The id of a label just let go after a drag: the click the browser sends after it is not a selection. */
+let justDragged: string | null = null;
+
+export function SketchAnnotations(p: { items: AnnotationItem[]; hot: string | null; /** touch layout (phone, tablet): every chip has a 44 px tap target */ touch?: boolean; /** the selected constraint (Delete removes it) */ selected?: string | null; /** a click on a chip */ onSelect?(id: string): void; /** a sketch tool is active: glyph chips let the pointer through */ inert?: boolean; onEdit(id: string): void; onHover(id: string | null): void; onToggleDriven?(id: string, driven: boolean): void; /** right-click on a dimension (replaces the plain driving toggle) */ onMenu?(a: AnnotationItem, x: number, y: number): void; /** a dimension label is being dragged: the pointer (client pixels, already corrected for where the label was grabbed) */ onDragDim?(id: string, clientX: number, clientY: number): void; /** the drag ended */ onDropDim?(id: string): void }) {
   return (
     <div class={`sketch-annots${p.touch ? ' touch' : ''}`}>
       <svg class="annot-lines" aria-hidden="true">
@@ -30,9 +36,18 @@ export function SketchAnnotations(p: { items: AnnotationItem[]; hot: string | nu
           aria-label={a.kind === 'mark' ? t('app.sketch.constraint.' + (a.type ?? ''), undefined, a.type ?? a.text) : undefined}
           onContextMenu={(e) => { if (a.kind === 'dimension' && p.onMenu) { e.preventDefault(); e.stopPropagation(); p.onMenu(a, e.clientX, e.clientY); } else if (a.kind === 'dimension' && p.onToggleDriven) { e.preventDefault(); e.stopPropagation(); p.onToggleDriven(a.id, !!a.driven); } }}
           style={{ left: a.x + 'px', top: a.y + 'px', ...(a.dim && a.dim.text.slopeDeg ? { transform: `translate(-50%, -50%) rotate(${a.dim.text.slopeDeg}deg)` } : {}) }}
+          onPointerDown={a.kind === 'dimension' && p.onDragDim ? (e) => { if (e.button !== 0) return; const r = e.currentTarget.getBoundingClientRect(); grab = { id: a.id, pointer: e.pointerId, x0: e.clientX, y0: e.clientY, dx: r.left + r.width / 2 - e.clientX, dy: r.top + r.height / 2 - e.clientY, moved: false }; try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* the drag then follows only moves over the label */ } } : undefined}
+          onPointerMove={a.kind === 'dimension' && p.onDragDim ? (e) => {
+            if (!grab || grab.id !== a.id || grab.pointer !== e.pointerId) return;
+            if (!grab.moved) { if (Math.hypot(e.clientX - grab.x0, e.clientY - grab.y0) < DRAG_PX) return; grab.moved = true; }
+            e.preventDefault();
+            p.onDragDim?.(a.id, e.clientX + grab.dx, e.clientY + grab.dy);
+          } : undefined}
+          onPointerUp={a.kind === 'dimension' && p.onDropDim ? (e) => { const g = grab; if (!g || g.id !== a.id || g.pointer !== e.pointerId) return; grab = null; if (g.moved) { justDragged = a.id; setTimeout(() => { justDragged = null; }, 0); p.onDropDim?.(a.id); } } : undefined}
+          onPointerCancel={a.kind === 'dimension' && p.onDropDim ? () => { if (grab?.id === a.id && grab.moved) p.onDropDim?.(a.id); grab = null; } : undefined}
           onPointerEnter={() => p.onHover(a.id)}
           onPointerLeave={() => p.onHover(null)}
-          onClick={(e) => { e.stopPropagation(); p.onSelect?.(a.id); }}
+          onClick={(e) => { e.stopPropagation(); if (justDragged === a.id) return; p.onSelect?.(a.id); }}
           onDblClick={(e) => { e.stopPropagation(); if (a.kind !== 'dimension') return; if (a.driven) p.onToggleDriven?.(a.id, true); else p.onEdit(a.id); }}
         >
           {a.kind === 'mark' && a.type && GLYPH_PATHS[a.type]

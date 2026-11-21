@@ -103,6 +103,7 @@ const ICONS: Record<string, string> = {
   'sketch-from-svg': C('M3 20l4-5h14l-4 5z') + P('M8 3h6l3 3v8H8z') + A('M9.8 11.5c.8-2.4 1.8-2.4 2.2-.8s1.3 1.2 2.2-1'),
   export: P('M5 14v6h14v-6') + A('M12 15V4M8 8l4-4 4 4'),
   'export-stl': P(HEX) + T(Y) + C('M12 3 4.2 16.5M19.8 7.5 12 21'),
+  'export-stl-bodies': P(HEX) + T(Y) + A('M14.5 15h6v6h-6zM17.5 15v3'),
   'export-stl-ascii': P('M4.2 7.5 12 3l7.8 4.5v4M4.2 7.5v9L12 21') + T('M4.2 7.5 12 12l7.8-4.5M12 12v9') + A('M14.5 15h6M14.5 18h6M14.5 21h4'),
   'export-obj': P(HEX) + T(Y) + D(12, 3) + D(19.8, 7.5) + D(19.8, 16.5) + D(12, 21) + D(4.2, 16.5) + D(4.2, 7.5) + D(12, 12),
   'export-3mf': P(HEX) + T(Y) + A('M8 10.5h3.5a1.5 1.5 0 0 1 0 3H8M8 13.5h3.8a1.5 1.5 0 0 1 0 3H8', 1.75),
@@ -316,6 +317,13 @@ const ICONS: Record<string, string> = {
   mate: P('M3 9h8v8H3z') + P('M13 7h8v8h-8z') + A('M11 13h2') + C('M7 9V5M17 15v4'),
   bom: P('M5 4h14v16H5z') + T('M5 9h14M5 14h14M10 4v16') + A('M12 11.5h4M12 17h4'),
   explode: P('M9 9h6v6H9z') + A('M12 7V3M10.5 4.5 12 3l1.5 1.5M12 17v4M10.5 19.5 12 21l1.5-1.5M7 12H3M4.5 10.5 3 12l1.5 1.5M17 12h4M19.5 10.5 21 12l-1.5 1.5'),
+  // ---- motion
+  'motion-drive': T('M3 8h18M3 16h18') + O(9, 8, 2.4) + O(15, 16, 2.4) + A('M9 8h0M15 16h0'),
+  'motion-find': P('M4 12h16') + A('M7 8 4 12l3 4M17 8l3 4-3 4') + T('M12 5v14') + D(12, 12, 1.6),
+  'motion-new-study': P('M4 6h16v12H4z') + T('M4 10h16') + A('M12 12.5v4M10 14.5h4'),
+  'motion-key': P('M12 4 20 12 12 20 4 12z') + A('M12 9 15 12 12 15 9 12z'),
+  'motion-play': P('M8 5v14l11-7z') + A('M3 20h18'),
+  'motion-export': P('M5 14v5h14v-5') + A('M12 4v10M8.5 10.5 12 14l3.5-3.5'),
   'asm-interference': O(9.5, 12, 6.5) + A('M15 6.3a6.5 6.5 0 0 1 0 11.4a6.5 6.5 0 0 1 0-11.4z'),
   'section-view': cube('', P('M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z')) + AD('M3 13.5 12 9l9 4.5'),
   // ---- added by the icon audit: files, history, selection, display style, lighting, background

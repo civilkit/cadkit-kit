@@ -42,12 +42,17 @@ export interface MeshSolidPanelProps {
 interface Fields { closeTolerance: string; maxHoleEdges: string; planeTol: string; angleTolDeg: string; fitTol: string }
 const EMPTY: Fields = { closeTolerance: '', maxHoleEdges: '', planeTol: '', angleTolDeg: '', fitTol: '' };
 
+/** How much work the analytic fit may do: the kernel's default, more, or no limit. */
+export type Effort = 'default' | 'more' | 'most' | 'unlimited';
+export const EFFORTS: readonly Effort[] = ['default', 'more', 'most', 'unlimited'];
+const EFFORT_UNITS: Record<Effort, number | null> = { default: null, more: 10, most: 30, unlimited: 0 };
+
 /** The options the fields and toggles say, and whether a field holds something that is not a number above 0. */
-export function optionsOf(f: Fields, close: boolean, fill: boolean, analytic: boolean): { options: MeshSolidOptions; invalid: Array<keyof Fields> } {
+export function optionsOf(f: Fields, close: boolean, fill: boolean, analytic: boolean, effort: Effort = 'default'): { options: MeshSolidOptions; invalid: Array<keyof Fields> } {
   const invalid: Array<keyof Fields> = [];
   const get = (k: keyof Fields, integer = false): number | null => { const r = parseTol(f[k], integer); if (r.invalid) invalid.push(k); return r.value; };
   const options: MeshSolidOptions = {
-    ...DEFAULT_MESH_SOLID_OPTIONS, close, fill, analytic,
+    ...DEFAULT_MESH_SOLID_OPTIONS, close, fill, analytic, maxSeconds: EFFORT_UNITS[effort],
     closeTolerance: get('closeTolerance'), maxHoleEdges: get('maxHoleEdges', true), planeTol: get('planeTol'), angleTolDeg: get('angleTolDeg'), fitTol: get('fitTol'),
   };
   // fields that are switched off do not count against Convert
@@ -105,16 +110,17 @@ export function MeshSolidPanel(p: MeshSolidPanelProps): JSX.Element {
   const [close, setClose] = useState(DEFAULT_MESH_SOLID_OPTIONS.close);
   const [fill, setFill] = useState(DEFAULT_MESH_SOLID_OPTIONS.fill);
   const [analytic, setAnalytic] = useState(DEFAULT_MESH_SOLID_OPTIONS.analytic);
+  const [effort, setEffort] = useState<Effort>('default');
   /** the options of the run on screen (the report's words depend on them, not on what the toggles say now) */
   const [ran, setRan] = useState<MeshSolidOptions>(DEFAULT_MESH_SOLID_OPTIONS);
   const runBtn = useRef<HTMLButtonElement>(null);
   const src = p.sources.find((s) => s.id === p.sourceId) ?? p.sources[0];
   const limit = src ? triangleLimit(src.tris) : 'ok';
-  const { options, invalid } = optionsOf(fields, close, fill, analytic);
+  const { options, invalid } = optionsOf(fields, close, fill, analytic, effort);
   const canRun = !!src && !p.busy && limit !== 'over' && invalid.length === 0;
   const run = (): void => { if (!canRun) return; setRan(options); p.onRun(options); };
   /** The refusal card's one-click way out of gaps: tick Close gaps and holes and convert again. */
-  const closed = optionsOf(fields, true, fill, analytic);
+  const closed = optionsOf(fields, true, fill, analytic, effort);
   const retryClosed = !close && !!src && !p.busy && limit !== 'over' && closed.invalid.length === 0
     ? () => { setClose(true); setRan(closed.options); p.onRun(closed.options); } : null;
   const live = useRef({ run, p });
@@ -201,6 +207,15 @@ export function MeshSolidPanel(p: MeshSolidPanelProps): JSX.Element {
               <input type="checkbox" checked={analytic} aria-label={t('m2s.analytic')} data-testid="m2s-analytic" onChange={(e) => setAnalytic((e.currentTarget as HTMLInputElement).checked)} />
               <span>{t('m2s.analytic')}</span>
             </label>
+            {analytic ? (
+              <label class="fedit-fld" data-path="effort">
+                <span class="fedit-fld-label">{t('m2s.effort')}</span>
+                <select value={effort} aria-label={t('m2s.effort')} data-testid="m2s-effort" disabled={p.busy} onChange={(e) => setEffort((e.currentTarget as HTMLSelectElement).value as Effort)}>
+                  {EFFORTS.map((k) => <option value={k}>{t('m2s.effort.' + k)}</option>)}
+                </select>
+              </label>
+            ) : null}
+            {analytic && effort === 'unlimited' ? <p class="m2s-note" data-testid="m2s-effort-warn">{t('m2s.effort.warn')}</p> : null}
             <p class="m2s-note">{t('m2s.advanced.note')}</p>
           </details>
           {invalid.length ? <p class="m2s-err" data-testid="m2s-invalid">{t('m2s.invalid')}</p> : null}
@@ -277,6 +292,7 @@ function Report(p: MeshSolidPanelProps & { r: MeshSolidReport; ran: MeshSolidOpt
           <span class="m2s-took" data-testid="m2s-took">{fmtMs(r.ms)}</span>
         </div>
         <p class="m2s-card-text" data-testid="m2s-faceted">{fitLine(r, p.ran.analytic)}</p>
+        {r.budgetExhausted ? <p class="m2s-card-text m2s-budget" data-testid="m2s-budget">{t('m2s.fit.budget')}</p> : null}
       </div>
       <ShowSeg show={p.show} onShow={p.onShow} />
       <p class="m2s-preview-label" data-testid="m2s-preview-label">{t('m2s.preview.label')}</p>

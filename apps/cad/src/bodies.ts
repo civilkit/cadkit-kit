@@ -12,7 +12,10 @@
 //               the part inserted by F6 (the face names say so: 'F2.S.e12@F6.1'). A body's origin is the lowest-numbered feature that owns one
 //               of its faces (the feature that created the lump; later cuts and fillets do not change it). Scripts key by feature
 //               (the id is known while the script runs; the face names are not), and one entry covers a pattern's whole row of bodies.
-// A body key wins over a feature id; a user edit always writes the body key.
+//   name key    '@name:' + the name the document gave the body (the `body` of the feature that made it: '@name:Hull_black'). The kernel says which
+//               face belongs to which named body, so a script can colour a body by the name it chose, whatever features made it. Sits between the two:
+//               it wins over a feature id and loses to a body key.
+// A body key wins over a name key, a name key over a feature id; a user edit always writes the body key.
 import type { MeshBody } from '@kit/io';
 import type { Body } from './select/model';
 import { BODY_PREFIX } from './select/model';
@@ -20,6 +23,8 @@ import { clampBodyOpacity, clampUnit, FINISHES, isHex, sanitizeTexture, type Bod
 
 export type { BodyLookSpec, Finish };
 export const FEATURE_KEY = /^F\d+$/;
+export const NAME_PREFIX = '@name:';
+export const nameKeyOf = (name: string | null | undefined): string | null => (name ? NAME_PREFIX + name : null);
 
 export interface BodyRow {
   key: string;
@@ -84,9 +89,9 @@ export function cleanLook(raw: unknown): BodyLookSpec {
 }
 
 /** The look of a body: its feature's entry, then its own entry over it (field by field). */
-export function lookFor(fields: BodyFields, key: string, origin: string | null): BodyLookSpec {
+export function lookFor(fields: BodyFields, key: string, origin: string | null, nameKey: string | null = null): BodyLookSpec {
   const a = fields.appearance ?? {};
-  return { ...(origin ? cleanLook(a[origin]) : {}), ...cleanLook(a[key]) };
+  return { ...(origin ? cleanLook(a[origin]) : {}), ...(nameKey ? cleanLook(a[nameKey]) : {}), ...cleanLook(a[key]) };
 }
 
 /** Signed volume and volume-weighted centre moment (sum of volume x centroid) of the triangles of each face. A closed shell's total volume is its volume and
@@ -171,7 +176,8 @@ export function listBodies(
   return base.map((x, i) => {
     const names = fields.bodyNames ?? {};
     const own = names[x.key]?.trim();
-    const docName = opts.docNames?.get(x.key);
+    const docName = x.b.kernelName || opts.docNames?.get(x.key) || undefined;   // the kernel's own name for the body, else the lump matched by shape
+    const nameKey = nameKeyOf(x.b.kernelName);
     const feat = x.origin ? names[x.origin]?.trim() || opts.featureName?.(group(x.origin))?.trim() || '' : '';
     let name: string, named = true;
     if (own) name = own;
@@ -180,7 +186,7 @@ export function listBodies(
     else { name = dflt(i + 1); named = false; }
     let volume: number | null = null;
     if (opts.volumes) { let v = 0, any = false; for (const f of x.b.faces) { const fv = opts.volumes.get(f); if (fv !== undefined) { v += fv; any = true; } } volume = any && !x.b.surface ? Math.abs(v) : null; }
-    return { key: x.key, name, named, ...(docName ? { docName } : {}), faces: x.b.faces, edges: x.b.edges, origin: x.origin, volume, look: lookFor(fields, x.key, x.origin), hidden: hidden.has(x.key) || (!!x.origin && hidden.has(x.origin)) };
+    return { key: x.key, name, named, ...(docName ? { docName } : {}), faces: x.b.faces, edges: x.b.edges, origin: x.origin, volume, look: lookFor(fields, x.key, x.origin, nameKey), hidden: hidden.has(x.key) || (!!nameKey && hidden.has(nameKey)) || (!!x.origin && hidden.has(x.origin)) };
   });
 }
 

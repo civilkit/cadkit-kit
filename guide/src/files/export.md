@@ -12,6 +12,7 @@ Choose the **Export** button in the top bar (or press **Ctrl+E**) to open the li
 |---|---|---|
 | Export STL (binary) | `<part>.stl` | A solid on screen |
 | Export STL (ASCII) | `<part>.stl` | A solid on screen |
+| Export STL, one file per body (zip) | `<part>-stl.zip` | A solid on screen |
 | Export OBJ | `<part>.obj` | A solid on screen |
 | Export 3MF (3D printing) | `<part>.3mf` | A solid on screen |
 | Export glTF (GLB) | `<part>.glb` | A solid on screen |
@@ -34,6 +35,7 @@ Use STEP to hand an exact solid to another CAD program. **Export STEP** writes t
 Use STL for 3D printing and slicers, and OBJ for rendering programs.
 
 - Both are triangle meshes made from the same triangles the viewport shows.
+- **STL, one file per body (zip)** writes each body as its own binary STL inside a zip, named after the body in the Bodies list: for printing each colour or piece separately. Hidden bodies are left out when **Visible only** is on; reference meshes with **Included** go in as bodies too.
 - **STL (binary)** is smaller and is the usual choice. **STL (ASCII)** is readable text. The solid name inside the file is the part name.
 - **OBJ** has welded vertices and counter-clockwise faces, one object.
 - After writing, the app checks that the mesh is watertight. The file is still written, but if the surface has open edges, non-manifold edges or flipped faces you get a warning ("... is not watertight ... a slicer may need to repair it"). The note on the number of triangles tells you the size of the mesh.
@@ -46,6 +48,17 @@ Use 3MF for 3D printing programs that read colours and several bodies, and GLB f
 - **3MF** is a zip file, in millimetres with Z up, as the model is. The watertight check of STL and OBJ applies.
 - **GLB** is a single binary glTF 2.0 file. glTF is in metres with Y up, so the part is scaled by 0.001 and turned so that the model's Z axis points up the file's Y axis (a 10 mm cube is 0.01 m). Metallic and roughness are written when you set them on the body; otherwise the material is a plain matt one.
 - **Only visible bodies** and the mesh quality and chord boxes of the Export menu apply to both.
+
+## Reference meshes in mesh exports
+
+A part that holds [reference meshes](import.md#mesh-files-stl-obj-glb-and-3mf-a-model-to-sketch-on) (an imported STL, OBJ, GLB, 3MF or SketchUp mesh) shows one more row in the Export menu: **Reference meshes (STL, OBJ, 3MF, GLB)**, with **Not included** (the default) and **Included**. The choice lasts until the app is closed.
+
+- **Not included** writes the part alone, exactly as without the row.
+- **Included** adds every shown reference mesh to the same file, placed where it is on screen (its position, rotation and scale applied, in millimetres like the part). A hidden mesh (eye off in the feature tree) is left out.
+- In **OBJ**, **3MF** and **GLB** each mesh is its own object, named as in the feature tree, in its colour. **STL** has no objects, so the mesh's triangles are added to the part's.
+- The notice after the export says how many meshes and triangles were added. The watertight check is about the part only: a scan with holes does not give a warning.
+- A part with reference meshes and no solid can be exported too while **Included** is chosen: the file then holds only the meshes.
+- The mesh quality and chord boxes change only the part's triangles; a reference mesh is written with the triangles it has. STEP and DXF never include reference meshes.
 
 ## Cosmetic knurls in exports
 

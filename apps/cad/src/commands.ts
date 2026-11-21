@@ -11,6 +11,7 @@ import { creatorCommands } from './featureCreators';
 import { inspectCommands, type InspectActions } from './inspect/inspectCommands';
 import { treeCommands, type TreeActions } from './treeCommands';
 import { assemblyCommands, type AssemblyActions } from './assembly/assemblyCommands';
+import { motionCommands, type MotionActions } from './motion/motionCommands';
 import { analysisCommands, type AnalysisActions } from './analysisCommands';
 import { sheetCommands, type SheetActions } from './sheet/sheetCommands';
 import { viewPlaneIds, type PlaneId } from './planeNames';
@@ -35,9 +36,11 @@ export interface IoActions {
   canExport(kind: ExportKind): boolean;
 }
 
-export type ExportKind = 'step' | 'stl' | 'stl-ascii' | 'obj' | '3mf' | 'glb' | 'dxf-sketch' | 'dxf-views';
+export type ExportKind = 'step' | 'stl' | 'stl-ascii' | 'stl-bodies' | 'obj' | '3mf' | 'glb' | 'dxf-sketch' | 'dxf-views';
 /** The export commands in menu order; each is the command `export-<kind>`. */
-export const EXPORT_KINDS: ExportKind[] = ['stl', 'stl-ascii', 'obj', '3mf', 'glb', 'step', 'dxf-sketch', 'dxf-views'];
+export const EXPORT_KINDS: ExportKind[] = ['stl', 'stl-ascii', 'stl-bodies', 'obj', '3mf', 'glb', 'step', 'dxf-sketch', 'dxf-views'];
+/** The mesh formats: the ones the Export menu's mesh options (quality, visible bodies, reference meshes) apply to. */
+export const MESH_EXPORT_KINDS: ExportKind[] = ['stl', 'stl-ascii', 'stl-bodies', 'obj', '3mf', 'glb'];
 
 /** The catalog's add-material shapes as Create-menu commands (same ids as the catalog items). */
 export const SHAPE_COMMANDS = ['add-block', 'add-cylinder', 'add-sphere', 'add-cone', 'add-boss', 'add-slot'];
@@ -103,6 +106,7 @@ export interface Actions {
   analysis?: AnalysisActions;
   /** Insert part, mate, interference, bill of materials and exploded view (see assembly/). */
   assembly?: AssemblyActions;
+  motion?: MotionActions;
   /** Body pick mode, box select, select tangent / parallel / similar / loop / connected, invert, none (see select/selectCommands.ts). */
   select?: SelectActions;
   open(): void;
@@ -243,6 +247,7 @@ export function buildCommands(a: Actions): Command[] {
   if (a.look) cmds.push(...lookCommands(a.look));
   if (a.inspect) cmds.push(...inspectCommands(a.inspect));
   if (a.assembly) cmds.push(...assemblyCommands(a.assembly));
+  if (a.motion) cmds.push(...motionCommands(a.motion));
   if (a.analysis) cmds.push(...analysisCommands(a.analysis));
   if (a.select) cmds.push(...selectCommands(a.select));
   if (a.io) cmds.push(...ioCommands(a.io, a.hasDocument));

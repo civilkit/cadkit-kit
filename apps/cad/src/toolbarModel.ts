@@ -28,7 +28,7 @@ export const SLOTS: Record<string, string[]> = {
   'surface-reshape': ['add-fill', 'add-extend', 'add-offset-surface'],
   'surface-edit': ['add-trim-surface', 'add-knit', 'add-thicken', 'add-freeform'],
   history: ['rebuild', 'rename', 'suppress-selected', 'delete-feature', 'roll-forward'],
-  export: ['export', 'export-step', 'export-stl', 'export-stl-ascii', 'export-obj', 'export-3mf', 'export-glb', 'export-dxf-sketch', 'export-dxf-views'],
+  export: ['export', 'export-step', 'export-stl', 'export-stl-ascii', 'export-stl-bodies', 'export-obj', 'export-3mf', 'export-glb', 'export-dxf-sketch', 'export-dxf-views'],
   views: ['view-iso', 'view-top', 'view-front', 'view-right', 'view-back', 'view-left', 'view-bottom'],
   style: ['style-shaded', 'style-shadedEdges', 'style-wireframe', 'style-hiddenLines', 'style-ghost'],
   light: ['light-studio', 'light-flat', 'light-contrast', 'light-technical'],
@@ -97,6 +97,13 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
     { id: 'Components', entries: [slot('asm-parts')] },
     { id: 'Review', entries: [slot('asm-review')] },
   ],
+  // Motion: drive a mechanism, key it over time, play it, export a clip (the timeline docks along the bottom of the view while this tab is open)
+  Motion: [
+    { id: 'Drive', entries: ['motion-drive', 'motion-find'] },
+    { id: 'Study', entries: ['motion-new-study', 'motion-key'] },
+    { id: 'Playback', entries: ['motion-play'] },
+    { id: 'Clip', entries: ['motion-export'] },
+  ],
 };
 
 /** The tool palette on the left edge: sections of slots (a bare id is a single-command cell). A section with no
@@ -118,7 +125,7 @@ export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
 /** Commands that have no cell on the palette on purpose: files (the sketch DXF/SVG imports live in the sketch ribbon), export, camera and display settings live in the ribbon
  *  and the command search only. Everything else (every modelling, surface, inspect, assembly and selection command) must be on it. */
 export const notOnRail = (id: string): boolean =>
-  /^(layer-|export|view-|style-|light-|bg-|sheet-(dxf|bends))/.test(id) ||
+  /^(layer-|export|view-|style-|light-|bg-|motion-|sheet-(dxf|bends))/.test(id) ||
   ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'mesh-to-solid', 'sketch-import-dxf', 'sketch-import-svg', 'import-skp-hidden', 'rotate-skp', 'recognise-features', 'palette', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'toggle-up-axis', 'fit', 'hide-selection', 'show-all', 'group-selected'].includes(id);
 
 // ---- contextual ribbon: which tab shows, which commands are idle -----------------------------------------------------------

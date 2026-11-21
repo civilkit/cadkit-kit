@@ -14,6 +14,24 @@ const cross = ['F3', { code: 'blendRoundsCross', params: { detail: 'the two roun
 const reason = en['diag.reason.blendRoundsCross'] as string;
 const advice = en['diag.advice.blendRoundsCross'] as string;
 
+describe('meshToSolidReport', () => {
+  const rep = { code: 'meshToSolidReport', hint: '24000 triangles became 23739 faces (3 analytic surfaces fitted)', featureId: 'F3' } as never;
+  it('shows the kernel summary as the text and marks the row as informational', () => {
+    const [e] = warningEntries({ F3: rep }, [{ id: 'F3', type: 'meshToSolid', name: 'Van' }]);
+    expect(e).toMatchObject({ code: 'meshToSolidReport', text: '24000 triangles became 23739 faces (3 analytic surfaces fitted)', advice: '' });
+    const tip = warningTips([e]).F3;
+    expect(tip.info).toBe(true);
+    expect(tip.hint).toBe('24000 triangles became 23739 faces (3 analytic surfaces fitted)');
+  });
+  it('a real warning on the same feature takes the info mark off', () => {
+    const tips = warningTips([
+      { featureId: 'F3', label: 'a', code: 'meshToSolidReport', text: 'summary', advice: '' },
+      { featureId: 'F3', label: 'a', code: 'something', text: 'bad', advice: '' },
+    ]);
+    expect(tips.F3.info).toBeUndefined();
+  });
+});
+
 describe('feature warnings', () => {
   it('a code with strings: the reason as a sentence, then the advice', () => {
     const [e] = warningEntries(warningsById([cross]), feats);

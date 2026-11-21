@@ -1,8 +1,9 @@
 /**
- * Arc through three points. Click the start, click a point the arc passes through, click the end. The centre is
- * the circumcentre of the three points. Kernel arcs run counter-clockwise from `p1` to `p2` (solver `Arc`, checked
- * with an extruded profile in `arcs.kernel.test.ts`), so when start -> through -> end turns clockwise the entity is
- * stored as `arc {c, p1: end, p2: start}`: the same curve, listed in the kernel's direction. The through point is
+ * Arc through three points, drawn ends first: click the first end, click the other end, then move the pointer to pull
+ * the arc out between them (it passes through the pointer) and click to place it. The centre is the circumcentre of
+ * the two ends and the pointer. Kernel arcs run counter-clockwise from `p1` to `p2` (solver `Arc`, checked
+ * with an extruded profile in `arcs.kernel.test.ts`), so when first end -> pointer -> other end turns clockwise the entity is
+ * stored as `arc {c, p1: other end, p2: first end}`: the same curve, listed in the kernel's direction. The pointer point is
  * not stored in the sketch (there is no on-curve constraint here); only start, end and the new centre are points,
  * and an existing point under the start or end click is reused.
  * Refused with a hint: collinear points (`app.sketch.hint.collinear`) and coincident points, which includes closing
@@ -15,27 +16,29 @@ import type { FieldSpec, Pt, Tool, ToolOutput, ToolSettings } from './types';
 
 export interface ThreePointArcState {
   a?: { at: Pt; pointId?: string };
-  through?: Pt;
+  /** the other end; the arc is pulled between `a` and it by the pointer */
+  end?: { at: Pt; pointId?: string };
   cursor?: Pt;
 }
 
 /** The pick the tool waits for, as an i18n key: shown whenever there is no refusal to report. */
 export function threePointArcStepHint(state: ThreePointArcState): string {
-  return !state.a ? 'app.sketch.hint.arc3.start' : !state.through ? 'app.sketch.hint.arc3.through' : 'app.sketch.hint.arc3.end';
+  return !state.a ? 'app.sketch.hint.arc3.start' : !state.end ? 'app.sketch.hint.arc3.end' : 'app.sketch.hint.arc3.bulge';
 }
 
 function view(state: ThreePointArcState, draft: SketchDraft, settings: ToolSettings, refusal?: string): ToolOutput<ThreePointArcState> {
-  const { a, through, cursor } = state;
+  const { a, end, cursor } = state;
   const hint = refusal ?? threePointArcStepHint(state);
   if (!a || !cursor) return { state, draft, preview: [], fields: [], hint };
-  if (!through) return { state, draft, preview: [{ kind: 'line', a: a.at, b: cursor }], fields: [], hint };
-  const circle = circumcircle(a.at, through, cursor);
+  if (!end) return { state, draft, preview: [{ kind: 'line', a: a.at, b: cursor }], fields: [], hint };
+  const circle = circumcircle(a.at, cursor, end.at);
   if (!circle) {
-    const bad = dist(through, cursor) < 1e-9 || dist(a.at, cursor) < 1e-9 ? undefined : 'app.sketch.hint.collinear';
-    return { state, draft, preview: [{ kind: 'line', a: a.at, b: through }, { kind: 'line', a: through, b: cursor }], fields: [], hint: refusal ?? bad ?? hint };
+    // the pointer is on the chord (or on an end): show the chord until it leaves it
+    const bad = dist(cursor, end.at) < 1e-9 || dist(a.at, cursor) < 1e-9 ? undefined : 'app.sketch.hint.collinear';
+    return { state, draft, preview: [{ kind: 'line', a: a.at, b: end.at }], fields: [], hint: refusal ?? bad ?? hint };
   }
-  const ccw = turnsCcw(a.at, through, cursor);
-  const [from, to] = ccw ? [a.at, cursor] : [cursor, a.at];
+  const ccw = turnsCcw(a.at, cursor, end.at);
+  const [from, to] = ccw ? [a.at, end.at] : [end.at, a.at];
   const a0 = angleOf(circle.c, from);
   const fields: FieldSpec[] = settings.onViewValues === 'off' ? [] : [
     { id: 'radius', label: 'app.sketch.field.radius', value: circle.r, locked: false, unit: 'length' },
@@ -54,22 +57,23 @@ export const threePointArcTool: Tool<ThreePointArcState> = {
         const pointId = ev.snap?.pointId;
         const withCursor = { ...state, cursor: at };
         if (!state.a) return view({ ...withCursor, a: { at, ...(pointId ? { pointId } : {}) } }, draft, settings);
-        if (!state.through) {
+        if (!state.end) {
           if (dist(state.a.at, at) < 1e-9) return view(withCursor, draft, settings, 'app.sketch.hint.degenerate');
-          return view({ ...withCursor, through: at }, draft, settings);
+          return view({ ...withCursor, end: { at, ...(pointId ? { pointId } : {}) } }, draft, settings);
         }
         const a = state.a.at;
-        if (dist(a, at) < 1e-9 || dist(state.through, at) < 1e-9) return view(withCursor, draft, settings, 'app.sketch.hint.degenerate');
-        const circle = circumcircle(a, state.through, at);
+        const e = state.end.at;
+        if (dist(a, at) < 1e-9 || dist(e, at) < 1e-9) return view(withCursor, draft, settings, 'app.sketch.hint.degenerate');
+        const circle = circumcircle(a, at, e);
         if (!circle) return view(withCursor, draft, settings, 'app.sketch.hint.collinear');
         let d = draft;
         let aid = state.a.pointId;
         if (!aid) { const p = addPoint(d, a); d = p.draft; aid = p.id; }
-        let cid = pointId && pointId !== aid ? pointId : undefined;
-        if (!cid) { const p = addPoint(d, at); d = p.draft; cid = p.id; }
+        let cid = state.end.pointId && state.end.pointId !== aid ? state.end.pointId : undefined;
+        if (!cid) { const p = addPoint(d, e); d = p.draft; cid = p.id; }
         const centre = addPoint(d, circle.c);
         d = centre.draft;
-        const ccw = turnsCcw(a, state.through, at);
+        const ccw = turnsCcw(a, at, e);
         d = addArc(d, centre.id, ccw ? aid : cid, ccw ? cid : aid).draft;
         return view({ cursor: at }, d, settings);
       }

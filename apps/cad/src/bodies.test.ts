@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { SelModel } from './select/model';
 import { box, meshOf } from './select/fixtures';
-import { cleanLook, faceVolumes, hideOthers, keyOf, listBodies, lookFor, originOf, readBodyFields, rowOfName, setHidden, solo, toggleHidden, viewSpec, withLook, withLooks, withName, visibleMesh, splitBodies } from './bodies';
+import { kernelBodies } from './controller';
+import { cleanLook, nameKeyOf, faceVolumes, hideOthers, keyOf, listBodies, lookFor, originOf, readBodyFields, rowOfName, setHidden, solo, toggleHidden, viewSpec, withLook, withLooks, withName, visibleMesh, splitBodies } from './bodies';
 import { exportStl } from './exportFiles';
 
 // two separate boxes: F1 (10 x 10 x 10 at the origin) and F5 (20 x 5 x 5 apart from it)
@@ -211,5 +212,37 @@ describe('splitBodies (3MF and GLB: one object per body)', () => {
     const b = splitBodies({ ...mesh, normals }, rows, 'Part', false);
     expect(b[0].normals).toHaveLength(9);
     expect(Array.from(b[0].normals!).slice(0, 3)).toEqual([0, 0, 1]);
+  });
+});
+
+describe('kernel body identity', () => {
+  const a = box('F1.', [0, 0, 0], [10, 10, 10]), b = box('F5.', [50, 0, 0], [20, 5, 5]);
+  const mesh = meshOf([...a.quads, ...b.quads]);
+  const faceBody = (idx: [number, number]) => mesh.faceIds.map((f) => (f.startsWith('F1.') ? idx[0] : idx[1]));
+  const make = (idx: [number, number], names: Array<string | null>) => new SelModel({ mesh, edges: [...a.edges, ...b.edges], faceBody: faceBody(idx), bodyNames: names });
+
+  it('separate named bodies keep their names, and the name key colours them', () => {
+    const rows = listBodies(make([0, 1], ['Hull_black', 'Lens']).bodies(), { appearance: { '@name:Hull_black': { color: '#111111' }, F1: { color: '#ff0000', opacity: 0.5 } } }, {});
+    expect(rows.map((r) => [r.name, r.docName])).toEqual([['Hull_black', 'Hull_black'], ['Lens', 'Lens']]);
+    expect(rows[0].look).toEqual({ color: '#111111', opacity: 0.5 });   // name key over the feature key, field by field
+    expect(rows[1].look).toEqual({});
+  });
+  it('two lumps the kernel calls one body are one row, even though no edge joins them', () => {
+    const bodies = make([0, 0], ['Trio']).bodies();
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0].faces).toHaveLength(12);
+  });
+  it('a body key beats a name key; a hidden name key hides the body', () => {
+    const f = { appearance: { '@name:Lens': { color: '#00ff00' }, '@body:F5.+x': { color: '#ffffff' } }, view: { hiddenBodies: ['@name:Hull_black'] } };
+    const rows = listBodies(make([0, 1], ['Hull_black', 'Lens']).bodies(), f, {});
+    expect(rows[1].look.color).toBe('#ffffff');
+    expect(rows.map((r) => r.hidden)).toEqual([true, false]);
+  });
+  it('an unnamed body has no name key; an older kernel (no identity) falls back to joined faces', () => {
+    expect(nameKeyOf(null)).toBeNull();
+    expect(nameKeyOf('Lens')).toBe('@name:Lens');
+    expect(kernelBodies({ faces: [] })).toEqual({});
+    expect(kernelBodies({ faceBody: [0, 0, 1], bodyNames: ['A', ''] })).toEqual({ faceBody: [0, 0, 1], bodyNames: ['A', null] });
+    expect(new SelModel({ mesh, edges: [...a.edges, ...b.edges] }).bodies()).toHaveLength(2);
   });
 });

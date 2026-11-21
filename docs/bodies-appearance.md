@@ -8,11 +8,12 @@ lets you hide or isolate one without touching the feature history, and gives eac
 
 ## Where bodies come from
 
-The kernel's regen reply and the mesh carry no lump or body id (the mesh has `faceIds` and `triFace` only; `massProps({ bodies: true })`
-returns volumes per lump but no faces). So the kit finds bodies itself, from data it already has: **faces joined by a shared
+A kernel with body identity (regen reply `faceBody`: the body index of each solid face, aligned with the mesh's `faceIds`; `bodyNames`: the
+name of each body, null when unnamed) tells the kit exactly which faces make a body: `SelModel.bodies()` groups the solid's faces by `faceBody` and
+carries the body's name (`Body.kernelName`). Against an older kernel (no such fields), and for surface bodies, the kit finds bodies itself, from data it
+already has: **faces joined by a shared
 edge** (`SelModel.bodies()` in the app, `lumps()` in `packages/snapshot/src/appearance.ts`; both read the `faces` pair of each B-rep edge).
-What would let the kit drop that: a `body` index per face in the mesh reply (and per body: volume, feature ids that made it). Nothing in
-the kit depends on it. A body that is a sheet (surface) is listed without a volume.
+A body that is a sheet (surface) is listed without a volume.
 
 ## Document fields (view state: no feature, no undo step, exports unchanged)
 
@@ -40,11 +41,13 @@ An entry key is one of:
   the feature that made the face and are stable across regeneration, so editing, adding or removing an unrelated feature leaves
   the key, and the appearance stored under it, untouched. (The key changes only when the body loses the face that was its lowest name,
   for example when a later feature consumes it.) The panel always writes this key.
+* **name key**: `'@name:' + the body's name`, e.g. `@name:Hull_black` (the `body` field of the feature that made it). Needs the kernel's body identity.
+  Scripts can colour a body by the name they gave it, whatever features later cut or joined it. It wins over a feature id and loses to a body key.
 * **feature id**, e.g. `F83`: every body whose **origin** is that feature. A body's origin is the lowest-numbered feature owning one
   of its faces, i.e. the feature that created the lump; later cuts and fillets do not change it. Scripts use this key because the
   ids are known while a script runs and the face names are not; one entry covers every body a pattern makes.
 
-A body entry wins over a feature entry, field by field. Default names follow the same keys: `bodyNames[body key]`, then
+A body entry wins over a name entry, a name entry over a feature entry, field by field. Default names follow the same keys: `bodyNames[body key]`, then
 `bodyNames[origin]` (numbered when the feature made several bodies), then the origin feature's own `name`, then `Body n`.
 Tests: `apps/cad/src/bodies.test.ts` (rule, merge, `unrelated feature` case), `apps/cad/src/bodies.kernel.test.ts` (real kernel: edit
 another body, add a body; the dash sample).

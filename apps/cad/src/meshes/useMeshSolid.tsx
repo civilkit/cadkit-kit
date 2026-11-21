@@ -11,10 +11,12 @@ import { meshesOf, type MeshRec, type V3 } from './meshDoc';
 import { buildMeshRecord, guessUnit, meshKindOf, probeMesh } from './meshImport';
 import {
   MESH_SOLID_TAG, crossLines, marksOf, releasePreview, runMeshToSolid, withPreview, previewSurface, worldMesh,
-  type LengthUnit, type MeshSolidKernel, type MeshSolidMark, type MeshSolidOptions, type MeshSolidOutcome,
+  type LengthUnit, type MeshSolidKernel, type MeshSolidReport, type MeshSolidMark, type MeshSolidOptions, type MeshSolidOutcome,
 } from './meshSolid';
 import { MeshSolidPanel, type MeshSolidShow, type MeshSolidSource } from './MeshSolidPanel';
 import { acceptMeshSolid } from './meshSolidAccept';
+import type { PartDoc } from '@ck/part-model';
+import type { DocPatch } from '../docFields';
 
 /** The id of a mesh read from a file for the panel (never one of the document's: those are `mesh<n>`). */
 export const FILE_SOURCE_ID = 'm2s-file';
@@ -61,6 +63,10 @@ export interface MeshSolidDeps {
   /** close the other editors and wizards and show the editor card / tab */
   showEditor(): void;
   unit(): LengthUnit;
+  /** hide a reference mesh of the part (view only): after Accept the solid lies on the mesh, and the two would fight for the same pixels */
+  hideMesh(id: string): void;
+  /** apply a document edit as one history step (the kernel rebuilds the part first; `ok: false` leaves the part as it was) */
+  apply(patch: DocPatch, reason: string): Promise<{ ok: true } | { ok: false; errors: Array<{ feature: string; code: string }> }>;
 }
 
 export interface MeshSolidUi {
@@ -82,6 +88,8 @@ export function useMeshSolid(d: MeshSolidDeps): MeshSolidUi {
   const [focus, setFocus] = useState<number | null>(null);
   /** the run whose answer is wanted: a Cancel (or a new run, or closing) moves it on, so the late answer of the old one is dropped */
   const runId = useRef(0);
+  /** what the last successful run converted and with which options: Accept keeps exactly that */
+  const lastRun = useRef<{ mesh: ReturnType<typeof worldMesh>; options: MeshSolidOptions; name: string; sourceName?: string; report: MeshSolidReport } | null>(null);
   const deps = useRef(d);
   deps.current = d;
 
@@ -169,6 +177,21 @@ export function useMeshSolid(d: MeshSolidDeps): MeshSolidUi {
     if (mine !== runId.current) return;
     setBusy(false);
     setOutcome(res);
+    lastRun.current = res.ok ? { mesh: worldMesh(rec), options: o, name: rec.name, ...(rec.id === FILE_SOURCE_ID ? { sourceName: rec.name } : {}), report: res.report } : null;
+  };
+
+  const accept = async (): Promise<void> => {
+    const lr = lastRun.current;
+    if (!lr || !outcome?.ok) return;
+    setBusy(true);
+    try {
+      const r = await acceptMeshSolid({ doc: deps.current.doc() as PartDoc, mesh: lr.mesh, options: lr.options, name: lr.name, ...(lr.sourceName ? { sourceName: lr.sourceName } : {}), report: lr.report }, (patch, reason) => deps.current.apply(patch, reason));
+      if (!r.ok) { deps.current.notify(t('m2s.accept.failed', { message: r.message }), 'error'); return; }
+      deps.current.notify(t('m2s.accept.done', { name: lr.name }), 'info');
+      const src = sourceId;
+      close();
+      if (src && src !== FILE_SOURCE_ID) deps.current.hideMesh(src);
+    } finally { setBusy(false); }
   };
 
   const panel = sourceId ? (
@@ -178,7 +201,7 @@ export function useMeshSolid(d: MeshSolidDeps): MeshSolidUi {
       onRun={(o) => void run(o)}
       onCancelRun={() => { drop(); setCancelled(true); }}
       onClose={close}
-      onAccept={() => void acceptMeshSolid({} as never).then(() => d.notify(t('m2s.accept.tip'), 'warn'))} />
+      onAccept={() => void accept()} />
   ) : null;
 
   return { open: sourceId !== null, start, close, panel };

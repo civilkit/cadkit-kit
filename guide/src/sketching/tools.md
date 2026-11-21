@@ -46,7 +46,7 @@ As you move the pointer, CivilKit CAD snaps to existing points and curves and sh
 | --- | --- |
 | <a id="tool-line"></a>**Line** (`L`) | Click to start, click for each next end. The chain continues from the last end. Click the first point again to close the outline. Horizontal and vertical are inferred within 2 degrees. Type `len` and `ang` for an exact segment. Press `M` or `A` to continue with a tangent arc, and `L` or `M` to return to lines; with **Line to tangent arc** set to **Rest the pointer on the end** (the default), resting the pointer on the end of the chain switches too. |
 | <a id="tool-centerline"></a>**Centreline** | Two clicks make a construction line. It is never extruded. Use it as the axis of a revolve. |
-| <a id="tool-arc-three-point"></a>**3-point arc** (`A`) | Click the start, then a point the arc passes through, then the end. Collinear points are refused. |
+| <a id="tool-arc-three-point"></a>**3-point arc** (`A`) | Click one end, then the other end, then move the pointer to pull the arc out between them and click to place it; the arc passes through the pointer. Collinear points are refused. |
 | <a id="tool-arc-centre"></a>**Centre arc** | Click the centre, the start (this sets the radius), then the end. The shorter way round is drawn unless the pointer goes past half a turn. |
 | <a id="tool-arc-tangent"></a>**Tangent arc** | Click the free end of a line or arc, then click where the arc should end. It is made tangent to that curve. |
 | <a id="tool-circle"></a>**Circle** (`C`) | Click the centre, then click for the radius. Type `rad` or `dia` to set it exactly. |

@@ -47,7 +47,7 @@ export function resolveTarget(c: TargetCtx): TargetResult {
   if (!c.doc || !c.box || !c.mesh) return { ok: false, reason: 'noBody' };
   const bodyTarget = (feature?: string): TargetResult => ({ ok: true, target: { kind: 'body', frame: { origin: centre(c.box!), axes: WORLD_AXES }, ...(feature ? { feature } : {}) } });
   if (c.selection.some((n) => n === BODY || n.startsWith('@body:'))) return bodyTarget();   // Body mode picks '@body:<id>', Alt+click picks the whole part
-  const names = c.selection.filter((n) => !n.startsWith('v:') && !n.includes('|'));
+  const names = c.selection.filter((n) => !n.startsWith('v:') && !n.startsWith('mp:') && !n.includes('|'));
   if (c.selection.length && c.selection.length === names.length && c.mode === 'face') {
     const info = faceInfo(c.mesh, names[0]);
     if (!info) return { ok: false, reason: 'nothing' };

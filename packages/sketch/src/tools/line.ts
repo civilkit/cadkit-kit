@@ -14,6 +14,7 @@
  * click places a tangent arc and the chain goes on from the arc's end; the mode stays until changed. The output's
  * `anchor` is the chain end the app watches for that resting pointer, and `mode` names the current mode.
  *
+ * The first segment of a chain has no line before it: a typed angle other than 0 / 90 / 180 becomes a driving `angle` dimension against the origin's X axis (an `axisLine`).
  * A typed angle also becomes a driving `angle` dimension between the new line and the chain's previous line (the interior angle at their shared
  * corner, 0..180, so 180 minus the turn in relative mode), when the setting `typedAngleDims` is on. Not made: for the first segment of a chain (nothing
  * to measure against: a typed 0, 180 or 90 there gets the horizontal / vertical constraint, with auto constraints on), for the segment that closes the chain (its length and both ends are already
@@ -22,6 +23,7 @@
 import type { SketchDraft } from '../index';
 import { addConstraintOf, addLine, addPoint, pointOf, pruneOrphanPoints } from './builders';
 import { angleSpec, appendSpec, orientations, refusal } from './constraints';
+import { axisLine } from './axisLine';
 import { ownersAt } from './builders-arcs';
 import { segmentEnd, type EndResult } from './geometry';
 import { tangentArcTool, type TangentArcState } from './tangentArc';
@@ -169,6 +171,13 @@ function commitSegment(state: LineState, draft: SketchDraft, settings: ToolSetti
     const a = ((state.locked.ang % 180) + 180) % 180;
     if (Math.abs(a) < 1e-9) d = addConstraintOf(d, 'horizontal', [line.id]);
     else if (Math.abs(a - 90) < 1e-9) d = addConstraintOf(d, 'vertical', [line.id]);
+    else if (settings.typedAngleDims !== false) {
+      // any other typed angle on the first segment is held against the origin's X axis (a fixed construction line on it, reused when there)
+      const ax = axisLine(d, 'x');
+      const spec = angleSpec(ax.draft, ax.id, line.id);
+      const c = spec && { type: 'angle' as const, refs: [...spec.refs], value: Math.round(spec.measured * 1e6) / 1e6, extra: spec.extra };
+      if (c && !refusal(ax.draft, c)) d = appendSpec(ax.draft, c);
+    }
   }
   if (state.locked.ang !== undefined && state.prevLine && settings.typedAngleDims !== false) {
     // two lines already forced horizontal / vertical have their angle: another dimension would repeat it

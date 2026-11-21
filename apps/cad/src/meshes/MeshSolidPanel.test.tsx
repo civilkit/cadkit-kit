@@ -68,6 +68,7 @@ describe('MeshSolidPanel: options', () => {
   it('a junk value in a switched-off field does not block', () => {
     const f = { closeTolerance: 'x', maxHoleEdges: 'y', planeTol: '', angleTolDeg: '', fitTol: '' };
     expect(optionsOf(f, false, true, true).invalid).toEqual([]);
+    expect([optionsOf(f, false, true, true).options.maxSeconds, optionsOf(f, false, true, true, 'more').options.maxSeconds, optionsOf(f, false, true, true, 'most').options.maxSeconds, optionsOf(f, false, true, true, 'unlimited').options.maxSeconds]).toEqual([null, 10, 30, 0]);
     expect(optionsOf(f, true, false, true).invalid).toEqual(['closeTolerance']);
   });
   it('warns above 20 000 triangles and refuses above 200 000', () => {
@@ -156,12 +157,19 @@ describe('MeshSolidPanel: the result', () => {
     fireEvent.click(seg.querySelector('[data-show="solid"]')!);
     expect(p.onShow).toHaveBeenCalledWith('solid');
   });
-  it('Add to part is disabled until the kernel can keep the result, with a visible note and a tooltip', () => {
-    const r = render(<MeshSolidPanel {...props({ outcome: SOLID })} />);
+  it('Add to part is on once there is a result, with no "arrives later" note, and it asks the owner to keep it', () => {
+    const p = props({ outcome: SOLID });
+    const r = render(<MeshSolidPanel {...p} />);
     const b = r.getByTestId('m2s-accept') as HTMLButtonElement;
-    expect(b.disabled).toBe(true);
-    expect(b.parentElement!.getAttribute('title')).toMatch(/Not available yet/);
-    expect(r.getByTestId('m2s-accept-note').textContent).toBe('Keeping the result in the part arrives with the next update.');
+    expect(b.disabled).toBe(false);
+    expect(b.parentElement!.getAttribute('title')).toBeNull();
+    expect(r.queryByTestId('m2s-accept-note')).toBeNull();
+    fireEvent.click(b);
+    expect(p.onAccept).toHaveBeenCalled();
+  });
+  it('Add to part stays off without a result', () => {
+    const r = render(<MeshSolidPanel {...props({ outcome: null })} />);
+    expect((r.getByTestId('m2s-accept') as HTMLButtonElement).disabled).toBe(true);
   });
   it('the words: plurals, nothing printed for what did not happen', () => {
     const c = { openEdges: 1, mergedVertices: 2, stitched: 0, filledHoles: 3, filledTriangles: 9, filledArea: 12, holes: [] };

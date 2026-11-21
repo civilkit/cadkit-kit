@@ -1,4 +1,5 @@
 import { isNewerPart, normalizePartFormat } from './partVersion';
+import type { SolveReply, SweepReply } from '@kit/motion';
 import { originalCandidates, originalsToHide, type LumpVolume } from './referenceBody';
 import { type Session, type EditRecord, type EditOp, type EditResult, type PreviewResult, type ViewFrame, type ExportMeshReport } from '@ck/session';
 import { emptyPart, type PartDoc, type SketchFeature, type SketchSolverStatus } from '@ck/part-model';
@@ -45,7 +46,7 @@ import { pinOf, readDocFonts, textFontsUsed, type DocFont, type FontSource } fro
 import { cutBodySide, planeTouchesBox } from './extrudeOp';
 import { evalExpr } from '@kit/ui';
 import { scopeOf } from './variables';
-import { defaultFlip, ensureTextOutlines, foldSolution, fromFeature, movePoint, problemHint, refusedBy, toFeature, type SketchDraft, type TextOutlineData, type EquationResult, type EquationSpec } from '@kit/sketch';
+import { defaultFlip, ensureTextOutlines, foldSolution, fromFeature, movePoint, pruneDimPlacement, problemHint, refusedBy, toFeature, type SketchDraft, type TextOutlineData, type EquationResult, type EquationSpec } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
 /** Why an export with its cosmetic knurls cut did not produce a file. */
@@ -119,6 +120,13 @@ function lumpsOf(body: Record<string, unknown>): { faceLumps?: Record<string, nu
   const faceLumps: Record<string, number> = {};
   for (const f of faces) if (typeof f.id === 'string' && typeof f.lump === 'number') faceLumps[f.id] = f.lump;
   return { faceLumps };
+}
+
+/** The kernel's body identity of a regen result (older kernels send none): the body index of each solid face and the name of each body. */
+export function kernelBodies(body: unknown): { faceBody?: ArrayLike<number>; bodyNames?: Array<string | null> } {
+  const b = body as { faceBody?: unknown; bodyNames?: unknown } | null;
+  if (!b || !Array.isArray(b.faceBody) || !Array.isArray(b.bodyNames)) return {};
+  return { faceBody: b.faceBody as number[], bodyNames: (b.bodyNames as unknown[]).map((n) => (typeof n === 'string' && n ? n : null)) };
 }
 
 let docIdSeq = 0;
@@ -1077,6 +1085,7 @@ export class Controller {
   /** A sketch tool produced a new draft: it becomes the draft at once (so the next tool step builds on it),
    *  the previous one goes on the sketch's own undo stack, and the kernel solves and previews it. */
   async applySketchDraft(draft: SketchDraft): Promise<SketchPreview> {
+    draft = pruneDimPlacement(draft);   // a deleted dimension takes its hand-placed position with it
     if (this.realLoad) await this.whenReal();
     const open = this.sketchOpen;
     if (!open) return { ok: false, hint: 'no sketch open' };
@@ -1745,7 +1754,7 @@ export class Controller {
     if (this.selCache?.view === view) return this.selCache.model;
     const m = this.bodyFaces();
     if (!m && !view.edges?.length) return null;
-    const model = new SelModel({ mesh: m, edges: view.edges ?? [], surfaceOf: (n) => this.surfaceOf(n) });
+    const model = new SelModel({ mesh: m, edges: view.edges ?? [], surfaceOf: (n) => this.surfaceOf(n), ...kernelBodies(this.shown) });
     this.selCache = { view, model };
     return model;
   }
@@ -1847,6 +1856,33 @@ export class Controller {
       const r = await k.request({ tag, type: 'faceRun', faces });
       if (r.trap || !r.ok) return null;
       return ((r.result as { items?: FaceRunItem[] } | undefined)?.items) ?? null;
+    } catch { return null; }
+  }
+  /**
+   * Motion (docs/spec-motion-studies.md): the kernel's solvePoses on the shown assembly: each pose is `{mateId: value}` (degrees or mm), the reply has the
+   * drivable mates and one solved pose per request. Read only (nothing is rebuilt or written). Null without a document or a kernel that has no solvePoses.
+   */
+  async solvePoses(poses: Array<Record<string, number>>, opts: { clearance?: number; contact?: boolean } = {}): Promise<SolveReply | { error: string; mate?: string } | null> {
+    if (this.realLoad) await this.whenReal();
+    const k = this.transport();
+    if (!k || !this.hasDoc()) return null;
+    const tag = this.session ? this.previewTagOf(this.session) : this.scratchTag;
+    try {
+      const r = await k.request({ tag, type: 'solvePoses', poses, ...opts });
+      if (r.trap || !r.ok) return null;
+      return r.result as SolveReply | { error: string; mate?: string };
+    } catch { return null; }
+  }
+  /** Motion: the kernel's sweepDriver on the shown assembly: walk `driver` from `from` to `to` and say where and why it stops (limit, contact, solver, branch jump, range). */
+  async sweepDriver(req: { driver: string; from?: number; to: number; clearance?: number; contact?: boolean; hold?: Record<string, number> }): Promise<SweepReply | { error: string; mate?: string } | null> {
+    if (this.realLoad) await this.whenReal();
+    const k = this.transport();
+    if (!k || !this.hasDoc()) return null;
+    const tag = this.session ? this.previewTagOf(this.session) : this.scratchTag;
+    try {
+      const r = await k.request({ tag, type: 'sweepDriver', ...req });
+      if (r.trap || !r.ok) return null;
+      return r.result as SweepReply | { error: string; mate?: string };
     } catch { return null; }
   }
   /** Pairs of solid bodies that share volume. */

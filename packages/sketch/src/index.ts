@@ -142,4 +142,5 @@ export * from './slotLength';
 export * from './arcSlotEdit';
 export * from './text';
 export * from './dimLayout';
+export * from './dimPlacement';
 export * from './typedPoint';

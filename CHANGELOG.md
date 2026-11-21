@@ -4,6 +4,21 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.8.6 - 2026-11-21
+
+- **Motion studies.** A new Motion tab drives any mate with a slider, Find limits says where a swing stops and why (a limit, or two parts touching), and a study of keyframes plays along a timeline docked under the view. Export a study as WebM, MP4, GIF or PNG frames; scripts and MCP tools can drive and sweep too.
+- **Big scans convert in seconds.** The kernel can thin a scan mesh with a stated accuracy bound before it becomes a solid (a 120,000-triangle van scan went from 90 s to about 4 s with the deviation held under 0.1 mm), and the result reports how far it moved.
+- **Mesh import: scale to a known length.** Pick two points on an imported mesh, type the real distance, and the mesh is scaled to match.
+- **Convert mesh to solid: Add to part.** The converted solid is kept as a feature with its triangles saved in the part, so it survives reopening and rebuilds.
+- **Drag a sketch dimension label.** Pull a dimension's text to where you want it, and Reset position in its menu puts it back.
+- **Export STL, one file per body.** A zip of binary STL files named after the bodies.
+- **Body names carry through.** Appearance and display follow a body's name (an `@name:` key), so a recolour survives a rebuild.
+- **Sketching.** A typed angle on the first line becomes a dimension against the X axis; a 3-point arc takes its two ends first and then the pull-out; an angle between lines that do not meet is drawn where they cross; Enter on an unedited value box keeps the exact value.
+- **Measure and export with a reference mesh.** Pick points on a reference mesh to measure, and reference meshes can go into the STL, OBJ, 3MF and GLB files.
+- **A combine cut that removes nothing is a warning, not an error.** The body comes back unchanged with a note naming the tools that missed.
+- **A blend surface off the origin no longer hangs.** The work is bounded, so a plate away from the origin builds or refuses at once.
+- **Convert mesh to solid reports its summary as information,** and a notice appears when the surface fit runs out of its time budget.
+
 ## 0.8.5 - 2026-11-20
 
 - **Convert mesh to solid (preview).** Turn an imported STL, OBJ, GLB or 3MF mesh into a solid you can see before keeping it: flat areas become flat faces, round areas become cylinders, cones and spheres where they fit, and gaps are marked and can be closed. In this release the result is a preview; saving it into the part arrives with the next update.

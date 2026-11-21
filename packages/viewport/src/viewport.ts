@@ -15,7 +15,7 @@ import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeome
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { ViewCube } from './viewcube';
 import { offPolePose, poseOfQuaternion, poseQuaternion, rollPose, snapPose, turnPose, type ViewPose, type ViewRoll, type ViewTurn } from './viewnav';
-import { vertexName, parseVertexName, BODY } from '@kit/store';
+import { vertexName, pointOfName, BODY } from '@kit/store';
 import { boxPick, type Project, type ScreenRect } from './boxselect';
 import { buildBoxDimensions, label as textLabel } from './dimensions';
 import { clampInsets, fitLimit, insetShift, NO_INSETS, sameInsets, type SafeInsets } from './safeArea';
@@ -298,6 +298,8 @@ export class Viewport {
   private readonly triball: TriBallLayer;
   /** While set, a click on the body goes here (the name picked and the point on the surface) instead of selecting. */
   private pickIntercept: ((name: string | null, point: [number, number, number] | null) => void) | null = null;
+  /** Asks the reference meshes along a click's ray (the app holds their picking trees); null: meshes are not picked. */
+  private meshPicker: ((ray: { o: [number, number, number]; d: [number, number, number] }) => { name: string; t: number } | null) | null = null;
   private groundGrid: THREE.LineSegments | null = null;
   private static readonly SKETCH_FADE = 0.25;
   private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x8a95a5, 0.18);
@@ -615,6 +617,9 @@ export class Viewport {
   }
   triBallScreen() { return this.triball.screen(); }
   triBallDragging(): boolean { return this.triball.dragging; }
+  /** While set (the Measure tool), a click whose ray meets a reference mesh in front of the body picks the point there: `fn` answers with
+   *  the selection name and the distance along the unit ray, and the name goes to `onPick` like any other. null: meshes are not picked. */
+  setMeshPicker(fn: ((ray: { o: [number, number, number]; d: [number, number, number] }) => { name: string; t: number } | null) | null): void { this.meshPicker = fn; }
   /** Route the next clicks on the body to `fn` (a pick for the ball's menus); null restores selecting. */
   setPickIntercept(fn: ((name: string | null, point: [number, number, number] | null) => void) | null): void { this.pickIntercept = fn; this.dom.style.cursor = fn ? 'crosshair' : ''; }
   /** True while a handle is being dragged. */
@@ -1968,7 +1973,7 @@ export class Viewport {
     this.hoverObj = null;
     this.dirty = true;
     if (!name || (!force && this.selectedNames.has(name))) return;
-    const vp = parseVertexName(name);
+    const vp = pointOfName(name);
     if (vp) { this.hoverObj = this.vertexDots([vp], 0xffa21f); return; }
     const ei = this.edgeIndex(name);
     if (ei >= 0) {
@@ -2137,7 +2142,7 @@ export class Viewport {
     this.selectedNames = new Set([...asked, ...names]);
     this.dropFat(this.edgeHighlight);
     this.edgeHighlight = null;
-    const verts = names.map(parseVertexName).filter((p): p is number[] => !!p);
+    const verts = names.map(pointOfName).filter((p): p is number[] => !!p);
     if (verts.length) this.edgeHighlight = this.vertexDots(verts, 0x0b74dc) as never;
     const polys = names.map((n) => this.edgeIndex(n)).filter((i) => i >= 0).map((i) => this.edges[i].pts as never);
     if (polys.length) {
@@ -2403,7 +2408,8 @@ export class Viewport {
       this.measureGroup.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh || (o as THREE.Line).isLine) m.geometry?.dispose(); });
       this.measureGroup = null;
     }
-    const diag = this.box ? Math.hypot(this.box.max[0] - this.box.min[0], this.box.max[1] - this.box.min[1], this.box.max[2] - this.box.min[2]) : 100;
+    const fb = this.framing();   // the body and the reference meshes: a part of meshes only still sizes its leaders
+    const diag = fb ? Math.hypot(fb.max[0] - fb.min[0], fb.max[1] - fb.min[1], fb.max[2] - fb.min[2]) : 100;
     this.measureGroup = marks ? buildMeasureMarks(marks, diag) : null;
     if (this.measureGroup) this.scene.add(this.measureGroup);
     this.dirty = true;
@@ -2849,6 +2855,8 @@ export class Viewport {
     if (e.button !== 0) return; // a right click only opens the context menu: it keeps a multi-selection
     if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return; // a drag, not a click
     const hit0 = this.hit(e.clientX, e.clientY);
+    const onMesh = this.meshPicker && !this.pickIntercept && !e.altKey ? this.meshPointAt(e.clientX, e.clientY, hit0) : null;
+    if (onMesh) { this.opts.onPick([onMesh], e.shiftKey || e.ctrlKey || e.metaKey, this.mode); return; }
     if (!hit0 && (this.auto || this.mode !== 'edge') && this.refPlanes.group.visible) {
       const plane = this.refPlaneUnder(e.clientX, e.clientY, e.pointerType === 'touch');
       if (plane) { this.opts.onRefPlanePick?.(plane); return; }
@@ -2864,6 +2872,15 @@ export class Viewport {
     const at = this.pickAt(e.clientX, e.clientY);
     this.opts.onPick(at.name ? [at.name] : [], e.shiftKey || e.ctrlKey || e.metaKey, at.mode);
   };
+
+  /** The reference mesh point a click picks: where the ray meets a mesh in front of the body, or where nothing of the body is under the
+   *  pointer (no face, and no edge or corner within a few pixels). A plane behind the mesh does not take the click. */
+  private meshPointAt(x: number, y: number, bodyHit: THREE.Intersection | null): string | null {
+    const ray = this.rayAt(x, y);
+    const mh = ray && this.meshPicker ? this.meshPicker(ray) : null;
+    if (!mh) return null;
+    return (bodyHit ? mh.t < bodyHit.distance : !this.pickAt(x, y).name) ? mh.name : null;
+  }
 
   /** The nearest drawn datum-plane feature under the pointer (its square outline is the pick area). */
   private pickPlaneFeature(cx: number, cy: number): string | null {
@@ -2947,6 +2964,18 @@ export class Viewport {
       this.handleLayer.render(this.renderer);
       this.triball.render();
       this.viewCube?.render(this.camera, this.controls.target);
+      // a capture asked for is read in this very task, while the drawing buffer still holds the frame
+      if (this.captures.length) { const q = this.captures.splice(0); this.dom.toBlob((b) => { for (const r of q) r(b); }, 'image/png'); }
     }
   };
+
+  private captures: Array<(b: Blob | null) => void> = [];
+  /** The view as it is drawn now (a fresh frame, the canvas' own size) as a PNG; null when the browser cannot read the canvas. Used by the clip export. */
+  captureFrame(): Promise<Blob | null> {
+    return new Promise((resolve) => { this.captures.push(resolve); this.dirty = true; });
+  }
+  /** A live stream of the canvas for a MediaRecorder (null where the browser has no captureStream). */
+  recordStream(fps: number): MediaStream | null {
+    return typeof this.dom.captureStream === 'function' ? this.dom.captureStream(fps) : null;
+  }
 }

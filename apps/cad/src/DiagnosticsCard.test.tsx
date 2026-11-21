@@ -106,6 +106,15 @@ describe('DiagnosticsWarnings', () => {
     fireEvent.click(link);
     expect(picked).toEqual(['F3']);
   });
+  it('info entries get the Info tag and are not styled as a warning', () => {
+    const w = warningsById([['F1', { code: 'meshToSolidReport', params: { detail: '10000 triangles became 1 face' } }]]);
+    const entries = warningEntries(w, [{ id: 'F1', type: 'meshToSolid', name: 'sphere' }]);
+    const { container } = render(<DiagnosticsWarnings info entries={entries} onSelect={() => {}} />);
+    const item = container.querySelector('.diag-warning')!;
+    expect(item.classList.contains('warn')).toBe(false);
+    expect(item.querySelector('.diag-tag')!.textContent).toBe('Info');
+    expect(item.querySelector('.why')!.textContent).toBe('10000 triangles became 1 face');
+  });
   it('nothing without warnings', () => {
     const { container } = render(<DiagnosticsWarnings entries={[]} onSelect={() => {}} />);
     expect(container.innerHTML).toBe('');

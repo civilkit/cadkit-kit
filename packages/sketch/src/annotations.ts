@@ -169,6 +169,29 @@ export interface ShapeOptions {
   squareRight?: boolean;
 }
 
+/** An angle between two lines that share no end point (typed against the origin axis, or a dimension between two loose lines): the arc is drawn where the lines
+ *  (extended) cross, between the two rays, taken along each line's own direction p1 -> p2 or its reverse, whichever pair makes the angle the dimension holds.
+ *  Parallel lines cross nowhere: no drawing. */
+function angleApartShape(pts: Map<string, Pt>, a: DraftEntity, b: DraftEntity, value: number, r: number, square: boolean): DimShape | null {
+  const a1 = pts.get(String(a.p1)), a2 = pts.get(String(a.p2)), b1 = pts.get(String(b.p1)), b2 = pts.get(String(b.p2));
+  if (!a1 || !a2 || !b1 || !b2) return null;
+  const da = { x: a2.x - a1.x, y: a2.y - a1.y }, db = { x: b2.x - b1.x, y: b2.y - b1.y };
+  const den = da.x * db.y - da.y * db.x;
+  if (Math.abs(den) < 1e-12 * Math.hypot(da.x, da.y) * Math.hypot(db.x, db.y)) return null;
+  const t = ((b1.x - a1.x) * db.y - (b1.y - a1.y) * db.x) / den;
+  const c = { x: a1.x + da.x * t, y: a1.y + da.y * t };
+  const la = Math.hypot(da.x, da.y), lb = Math.hypot(db.x, db.y);
+  let best: { sa: number; sb: number; err: number } | null = null;
+  for (const sa of [1, -1]) for (const sb of [1, -1]) {
+    const ang = Math.abs(Math.atan2(sa * da.x * sb * db.y - sa * da.y * sb * db.x, sa * da.x * sb * db.x + sa * da.y * sb * db.y)) * 180 / Math.PI;
+    const err = Math.abs(ang - value);
+    if (!best || err < best.err - 1e-9) best = { sa, sb, err };
+  }
+  if (!best) return null;
+  const pa = { x: c.x + best.sa * da.x / la, y: c.y + best.sa * da.y / la }, pb = { x: c.x + best.sb * db.x / lb, y: c.y + best.sb * db.y / lb };
+  return angleShape(c, pa, pb, r, square);
+}
+
 /** The drawing of one dimension (type, refs, value) at a chosen level and side. Null when the geometry is missing or degenerate (such a dimension keeps a plain label). */
 export function dimensionShape(draft: SketchDraft, type: string, refs: string[], value: number, o: ShapeOptions): DimShape | null {
   const pts = new Map<string, Pt>(draft.points.map((p) => [p.id, { x: p.x, y: p.y }]));
@@ -192,6 +215,7 @@ export function dimensionShape(draft: SketchDraft, type: string, refs: string[],
     const a = ents.get(refs[0]), b = ents.get(refs[1]);
     if (!a || !b || a.type !== 'line' || b.type !== 'line') return null;
     const corner = [a.p1, a.p2].find((id) => id === b.p1 || id === b.p2);
+    if (!corner) return angleApartShape(pts, a, b, value, o.off * 1.5 * level, o.squareRight === true);
     const c = corner ? pts.get(String(corner)) : undefined;
     const far = (e: DraftEntity) => pts.get(String(e.p1 === corner ? e.p2 : e.p1));
     const pa = far(a), pb = far(b);
@@ -249,7 +273,7 @@ export function annotate(draft: SketchDraft, opts: AnnotateOptions = {}): Annota
       let at: Pt | null = null;
       if (c.type === 'angle' && refs.length === 2) {
         const a = ents.get(refs[0]), b = ents.get(refs[1]);
-        at = (a && b && sharedPoint(a, b)) || null;
+        at = (a && b && sharedPoint(a, b)) || anchorOf(refs[0]);   // lines with no common end point (one typed against the axis): the label is placed where they cross, this is its fallback
       } else if (c.type === 'pldist' && refs.length === 2) {
         at = anchorOf(refs[0]);
       } else if (refs.length >= 2) {

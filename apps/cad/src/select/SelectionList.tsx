@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks';
-import { BODY } from '@kit/store';
+import { BODY, parseMeshPointName } from '@kit/store';
 import { ChipList } from '@kit/ui';
 import { t } from '../i18n';
 import { isBodyName, type SelModel } from './model';
@@ -22,6 +22,8 @@ export function chipsOf(sel: string[], model: SelModel | null, bodyName?: (name:
       return { name, label: t(bodies[i]?.surface ? 'select.chip.surface' : 'select.chip.body', { n: i + 1 }), kind: 'body' };
     }
     if (name.startsWith('v:')) return { name, label: t('select.chip.corner', { n: name.slice(2) }), kind: 'corner' };
+    const mp = parseMeshPointName(name);
+    if (mp) return { name, label: t('select.chip.meshPoint', { n: mp.p.join(',') }), kind: 'corner' };
     const ei = edges.indexOf(name);
     if (ei >= 0) return { name, label: t('select.chip.edge', { n: ei + 1 }), kind: 'edge' };
     // an edge name the model does not hold (a persistent name while a preview is up, or `edge#n`): still an edge, never a face

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { exportCkpart, exportGlb, exportObj, exportThreeMf, exportStep, exportStl, fileStem, meshRequest } from './exportFiles';
+import { zipRead } from '@kit/io';
+import { bodyFileNames, exportStlBodies, exportCkpart, exportGlb, exportObj, exportThreeMf, exportStep, exportStl, fileStem, meshRequest } from './exportFiles';
 import { cube } from '../../../packages/io/src/testmesh';
 
 describe('exportFiles', () => {
@@ -53,6 +54,23 @@ describe('meshRequest', () => {
   });
   it('refuses a chord that is not a number above zero', () => {
     for (const bad of ['0', '-1', 'abc', '1e999', '0.1 mm', 'NaN']) expect(meshRequest('normal', bad), bad).toEqual({ error: { level: 'error', key: 'io.badChord' } });
+  });
+});
+
+describe('STL, one file per body', () => {
+  it('names are safe and unique', () => {
+    expect(bodyFileNames(['Hull_black', 'Hull_black', 'a/b', ''])).toEqual(['Hull_black', 'Hull_black_2', 'a_b', 'part']);
+  });
+  it('a zip with one binary STL per body, named after it; reference meshes are bodies too', async () => {
+    const r = await exportStlBodies([{ name: 'Hull', positions: cube() }, { name: 'Window', positions: cube(2), color: '#2255ff' }], 'Van/Shell', [{ name: 'scan', positions: cube(3) }]);
+    expect(r.file).toMatchObject({ name: 'Van_Shell-stl.zip', mime: 'application/zip' });
+    const files = await zipRead(r.file!.data as Uint8Array);
+    expect(files.map((f) => f.name).sort()).toEqual(['Hull.stl', 'Window.stl', 'scan.stl']);
+    for (const f of files) expect(f.data.length).toBe(84 + 50 * 12);   // binary STL: 80 byte header, count, 12 triangles of a cube
+    expect(r.notices[0]).toMatchObject({ key: 'io.doneStlBodies', params: { files: 3, triangles: 36 } });
+  });
+  it('no bodies is the no-solid error', async () => {
+    expect(await exportStlBodies(null, 'x')).toEqual({ notices: [{ level: 'error', key: 'io.noBody' }] });
   });
 });
 

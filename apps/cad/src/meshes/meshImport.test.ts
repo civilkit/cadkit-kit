@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { meshToStl } from '@kit/io';
 import { cube, headLike } from '../../../../packages/io/src/testmesh';
 import { worldBox } from './meshDoc';
-import { buildRecord, guessUnit, meshNameOf, probeStl, sizeMm, unitHint } from './meshImport';
+import { buildRecord, guessUnit, meshNameOf, probeStl, scaleToLength, sizeMm, unitHint } from './meshImport';
 
 const stl = (p: Float32Array) => meshToStl({ positions: p }).data as Uint8Array;
 
@@ -45,4 +45,13 @@ describe('probe and import', () => {
     expect(guessUnit([120, 80, 40])).toBe('mm');
   });
   it('names', () => expect(meshNameOf('C:\\scans\\Head v2.STL')).toBe('Head v2'));
+});
+
+describe('import with a known length', () => {
+  it('records the scale and grounds the scaled box', () => {
+    const { rec } = buildRecord(stl(cube(10)), 'c.stl', 'mm', [], 'y', 3);
+    expect(rec.scale).toBe(3);
+    expect(worldBox(rec).min[1]).toBeCloseTo(0, 6);
+    expect(worldBox(rec).max[1]).toBeCloseTo(30, 6);
+  });
 });

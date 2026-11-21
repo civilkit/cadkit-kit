@@ -10,6 +10,7 @@ export { AgentSession, type AgentSessionOptions, type ScriptRunReport } from './
 export { createTools, summarize, loadSnapshotFn, type ToolDef, type ToolOutput } from './tools';
 export { sheetInfo, sheetTools } from './sheetTools';
 export { readbackTools, readbackHost } from './readbackTools';
+export { motionTools, stopWords } from './motionTools';
 export type { SheetEntry, SheetRule, FlatPattern } from './agent-session';
 export { sheetHint, isSheetType } from './sheetHints';
 export { ToolError } from './errors';

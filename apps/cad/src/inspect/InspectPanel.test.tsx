@@ -120,6 +120,19 @@ describe('InspectPanel', () => {
     expect(p.onClearPicks).toHaveBeenCalled();
   });
 
+  it('measure card: a point on a reference mesh is named with its mesh and the results say they are to its triangles', () => {
+    const { container } = setup({
+      measuring: true, meshNames: { mesh1: 'Head scan' },
+      picks: [{ kind: 'vertex', name: 'mp:mesh1@1,2,3', p: [1, 2, 3], mesh: 'mesh1' }, { kind: 'vertex', name: 'v:0,0,0', p: [0, 0, 0] }],
+      outcome: { rows: [{ id: 'distance', value: 3.7417, unit: 'mm' }, { id: 'delta', value: [1, 2, 3], unit: 'text' }], marks: [], onMesh: true },
+    });
+    const m = card(container, 'Measure');
+    expect(m.textContent).toContain('Point on mesh Head scan (1, 2, 3)');
+    expect(m.textContent).toContain('Corner (0, 0, 0)');
+    expect(m.textContent).toContain('not on an exact surface');
+    expect(m.textContent).toContain('Offset (x, y, z)'); expect(m.textContent).toContain('3.7417 mm');
+  });
+
   it('measure card: surface kind and the unavailable message', () => {
     const a = setup({ measuring: true, picks: [{ kind: 'face', name: 'F1' }], outcome: { rows: [{ id: 'area', value: 251.3, unit: 'mm2' }], marks: [], surface: 'cylinder' } });
     expect(card(a.container, 'Measure').textContent).toContain('Cylindrical face');

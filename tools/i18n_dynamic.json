@@ -865,6 +865,21 @@
   "tip.analysis-mean",
   "tip.analysis-zebra"
  ],
+ "motion.clip.fmt.+": [
+  "motion.clip.fmt.gif",
+  "motion.clip.fmt.mp4",
+  "motion.clip.fmt.png",
+  "motion.clip.fmt.webm"
+ ],
+ "motion.study.ease.+": [
+  "motion.study.ease.inOut",
+  "motion.study.ease.linear"
+ ],
+ "motion.study.loop.+": [
+  "motion.study.loop.loop",
+  "motion.study.loop.once",
+  "motion.study.loop.pingpong"
+ ],
  "asm.mate.kind.+": [
   "asm.mate.kind.angle",
   "asm.mate.kind.cam",
@@ -1427,6 +1442,10 @@
   "group.Style",
   "group.Views",
   "group.Workspace"
+ ],
+ "export.refMeshes.${v}": [
+  "export.refMeshes.included",
+  "export.refMeshes.none"
  ],
  "export.quality.${q}": [
   "export.quality.coarse",
@@ -2039,6 +2058,12 @@
   "m2s.advice.meshNonManifold",
   "m2s.advice.meshNotWatertight",
   "m2s.advice.meshTooLarge"
+ ],
+ "m2s.effort.+": [
+  "m2s.effort.default",
+  "m2s.effort.more",
+  "m2s.effort.most",
+  "m2s.effort.unlimited"
  ],
  "m2s.code.+": [
   "m2s.code.meshBadInput",

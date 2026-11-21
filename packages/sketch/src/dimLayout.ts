@@ -13,6 +13,7 @@ import type { SketchDraft, DraftEntity } from './index';
 import { dimensionShape, measuredLength, type Annotation, type DimShape } from './annotations';
 import { bsplineCurve, fitCurve } from './tools/splineMath';
 import type { Pt } from './tools/types';
+import { placementsOf } from './dimPlacement';
 
 export type DimDisplay = 'all' | 'driving' | 'selected';
 export const DIM_DISPLAYS: readonly DimDisplay[] = ['all', 'driving', 'selected'];
@@ -85,6 +86,8 @@ export interface LayoutOptions {
   dimensionTool?: boolean;
   /** Right angles as a square corner mark (default on). */
   squareRight?: boolean;
+  /** Manual places by dimension id (default: the draft's stored ones, see dimPlacement.ts); a live drag passes its own. */
+  placements?: Record<string, { level: number; side: 1 | -1 }>;
   /** Label size for a text (px). */
   measure?: (text: string) => { w: number; h: number };
 }
@@ -140,6 +143,7 @@ export function layoutDimensions(draft: SketchDraft, anns: Annotation[], o: Layo
     if (poly) for (let i = 1; i < poly.length; i++) if (Math.hypot(poly[i].x - poly[i - 1].x, poly[i].y - poly[i - 1].y) > 1e-6) zones.push({ id: e.id, obb: segmentObb(poly[i - 1], poly[i]) });
   }
 
+  const manual = o.placements ?? placementsOf(draft);
   type Item = { a: Annotation; priority: number; own: Set<string>; wanted: boolean; touches: boolean };
   const items: Item[] = anns.filter((a) => a.kind === 'dimension').map((a) => {
     const own = ownEntities(draft, a.refs);
@@ -148,7 +152,8 @@ export function layoutDimensions(draft: SketchDraft, anns: Annotation[], o: Layo
     const len = a.value !== undefined ? measuredLength(draft, a.type, a.refs, a.value) : 0;
     return { a, priority: a.type === 'angle' ? len * 0.001 : len, own, wanted, touches };
   });
-  items.sort((p, q) => q.priority - p.priority || (p.a.id < q.a.id ? -1 : 1));
+  // a dimension the user placed is placed first, so the automatic ones go around it
+  items.sort((p, q) => Number(!!manual[q.a.id]) - Number(!!manual[p.a.id]) || q.priority - p.priority || (p.a.id < q.a.id ? -1 : 1));
 
   const labels: Obb[] = [];
   const arrows: Obb[] = [];
@@ -160,6 +165,7 @@ export function layoutDimensions(draft: SketchDraft, anns: Annotation[], o: Layo
     const size = measure(a.text);
     if (!it.wanted) { out.push({ id: a.id, text: a.text, driven: !!a.driven, shape: null, label: { x: 0, y: 0, slopeDeg: 0, ...size }, outside: false, level: 0, side: 1, hidden: true, peek: false }); continue; }
     const others = zones.filter((z) => !it.own.has(z.id));
+    const forced = a.value !== undefined ? manual[a.id] : undefined;
     const candidates: Array<{ level: number; side: 1 | -1 }> = [];
     for (const side of [1, -1] as const) for (let level = 1; level <= MAX_LEVEL; level++) candidates.push({ level, side });
 
@@ -208,7 +214,9 @@ export function layoutDimensions(draft: SketchDraft, anns: Annotation[], o: Layo
     };
 
     let chosen: { b: NonNullable<ReturnType<typeof build>>; level: number; side: 1 | -1 } | null = null;
-    for (const c of candidates) {
+    // a placed dimension is drawn where the user put it, even over something
+    if (forced) { const b = build(forced.level, forced.side); if (b) chosen = { b, level: forced.level, side: forced.side }; }
+    if (!chosen) for (const c of candidates) {
       const b = build(c.level, c.side);
       if (b && free(b)) { chosen = { b, ...c }; break; }
       if (!a.shape && !b) break;

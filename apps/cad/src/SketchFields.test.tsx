@@ -38,6 +38,18 @@ describe('SketchFields', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onField).toHaveBeenLastCalledWith('len', 12.5, true);
   });
+  it('Enter on a box nobody edited locks the exact value behind the 2-decimal text, an edited box locks what was typed', () => {
+    const onField = vi.fn();
+    render(<SketchFields fields={[{ ...field, value: 21.2132 }]} x={0} y={0} onField={onField} />);
+    const input = screen.getByLabelText('len') as HTMLInputElement;
+    expect(input.value).toBe('21.21');
+    input.focus();
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onField).toHaveBeenLastCalledWith('len', 21.2132, true);
+    fireEvent.input(input, { target: { value: '21.21' } });   // the user types the same text: that is their value now
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onField.mock.calls.at(-1)![1]).toBeCloseTo(21.21, 9);
+  });
   it('a phone check key that arrives as keyCode 13 under another key name locks the value too', () => {
     const onField = vi.fn();
     render(<SketchFields fields={[field]} x={0} y={0} onField={onField} />);

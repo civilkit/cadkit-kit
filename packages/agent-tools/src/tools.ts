@@ -11,6 +11,7 @@ import { viewCacheField } from './viewCache';
 import { repairHint } from './hints';
 import { sheetTools } from './sheetTools';
 import { readbackTools } from './readbackTools';
+import { motionTools } from './motionTools';
 import type { Schema } from './schema';
 
 export interface ToolOutput {
@@ -443,6 +444,6 @@ export function createTools(): ToolDef[] {
       },
     },
   ];
-  tools.push(...readbackTools(), ...sheetTools());
+  tools.push(...readbackTools(), ...sheetTools(), ...motionTools());
   return tools;
 }

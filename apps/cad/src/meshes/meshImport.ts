@@ -78,6 +78,13 @@ export function unitHint(size: V3): { key: string; size: number } | null {
   return null;
 }
 
+/** The factor that makes the model `target` mm along `axis` ('long' = its longest side), or 1 when the numbers cannot make one. `size` is in mm. */
+export type ScaleAxis = 'long' | 0 | 1 | 2;
+export function scaleToLength(size: V3, axis: ScaleAxis, target: number): number {
+  const have = axis === 'long' ? Math.max(size[0], size[1], size[2]) : size[axis];
+  return have > 0 && Number.isFinite(target) && target > 0 ? target / have : 1;
+}
+
 /** The unit to offer first: the one that makes the model between 5 mm and 3 m across, preferring mm. */
 export function guessUnit(sizeAsMm: V3): StlUnit {
   const big = Math.max(sizeAsMm[0], sizeAsMm[1], sizeAsMm[2]);
@@ -95,18 +102,20 @@ export const meshNameOf = (file: string): string => file.replace(/^.*[\\/]/, '')
 export const meshKindOf = (file: string): MeshKind | null => { const e = /\.(stl|obj|glb|3mf)$/i.exec(file)?.[1].toLowerCase(); return (e as MeshKind | undefined) ?? null; };
 
 /** The record to add for a file read in `unit`. `up`: put it on the ground at the origin. */
-export function buildRecord(bytes: Uint8Array, file: string, unit: StlUnit, existing: MeshRec[], ground: 'y' | 'z' | null): { rec: MeshRec; read: StlRead } {
+export function buildRecord(bytes: Uint8Array, file: string, unit: StlUnit, existing: MeshRec[], ground: 'y' | 'z' | null, scale = 1): { rec: MeshRec; read: StlRead } {
   const read = readStl(bytes, { unit });
   let rec = meshRecFromStl(read, nextMeshId(existing), meshNameOf(file), unit);
+  if (scale !== 1) rec = { ...rec, scale };   // before the ground move, which reads the scaled box
   if (ground) rec = onGround(rec, ground);
   return { rec, read };
 }
 
 /** The same for any mesh format: the record for a file read in `unit` (GLB and 3MF use their own). */
-export async function buildMeshRecord(kind: MeshKind, bytes: Uint8Array, file: string, unit: StlUnit, existing: MeshRec[], ground: 'y' | 'z' | null, mtl?: string): Promise<{ rec: MeshRec; read: StlRead | MeshFileRead }> {
-  if (kind === 'stl') return buildRecord(bytes, file, unit, existing, ground);
+export async function buildMeshRecord(kind: MeshKind, bytes: Uint8Array, file: string, unit: StlUnit, existing: MeshRec[], ground: 'y' | 'z' | null, mtl?: string, scale = 1): Promise<{ rec: MeshRec; read: StlRead | MeshFileRead }> {
+  if (kind === 'stl') return buildRecord(bytes, file, unit, existing, ground, scale);
   const read = await readMesh(kind, bytes, unit, mtl);
   let rec = meshRecFromArrays({ vertices: read.mesh.vertices, indices: read.mesh.indices, ...(read.tm ? { tm: read.tm } : {}) }, { id: nextMeshId(existing), name: meshNameOf(file), unit: read.unit, watertight: read.check.watertight, ...(read.mats ? { mats: read.mats.map((m) => ({ c: m.c, o: m.o })) } : {}) });
+  if (scale !== 1) rec = { ...rec, scale };
   if (ground) rec = onGround(rec, ground);
   return { rec, read };
 }

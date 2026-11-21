@@ -36,6 +36,22 @@ describe('Evaluate commands', () => {
   });
 });
 
+describe('Measure enablement', () => {
+  const by = (i: InspectActions, id: string) => build(i).find((c) => c.id === id)!.enabled!();
+  it('a part of reference meshes only can measure; the tools that need a solid stay off', () => {
+    const i = inspect({ hasSolid: () => false, hasRefMesh: () => true });
+    expect(by(i, 'measure')).toBe(true);
+    for (const id of ['mass-props', 'interference', 'check-intersection', 'section-view']) expect(by(i, id), id).toBe(false);
+  });
+  it('nothing at all: off; a solid only: as before, everything on', () => {
+    const none = inspect({ hasSolid: () => false, hasRefMesh: () => false });
+    for (const id of ['measure', 'mass-props', 'interference', 'check-intersection', 'section-view']) expect(by(none, id), id).toBe(false);
+    expect(by(inspect({ hasSolid: () => false }), 'measure')).toBe(false);   // a host that does not say
+    const solid = inspect({ hasSolid: () => true, hasRefMesh: () => false });
+    for (const id of ['measure', 'mass-props', 'interference', 'check-intersection', 'section-view']) expect(by(solid, id), id).toBe(true);
+  });
+});
+
 describe('Evaluate ribbon', () => {
   it('Mass properties is its own button in the Measure group, not inside a dropdown, and its tooltip name is the full one', () => {
     const entries = RIBBON_LAYOUT.Evaluate.find((g) => g.id === 'Measure')!.entries;

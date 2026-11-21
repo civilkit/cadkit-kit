@@ -13,9 +13,11 @@ import {
 import { KIND_GROUPS, MATE_KINDS, draftOf, draftProblem, limitsAreAngles, mateChanges, mateDropsField, mateFeature, mateKind, newDraft, type MateDraft, type MateParam, type RefKey } from './mateKinds';
 import type { AsmFeatureError, AsmReport } from './kernel';
 import { massText } from '../inspect/mass';
+import { MotionPanel } from '../motion/MotionPanel';
+import type { MotionStore } from '../motion/store';
 
-export type Section = 'parts' | 'mates' | 'interference' | 'bom' | 'explode';
-export const SECTIONS: Section[] = ['parts', 'mates', 'interference', 'bom', 'explode'];
+export type Section = 'parts' | 'mates' | 'interference' | 'bom' | 'explode' | 'motion';
+export const SECTIONS: Section[] = ['parts', 'mates', 'interference', 'bom', 'explode', 'motion'];
 
 export interface AsmInterference { data: { bodies: number; pairs: Array<{ a: string; b: string; volume?: number; error?: string }> } | null; stale: boolean; busy: boolean; run(): void }
 
@@ -54,6 +56,8 @@ export interface AsmHost {
   editPart?(id: string): void;
   setExplode(patch: Partial<ExplodeState>): void;
   interference: AsmInterference;
+  /** Motion studies (the Motion section); absent where the app cannot drive a mechanism. */
+  motion?: MotionStore;
 }
 
 export interface AsmProps { host: AsmHost; section: Section; onSection(s: Section): void }
@@ -73,6 +77,7 @@ export function AssemblyPanel(p: AsmProps): JSX.Element {
         : p.section === 'mates' ? <MatesSection host={host} />
         : p.section === 'interference' ? <InterferenceSection host={host} />
         : p.section === 'bom' ? <BomSection host={host} />
+        : p.section === 'motion' ? (host.motion ? <MotionPanel store={host.motion} /> : <div class="empty">{t('motion.none')}</div>)
         : <ExplodeSection host={host} />}
     </div>
   );

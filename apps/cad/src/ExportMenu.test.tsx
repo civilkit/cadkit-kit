@@ -58,8 +58,18 @@ describe('ExportMenu', () => {
     fireEvent.input(screen.getByLabelText('Chord tolerance (mm)'), { target: { value: '0.1' } });
     expect(onChord).toHaveBeenCalledWith('0.1');
   });
-  it('has no quality rows unless asked', () => {
+  it('has no quality or reference mesh rows unless asked', () => {
     render(<ExportMenu items={items()} open onOpenChange={() => {}} />);
     expect(screen.queryByLabelText('Mesh quality (STL, OBJ, 3MF, GLB)')).toBeNull();
+    expect(screen.queryByLabelText('Reference meshes (STL, OBJ, 3MF, GLB)')).toBeNull();
+  });
+  it('shows the reference meshes choice, Not included first, and reports a change', () => {
+    const onChange = vi.fn();
+    render(<ExportMenu items={items()} open onOpenChange={() => {}} refMeshes={{ value: 'none', onChange }} />);
+    const sel = screen.getByLabelText('Reference meshes (STL, OBJ, 3MF, GLB)') as HTMLSelectElement;
+    expect(Array.from(sel.options).map((o) => o.textContent)).toEqual(['Not included', 'Included']);
+    expect(sel.value).toBe('none');
+    fireEvent.change(sel, { target: { value: 'included' } });
+    expect(onChange).toHaveBeenCalledWith('included');
   });
 });

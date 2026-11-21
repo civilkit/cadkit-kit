@@ -69,6 +69,22 @@ export function kit(rec, ctx) {
     async rightClick(x, y, hold = 1100) { await k.glide(x, y, 3); await rec.wait(150); await k.step(async () => { await page.mouse('mousePressed', x, y, 'right'); await page.mouse('mouseReleased', x, y, 'right'); await rec.waitFor(`!!document.querySelector('.ctx-menu')`, 'the context menu'); }, hold); },
     /** the leaf element of the open context menu whose text matches */
     menuItem: (re) => `[...document.querySelectorAll('.ctx-menu *')].find((e) => e.children.length === 0 && ${re}.test(e.textContent.trim()))`,
+    /** zoom the 3D view with the wheel about a point (n notches; negative is in), off the clock */
+    async zoom(x, y, n = -5, dy = 120) { await rec.skip(async () => { for (let i = 0; i < Math.abs(n); i++) { await page.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x, y, deltaX: 0, deltaY: dy * Math.sign(n) }); await sleep(120); } await sleep(500); }); },
+    /** A caption pill in the picture (an element in the page, so the recording carries it): one short plain sentence per step, held until the next one. Pass '' to clear it. */
+    async caption(text, n = '') {
+      await rec.skip(() => page.eval(`(() => {
+        let e = document.getElementById('__cap');
+        if (!e) { e = document.createElement('div'); e.id = '__cap'; document.documentElement.appendChild(e); }
+        e.style.cssText = 'position:fixed;left:50%;bottom:58px;transform:translateX(-50%);max-width:680px;z-index:2147483646;pointer-events:none;display:flex;gap:10px;align-items:center;padding:10px 18px 10px 12px;border-radius:999px;background:rgba(18,24,38,.92);color:#fff;font:600 18px/1.3 system-ui,-apple-system,Segoe UI,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.35)';
+        const t = ${JSON.stringify(text)}, n = ${JSON.stringify(String(n))};
+        e.innerHTML = '';
+        e.style.display = t ? 'flex' : 'none';
+        if (n) { const b = document.createElement('span'); b.textContent = n; b.style.cssText = 'flex:none;min-width:28px;height:28px;border-radius:50%;background:#ffd600;color:#14181f;display:flex;align-items:center;justify-content:center;font-size:16px'; e.appendChild(b); }
+        const s = document.createElement('span'); s.textContent = t; e.appendChild(s);
+      })()`));
+      await rec.paint();
+    },
     row: (re) => `[...document.querySelectorAll('.tree .row')].find((e) => ${re}.test(e.querySelector('.row-name')?.textContent.trim() ?? ''))`,
   };
   return k;

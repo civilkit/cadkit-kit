@@ -289,7 +289,9 @@ describe('line tool: relative (turn) angle', () => {
 });
 
 describe('line tool: a typed angle becomes an angle dimension', () => {
-  const angles = (o: ToolOutput<unknown>) => o.draft.constraints.filter((c) => c.type === 'angle');
+  const angles = (o: ToolOutput<unknown>) => o.draft.constraints.filter((c) => c.type === 'angle' && !c.refs!.some((r) => o.draft.entities.find((e) => e.id === r)?.construction));
+  /** the angle held against the origin's X axis (the first segment of a chain) */
+  const axisAngles = (o: ToolOutput<unknown>) => o.draft.constraints.filter((c) => c.type === 'angle' && c.refs!.some((r) => o.draft.entities.find((e) => e.id === r)?.construction));
   const first = (extra: ToolEvent[]) => run(lineTool, [click(0, 0), ...extra]);
   it('the interior angle between the new line and the previous one, as a driving angle constraint', () => {
     const o = first([...typed(10, 0), ...typed(10, 135)]);
@@ -314,7 +316,16 @@ describe('line tool: a typed angle becomes an angle dimension', () => {
       expect(angles(p)[0].value).toBeCloseTo(135, 6);
     } finally { setRelativeAngle(false); }
   });
-  it('none for the first segment, for a clicked segment, with the setting off, or for the segment that closes the outline', () => {
+  it('the first segment, typed at 45, is dimensioned against the X axis (a fixed construction line, reused)', () => {
+    const o = first(typed(10, 45));
+    expect(axisAngles(o)).toHaveLength(1);
+    expect(axisAngles(o)[0].value).toBeCloseTo(45, 6);
+    const two = first([...typed(10, 45), ...typed(10, 135)]);
+    expect(two.draft.entities.filter((e) => e.construction)).toHaveLength(1);
+    expect(axisAngles(first(typed(10, 0)))).toEqual([]);
+    expect(axisAngles(run(lineTool, [click(0, 0), ...typed(10, 45)], empty(), { ...DEFAULT_SETTINGS, typedAngleDims: false }))).toEqual([]);
+  });
+  it('none between lines for the first segment, for a clicked segment, with the setting off, or for the segment that closes the outline', () => {
     expect(angles(first(typed(10, 30)))).toEqual([]);
     expect(first(typed(10, 90)).draft.constraints.filter((c) => c.type === 'vertical')).toHaveLength(1);        // typed 90 as the first segment: vertical, no angle dimension
     expect(angles(first([...typed(10, 30), click(20, 20)]))).toEqual([]);

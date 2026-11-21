@@ -18,7 +18,7 @@ The **Evaluate** ribbon tab has them. Mass properties, Measure, Interference che
 | Draft analysis | Draft analysis | Alt+D |
 | Curvature comb | Curvature comb | Alt+C |
 
-The commands need a solid on screen. There is no separate probe tool: to read a position, pick a corner with Measure. The size of what you have selected appears in a small card in the corner of the view (a lone corner has a position, not a size, so it shows no card): see [The quick readout](#the-quick-readout).
+The commands need a solid on screen; Measure also works on a part that only holds a shown reference mesh (see [Measuring on a reference mesh](#measuring-on-a-reference-mesh)). There is no separate probe tool: to read a position, pick a corner with Measure. The size of what you have selected appears in a small card in the corner of the view (a lone corner has a position, not a size, so it shows no card): see [The quick readout](#the-quick-readout).
 
 ![The Inspect tab of the drawer under a part, showing the Mass properties card and the result of measuring the distance between two corners.](../img/inspect-drawer.png)
 
@@ -58,6 +58,12 @@ Picks add up instead of replacing each other. A third pick keeps the last two. *
 | A face with a face or an edge | Minimum distance, normal distance and the angle between them, from the exact surface |
 
 Distances that involve corners and edges are taken from the lines drawn on screen, so on a curved edge they are as fine as the display. Anything with a face uses the exact surface. If a pair cannot be measured the card says "No measurement for this pair."
+
+### Measuring on a reference mesh
+
+While Measure is on, a click on a shown [reference mesh](../files/import.md#mesh-files-stl-obj-glb-and-3mf-a-model-to-sketch-on) (an imported STL, OBJ, GLB, 3MF or SketchUp mesh) picks the point where the click meets its triangles, in any selection mode. The mesh must be in front of the part there, or the part must not be under the pointer; otherwise the part is picked as usual. The card lists it as **Point on mesh** with the mesh's name and position, and the selection list as a point on a mesh.
+
+A point on a mesh is measured like a corner: two points (on one mesh, on two meshes, or one on a mesh and a corner of the part) give the minimum distance and the offset along each axis; a point and an edge give the distance to the edge; a point and a face of the part give the distance to the face's triangles and, for a flat face, along its normal. Values are in millimetres. The card says that the point lies on the mesh's triangles, not on an exact surface, so the result is only as exact as the mesh. Hidden meshes are not picked, and the points leave the selection when Measure ends (no other command uses them).
 
 ## The quick readout
 

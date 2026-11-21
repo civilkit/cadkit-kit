@@ -16,7 +16,9 @@ export interface WarningEntry {
 }
 
 /** Thread warnings carry their own sentences and are acted on in the thread editor (Use M6, the fit line): kept as the kernel wrote them. */
-const OWN_TEXT = /^thread/;
+const OWN_TEXT = /^(thread|meshToSolidReport)/;
+/** Warnings that only inform (a summary of what a feature did): the tree marks them with an info badge, not an alert. */
+export const INFO_WARNING = /^meshToSolidReport$/;
 
 const num = (x: number): string => String(Math.round(x * 1000) / 1000);
 
@@ -63,12 +65,13 @@ export function warningEntries(byId: Record<string, FeatureWarning>, features: R
 export const warningLine = (e: WarningEntry): string => (e.advice ? `${e.text}${/[.!?]$/.test(e.text) ? '' : '.'} ${e.advice}` : e.text);
 
 /** The tree's marker data: per feature the first code and every warning one per line (the marker's tooltip). */
-export function warningTips(entries: WarningEntry[]): Record<string, { code: string; hint: string }> {
-  const out: Record<string, { code: string; hint: string }> = {};
+export function warningTips(entries: WarningEntry[]): Record<string, { code: string; hint: string; info?: boolean }> {
+  const out: Record<string, { code: string; hint: string; info?: boolean }> = {};
   for (const e of entries) {
     const cur = out[e.featureId];
-    if (cur) cur.hint += '\n' + warningLine(e);
-    else out[e.featureId] = { code: e.code, hint: warningLine(e) };
+    const info = INFO_WARNING.test(e.code);
+    if (cur) { cur.hint += '\n' + warningLine(e); if (!info) delete cur.info; }
+    else out[e.featureId] = { code: e.code, hint: warningLine(e), ...(info ? { info: true } : {}) };
   }
   return out;
 }

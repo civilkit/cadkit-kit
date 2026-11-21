@@ -1,4 +1,11 @@
 {
+  "0.8.6": [
+    {
+      "id": "motion-studies",
+      "title": "Motion studies",
+      "blurb": "A Motion tab drives a hinge door with a slider, Find limits says where the swing stops and why, and a two-key study in the timeline plays the door open."
+    }
+  ],
   "0.8.5": [
     {
       "id": "mesh-to-solid",
@@ -6,9 +13,24 @@
       "blurb": "Turn an imported STL, OBJ, GLB or 3MF mesh into a solid you can see before keeping it; flat areas become faces, round areas become cylinders, cones and spheres, and gaps are marked and can be closed."
     },
     {
-      "id": "surface-tools",
-      "title": "Curve and surface tools",
-      "blurb": "Offset, composite and project curves, Sweep surface with caps and Knit to solid, and Blend surface between two faces, with plain messages when a form cannot be built."
+      "id": "surface-sweep",
+      "title": "Sweep a surface along a curve",
+      "blurb": "Offset curve copies a curve inward, Sweep surface runs a circle along it to make a tube, and Cap the ends closes the tube into a shell."
+    },
+    {
+      "id": "surface-knit",
+      "title": "Knit surfaces into a solid",
+      "blurb": "Close a surface wall with two Planar surfaces, then Knit with Make a solid sews the three surface bodies into one solid with a volume."
+    },
+    {
+      "id": "groove-along-curve",
+      "title": "Cut a groove along a curve on a face",
+      "blurb": "Composite curve joins a line and an arc into one curve, Project curve lays it on a face of the block, and Sweep with Cut runs a small circle along it to cut a groove."
+    },
+    {
+      "id": "pipe-along-path",
+      "title": "One path from several pieces",
+      "blurb": "Composite curve joins a line, a tangent arc and a second line into one path, so a single Sweep can run a circle along all of it and make a pipe."
     },
     {
       "id": "cross-rounds",
