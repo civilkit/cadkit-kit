@@ -359,3 +359,25 @@ describe('Replace: a constraint refused as a contradiction offers the swap', () 
     expect(out.replace).toBeUndefined();
   });
 });
+
+describe('perpendicular takes a line and a curve, or two curves', () => {
+  it.each<[string, ToolEvent[], string[]]>([
+    ['line then circle', [ent('e1'), ent('e3')], ['e1', 'e3']],
+    ['circle then line', [ent('e3'), ent('e1')], ['e3', 'e1']],
+    ['line then arc', [ent('e2'), ent('e5')], ['e2', 'e5']],
+    ['circle then circle', [ent('e3'), ent('e4')], ['e3', 'e4']],
+    ['circle then arc', [ent('e3'), ent('e5')], ['e3', 'e5']],
+  ])('%s', (_n, evs, refs) => {
+    expect(added(run(perpendicularTool, evs))).toEqual([{ type: 'perpendicular', refs }]);
+  });
+  it('a point is not a thing to be perpendicular to; parallel and collinear still take lines only', () => {
+    expect(run(perpendicularTool, [pt('p1')]).draft).toBe(D);
+    expect(run(perpendicularTool, [ent('e1'), pt('p3')]).draft).toBe(D);
+    expect(run(parallelTool, [ent('e1'), ent('e3')]).draft).toBe(D);
+    expect(run(collinearTool, [ent('e3'), ent('e1')]).draft).toBe(D);
+  });
+  it('the same pair twice is refused as already there', () => {
+    const once = run(perpendicularTool, [ent('e1'), ent('e3')]).draft;
+    expect(run(perpendicularTool, [ent('e3'), ent('e1')], once).hint).toBe('app.sketch.hint.constraint.exists');
+  });
+});

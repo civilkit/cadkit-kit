@@ -3,7 +3,8 @@
 //
 // Built from one sketch and one extrude (plus a reference plane when the face is not on the origin plane of its axis), as a body of its own (newBody), so it patterns, mirrors and copies like any extruded feature.
 // NOT modelled: the lift (helical twist) of a real spring washer. The split ring is flat; the gap is cut square (parallel walls).
-import { at, type Num, type OffsetPlane, type PartBuilder, type Plane, type SketchBuilder } from '../recorder';
+import { at, type Num, type OffsetPlane, type Plane } from '../core';
+import { type PartBuilder, type SketchBuilder } from '../recorder';
 import type { PlaneBase } from '../planes';
 import { H } from './h';
 import { dot3, norm, Pen, type V3 } from './screw';

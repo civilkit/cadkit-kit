@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EditOp } from '@ck/session';
-import { clampDepthOps, clampToTip, editsDraft, limitsOf, mayHaveTip, tipErrors } from './taperLimit';
+import { clampDepthOps, clampToTip, editsDraft, limitsOf, mayHaveTip, tipErrors } from '@kit/viewdata';
 
 describe('taper tip', () => {
   it('reads the limits list of a regen reply', () => {

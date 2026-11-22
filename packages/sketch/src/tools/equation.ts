@@ -3,7 +3,7 @@
  * the kernel fits its points, and the app drops to Select mode with the new entity picked, so the Equation panel edits the formulas
  * with a preview. Kernel convention: entity `spline {pts:[], equation:{x, y, t, tol}}` (docs/equation-curve.md).
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { addEquation } from '../equation';
 import type { Pt, Tool, ToolOutput } from './types';
 

@@ -1,8 +1,9 @@
 // Enclosures and moulds: split a body by a plane, and the lip joint (tongue and groove) of a two-part case.
 // Mixed into PartBuilder by features/index.ts.
-import type { EditOp, Num, OffsetPlane, PartBuilder, Plane, PlaneRef, SketchBuilder } from '../recorder';
+import type { EditOp, Num, OffsetPlane, Plane, PlaneRef } from '../core';
+import type { PartBuilder, SketchBuilder } from '../recorder';
 import type { FaceSel } from '../selectors';
-import { at, plane as stdPlane } from '../recorder';
+import { at, plane as stdPlane } from '../core';
 import { H, planeRef } from './h';
 
 type PlaneArg = Plane | OffsetPlane | PlaneRef | FaceSel;

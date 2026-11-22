@@ -1,5 +1,5 @@
 /** Small immutable helpers tools use to extend a draft. Ids follow the kernel's style: p1.., e1.., k1.. */
-import type { DraftConstraint, DraftEntity, DraftPoint, SketchDraft } from '../index';
+import type { DraftConstraint, DraftEntity, DraftPoint, SketchDraft } from '../types';
 import type { Pt } from './types';
 
 export function nextId(draft: SketchDraft, prefix: 'p' | 'e' | 'k'): string {

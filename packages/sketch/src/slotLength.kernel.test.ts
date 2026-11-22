@@ -33,3 +33,16 @@ describe('slot overall length in the real kernel', { skip: !process.env.CK_WASM 
     expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(30);
   });
 });
+
+describe('radial offset (raddiff) in the real kernel', { skip: !process.env.CK_WASM }, () => {
+  it('holds the gap between two concentric circles when solved', async () => {
+    const d: SketchDraft = { ...empty(), points: [{ id: 'p1', x: 0, y: 0, fixed: true }],
+      entities: [{ id: 'e1', type: 'circle', c: 'p1', r: 10 }, { id: 'e2', type: 'circle', c: 'p1', r: 14 }] };
+    const o = run(dimensionTool, [entity('e1'), entity('e2'), { type: 'field', id: 'value', value: 7, commit: true }], d);
+    expect(o.draft.constraints[0]).toMatchObject({ type: 'raddiff', refs: ['e1', 'e2'], value: 7 });
+    const { r, status } = await solveDraft(o.draft, 2, { solve: true });
+    expect(r.errors).toEqual([]);
+    expect(status?.conflicts).toEqual([]);
+    expect(status?.solved).toBe(true);
+  });
+});

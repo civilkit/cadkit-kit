@@ -2,14 +2,15 @@
 import { signal } from '@preact/signals-core';
 import { retryHdris, retryTextures, setHdriProvider, setTextureProvider } from '@kit/viewport';
 import { CACHE_NAME, createOnlineLibrary, loadOnlinePrefs, saveOnlinePrefs, type OnlinePrefs } from './onlineLibrary';
+import { safeStorage } from '@kit/platform';
 
 export const online = signal<OnlinePrefs>(loadOnlinePrefs());
 export const cacheSize = signal(0);
 
 const INDEX_KEY = 'cad.online.index';
 const index = {
-  read: (): Record<string, { size: number; t: number }> => { try { const v = JSON.parse(localStorage.getItem(INDEX_KEY) ?? '{}'); return v && typeof v === 'object' ? v : {}; } catch { return {}; } },
-  write: (v: Record<string, { size: number; t: number }>): void => { try { localStorage.setItem(INDEX_KEY, JSON.stringify(v)); } catch { /* the cache still works, its size is just not shown */ } },
+  read: (): Record<string, { size: number; t: number }> => { const v = safeStorage.getJson<Record<string, { size: number; t: number }>>(INDEX_KEY, {}); return typeof v === 'object' ? v : {}; },
+  write: (v: Record<string, { size: number; t: number }>): void => { safeStorage.setJson(INDEX_KEY, v); /* a failed write: the cache still works, its size is just not shown */ },
 };
 const opened = typeof caches === 'undefined' ? null : caches.open(CACHE_NAME);
 const cache = opened ? {

@@ -1,7 +1,7 @@
 // Pure rules of the surface editors (loft, sweep, fill, extend, knit, trim): which sketches and surfaces a form offers and the
 // draft patches its controls make. No DOM, so they are tested without a browser. A patch value of null removes the field.
 import type { PartDoc } from '@ck/part-model';
-import { isClosedSketch, isOpenSketch, isPointSketch, isSurfaceFeature } from './featureCreators';
+import { isClosedSketch, isOpenSketch, isPointSketch, isSurfaceFeature } from './sketchKinds';
 
 type Wire = Record<string, unknown>;
 type Feat = { id: string; type: string; name?: string; [k: string]: unknown };

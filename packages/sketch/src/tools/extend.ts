@@ -22,7 +22,7 @@
  * Refused, nothing changed: parallel or collinear lines, curves that never meet, a crossing on a curve's body or behind
  * its chosen end (growing would shorten it), the same curve twice, splines / ellipses / circles.
  */
-import type { DraftConstraint, SketchDraft } from '../index';
+import type { DraftConstraint, SketchDraft } from '../types';
 import { angleOf, arcSweep, dist, dot, intersect, sample, scale, sub, add, TAU, TOL, wrap, type ArcG, type CurveG } from './edit-geom';
 import { curveOf, dropOrphans, entityOf, pruneDangling, replaceEntity, withConstraint, withPoint } from './edit-draft';
 import type { Pt, PreviewShape, Tool, ToolOutput } from './types';

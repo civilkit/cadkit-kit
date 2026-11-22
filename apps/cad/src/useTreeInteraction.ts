@@ -9,12 +9,13 @@ import type { Controller } from './controller';
 import { t } from './i18n';
 import { isShapeFeature } from './handles/sizeBox';
 import { blockingFeatures, dependentsOf, faceOwner, nextSelection, renameOps, suppressOps } from './treeActions';
+import { canDetachOnDelete, freezeBeforeSuppressOps } from './frozenPose';
 import { folderToggleOps } from './historyFolder';
 import type { TreeActions } from './treeCommands';
 import type { MenuItem } from './menuModel';
 import { dropPlan, folderIds, folderOf, groupPlan, patchOf, removeFromFolderPlan, renameFolderPlan, ungroupPlan, type Plan, type Refusal } from './treeFolders';
 
-interface ViewportLike { orbitBy(dx: number, dy: number): void; panBy(dx: number, dy: number): void }
+interface ViewportLike { orbitBy(dx: number, dy: number): void; panBy(dx: number, dy: number): void; zoomBy(dy: number): void }
 
 export interface TreeInteractionDeps {
   controller: Controller;
@@ -50,6 +51,8 @@ export interface TreeInteractionDeps {
   /** Fasten this hole: whether a row stands for holes (a Hole feature, or a pattern of them) and starting the dialog on them. */
   canFastenHole?(id: string): boolean;
   fastenHole?(id: string): void;
+  /** Redefine Sketch Plane: pick another plane or face for this sketch (a sketch row's menu; left out and the entry is not offered). */
+  redefinePlane?(id: string): void;
   /** The menu of a fixed row (a plane, the material): its rows and what runs them; null for a row with nothing to offer. */
   refMenu?(id: string): { items: { id: string; label: string; enabled: boolean }[]; run(id: string): void } | null;
 }
@@ -107,15 +110,40 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
       setMulti([]); d.setSelectedId(null);
       d.store.notify(t('app.notice.deleted', { names: list.join(', ') }), 'info', { label: t('app.notice.undo'), run: () => { void d.controller.undo().then(d.redraw); } });
     } else if (r) {
-      // blocked by features that use it: say which, and offer to delete them together (they go in one step, undone in one step)
+      // blocked by features that use it: if all direct dependents are sketches/planes with a known frame,
+      // offer to keep them in place at their frozen pose; otherwise offer to delete them together.
       const direct = blockingFeatures(r.schemaError, list);
       if (direct.length) {
         const all = [...new Set([...direct, ...direct.flatMap((id) => dependentsOf(feats, id))])].filter((x) => !list.includes(x));
-        d.store.notify(t('app.notice.deleteBlocked', { names: list.join(', '), deps: all.join(', ') }), 'warn', { label: t('app.notice.deleteBoth'), run: () => { void deleteIds([...list, ...all]); } });
+        const frameOf = (id: string) => d.controller.lastFrameOf?.(id) ?? null;
+        if (typeof d.controller.deleteAndDetach === 'function' && canDetachOnDelete(feats, list, frameOf)) {
+          d.store.notify(t('app.notice.deleteBlocked', { names: list.join(', '), deps: all.join(', ') }), 'warn', {
+            label: t('app.notice.deleteDetach'),
+            run: () => {
+              void d.controller.deleteAndDetach(list).then((dr) => {
+                d.redraw();
+                if (dr?.ok) {
+                  setMulti([]); d.setSelectedId(null);
+                  d.store.notify(t('app.notice.deletedDetached', { names: list.join(', '), deps: direct.join(', ') }), 'info', {
+                    label: t('app.notice.undo'),
+                    run: () => { void d.controller.undo().then(d.redraw); },
+                  });
+                }
+              });
+            },
+          });
+        } else {
+          d.store.notify(t('app.notice.deleteBlocked', { names: list.join(', '), deps: all.join(', ') }), 'warn', { label: t('app.notice.deleteBoth'), run: () => { void deleteIds([...list, ...all]); } });
+        }
       }
     }
   };
-  const suppressIds = (list: string[]) => d.edit(suppressOps(feats, list));
+  const suppressIds = (list: string[]) => {
+    const ops = suppressOps(feats, list);
+    const suppressing = ops.filter((o) => o.op === 'set' && o.path === 'suppressed' && o.value === true).map((o) => (o as { id: string }).id);
+    const freeze = suppressing.length ? freezeBeforeSuppressOps(feats, suppressing, (id) => d.controller.lastFrameOf?.(id) ?? null) : [];
+    return d.edit([...freeze, ...ops]);
+  };
   /** A row's own button acts on the whole selection when the row is part of a multi-selection. */
   const group = (id: string): string[] => (sel.length > 1 && sel.includes(id) ? sel : [id]);
 
@@ -187,6 +215,7 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
         ...(d.toggleHide ? [{ id: 'toggle-hide', label: t(picked.every((id) => d.isHidden?.(id)) ? 'app.tree.menu.show' : 'app.tree.menu.hide'), enabled: true }] : []),
         ...(d.selectFaces && rows.find((r) => r.id === target.id)?.type !== 'sketch' ? [{ id: 'select-faces', label: t('app.tree.menu.selectFaces'), enabled: picked.length === 1 }] : []),
         ...(d.selectBodies && rows.find((r) => r.id === target.id)?.type !== 'sketch' ? [{ id: 'select-bodies', label: t('app.tree.menu.selectBodies'), enabled: picked.length === 1 }] : []),
+        ...(d.redefinePlane && rows.find((r) => r.id === target.id)?.type === 'sketch' ? [{ id: 'redefine-plane', label: t('app.tree.menu.redefinePlane'), enabled: picked.length === 1 && !d.controller.sketchDraft() }] : []),
         ...(d.fastenHole && d.canFastenHole?.(target.id) ? [{ id: 'fasten-hole', label: t('app.tree.menu.fastenHole'), enabled: picked.length === 1 }] : []),
         { id: '-', label: '', enabled: false, separator: true },
         { id: 'group', label: t('app.folder.menu.group'), keys: 'Ctrl+G', ...planText(groupPlan(rows, feats, picked, t('app.folder.default'))) },
@@ -205,6 +234,7 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
         else if (id === 'select-faces') d.selectFaces?.(picked[0]);
         else if (id === 'select-bodies') d.selectBodies?.(picked[0]);
         else if (id === 'fasten-hole') d.fastenHole?.(picked[0]);
+        else if (id === 'redefine-plane') d.redefinePlane?.(picked[0]);
         else if (id === 'remove-from-folder') removeFromFolder(picked);
         else if (id === 'rename') setRenaming(picked[0]);
         else if (id === 'suppress') void suppressIds(picked);
@@ -230,6 +260,7 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
     clearSelection: clearAll,
     orbit: (dx, dy) => d.viewport()?.orbitBy(dx, dy),
     pan: (dx, dy) => d.viewport()?.panBy(dx, dy),
+    zoom: (dy) => d.viewport()?.zoomBy(dy),
   };
 
   return {
@@ -249,7 +280,7 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
       onRefContextMenu: (id: string, x: number, y: number) => { const m = d.refMenu?.(id); if (m) setMenu({ x, y, items: m.items, run: m.run }); },
       onRenamePart: (name: string) => { d.controller.setPartName(name); d.redraw(); },
       rollback: d.controller.rollbackCount(),
-      onRollback: (count: number | null) => void d.controller.setRollback(count).then(d.redraw),
+      onRollback: (count: number | null) => d.controller.setRollback(count).then(d.redraw),
       onRemove: (id: string) => void deleteIds(group(id)),
       onToggleSuppress: (id: string) => void suppressIds(group(id)),
       /** The eye on a folder row: the whole folder off or on, and the stand-in body of an imported history the other way (historyFolder.ts). */

@@ -9,7 +9,7 @@
  * and the end (the end only when it already lies on the circle). A zero radius or an end on the start is refused
  * with `app.sketch.hint.degenerate`. Escape clears the typed radius, then steps back to nothing.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { addPoint } from './builders';
 import { addArc, addSizeConstraint, angleOf, arcPolyline, dist, sweepCcw } from './builders-arcs';
 import type { FieldSpec, Pt, Tool, ToolOutput, ToolSettings } from './types';

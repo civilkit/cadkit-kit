@@ -5,7 +5,7 @@
  * `[circleId]` (convention read from the solver and checked against the real kernel). An uncommitted value only
  * previews. Zero radius is refused with `app.sketch.hint.degenerate`. Escape clears typed values, then the centre.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { addPoint } from './builders';
 import { addCircle, addSizeConstraint, dist } from './builders-arcs';
 import type { FieldSpec, Pt, Tool, ToolOutput, ToolSettings } from './types';

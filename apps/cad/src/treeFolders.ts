@@ -5,6 +5,7 @@
 import type { EditOp } from '@ck/session';
 import { sketchOwners, type FeatureRow } from '@kit/ui';
 import { dependents } from './treeActions';
+import { uniqueFolderName } from '@kit/catalog';
 
 type Feat = { id: string; group?: string; [k: string]: unknown };
 
@@ -21,12 +22,7 @@ export type DropTarget = DragSource;
 const ok = (ops: EditOp[], name?: string, order?: string[]): Plan => ({ ok: true, ops, ...(order ? { order } : {}), ...(name !== undefined ? { name } : {}) });
 const no = (reason: Refusal, detail?: string): Plan => ({ ok: false, reason, ...(detail ? { detail } : {}) });
 
-/** The first of `Folder`, `Folder 2`, `Folder 3` ... that no feature uses as its group. */
-export function uniqueFolderName(base: string, features: Feat[]): string {
-  const taken = new Set(features.map((f) => f.group).filter((g): g is string => typeof g === 'string'));
-  if (!taken.has(base)) return base;
-  for (let n = 2; ; n++) if (!taken.has(`${base} ${n}`)) return `${base} ${n}`;
-}
+export { uniqueFolderName };
 
 interface Ctx {
   features: Feat[];

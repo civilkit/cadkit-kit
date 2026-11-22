@@ -9,7 +9,7 @@
  * cancels: the points this tool added are removed again. A click on a point already in the list, or too
  * few points to finish, returns a hint key and changes nothing.
  */
-import type { DraftEntity, SketchDraft } from '../index';
+import type { DraftEntity, SketchDraft } from '../types';
 import { addPoint, nextId, pointOf } from './builders';
 import type { Pt, Tool, ToolOutput, ToolSettings } from './types';
 

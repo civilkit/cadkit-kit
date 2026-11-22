@@ -14,12 +14,13 @@ import { THEMES, type Theme } from './theme';
 import { ICON_SETS, type IconSet, textAttrs } from '@kit/ui';
 import { LAYOUT_PREFS, type LayoutPref } from './layoutMode';
 import type { LinkState } from '@kit/agent-link';
+import { safeStorage } from '@kit/platform';
 
 /** Workspace options as plain controls. Changing a control applies immediately and is remembered by the caller. */
 type Tab = 'general' | 'layout' | 'sketching' | 'positioning' | 'navigation' | 'kernel' | 'agent';
 const TAB_KEY = 'cad.settingsTab';
-const loadTab = (): Tab => { try { const v = localStorage.getItem(TAB_KEY); return v === 'general' || v === 'sketching' || v === 'layout' || v === 'positioning' || v === 'navigation' || v === 'kernel' || v === 'agent' ? v : 'layout'; } catch { return 'layout'; } };
-const saveTab = (tab: Tab) => { try { localStorage.setItem(TAB_KEY, tab); } catch { /* private window */ } };
+const loadTab = (): Tab => { const v = safeStorage.get(TAB_KEY); return v === 'general' || v === 'sketching' || v === 'layout' || v === 'positioning' || v === 'navigation' || v === 'kernel' || v === 'agent' ? v : 'layout'; };
+const saveTab = (tab: Tab) => { safeStorage.set(TAB_KEY, tab); };
 
 const languageName = (code: string, pseudo: string) => {
   if (code === pseudo) return 'Pseudo-locale (testing)';

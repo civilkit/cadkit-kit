@@ -5,7 +5,7 @@
  * constraints.kernel.test.ts. All text is an i18n key, never display text.
  */
 import type { SketchSolverStatus } from '@ck/part-model';
-import type { DraftConstraint, DraftEntity, SketchDraft } from '../index';
+import type { DraftConstraint, DraftEntity, SketchDraft } from '../types';
 import { nextId } from './builders';
 import type { Pt, SnapHit } from './types';
 
@@ -122,8 +122,12 @@ export function resolve(kind: ConstraintKind, d: SketchDraft, picks: readonly Pi
       const ok = a.kind === 'line' ? b.kind === 'line' : isCurve(b);
       return ok ? { spec: { type: 'equal', refs: [a.id, b.id] } } : bad;
     }
-    case 'parallel':
     case 'perpendicular':
+      // a line with a circle or arc (the line runs through its centre), or two circles or arcs (orthogonal circles): either order
+      if (a.kind !== 'line' && !isCurve(a)) return bad;
+      if (picks.length === 1) return { more: true };
+      return b.kind === 'line' || isCurve(b) ? { spec: { type: kind, refs: [a.id, b.id] } } : bad;
+    case 'parallel':
     case 'collinear':
       if (a.kind !== 'line') return bad;
       if (picks.length === 1) return { more: true };

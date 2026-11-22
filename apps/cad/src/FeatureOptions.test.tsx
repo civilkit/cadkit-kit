@@ -598,3 +598,19 @@ describe('split and lip joint options', () => {
     expect(m.q('plane')).not.toBeNull();
   });
 });
+
+describe('frozen-pose reattach controls in FeatureOptions', () => {
+  const FR = { o: [0, 10, 0], x: [1, 0, 0], y: [0, 0, -1], z: [0, 1, 0] };
+  it('detached plane offers reattach (clearing frozenFrame) and Make independent (fixed frame)', () => {
+    const m = mount({ type: 'plane', id: 'P1', mode: 'offset', base: { kind: 'face', id: 'F2.C1' }, offset: 5, frozenFrame: FR });
+    expect(m.container.querySelector('[data-note="detached"]')).not.toBeNull();
+    fireEvent.click(m.container.querySelector('[data-act="make-independent"]')!);
+    expect(m.drafts.at(-1)).toMatchObject({ mode: 'frame', origin: FR.o, xDir: FR.x, yDir: FR.y, base: null, frozenFrame: null });
+  });
+  it('detached sketch shows reattach plane selector and clears frozenFrame on change', () => {
+    const m = mount({ type: 'sketch', id: 'F3', plane: { kind: 'face', id: 'F2.C1' }, frozenFrame: FR });
+    expect(m.container.querySelector('[data-note="detached"]')).not.toBeNull();
+    fireEvent.change(m.sel('plane'), { target: { value: 'std:top' } });
+    expect(m.drafts.at(-1)).toMatchObject({ plane: { kind: 'std', id: 'top' }, frozenFrame: null });
+  });
+});

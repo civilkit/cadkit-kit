@@ -14,6 +14,7 @@ describe('snap glyph selection', () => {
     expect(markerStyleFor({ kind: 'oncurve' })).toBe('oncurve');                       // hourglass
     expect(markerStyleFor({ kind: 'grid' })).toBe('grid');                             // small plus
     expect(markerStyleFor({ kind: 'align' })).toBe('align');
+    expect(markerStyleFor({ kind: 'extension' })).toBe('extension');                   // plus in a box
   });
   it('model snaps use the same glyphs', () => {
     expect(markerStyleFor({ kind: 'modelEndpoint', model: 'modelEndpoint' })).toBe('point');

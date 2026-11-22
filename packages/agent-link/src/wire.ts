@@ -1,12 +1,14 @@
 // The wire format of the agent link (docs/agent-bridge.md): what the app and the local MCP daemon say to each other.
 // Pure TypeScript with no Node or DOM imports: the daemon, the browser app and the tests all use it.
 
-/** What an agent may ask the open app to do. `plugin_run`, `run_script`, `undo` and `redo` change the document; every other op only reads (state, a picture, and the
+/** What an agent may ask the open app to do. `plugin_run`, `run_script`, `undo` and `redo` change the document; every other op only reads (state, selection, a picture, and the
  *  measurement tools: bodies, measure, clearance, interference, thickness, draft, dfm, interfaces; and section, the exact cross-section at a plane). */
-export type BridgeOp = 'state' | 'screenshot' | 'bodies' | 'measure' | 'clearance' | 'interference' | 'thickness' | 'draft' | 'dfm' | 'interfaces' | 'section' | 'plugin_list' | 'plugin_run' | 'run_script' | 'undo' | 'redo' | 'open_asset' | 'edit';
+export type BridgeOp = 'state' | 'screenshot' | 'bodies' | 'measure' | 'clearance' | 'interference' | 'thickness' | 'draft' | 'dfm' | 'interfaces' | 'section' | 'plugin_list' | 'plugin_run' | 'run_script' | 'undo' | 'redo' | 'open_asset' | 'edit' | 'batch' | 'selection' | 'settings';
 /** The read-only measurement ops (answered by @kit/readback in the app). */
 export const MEASURE_OPS = ['bodies', 'measure', 'clearance', 'interference', 'thickness', 'draft', 'dfm', 'interfaces'] as const;
-export const BRIDGE_OPS: readonly BridgeOp[] = ['state', 'screenshot', ...MEASURE_OPS, 'section', 'plugin_list', 'plugin_run', 'run_script', 'undo', 'redo', 'open_asset', 'edit'];
+export const BRIDGE_OPS: readonly BridgeOp[] = ['state', 'screenshot', ...MEASURE_OPS, 'section', 'plugin_list', 'plugin_run', 'run_script', 'undo', 'redo', 'open_asset', 'edit', 'batch', 'selection', 'settings'];
+/** `batch` runs a list of the other ops in ONE request (one round trip); the permission is asked of each step, so it is not an edit op itself. */
+export const BATCH_STEP_OPS: ReadonlySet<BridgeOp> = new Set<BridgeOp>(['state', 'screenshot', ...MEASURE_OPS, 'section', 'plugin_list', 'plugin_run', 'run_script', 'undo', 'redo', 'edit', 'selection', 'settings']);
 /** Ops that change the open document: refused unless the user has ticked "Allow the agent to change this document". `open_asset` opens a file in a new document tab; `edit` is an atomic transaction of feature changes (app_edit). */
 export const EDIT_OPS: ReadonlySet<BridgeOp> = new Set<BridgeOp>(['plugin_run', 'run_script', 'undo', 'redo', 'open_asset', 'edit']);
 /** Ops that can run for minutes (a big import): the app serves them without pausing its poll loop, and the daemon waits for them longer than REQUEST_TIMEOUT_MS. */

@@ -12,6 +12,8 @@ export interface Schema {
   maxItems?: number;
   maxLength?: number;
   additionalProperties?: boolean;
+  /** Said after an unknown field's name instead of the default "parameters go at the top level of the input" (for a schema that is not the tool input itself). */
+  unknownHint?: string;
   default?: unknown;
   oneOf?: Schema[];
 }
@@ -55,7 +57,7 @@ export function validate(s: Schema, v: unknown, path = '$'): string[] {
         else if (s.additionalProperties === false) {
           const allowed = Object.keys(s.properties ?? {});
           const near = closest(k, allowed);
-          out.push(`${path}.${k}: unknown field${near ? ` (did you mean ${near}?)` : ''} (allowed: ${allowed.join(', ') || 'none'}; parameters go at the top level of the input)`);
+          out.push(`${path}.${k}: unknown field${near ? ` (did you mean ${near}?)` : ''} (allowed: ${allowed.join(', ') || 'none'}; ${s.unknownHint ?? 'parameters go at the top level of the input'})`);
         }
       }
       break;

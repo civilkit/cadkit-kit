@@ -52,6 +52,15 @@ describe('what a move edits', () => {
     expect(moveOps(d, { translate: [0, 5, 0] }, undefined, 'M1')![0].op).toBe('replace');
     expect(existingMove(doc([{ type: 'fillet', id: 'F3' }]), undefined, 'F3')).toBeNull();
   });
+  it('editing a copying move changes the copy and keeps it a copy, with its name', () => {
+    const cp = { ...move, id: 'M2', copy: true, body: 'Copy 1' };
+    const d = doc([cp, { type: 'fillet', id: 'F3' }]);
+    expect(existingMove(d, undefined, 'M2')?.id).toBe('M2');
+    expect(existingMove(doc([cp]), undefined)).toBeNull();   // without an edit target a copy is never folded into
+    const ops = moveOps(d, { translate: [0, 5, 0] }, undefined, 'M2')!;
+    expect(ops).toHaveLength(1);
+    expect(ops[0]).toMatchObject({ op: 'replace', id: 'M2', feature: { type: 'moveBody', copy: true, body: 'Copy 1', translate: [10, 5, 0] } });
+  });
   it('folding a rotation drops the rotate field again when the total is a pure move', () => {
     const rot = { type: 'moveBody', id: 'M1', translate: [0, 0, 0], rotate: { axis: [0, 0, 1], origin: [0, 0, 0], angle: 30 }, copy: false };
     const back = moveOps(doc([rot]), { translate: [0, 0, 0], rotate: { axis: [0, 0, 1], origin: [0, 0, 0], angle: -30 } }, undefined)!;

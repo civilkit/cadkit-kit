@@ -28,3 +28,15 @@ export function buildMeasureMarks(marks: MeasureMark[], diag: number): THREE.Gro
   }
   return group;
 }
+
+/** Free everything a group of marks holds on the GPU: geometries, materials and the textures (the label sprites' canvases) they carry. Safe on shared geometry or materials. */
+export function disposeMarks(root: THREE.Object3D): void {
+  const done = new Set<{ dispose(): void }>();
+  const free = (x: { dispose(): void } | null | undefined): void => { if (x && !done.has(x)) { done.add(x); x.dispose(); } };
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!(o as THREE.Sprite).isSprite) free(m.geometry);   // every sprite shares one module-level quad: not ours to free
+    const mats = Array.isArray(m.material) ? m.material : [m.material];
+    for (const mat of mats) { if (!mat) continue; free((mat as THREE.MeshBasicMaterial).map); free(mat); }
+  });
+}

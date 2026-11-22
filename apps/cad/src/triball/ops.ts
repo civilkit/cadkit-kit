@@ -123,11 +123,11 @@ const feature = (m: MoveSpec, copy: boolean, bodies?: BodyRef[]): Record<string,
   ...(m.rotate && Math.abs(m.rotate.angle) > 1e-12 ? { rotate: { axis: roundV(m.rotate.axis), origin: roundV(m.rotate.origin), angle: +m.rotate.angle.toFixed(9) } } : {}), copy,
 });
 
-/** The moveBody feature a plain move folds into: the one being edited, else the last feature when it is a move of the same bodies. */
+/** The moveBody feature a plain move folds into: the one being edited (a copying move too: dragging it moves the copy), else the last feature when it is a plain move of the same bodies. */
 export function existingMove(doc: PartDoc | null, bodies: BodyRef[] | undefined, editing?: string): Feat | null {
   const all = feats(doc);
   const f = editing ? all.find((x) => x.id === editing) : all[all.length - 1];
-  if (!f || f.type !== 'moveBody' || f.copy === true || f.suppressed) return null;
+  if (!f || f.type !== 'moveBody' || (f.copy === true && !editing) || f.suppressed) return null;
   if (!editing && JSON.stringify(f.bodies ?? null) !== JSON.stringify(bodies ?? null)) return null;
   return specOf(f) ? f : null;
 }
@@ -138,7 +138,7 @@ export function moveOps(doc: PartDoc | null, m: MoveSpec, bodies: BodyRef[] | un
   const old = existingMove(doc, bodies, editing);
   if (!old) return [{ op: 'add', feature: feature(m, false, bodies) } as EditOp];
   const total = fromRigid(compose(toRigid(specOf(old)!), toRigid(m)));
-  const next = { ...old, ...feature(total, false, old.bodies as BodyRef[] | undefined) };
+  const next = { ...old, ...feature(total, old.copy === true, old.bodies as BodyRef[] | undefined) };
   if (!total.rotate) delete (next as Record<string, unknown>).rotate;
   return [{ op: 'replace', id: old.id, feature: next } as unknown as EditOp];
 }

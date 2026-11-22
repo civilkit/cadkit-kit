@@ -23,6 +23,8 @@ export interface TreeActions {
   clearSelection(): boolean;
   orbit(dx: number, dy: number): void;
   pan(dx: number, dy: number): void;
+  /** Zoom by a drag-equivalent of `dy` pixels (negative moves in). */
+  zoom(dy: number): void;
 }
 
 export function treeCommands(a: TreeActions): Command[] {
@@ -42,6 +44,8 @@ export function treeCommands(a: TreeActions): Command[] {
 export const ORBIT_STEP_DEG = 15;
 /** Pixels an Alt+arrow pans. */
 export const PAN_STEP_PX = 40;
+/** Pixels of Ctrl+middle-drag one press of + or - zooms (about a fifth of the distance). */
+export const ZOOM_STEP_PX = 28;
 /** The viewport turns `0.012` radians per pixel of drag (see Viewport.orbitBy). */
 const RAD_PER_PX = 0.012;
 export const orbitPixels = (deg: number): number => (deg * Math.PI) / 180 / RAD_PER_PX;
@@ -61,6 +65,11 @@ export function treeKey(e: KeyLike, a: TreeActions, onCanvas: boolean): boolean 
     if (e.altKey) a.pan(arrow[0] * PAN_STEP_PX, arrow[1] * PAN_STEP_PX);
     else a.orbit(arrow[0] * orbitPixels(ORBIT_STEP_DEG), arrow[1] * orbitPixels(ORBIT_STEP_DEG));
     return true;
+  }
+  // + / = zoom in, - / _ zoom out, PageUp / PageDown the same: for a keyboard-only user, the same distance every press
+  if (onCanvas && !ctrl && !e.altKey) {
+    const dir = e.key === '+' || e.key === '=' || e.key === 'PageUp' ? -1 : e.key === '-' || e.key === '_' || e.key === 'PageDown' ? 1 : 0;
+    if (dir) { a.zoom(dir * ZOOM_STEP_PX * (e.shiftKey && e.key.startsWith('Page') ? 3 : 1)); return true; }
   }
   return false;
 }

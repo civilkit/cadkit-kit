@@ -1,5 +1,5 @@
 /** Test fixtures for the edit tools: sketch drafts built by hand, and the reference-integrity check. */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 
 /** Axis-aligned rectangle from the origin: p1 (0,0), p2 (w,0), p3 (w,h), p4 (0,h); e1 bottom, e2 right, e3 top, e4 left, with H/V constraints. */
 export function rectDraft(w: number, h: number): SketchDraft {

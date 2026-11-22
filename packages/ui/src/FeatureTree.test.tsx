@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, fireEvent, cleanup } from '@testing-library/preact';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { render, fireEvent, cleanup, act } from '@testing-library/preact';
 import { FeatureTree } from './FeatureTree';
 
 afterEach(cleanup);
@@ -133,6 +133,20 @@ describe('FeatureTree', () => {
     fireEvent.dblClick(container.querySelectorAll('.row')[1]);
     fireEvent.click(container.querySelectorAll('.row')[0].querySelector('.row-edit')!);
     expect(edits).toEqual(['F2', 'F1']);
+  });
+
+  it('double click on a linear or circular pattern row opens its editor', () => {
+    const edits: string[] = [];
+    const { container } = render(
+      <FeatureTree
+        rows={[{ id: 'F1', type: 'extrude' }, { id: 'F2', type: 'lpattern' }, { id: 'F3', type: 'cpattern' }]}
+        status={[]} selectedId={null} onSelect={() => {}} onMove={() => {}} onRemove={() => {}} onToggleSuppress={() => {}}
+        onEdit={(id) => edits.push(id)}
+      />,
+    );
+    fireEvent.dblClick(container.querySelectorAll('.row')[1]);
+    fireEvent.dblClick(container.querySelectorAll('.row')[2]);
+    expect(edits).toEqual(['F2', 'F3']);
   });
 
   it('renders no edit control when onEdit is absent', () => {
@@ -292,6 +306,34 @@ describe('FeatureTree rename', () => {
     input.value = 'Hinge';
     fireEvent.blur(input);
     expect(parts).toEqual(['Hinge']);
+  });
+  it('a slow second click on the selected row starts renaming it; a double click still edits', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(10_000);
+      const edited: string[] = [];
+      const { container } = render(<FeatureTree {...base} rows={four} selectedId="F2" onRename={() => {}} onEdit={(id) => edited.push(id)} />);
+      const row = container.querySelectorAll('.row')[1];
+      fireEvent.click(row);
+      vi.advanceTimersByTime(900);
+      fireEvent.click(row);
+      act(() => { vi.advanceTimersByTime(400); });
+      expect(container.querySelector('input.inline-name')).not.toBeNull();
+      expect(edited).toEqual([]);
+    } finally { vi.useRealTimers(); }
+  });
+  it('a slow click on a row that was not selected does not rename', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(10_000);
+      const { container } = render(<FeatureTree {...base} rows={four} selectedId={null} onRename={() => {}} />);
+      const row = container.querySelectorAll('.row')[1];
+      fireEvent.click(row);
+      vi.advanceTimersByTime(900);
+      fireEvent.click(row);
+      act(() => { vi.advanceTimersByTime(400); });
+      expect(container.querySelector('input.inline-name')).toBeNull();
+    } finally { vi.useRealTimers(); }
   });
   it('without an onRename handler nothing becomes editable', () => {
     const { container } = render(<FeatureTree {...base} rows={four} renaming="F2" />);

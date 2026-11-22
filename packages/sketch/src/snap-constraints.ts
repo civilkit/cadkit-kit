@@ -11,13 +11,13 @@
  * Existing points are never constrained (a click that reuses a point adds nothing), and a typed value that moved the
  * new point off the snap position adds nothing either.
  */
-import type { SketchDraft } from './index';
+import type { SketchDraft } from './types';
 import { addConstraintOf } from './tools/builders';
 import { MID_PREFIX } from './snap';
 import type { SnapHit } from './tools/types';
 
 const EPS = 1e-6;
-const HANDLED = new Set(['midpoint', 'align', 'oncurve', 'perpendicular', 'tangent', 'intersection', 'quadrant']);
+const HANDLED = new Set(['midpoint', 'align', 'oncurve', 'perpendicular', 'tangent', 'intersection', 'quadrant', 'extension']);
 
 /** The constraint that puts point `p` on entity `id` (a line, circle or arc); none for other shapes. */
 function onEntity(d: SketchDraft, p: string, id: string): SketchDraft {
@@ -46,6 +46,11 @@ export function applySnapConstraints(before: SketchDraft, after: SketchDraft, sn
     }
     if (snap.kind === 'oncurve' || snap.kind === 'perpendicular' || snap.kind === 'tangent') {
       if (snap.entityId) d = onEntity(d, p.id, snap.entityId);
+      break;
+    }
+    if (snap.kind === 'extension') {   // a point on the line's extension is on the line; an arc's tangent continuation adds nothing
+      const e = snap.entityId ? d.entities.find((x) => x.id === snap.entityId) : undefined;
+      if (e?.type === 'line') d = onEntity(d, p.id, e.id);
       break;
     }
     if (snap.kind === 'intersection') {

@@ -34,13 +34,17 @@ export interface IoActions {
   openExportMenu(): void;
   /** Whether there is a solid to export / a sketch (open or selected) to export. */
   canExport(kind: ExportKind): boolean;
+  /** Open the Print Plate & Send to Slicer dialog. */
+  openPrintPlate?(): void;
+  /** Whether there is a solid/mesh to arrange on a print plate. */
+  canPrintPlate?(): boolean;
 }
 
-export type ExportKind = 'step' | 'stl' | 'stl-ascii' | 'stl-bodies' | 'obj' | '3mf' | 'glb' | 'dxf-sketch' | 'dxf-views';
+export type ExportKind = 'step' | 'stl' | 'stl-ascii' | 'stl-bodies' | 'obj' | '3mf' | 'glb' | 'usdz' | 'html' | 'urdf' | 'dxf-sketch' | 'dxf-views';
 /** The export commands in menu order; each is the command `export-<kind>`. */
-export const EXPORT_KINDS: ExportKind[] = ['stl', 'stl-ascii', 'stl-bodies', 'obj', '3mf', 'glb', 'step', 'dxf-sketch', 'dxf-views'];
+export const EXPORT_KINDS: ExportKind[] = ['stl', 'stl-ascii', 'stl-bodies', 'obj', '3mf', 'glb', 'usdz', 'html', 'urdf', 'step', 'dxf-sketch', 'dxf-views'];
 /** The mesh formats: the ones the Export menu's mesh options (quality, visible bodies, reference meshes) apply to. */
-export const MESH_EXPORT_KINDS: ExportKind[] = ['stl', 'stl-ascii', 'stl-bodies', 'obj', '3mf', 'glb'];
+export const MESH_EXPORT_KINDS: ExportKind[] = ['stl', 'stl-ascii', 'stl-bodies', 'obj', '3mf', 'glb', 'usdz', 'html', 'urdf'];
 
 /** The catalog's add-material shapes as Create-menu commands (same ids as the catalog items). */
 export const SHAPE_COMMANDS = ['add-block', 'add-cylinder', 'add-sphere', 'add-cone', 'add-boss', 'add-slot'];
@@ -122,6 +126,8 @@ export interface Actions {
   addExtrude(op: 'add' | 'cut', thin?: boolean): void;
   newSketch(plane: PlaneId): void;
   palette(): void;
+  /** Open the keyboard shortcut cheat sheet (the ? key). */
+  shortcuts?(): void;
   toggleDrawer(): void;
   resetLayout?(): void;
   /** Sketch on the selected face or plane (S). */
@@ -184,6 +190,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'save', label: t('cmd.save'), tab: 'Home', group: 'File', enabled: a.hasDocument, run: a.save },
     { id: 'samples', label: t('cmd.samples'), tab: 'Home', group: 'File', run: a.samples },
     { id: 'palette', label: t('cmd.palette'), tab: 'Home', group: 'Workspace', keys: 'F', run: a.palette },
+    ...(a.shortcuts ? [{ id: 'keyboard-shortcuts', label: t('cmd.keyboard-shortcuts'), tab: 'Home' as const, group: 'Workspace', keywords: 'keys hotkeys help cheat sheet', run: a.shortcuts }] : []),
     ...(a.toggleUpAxis ? [{ id: 'toggle-up-axis', label: t('cmd.toggle-up-axis'), tab: 'Home' as const, group: 'View', run: a.toggleUpAxis }] : []),
     { id: 'toggle-projection', label: t('cmd.toggle-projection'), tab: 'Home', group: 'View', run: a.toggleProjection },
     { id: 'toggle-left-panel', label: t('cmd.toggle-left-panel'), tab: 'Home', group: 'Workspace', keys: '[', run: a.toggleLeftPanel },
@@ -279,6 +286,7 @@ function ioCommands(io: IoActions, hasDocument: () => boolean): Command[] {
     { id: 'sketch-import-svg', label: t('cmd.sketch-import-svg'), tab: 'Home', group: 'Sketch', enabled: io.isSketching, hideUnlessEnabled: true, why: () => t('cmd.sketch-import.why'), run: io.importSvg },
     { id: 'export', label: t('cmd.export'), tab: 'Home', group: 'File', enabled: hasDocument, run: io.openExportMenu },
     ...EXPORT_KINDS.map((k): Command => ({ id: `export-${k}`, label: t(`cmd.export-${k}`), tab: 'Home', group: 'Export', enabled: () => io.canExport(k), run: () => io.exportAs(k) })),
+    ...(io.openPrintPlate ? [{ id: 'print-plate', label: t('cmd.print-plate'), tab: 'Home' as const, group: 'Export', keywords: 'slicer bambu orca prusa cura 3d print bed plate nest', enabled: () => (io.canPrintPlate ? io.canPrintPlate() : io.canExport('3mf')), run: io.openPrintPlate }] : []),
     { id: 'sketch-from-dxf', label: t('cmd.sketch-from-dxf'), tab: 'Home', group: 'Sketch', enabled: hasDocument, keywords: 'import', run: io.sketchFromDxf },
     { id: 'sketch-from-svg', label: t('cmd.sketch-from-svg'), tab: 'Home', group: 'Sketch', enabled: hasDocument, keywords: 'import', run: io.sketchFromSvg },
   ];

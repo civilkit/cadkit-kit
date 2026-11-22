@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Dev-time: build the Material editor's steel grades (apps/cad/src/materials.steel.json) from the verified material record
+// Dev-time: build the Material editor's steel grades (packages/drawing/src/materials.steel.json) from the verified material record
 // apps/cad/src/frame/data/steel-materials.json. The output is committed; re-run after the data changes:
 //   node tools/build_steel_materials.mjs        (--check: only compare, for tests)
 // Units: the record is in MPa and kg/m3; the catalogue (materials.ts) keeps GPa for moduli, MPa for strengths and 1e-6/K for expansion.
@@ -12,7 +12,7 @@ import { dirname, join } from 'node:path';
 const CHECK = process.argv.includes('--check');
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = JSON.parse(readFileSync(join(root, 'apps/cad/src/frame/data/steel-materials.json'), 'utf8'));
-const out = join(root, 'apps/cad/src/materials.steel.json');
+const out = join(root, 'packages/drawing/src/materials.steel.json');
 
 /** id of the record -> the name a part file stores (`doc.material`), the product standard as the bill of materials prints it, the grade, a swatch colour. */
 const NAMES = {

@@ -4,7 +4,7 @@
 // component.create / component.activate / occurrence.ground are NOT in the brief's list but the woodwork `cabinet` entry calls them
 // unconditionally; here they are inert stubs so the run can complete, except that a component remembers its features and
 // occurrence.move (a translation) moves the bodies it made: that is how the plugin's Place (right, left, above) takes effect. Everything else is refused.
-import { evalExpr, kernelExpr } from '../../solidcraft/src/expr';
+import { evalExpr, kernelExpr } from '@kit/solidcraft';
 
 /** What the interpreter needs from the kernel side: build a script on a scratch state and list its bodies; commit a script to the open document. */
 export interface BodyRow { name: string; volume: number | null; bbox: { min: number[]; max: number[] } | null }

@@ -153,6 +153,12 @@ export function sketchPolylines(sketches: SketchLayerItem[]): IdPolylines[] {
   });
 }
 
+/** The polylines of one sketch (by feature id), none when it is hidden or absent: what the viewport draws for the sketch selected in the tree. */
+export function selectedSketchPolylines(sketches: SketchLayerItem[] | undefined, id: string | null, hidden: ReadonlySet<string> = new Set()): Polyline[] {
+  if (!id || hidden.has(id)) return [];
+  return sketchPolylines((sketches ?? []).filter((s) => s.id === id)).flatMap((s) => s.polylines);
+}
+
 /** Kernel curves (already 3D points) to polylines. */
 export function curvePolylines(curves: CurveLayerItem[]): IdPolylines[] {
   return curves.map(({ id, pts }) => ({ id, polylines: [pts.map((p) => [...p])] }));

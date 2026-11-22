@@ -5,7 +5,7 @@
  *
  * Kernel conventions used: `construction: true` on the entity, horizontal/vertical refs=[lineId], distance refs=[p1,p2].
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { addConstraintOf, addPoint } from './builders';
 import { segmentEnd } from './geometry';
 import { addEntity, applyLock, hasValues } from './shape-helpers';

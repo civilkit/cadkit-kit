@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { backToFront, hiddenSets, needsOwnMaterial, pickThrough, rangeCentre, separateBodies, transparentBodies, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
+import { backToFront, hiddenSets, needsOwnMaterial, pickThrough, rangeCentre, rangeSphere, separateBodies, sortTrianglesBackToFront, triangleCentroids, transparentBodies, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
 import { groupByFace } from './meshgeom';
 
 const tri = (z: number): number[] => [0, 0, z, 1, 0, z, 0, 1, z];
@@ -100,5 +100,49 @@ describe('bodies with a material of their own', () => {
     const s = separateBodies(spec({ B: { opacity: 0.2 }, C: { color: '#ff0000' } }));
     expect(s).toMatchObject({ keys: ['B'], own: 0 });
     expect([...s.rank]).toEqual([['f2', 1]]);
+  });
+});
+
+describe('range spheres (culling a body on its own)', () => {
+  it('bounds one range of a shared buffer, not the whole buffer', () => {
+    const pos = Float32Array.from([...tri(0), ...tri(100)]);
+    const s = rangeSphere(pos, 3, 3);
+    expect(s.centre[2]).toBe(100);
+    expect(s.radius).toBeLessThan(1.5);
+    expect(rangeSphere(pos, 0, 0).radius).toBe(0);
+  });
+});
+
+describe('triangle sort for blending', () => {
+  const sq = (z: number): number[] => [0, 0, z, 1, 0, z, 0, 1, z];
+  it('orders the triangles of one body farthest first, as an index into the shared buffer', () => {
+    const pos = Float32Array.from([...sq(1), ...sq(5), ...sq(3)]);   // triangles at z 1, 5, 3
+    const idx = new Uint32Array(9);
+    sortTrianglesBackToFront(triangleCentroids(pos, 0, 9), [0, 0, 0], null, 0, idx);
+    expect([...idx]).toEqual([3, 4, 5, 6, 7, 8, 0, 1, 2]);   // z 5, 3, 1
+    sortTrianglesBackToFront(triangleCentroids(pos, 0, 9), [0, 0, 10], null, 0, idx);
+    expect([...idx]).toEqual([0, 1, 2, 6, 7, 8, 3, 4, 5]);   // z 1, 3, 5
+  });
+  it('uses the depth along the view direction for an orthographic camera and offsets by the range start', () => {
+    const pos = Float32Array.from([...sq(0), ...sq(1), ...sq(2)]);
+    const idx = new Uint32Array(6);
+    sortTrianglesBackToFront(triangleCentroids(pos, 3, 6), [50, 50, 0], [0, 0, -1], 3, idx);   // looking down -z: the lower z is the farther
+    expect([...idx]).toEqual([3, 4, 5, 6, 7, 8]);
+    sortTrianglesBackToFront(triangleCentroids(pos, 3, 6), [50, 50, 0], [0, 0, 1], 3, idx);
+    expect([...idx]).toEqual([6, 7, 8, 3, 4, 5]);
+  });
+  it('is a permutation: every triangle appears once, also when all depths are equal', () => {
+    const pos = Float32Array.from([...sq(2), ...sq(2), ...sq(2), ...sq(2)]);
+    const idx = new Uint32Array(12);
+    sortTrianglesBackToFront(triangleCentroids(pos, 0, 12), [0, 0, 0], null, 0, idx);
+    expect([...idx].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  });
+  it('sorts 200000 triangles in well under a frame budget', () => {
+    const n = 200000, pos = new Float32Array(n * 9);
+    for (let i = 0; i < pos.length; i++) pos[i] = Math.sin(i * 12.9898) * 50;
+    const c = triangleCentroids(pos, 0, n * 3), idx = new Uint32Array(n * 3);
+    const t0 = performance.now();
+    sortTrianglesBackToFront(c, [0, 0, 200], null, 0, idx);
+    expect(performance.now() - t0).toBeLessThan(150);
   });
 });

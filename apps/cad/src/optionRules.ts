@@ -6,7 +6,7 @@
 import { planeName, viewPlaneIds } from './planeNames';
 import { t } from './i18n';
 import { sheetManagedPaths } from './sheet/options';
-import { featureLabel } from './featureCreators';
+import { featureLabel } from './featureLabels';
 import { curveManaged } from './curveRules';
 import { procSurfaceManaged } from './procSurfaceRules';
 

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startMockService, type MockService } from '@ck/kernel-client/mock';
-import { createKernelRouter, loadKernelPrefs, saveKernelPrefs, DEFAULT_KERNEL_URL, chipOf, statusText, type KernelBackend, type KernelRouter } from './kernelService';
+import { createKernelRouter, loadKernelPrefs, saveKernelPrefs, readEmbeddedKernel, DEFAULT_KERNEL_URL, chipOf, statusText, type EmbeddedKernel, type KernelBackend, type KernelRouter } from './kernelService';
 
 const memory = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k), all: () => [...m.entries()] }; };
 
@@ -9,7 +9,7 @@ let services: MockService[] = [];
 let routers: KernelRouter[] = [];
 afterEach(async () => { routers.forEach((r) => r.dispose()); routers = []; await Promise.all(services.splice(0).map((s) => s.stop())); });
 
-function fixture(opts: { mode?: 'builtin' | 'local'; token?: string; url?: string; svc?: MockService } = {}) {
+function fixture(opts: { mode?: 'builtin' | 'local'; token?: string; url?: string; svc?: MockService; embedded?: EmbeddedKernel | null } = {}) {
   const kv = memory();
   const built: KernelBackend[] = [];
   const makeBuiltin = vi.fn(async (): Promise<KernelBackend> => {
@@ -20,7 +20,7 @@ function fixture(opts: { mode?: 'builtin' | 'local'; token?: string; url?: strin
   const notify = vi.fn();
   const reopen = vi.fn();
   if (opts.mode) saveKernelPrefs(kv, { mode: opts.mode, url: opts.url ?? opts.svc?.url ?? DEFAULT_KERNEL_URL, token: opts.token ?? opts.svc?.token ?? '' });
-  const router = createKernelRouter({ kv, makeBuiltin, notify, reopen });
+  const router = createKernelRouter({ kv, makeBuiltin, embedded: opts.embedded, notify, reopen });
   routers.push(router);
   return { kv, router, makeBuiltin, notify, reopen, built };
 }
@@ -193,5 +193,68 @@ describe('kernel router', () => {
     expect(f.router.status.value).toEqual({ state: 'builtin' });
     expect(f.router.active.value).toBe('builtin');
     expect(f.reopen).not.toHaveBeenCalled();
+  });
+
+  it('auto-connects to an embedded native kernel when mode is builtin without booting wasm', async () => {
+    const svc = await serve();
+    const embedded = readEmbeddedKernel({ __CK_NATIVE__: { url: svc.url, token: svc.token } });
+    expect(embedded).toEqual({ url: svc.url, token: svc.token });
+    expect(readEmbeddedKernel({})).toBeNull();
+
+    const f = fixture({ embedded });
+    expect(f.router.status.value).toEqual({ state: 'connecting' });
+    const k = await f.router.transport();
+    expect(await echo(k)).toEqual({ ok: true, result: { echo: 'who' } });
+    expect(f.makeBuiltin).not.toHaveBeenCalled();
+    expect(f.router.status.value).toMatchObject({ state: 'connected', version: { protocol: 1 } });
+    expect(f.router.active.value).toBe('local');
+  });
+
+  it('cancel on embedded native kernel opens a fresh session without booting wasm', async () => {
+    const svc = await serve();
+    const f = fixture({ embedded: { url: svc.url, token: svc.token } });
+    const k = await f.router.transport();
+    await echo(k);
+    f.router.cancel();
+    const k2 = await f.router.transport();
+    expect(k2).not.toBe(k);
+    expect((await echo(k2)).ok).toBe(true);
+    await vi.waitFor(() => expect(svc.deleted).toEqual(['s1']));
+    expect(f.makeBuiltin).not.toHaveBeenCalled();
+  });
+
+  it('falls back to wasm if the embedded native kernel dies and retry reconnects to it', async () => {
+    const svc = await serve();
+    const port = Number(new URL(svc.url).port);
+    const f = fixture({ embedded: { url: svc.url, token: svc.token } });
+    const k = await f.router.transport();
+    expect((await echo(k)).ok).toBe(true);
+    await svc.stop();
+    const dead = await echo(k);
+    expect(dead.ok).toBe(false);
+    expect(f.router.active.value).toBe('builtin');
+    expect(f.notify).toHaveBeenCalledTimes(1);
+    expect(f.reopen).toHaveBeenCalledTimes(1);
+    expect(await echo(await f.router.transport())).toEqual({ ok: true, result: { from: 'builtin' } });
+    expect(f.makeBuiltin).toHaveBeenCalledTimes(1);
+
+    const svc2 = await serve({ port, token: svc.token }).catch(() => null);
+    if (svc2) {
+      f.router.retry();
+      expect(f.reopen).toHaveBeenCalledTimes(2);
+      expect(await echo(await f.router.transport())).toEqual({ ok: true, result: { echo: 'who' } });
+      expect(f.router.active.value).toBe('local');
+    }
+  });
+
+  it('explicit local mode overrides an embedded native kernel', async () => {
+    const embSvc = await serve();
+    const customSvc = await serve({ version: { kernel: '0.9.9-custom', build: SHA, git: SHA.slice(0, 12) } });
+    const f = fixture({ mode: 'local', svc: customSvc, embedded: { url: embSvc.url, token: embSvc.token } });
+    const k = await f.router.transport();
+    expect(await echo(k)).toEqual({ ok: true, result: { echo: 'who' } });
+    expect(f.router.status.value).toMatchObject({ state: 'connected', version: { kernel: '0.9.9-custom' } });
+    expect(embSvc.requests).toEqual([]);
+    expect(customSvc.requests.some((r) => r.path === '/session')).toBe(true);
   });
 });

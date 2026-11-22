@@ -23,7 +23,7 @@ Geometric constraints are in the **Constrain** group of the **Editing** tab. Cho
 | <a id="tool-fix"></a>**Fix** | A point | Pins the point where it is now. |
 | <a id="tool-equal"></a>**Equal** | Two lines, or two circles or arcs | Makes the lengths equal, or the radii equal. |
 | <a id="tool-parallel"></a>**Parallel** | Two lines | Makes the lines parallel. |
-| <a id="tool-perpendicular"></a>**Perpendicular** | Two lines | Makes the lines meet at a right angle. |
+| <a id="tool-perpendicular"></a>**Perpendicular** | Two lines, a line and a circle or arc, or two circles or arcs | Two lines meet at a right angle. A line and a circle or arc: the line runs through the centre, so it meets the curve at a right angle. Two circles or arcs cross at right angles (the distance between their centres squared is the sum of their radii squared). |
 | <a id="tool-collinear"></a>**Collinear** | Two lines | Puts both lines on one straight line. |
 | <a id="tool-tangent"></a>**Tangent** | A line and a circle or arc, or two circles or arcs | Makes the curves touch smoothly. Two lines cannot be tangent. When the two share an end point, the tangent is at that point. |
 | <a id="tool-concentric"></a>**Concentric** | Two circles or arcs, or a circle or arc and a point | Gives them the same centre. |

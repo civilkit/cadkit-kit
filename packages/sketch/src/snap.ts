@@ -6,11 +6,11 @@
  * Priority (the first kind with a candidate inside the tolerance wins; within a kind the nearest):
  *   point (an end, a centre, the origin: `role` says which) > intersection of two curves > quadrant of a circle or arc
  *   > midpoint of a line > perpendicular foot / tangent point from the reference point `from` > on-curve (the nearest spot
- *   on a line, circle or arc) > alignment with other points (the dotted guide) > grid.
+ *   on a line, circle or arc) > alignment with other points (the dotted guide) > extension of a line (or the tangent of an arc) past its end (a dashed guide) > grid.
  * Every kind can be switched off with `kinds` (the snaps popover). `oncurve` also names the entity under the pointer in
  * `entityId`, which the edit and constraint tools use to pick a line, circle or arc by clicking it.
  */
-import type { SketchDraft } from './index';
+import type { SketchDraft } from './types';
 import { nearestOn, angleOf, dist, dot, intersect, len, onArc, pointAt, sub, wrap, type CurveG } from './tools/edit-geom';
 import { curveOf } from './tools/edit-draft';
 import type { Pt, SnapHit, SnapKind } from './tools/types';
@@ -18,10 +18,10 @@ export { nearestOn };
 import { MODEL_SNAP_KINDS, modelCrossingAt, modelLineAt, modelPointAt, type ModelSnaps } from './modelSnaps';
 
 /** The switchable snap kinds, in the order the popover lists them. */
-export const SNAP_KINDS = ['endpoint', 'center', 'midpoint', 'quadrant', 'intersection', 'perpendicular', 'tangent', 'oncurve', 'align', 'grid', ...MODEL_SNAP_KINDS] as const;
+export const SNAP_KINDS = ['endpoint', 'center', 'midpoint', 'quadrant', 'intersection', 'perpendicular', 'tangent', 'oncurve', 'extension', 'align', 'grid', ...MODEL_SNAP_KINDS] as const;
 export type SnapToggle = (typeof SNAP_KINDS)[number];
 export type SnapToggles = Record<SnapToggle, boolean>;
-export const ALL_SNAPS: SnapToggles = { endpoint: true, center: true, midpoint: true, quadrant: true, intersection: true, perpendicular: true, tangent: true, oncurve: true, align: true, grid: true, modelEndpoint: true, modelMidpoint: true, modelCenter: true, modelExtent: true };
+export const ALL_SNAPS: SnapToggles = { endpoint: true, center: true, midpoint: true, quadrant: true, intersection: true, perpendicular: true, tangent: true, oncurve: true, extension: true, align: true, grid: true, modelEndpoint: true, modelMidpoint: true, modelCenter: true, modelExtent: true };
 
 export interface SnapOptions {
   /** Plane units within which a snap applies. */
@@ -214,6 +214,23 @@ export function snapAt(draft: SketchDraft, at: Pt, opts: SnapOptions): SnapHit |
     }
   }
 
+  // 7b. the extension of a line past its end, or the tangent continuation of an arc: a dashed guide from the end to the pointer
+  if (on('extension')) {
+    const xc: Cand[] = [];
+    for (const { id, g, e } of curves) {
+      if (opts.skip?.has(e.p1 as string) || opts.skip?.has(e.p2 as string)) continue;
+      for (const [end, dir] of extensionRays(g)) {
+        const rel = sub(at, end);
+        const s = dot(rel, dir);                       // how far past the end along the extension
+        if (s <= tol) continue;                        // on the curve itself, or at its end (the end snap owns that)
+        const d = Math.abs(rel.x * dir.y - rel.y * dir.x);
+        if (d <= tol) { const p = { x: end.x + dir.x * s, y: end.y + dir.y * s }; xc.push({ d, at: p, entityId: id, guide: { a: end, b: p } }); }
+      }
+    }
+    const bx = best(xc);
+    if (bx) return hit('extension', bx);
+  }
+
   // 8. grid
   if (opts.grid && opts.grid > 0 && on('grid')) {
     const g = opts.grid;
@@ -223,6 +240,19 @@ export function snapAt(draft: SketchDraft, at: Pt, opts: SnapOptions): SnapHit |
     if (Math.abs(gx - at.x) <= gtol && Math.abs(gy - at.y) <= gtol) return { kind: 'grid', at: { x: gx, y: gy } };
   }
   return undefined;
+}
+
+/** Where a line or an arc can be extended from: each end with the unit direction that leads away from the curve (an arc continues along its tangent). */
+function extensionRays(g: CurveG): Array<[Pt, Pt]> {
+  if (g.kind === 'line') {
+    const d = sub(g.b, g.a), l = len(d);
+    if (l < 1e-9) return [];
+    const u = { x: d.x / l, y: d.y / l };
+    return [[g.b, u], [g.a, { x: -u.x, y: -u.y }]];
+  }
+  if (g.kind !== 'arc') return [];
+  const tan = (p: Pt, sign: number): Pt => { const r = sub(p, g.c), l = len(r) || 1; return { x: (-r.y / l) * sign, y: (r.x / l) * sign }; };
+  return [[g.p2, tan(g.p2, 1)], [g.p1, tan(g.p1, -1)]];   // an arc runs counter-clockwise from p1 to p2
 }
 
 /** The foot of the perpendicular from `from` onto the curve, when it lies on the curve (a line's span, an arc's sweep). */

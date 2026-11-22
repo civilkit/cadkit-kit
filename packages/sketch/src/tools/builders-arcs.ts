@@ -8,7 +8,7 @@
  *  - `tangent` takes refs `[entityId, entityId]` (line/arc/circle in either order); the shared end point is found
  *    automatically, or named by an extra `at: pointId` field, which these tools always write.
  */
-import type { SketchDraft, DraftEntity } from '../index';
+import type { SketchDraft, DraftEntity } from '../types';
 import { addConstraintOf, nextId } from './builders';
 import type { Pt, PreviewShape } from './types';
 

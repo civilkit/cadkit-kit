@@ -4,7 +4,7 @@
  * that shares a point or an entity with the new one is tried: the draft without it must solve with no conflict and
  * nothing redundant. The caller offers the first as a one-click "Replace" (Shift while adding does it at once).
  */
-import type { DraftConstraint, SketchDraft } from './index';
+import type { DraftConstraint, SketchDraft } from './types';
 import { entityPoints } from './tools/edit-draft';
 import type { Solve } from './define';
 
@@ -40,12 +40,6 @@ export async function replaceCandidates(draft: SketchDraft, addedId: string, sol
   }
   return found;
 }
-
-/** The farthest a point is from the origin. */
-const reach = (d: SketchDraft): number => d.points.reduce((m, p) => Math.max(m, Math.abs(p.x), Math.abs(p.y)), 0);
-
-/** A swap whose solve threw the geometry far away (swapping Parallel for Perpendicular starts from a point where the equation has no slope, so the solver can run off): the sketch is far larger than it was. */
-export const blewUp = (before: SketchDraft, after: SketchDraft): boolean => reach(after) > Math.max(1e4, 100 * reach(before));
 
 /** The draft with one constraint taken out (the replaced one). */
 export const withoutConstraint = (draft: SketchDraft, id: string): SketchDraft => ({ ...draft, constraints: draft.constraints.filter((k) => k.id !== id) });

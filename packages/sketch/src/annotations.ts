@@ -7,7 +7,7 @@
  *   marks        a symbol for a geometric constraint (H, V, =, tangent ...), placed on the shape it constrains
  * Coincident constraints are listed but not drawn: they are the shared points themselves.
  */
-import type { DraftConstraint, DraftEntity, SketchDraft } from './index';
+import type { DraftConstraint, DraftEntity, SketchDraft } from './types';
 import { shownValue, storedValue } from './slotLength';
 import type { Pt } from './tools/types';
 
@@ -138,7 +138,7 @@ export const GLYPHS: Record<string, string> = {
   horizontal: 'H', vertical: 'V', equal: '=', parallel: '∥', perpendicular: '⊥', collinear: '≡',
   coincident: '●', midpoint: 'M', tangent: 'T', symmetric: '⇄', fix: '⚓', concentric: '◎', pointOnLine: '⌖', pointOnCircle: '⌖',
 };
-const DIM_TYPES = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'angle']);
+const DIM_TYPES = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'raddiff', 'angle']);
 
 const mid = (a: Pt, b: Pt): Pt => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
@@ -167,6 +167,22 @@ export interface ShapeOptions {
   side?: 1 | -1;
   /** A right angle becomes a square corner mark. */
   squareRight?: boolean;
+}
+
+/** The two ends of the gap a radial offset measures: on a ray at 45 degrees from the centre of two concentric circles or arcs, the point on the smaller and the point on the larger. */
+function radialGap(draft: SketchDraft, refs: string[]): [Pt, Pt] | null {
+  const pts = new Map(draft.points.map((p) => [p.id, p]));
+  const circ = (id: string): { c: Pt; r: number } | null => {
+    const e = draft.entities.find((x) => x.id === id);
+    if (e?.type === 'circle') { const c = pts.get(String(e.c)); return c ? { c, r: Number(e.r) } : null; }
+    if (e?.type === 'arc') { const c = pts.get(String(e.c)), p1 = pts.get(String(e.p1)); return c && p1 ? { c, r: Math.hypot(p1.x - c.x, p1.y - c.y) } : null; }
+    return null;
+  };
+  const a = circ(refs[0]), b = circ(refs[1]);
+  if (!a || !b || Math.abs(a.r - b.r) < 1e-9) return null;
+  const [lo, hi] = a.r < b.r ? [a, b] : [b, a];
+  const u = { x: Math.SQRT1_2, y: Math.SQRT1_2 };
+  return [{ x: lo.c.x + u.x * lo.r, y: lo.c.y + u.y * lo.r }, { x: hi.c.x + u.x * hi.r, y: hi.c.y + u.y * hi.r }];
 }
 
 /** An angle between two lines that share no end point (typed against the origin axis, or a dimension between two loose lines): the arc is drawn where the lines
@@ -210,6 +226,10 @@ export function dimensionShape(draft: SketchDraft, type: string, refs: string[],
       return c && p1 ? leaderShape(c, Math.hypot(p1.x - c.x, p1.y - c.y), type === 'diameter', extra, side) : null;
     }
     return null;
+  }
+  if (type === 'raddiff' && refs.length === 2) {
+    const g = radialGap(draft, refs);
+    return g ? linearShape(g[0], g[1], side * o.off * 0.5 * level) : null;
   }
   if (type === 'angle' && refs.length === 2) {
     const a = ents.get(refs[0]), b = ents.get(refs[1]);
@@ -274,6 +294,9 @@ export function annotate(draft: SketchDraft, opts: AnnotateOptions = {}): Annota
       if (c.type === 'angle' && refs.length === 2) {
         const a = ents.get(refs[0]), b = ents.get(refs[1]);
         at = (a && b && sharedPoint(a, b)) || anchorOf(refs[0]);   // lines with no common end point (one typed against the axis): the label is placed where they cross, this is its fallback
+      } else if (c.type === 'raddiff' && refs.length === 2) {
+        const g = radialGap(draft, refs);
+        at = g ? mid(g[0], g[1]) : anchorOf(refs[0]);
       } else if (c.type === 'pldist' && refs.length === 2) {
         at = anchorOf(refs[0]);
       } else if (refs.length >= 2) {

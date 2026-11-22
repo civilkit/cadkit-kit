@@ -28,7 +28,7 @@ export const SLOTS: Record<string, string[]> = {
   'surface-reshape': ['add-fill', 'add-extend', 'add-offset-surface'],
   'surface-edit': ['add-trim-surface', 'add-knit', 'add-thicken', 'add-freeform'],
   history: ['rebuild', 'rename', 'suppress-selected', 'delete-feature', 'roll-forward'],
-  export: ['export', 'export-step', 'export-stl', 'export-stl-ascii', 'export-stl-bodies', 'export-obj', 'export-3mf', 'export-glb', 'export-dxf-sketch', 'export-dxf-views'],
+  export: ['export', 'export-step', 'export-stl', 'export-stl-ascii', 'export-stl-bodies', 'export-obj', 'export-3mf', 'print-plate', 'export-glb', 'export-usdz', 'export-html', 'export-urdf', 'export-dxf-sketch', 'export-dxf-views'],
   views: ['view-iso', 'view-top', 'view-front', 'view-right', 'view-back', 'view-left', 'view-bottom'],
   style: ['style-shaded', 'style-shadedEdges', 'style-wireframe', 'style-hiddenLines', 'style-ghost'],
   light: ['light-studio', 'light-flat', 'light-contrast', 'light-technical'],
@@ -81,7 +81,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
     { id: 'Views', entries: [slot('views'), 'fit', 'toggle-projection', 'toggle-up-axis'] },
     { id: 'Style', entries: [slot('style', { radio: true }), 'hide-selection', 'show-all'] },
     { id: 'Appearance', entries: [slot('light', { radio: true }), slot('background', { radio: true }), slot('layers', { menu: true, keepOpen: true, icon: 'display', title: 'group.Show' })] },
-    { id: 'Workspace', entries: ['palette', 'toggle-left-panel', 'drawer', 'reset-layout', 'settings'] },
+    { id: 'Workspace', entries: ['palette', 'toggle-left-panel', 'drawer', 'reset-layout', 'settings', 'keyboard-shortcuts'] },
   ],
   Select: [
     { id: 'Pick', entries: [slot('pick-mode'), slot('pick-set')] },
@@ -126,13 +126,13 @@ export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
  *  and the command search only. Everything else (every modelling, surface, inspect, assembly and selection command) must be on it. */
 export const notOnRail = (id: string): boolean =>
   /^(layer-|export|view-|style-|light-|bg-|motion-|sheet-(dxf|bends))/.test(id) ||
-  ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'mesh-to-solid', 'sketch-import-dxf', 'sketch-import-svg', 'import-skp-hidden', 'rotate-skp', 'recognise-features', 'palette', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'toggle-up-axis', 'fit', 'hide-selection', 'show-all', 'group-selected'].includes(id);
+  ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'mesh-to-solid', 'print-plate', 'sketch-import-dxf', 'sketch-import-svg', 'import-skp-hidden', 'rotate-skp', 'recognise-features', 'palette', 'keyboard-shortcuts', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'toggle-up-axis', 'fit', 'hide-selection', 'show-all', 'group-selected'].includes(id);
 
 // ---- contextual ribbon: which tab shows, which commands are idle -----------------------------------------------------------
 
 /** File commands live in the top bar (New, Open, Save, Export, Samples and its file menu), never on a ribbon tab. The ribbon leaves them out. */
 export const isFileCommand = (id: string): boolean =>
-  /^export/.test(id) || ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'mesh-to-solid', 'sketch-import-dxf', 'sketch-import-svg', 'import-skp-hidden', 'rotate-skp', 'recognise-features'].includes(id);
+  /^export/.test(id) || ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'mesh-to-solid', 'print-plate', 'sketch-import-dxf', 'sketch-import-svg', 'import-skp-hidden', 'rotate-skp', 'recognise-features'].includes(id);
 
 /** The contextual tab that replaces the others while a sketch is open. */
 export const SKETCH_TAB = 'Sketch';

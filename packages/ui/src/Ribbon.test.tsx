@@ -168,8 +168,38 @@ describe('Ribbon automation hooks', () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const css = readFileSync(resolve(process.cwd(), 'apps/cad/src/toolbar.css'), 'utf8');
-    expect(css).toMatch(/\.rb-pinned-end \{[^}]*position: sticky;[^}]*right: 0;[^}]*background: var\(--panel\)[^}]*z-index: 4|\.rb-pinned-end \{[^}]*right: 0;[^}]*z-index: 4[^}]*background: var\(--panel\)/);
+    expect(css).toMatch(/\.rb-pinned-end \{[^}]*position: sticky;[^}]*right: 0;[^}]*background: var\(--panel\)[^}]*z-index: (?:4|var\(--z-float\))|\.rb-pinned-end \{[^}]*right: 0;[^}]*z-index: (?:4|var\(--z-float\))[^}]*background: var\(--panel\)/);
     expect(css).toMatch(/\.rb-pinned-end::after \{[^}]*left: 100%/);
     expect(css).toMatch(/\.rb-strip \{ overflow: clip; \}/);
   });
 });
+
+describe('Ribbon tabs for the keyboard', () => {
+  const three: Command[] = [...commands, { id: 'x', label: 'X', tab: 'Insert', group: 'G', run: () => {} }];
+  it('is a tablist of tabs with a roving tab stop', () => {
+    const { container } = render(<Ribbon commands={three} activeTab="View" onTab={() => {}} />);
+    expect(container.querySelector('[role=tablist]')).toBeTruthy();
+    const tabs = [...container.querySelectorAll<HTMLElement>('[role=tab]')];
+    expect(tabs.length).toBe(3);
+    expect(tabs.map((x) => x.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
+    expect(tabs.map((x) => x.tabIndex)).toEqual([-1, 0, -1]);
+  });
+  it('Left, Right, Home and End move and select, wrapping at the ends', () => {
+    const onTab = vi.fn();
+    const { container } = render(<Ribbon commands={three} activeTab="Home" onTab={onTab} />);
+    const list = container.querySelector('[role=tablist]')!;
+    const names = [...container.querySelectorAll('[role=tab]')].map((x) => x.getAttribute('data-testid')!.replace('ribbon-tab-', ''));
+    fireEvent.keyDown(list, { key: 'ArrowRight' });
+    expect(onTab).toHaveBeenLastCalledWith(names[1]);
+    fireEvent.keyDown(list, { key: 'ArrowLeft' });
+    expect(onTab).toHaveBeenLastCalledWith(names[names.length - 1]);
+    fireEvent.keyDown(list, { key: 'End' });
+    expect(onTab).toHaveBeenLastCalledWith(names[names.length - 1]);
+    fireEvent.keyDown(list, { key: 'Home' });
+    expect(onTab).toHaveBeenLastCalledWith(names[0]);
+    onTab.mockClear();
+    fireEvent.keyDown(list, { key: 'a' });
+    expect(onTab).not.toHaveBeenCalled();
+  });
+});
+

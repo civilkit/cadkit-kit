@@ -19,7 +19,7 @@
  *    result never has an unresolved ref.
  * Splines and ellipses are neither trimmed nor used as cutters.
  */
-import type { DraftConstraint, SketchDraft } from '../index';
+import type { DraftConstraint, SketchDraft } from '../types';
 import { add, arcSweep, dist, dot, len, scale, sub, intersect, paramEnd, paramOf, pointAt, sample, TAU, TOL, wrap, type CurveG } from './edit-geom';
 import { curveOf, dropOrphans, entityOf, pruneDangling, removeEntities, replaceEntity, withConstraint, withEntity, withPoint } from './edit-draft';
 import type { Pt, PreviewShape, Tool, ToolOutput } from './types';

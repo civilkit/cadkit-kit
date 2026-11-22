@@ -4,7 +4,7 @@
  * treats it as any other line). An axis line that is already there (same fixed ends, construction) is reused, so
  * asking twice adds nothing. `x` is the horizontal axis (y = 0), `y` the vertical axis (x = 0).
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { withEntity } from './edit-draft';
 import { nextId } from './builders';
 

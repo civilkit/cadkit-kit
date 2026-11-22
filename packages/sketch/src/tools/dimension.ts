@@ -12,6 +12,7 @@
  *   arc                 radius [arc]
  *   arc, arc            distance [A, B] with `overall: true`, when the two arcs are a slot's end caps: the value is the overall
  *                       length of the slot (see slotLength.ts); any other pair of arcs starts over with the second arc
+ *   circle/arc, circle/arc with the same centre   raddiff [smaller, larger]: the radial gap between them (the kernel's radius difference)
  *   line, line          angle [A, B] in degrees (the angle at their shared vertex, see `angleSpec`)
  * Any pick may also be a body edge (an edge of the part the sketch is on, not sketch geometry): clicking one that is not
  * in the sketch yet projects it first, as fixed reference geometry exactly as the Project tool does (never twice: an edge
@@ -25,7 +26,7 @@
  * see CONSTRAINTS.md "Solving"). A typed value far from the measured one may converge to the wrong root of an
  * `angle` (CONSTRAINTS.md), so the caller should keep dimension changes moderate or step toward the target.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { capsOverall, storedValue } from '../slotLength';
 import { angleSpec, appendSpec, centerId, classify, lineEnds, pickOf, radiusOf, refusal, xy, type Pick, type Spec } from './constraints';
 import { projectEdgeAt } from './project';
@@ -71,6 +72,16 @@ const isCurve = (p: Pick) => p.kind === 'circle' || p.kind === 'arc';
 function resolveDim(d: SketchDraft, picks0: readonly Pick[], radius: boolean, orient: DimOrient): { pending: Pending } | { more: true } | { hint: string } {
   let picks = picks0;
   let [a, b] = picks;
+  if (b && isCurve(a) && isCurve(b)) {
+    // two concentric circles or arcs: the radial gap between them (raddiff, smaller then larger), not a zero centre distance
+    const [ca, cb] = [xy(d, centerId(d, a.id) ?? ''), xy(d, centerId(d, b.id) ?? '')];
+    const [ra, rb] = [radiusOf(d, a.id), radiusOf(d, b.id)];
+    if (ca && cb && ra !== undefined && rb !== undefined && dist(ca, cb) < 1e-6 * Math.max(1, ra, rb)) {
+      if (Math.abs(ra - rb) < 1e-9) return { hint: 'app.sketch.hint.pick.invalid' };
+      const [lo, hi] = ra < rb ? [a, b] : [b, a];
+      return { pending: { spec: { type: 'raddiff', refs: [lo.id, hi.id] }, measured: Math.abs(rb - ra), unit: 'length', label: 'app.sketch.field.raddiff', preview: [{ kind: 'circle', c: ca, r: Math.min(ra, rb) }, { kind: 'circle', c: ca, r: Math.max(ra, rb) }] } };
+    }
+  }
   // against a point, a line or another circle a circle or arc stands for its centre (the kernel reads a curve ref that way too)
   if (b && !(a.kind === 'arc' && b.kind === 'arc') && !(a.kind === 'line' && b.kind === 'line') && !(isCurve(a) && isCurve(b) && (a.kind === 'arc' || b.kind === 'arc'))) {
     const toCentre = (p: Pick): Pick => { const c = isCurve(p) ? centerId(d, p.id) : undefined; return c ? { kind: 'point', id: c } : p; };

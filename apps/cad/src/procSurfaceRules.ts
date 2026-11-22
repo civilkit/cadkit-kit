@@ -4,7 +4,7 @@
 import type { PartDoc } from '@ck/part-model';
 import { t } from './i18n';
 import { CURVE_FEATURES, faceList, isVec3 } from './curveRules';
-import { hasCurves, isClosedSketch, isOpenSketch } from './featureCreators';
+import { hasCurves, isClosedSketch, isOpenSketch } from './sketchKinds';
 import { sketchInfos } from './surfaceRules';
 
 type Wire = Record<string, unknown>;

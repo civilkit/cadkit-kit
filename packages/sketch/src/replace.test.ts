@@ -37,13 +37,3 @@ describe('replaceCandidates', () => {
     expect(withoutConstraint(draft(), 'k3').constraints.map((k) => k.id)).toEqual(['k1', 'k2', 'k4']);
   });
 });
-
-describe('blewUp', () => {
-  const at = (x: number): SketchDraft => ({ ...draft(), points: [{ id: 'p1', x: 0, y: 0 }, { id: 'p2', x, y: 0 }] });
-  it('flags a sketch thrown thousands of times further out, not an ordinary change', async () => {
-    const { blewUp } = await import('./replace');
-    expect(blewUp(at(10), at(25))).toBe(false);
-    expect(blewUp(at(10), at(5000))).toBe(false);   // large but under the floor
-    expect(blewUp(at(10), at(3e7))).toBe(true);
-  });
-});

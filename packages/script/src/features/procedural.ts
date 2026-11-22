@@ -1,7 +1,8 @@
 // Procedural curves and surfaces kept as their definitions: projectCurve (with keepExact), offsetCurve, compositeCurve, sweepSurface,
 // blendSurface, the N-sided fill, and the read-only intersection check. Each emits exactly the kernel feature (field names of
 // part-model's features.ts). Mixed into PartBuilder by features/index.ts.
-import type { Ctx, EditOp, FeatureHandle, Num, PartBuilder } from '../recorder';
+import type { Ctx, EditOp, FeatureHandle, Num } from '../core';
+import type { PartBuilder } from '../recorder';
 import type { EdgeSel, FaceSel, FacesSel } from '../selectors';
 import { H, memOf, sketchOps, type SketchSpec } from './h';
 

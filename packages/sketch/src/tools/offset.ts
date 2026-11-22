@@ -22,7 +22,7 @@
  * There is no single "offset distance" constraint in the vocabulary, so each segment carries its own distance
  * dimension of the same value. Spline and ellipse chains are not supported.
  */
-import type { DraftEntity, SketchDraft } from '../index';
+import type { DraftEntity, SketchDraft } from '../types';
 import { entityShape } from '../select';
 import { chainCurves, edgeNear, edgesFor, flatten, projectCurves, referenceChain, shapesOf as projectedShapes } from './project';
 import { offsetSplinePoints, sampleSpline, sideOfSpline, signedArea } from './splineOffset';

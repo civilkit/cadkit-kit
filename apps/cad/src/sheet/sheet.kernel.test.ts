@@ -179,8 +179,7 @@ describe('sheet metal commands against the kernel', { skip: !process.env.CK_WASM
     w.pick([50, 0, 2]);
     expect((await w.go('add-edge-flange'))?.ok).toBe(true);
     const before = ((await w.controller.massProps())?.volume ?? NaN);
-    expect(w.cmd('add-sheet-corner').enabled?.()).toBe(false);                                // nothing selected
-    expect(w.cmd('add-sheet-corner').why?.()).toMatch(/corner/i);
+    expect(w.cmd('add-sheet-corner').enabled?.()).toBe(true);                                 // nothing selected: the command opens with its pick list active
     w.store.mode.value = 'vertex'; w.store.select(['v:100,60,2']);                            // the far corner of the plate, on the cap face
     expect(w.cmd('add-sheet-corner').enabled?.()).toBe(true);
     const r = await w.go('add-sheet-corner');

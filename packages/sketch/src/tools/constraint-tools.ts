@@ -11,7 +11,7 @@
  *
  * `fromSelection` runs a tool on picks that already exist (the current selection), without clicks.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import {
   appendSpec, blockers, pickOf, refusal, refusalHint, resolve, HINT,
   type ConstraintKind, type Pick,

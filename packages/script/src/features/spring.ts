@@ -7,7 +7,8 @@
 // to the spring's own body (`name`, so two springs in a document need two names; the wizard numbers them).
 // Extension springs (extensionSpring): one wire along one spline, a tight body of touching turns and a machine-hook loop at each end (see extensionPath).
 // NOT modelled yet: a variable pitch along the body, other hook shapes, torsion (leg) springs. The section of a compression spring is carried in the plane through the axis.
-import { at, type Num, type OffsetPlane, type PartBuilder, type Plane } from '../recorder';
+import { at, type Num, type OffsetPlane, type Plane } from '../core';
+import { type PartBuilder } from '../recorder';
 import { H, applyNewBody, sketchOps } from './h';
 import { dot3, norm, type V3 } from './screw';
 

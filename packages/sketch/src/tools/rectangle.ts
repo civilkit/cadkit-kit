@@ -10,7 +10,7 @@
  * The radius stays for the next rectangle; one not typed is held to 0.49 of the shorter side, a typed one that is too large
  * is refused with `app.sketch.hint.radiusTooLarge`.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { addConstraintOf, addLine, addPoint } from './builders';
 import { applyCorners, cornerAtPoint, DEFAULT_AMOUNT } from './corner';
 import type { FieldSpec, PreviewShape, Pt, Tool, ToolOutput, ToolSettings } from './types';

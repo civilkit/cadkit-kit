@@ -1,4 +1,26 @@
 {
+  "0.8.8": [
+    {
+      "id": "print-plate",
+      "title": "Lay a part out on a printer bed",
+      "blurb": "Export > Print Plate / Send to Slicer lays every body flat and packs them on the bed of your printer (Bambu X1C and others); Export Plate writes the .3mf, and the desktop app opens it in your slicer."
+    },
+    {
+      "id": "frozen-pose",
+      "title": "Delete a feature without breaking what hangs on it",
+      "blurb": "Delete a plane or face that a sketch depends on and choose Keep dependents in place: they hold their last position, marked with a warning, until you reattach them to a live plane."
+    },
+    {
+      "id": "html-viewer",
+      "title": "Share a part as one HTML file",
+      "blurb": "Export standalone HTML viewer writes a single file that opens in any browser, offline, with orbit, a tick box for each body and a section plane you drag."
+    },
+    {
+      "id": "perp-snap",
+      "title": "Perpendicular to a circle, and a snap to a line's extension",
+      "blurb": "Perpendicular now takes a line and a circle, which puts the line through the centre; a new line snaps to the straight-on continuation of an existing one, with a dashed guide."
+    }
+  ],
   "0.8.7": [
     {
       "id": "decimate-scan",

@@ -1,7 +1,9 @@
 export { InlineName } from './InlineName';
+export { createSlowClick } from './slowClick';
 export { FeatureTree, sketchOwners, type FeatureRow, type RefRow, type TreeDrop } from './FeatureTree';
 export { FeatureEditor, ENUMS, humanise, sectionsOf, type Section, type OptionsArgs, type OptionsResult } from './FeatureEditor';
 export { Inspector, fieldsOf, type Field } from './Inspector';
+export { useFocusTrap } from './useFocusTrap';
 export { Ribbon, resolveLayout, commandToItem, type Command, type RibbonLayout, type RibbonGroup, type RibbonEntry, type RibbonNode } from './Ribbon';
 export { Slot, slotMemory, shownItem, type SlotItem, type SlotProps, type SlotSide } from './Slot';
 export { StatusBar, type StatusItem, type AlertsChip } from './StatusBar';

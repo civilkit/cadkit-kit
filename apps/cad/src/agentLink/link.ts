@@ -8,6 +8,8 @@ import { t } from '../i18n';
 import { makeAppHandler, type AssetKind, type OpenedAsset } from './appHandlers';
 import { mouldLabels } from '../designCheck';
 import { runAgentScript } from './appRun';
+import { loadSketchPrefs } from '../sketchPrefs';
+import { loadNavPrefs } from '../navPrefs';
 import { listPlugins, runPluginOnApp } from './appPlugin';
 import type { PluginRegistry } from '@kit/plugin';
 
@@ -29,15 +31,16 @@ export function createAgentLink(d: LinkDeps) {
   const state = signal<LinkState>({ state: 'off' });
   const allowEdit = signal(false);
   const { controller: c, store } = d;
+  let batchEdited = false;   // whether the last batch changed the document (a batch of reads stays quiet like a single read)
   const client: BridgeClient = new BridgeClient({
     app: { name: 'CadKit', version: d.version },
     allowEdit: () => allowEdit.value,
-    handle: (op, args) => handle(op, args),
+    handle: async (op, args) => { const r = await handle(op, args); if (op === 'batch') batchEdited = !!(r as { edited?: boolean }).edited; return r; },
     onState: (s) => { state.value = s; if (s.state !== 'connected') allowEdit.value = false; },   // the box never outlives the link
     onCall: (op, ok) => {
       // a visible trace of everything that changes the document, and of every failure; plain reads stay quiet
       if (op === 'plugin_run') store.notify(t(ok ? 'agent.ran' : 'agent.failed'), ok ? 'info' : 'warn');
-      else if (op === 'run_script' || op === 'open_asset' || op === 'edit') store.notify(t(ok ? 'agent.ran' : 'agent.failed'), ok ? 'info' : 'warn');
+      else if (op === 'run_script' || op === 'open_asset' || op === 'edit' || (op === 'batch' && (batchEdited || !ok))) store.notify(t(ok ? 'agent.ran' : 'agent.failed'), ok ? 'info' : 'warn');
       else if (op === 'undo' || op === 'redo') store.notify(t(op === 'undo' ? 'agent.undid' : 'agent.redid'), 'info');
     },
   });
@@ -57,6 +60,7 @@ export function createAgentLink(d: LinkDeps) {
       if (!doc || (a.kind !== 'part' && !/^(stl|obj|glb|3mf)$/.test(a.kind) && doc.features.length === 0)) throw new BridgeError('open_failed', 'the file did not open', 'the app shows why in its notices');
       return { documentId: c.documentId, revision: c.revision, counts: { features: doc.features.length, faces: store.facts.value.faces }, errorCount: store.featureStatus.value.filter((s) => !s.ok).length };
     },
+    settings: () => ({ sketch: loadSketchPrefs(), nav: loadNavPrefs() }),
     revision: () => c.revision,
     documentId: () => c.documentId,
     bounds: () => (c.hasSolid() ? c.bodyBox() : null),

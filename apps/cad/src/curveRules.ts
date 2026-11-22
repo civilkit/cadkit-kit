@@ -5,7 +5,7 @@ import { planeName, viewPlaneIds } from './planeNames';
 import type { PartDoc } from '@ck/part-model';
 import { t } from './i18n';
 import { curveEntities, removeAt, replaceAt, sketchInfos } from './surfaceRules';
-import { hasCurves } from './featureCreators';
+import { hasCurves } from './sketchKinds';
 
 type Wire = Record<string, unknown>;
 type Feat = { id: string; type: string; name?: string; [k: string]: unknown };

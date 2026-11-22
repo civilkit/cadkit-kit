@@ -12,6 +12,8 @@ export type AssetKind = 'part' | 'solidcraft' | 'step' | 'stl' | 'obj' | 'glb' |
 export const ASSET_EXTENSIONS: Readonly<Record<string, AssetKind>> = {
   '.ckpart': 'part', '.solidcraft': 'solidcraft', '.step': 'step', '.stp': 'step', '.stl': 'stl', '.obj': 'obj', '.glb': 'glb', '.3mf': '3mf',
 };
+/** The files an agent may have run as a script (a batch step app_run_script {file}): read as text, never opened as a part. */
+export const SCRIPT_EXTENSIONS: Readonly<Record<string, AssetKind>> = { '.ckscript': 'part', '.js': 'part' };
 export const DEFAULT_MAX_MB = 256;
 const MAX_PATH_CHARS = 1024;
 
@@ -57,7 +59,7 @@ const inside = (root: string, p: string): boolean => { const r = relative(root, 
 export interface ResolvedAsset { file: string; root: string; kind: AssetKind; name: string; bytes: number }
 
 /** Decide whether `userPath` may be opened. Throws BridgeError with a stable code; touches the file system only after the lexical checks pass. */
-export async function resolveAsset(policy: AssetPolicy, userPath: unknown): Promise<ResolvedAsset> {
+export async function resolveAsset(policy: AssetPolicy, userPath: unknown, exts: Readonly<Record<string, AssetKind>> = ASSET_EXTENSIONS): Promise<ResolvedAsset> {
   if (typeof userPath !== 'string' || !userPath.trim() || userPath.length > MAX_PATH_CHARS || userPath.includes('\0')) throw new BridgeError('bad_input', 'path must be a non-empty string of at most 1024 characters');
   if (!policy.roots.length) throw new BridgeError('asset_roots_not_configured', 'no folder is allowed for opening files', `the user sets CK_MCP_ASSET_ROOTS (a list of folders) or writes {"roots": ["<folder>"]} to ${assetConfigFile()}, then calls again`);
   if (userPath.split(/[\\/]+/).includes('..')) throw new BridgeError('path_traversal', 'a path with ".." is not allowed', 'give the path below an allowed folder, without ".."');
@@ -65,24 +67,24 @@ export async function resolveAsset(policy: AssetPolicy, userPath: unknown): Prom
   const wanted = resolve(policy.roots[0], userPath);
   const lexicalRoot = [...policy.roots, ...policy.configured].find((r) => inside(r, wanted));
   if (!lexicalRoot) throw new BridgeError('path_outside_workspace', 'that path is not inside an allowed folder', `allowed: ${policy.roots.join(', ')}`);
-  const ext0 = extOf(wanted);
-  if (!ext0) throw new BridgeError('asset_extension_not_allowed', `files of that type cannot be opened`, `allowed: ${Object.keys(ASSET_EXTENSIONS).join(' ')}`);
+  const ext0 = extOf(wanted, exts);
+  if (!ext0) throw new BridgeError('asset_extension_not_allowed', `files of that type cannot be opened`, `allowed: ${Object.keys(exts).join(' ')}`);
   const file = real(wanted);
   if (!file) throw new BridgeError('asset_not_found', 'no such file in the allowed folders');
   const root = policy.roots.find((r) => inside(r, file));
   if (!root) throw new BridgeError('path_outside_workspace', 'that path leads outside the allowed folders (a link?)', `allowed: ${policy.roots.join(', ')}`);
-  const ext = extOf(file);
-  if (!ext) throw new BridgeError('asset_extension_not_allowed', 'the file this path leads to is not of an allowed type', `allowed: ${Object.keys(ASSET_EXTENSIONS).join(' ')}`);
+  const ext = extOf(file, exts);
+  if (!ext) throw new BridgeError('asset_extension_not_allowed', 'the file this path leads to is not of an allowed type', `allowed: ${Object.keys(exts).join(' ')}`);
   const fh = await open(file, 'r');
   try {
     const st = await fh.stat();
     if (!st.isFile()) throw new BridgeError('asset_not_file', 'that is not a regular file');
     if (st.size > policy.maxBytes) throw new BridgeError('asset_too_large', `the file is ${st.size} bytes; the limit is ${policy.maxBytes}`, 'the user can raise it with CK_MCP_ASSET_MAX_MB');
-    return { file, root, kind: ASSET_EXTENSIONS[ext], name: basename(file), bytes: st.size };
+    return { file, root, kind: exts[ext], name: basename(file), bytes: st.size };
   } finally { await fh.close(); }
 }
 
-const extOf = (p: string): string | null => { const e = /\.[A-Za-z0-9]+$/.exec(basename(p).toLowerCase())?.[0] ?? ''; return e in ASSET_EXTENSIONS ? e : null; };
+const extOf = (p: string, exts: Readonly<Record<string, AssetKind>>): string | null => { const e = /\.[A-Za-z0-9]+$/.exec(basename(p).toLowerCase())?.[0] ?? ''; return e in exts ? e : null; };
 
 /** Read a resolved file, at most `maxBytes` (a file that grew since the check is refused, never read whole). */
 export async function readAsset(a: ResolvedAsset, policy: AssetPolicy): Promise<Uint8Array> {

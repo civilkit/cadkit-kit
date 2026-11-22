@@ -33,8 +33,9 @@ In a field that holds a plain number, **ArrowUp** and **ArrowDown** change it by
 
 ## Snaps and inferred constraints
 
-As you move the pointer, CivilKit CAD snaps to existing points and curves and shows a marker and a name: **endpoint**, **centre**, **origin**, **midpoint**, **quadrant**, **intersection**, **perpendicular**, **tangent**, **on curve**, **aligned** and **grid**. The same markers appear for model geometry: **model endpoint**, **model midpoint**, **model centre**, **model quadrant**, **model crossing**, **mid-extent**, **body centre** and **mid of extrusion**.
+As you move the pointer, CivilKit CAD snaps to existing points and curves and shows a marker and a name: **endpoint**, **centre**, **origin**, **midpoint**, **quadrant**, **intersection**, **perpendicular**, **tangent**, **on curve**, **extension**, **aligned** and **grid**. The same markers appear for model geometry: **model endpoint**, **model midpoint**, **model centre**, **model quadrant**, **model crossing**, **mid-extent**, **body centre** and **mid of extrusion**.
 
+- Move the pointer along the straight-on continuation of a line past its end, or along the tangent continuation of an arc past its end, and it snaps to that **extension**: a dashed guide runs from the end to the pointer and a box-and-plus marker shows the spot. With **Add constraints from snaps** and **Auto-constrain from guides** on, a point placed on a line's extension is made to lie on that line.
 - Hold `Alt` while you click to turn snapping off for that click.
 - With **Infer constraints while drawing** on (the default), the tools add horizontal, vertical, coincident and tangent constraints as you draw. Hold `Shift` at a click to turn that off for the click. A snap to a guide places only the point, unless **Add constraints from snaps** and **Auto-constrain from guides** are on.
 - Hold `Shift` while you click a model snap to attach the point to the model: a fixed reference point is added there and your point is made coincident with it.

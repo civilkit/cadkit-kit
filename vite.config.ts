@@ -56,6 +56,7 @@ export default defineConfig(({ command }) => ({
       '@kit/script': here('./packages/script/src/index.ts'),
       '@kit/skill': here('./packages/skill/src/index.ts'),
       '@kit/motion': here('./packages/motion/src/index.ts'),
+      '@kit/catalog': here('./packages/catalog/src/index.ts'),
       '@kit/ui': here('./packages/ui/src/index.ts'),
       '@kit/agent-tools': here('./packages/agent-tools/src/index.ts'),
       '@kit/plugin': here('./packages/plugin/src/index.ts'),
@@ -67,7 +68,7 @@ export default defineConfig(({ command }) => ({
       '@kit/snapshot': here('./packages/snapshot/src/index.ts'),
       '@kit/viewdata': here('./packages/viewdata/src/index.ts'),
       // the app's headless drawing layer (views, dimensions, callouts, SVG / PDF / DXF); the MCP `drawing` tool imports it on demand
-      '@kit/cad-drawing': here('./apps/cad/src/drawing/headless.ts'),
+      '@kit/cad-drawing': here('./packages/drawing/src/drawing/headless.ts'),
       '@ck/driver-verify': FW + '/packages/driver/src/verify.ts',
       '@ck/session': FW + '/packages/session/src/session.ts',
       '@ck/mesh': FW + '/packages/render/src/mesh.ts',

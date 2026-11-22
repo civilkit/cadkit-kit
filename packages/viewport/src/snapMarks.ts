@@ -5,10 +5,10 @@
  * glyph stays the same size on screen at every zoom).
  *
  * square = endpoint, triangle = midpoint, circle = centre, diamond = quadrant, X = intersection, right-angle mark = perpendicular,
- * circle on a line = tangent, hourglass = nearest (on curve), small plus = grid point, diamond on a dashed guide = alignment.
+ * circle on a line = tangent, hourglass = nearest (on curve), plus in a box = extension of a line or arc (on a dashed guide), small plus = grid point, diamond on a dashed guide = alignment.
  * Model snaps use the same glyphs in cyan; the sketch's own in orange.
  */
-export type MarkerStyle = 'point' | 'midpoint' | 'align' | 'anchor' | 'center' | 'quadrant' | 'intersection' | 'perpendicular' | 'tangent' | 'oncurve' | 'grid';
+export type MarkerStyle = 'point' | 'midpoint' | 'align' | 'anchor' | 'center' | 'quadrant' | 'intersection' | 'perpendicular' | 'tangent' | 'oncurve' | 'extension' | 'grid';
 
 /** Half-size of a snap glyph in screen pixels (the glyph is about 10 px across); the chain-end ring is larger. */
 export const MARKER_HALF_PX = 5.5;
@@ -25,6 +25,7 @@ export function markerStyleFor(hit: MarkerHit | undefined | null): MarkerStyle |
     case 'midpoint': case 'modelMidpoint': return 'midpoint';
     case 'quadrant': case 'intersection': case 'perpendicular': case 'tangent': case 'align': return hit.kind;
     case 'oncurve': return 'oncurve';
+    case 'extension': return 'extension';
     case 'modelEndpoint': return 'point';
     case 'modelCenter': return 'center';
     case 'modelExtent': return 'align';
@@ -60,6 +61,7 @@ export function markerSegments(style: MarkerStyle, x: number, y: number, k: numb
     case 'oncurve':   // hourglass: two triangles tip to tip
       seg({ x: x - k, y: y + k }, { x: x + k, y: y + k }); seg({ x: x + k, y: y + k }, { x: x - k, y: y - k });
       seg({ x: x - k, y: y - k }, { x: x + k, y: y - k }); seg({ x: x + k, y: y - k }, { x: x - k, y: y + k }); break;
+    case 'extension': seg({ x: x - k, y }, { x: x + k, y }); seg({ x, y: y - k }, { x, y: y + k }); loop([{ x: x - k * 0.5, y: y - k * 0.5 }, { x: x + k * 0.5, y: y - k * 0.5 }, { x: x + k * 0.5, y: y + k * 0.5 }, { x: x - k * 0.5, y: y + k * 0.5 }]); break;
     case 'grid': seg({ x: x - k * 0.7, y }, { x: x + k * 0.7, y }); seg({ x, y: y - k * 0.7 }, { x, y: y + k * 0.7 }); break;
     case 'anchor': ring(k, x, y, 24); break;
   }

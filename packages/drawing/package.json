@@ -1,0 +1,6 @@
+{
+  "name": "@kit/drawing",
+  "private": true,
+  "type": "module",
+  "main": "src/drawing/headless.ts"
+}

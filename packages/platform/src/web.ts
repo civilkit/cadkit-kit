@@ -2,8 +2,9 @@ import type { Platform } from './index';
 import { idbHandleStore, readHandleWith, saveDocumentWith, type FsEnv } from './fsaccess';
 import { bytesText } from './gzip';
 import { isBinaryName } from './kinds';
+import { detectDesktopSlicers, sendToSlicerWith } from './slicer';
 
-const MIME: Record<string, string> = { stl: 'model/stl', obj: 'model/obj', dxf: 'image/vnd.dxf', svg: 'image/svg+xml', step: 'model/step', stp: 'model/step', ckpart: 'application/json', json: 'application/json', gz: 'application/gzip' };
+const MIME: Record<string, string> = { stl: 'model/stl', obj: 'model/obj', '3mf': 'model/3mf', dxf: 'image/vnd.dxf', svg: 'image/svg+xml', step: 'model/step', stp: 'model/step', ckpart: 'application/json', json: 'application/json', gz: 'application/gzip' };
 const mimeFor = (name: string) => MIME[name.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream';
 
 export function createWebPlatform(opts: { base?: string } = {}): Platform {
@@ -57,6 +58,10 @@ export function createWebPlatform(opts: { base?: string } = {}): Platform {
     },
     readHandle: readHandleWith,
     handleStore: () => { try { return idbHandleStore(globalThis.indexedDB); } catch { return null; } },
+    detectSlicers: detectDesktopSlicers,
+    openInSlicer(slicerId, bytes, filename) {
+      return sendToSlicerWith(slicerId, bytes, filename, (n, d, m) => this.saveFile(n, d, m));
+    },
     wasmUrl(): string {
       const path = `${base}kernel/ck_wasm.wasm`;
       // The kernel worker fetches this from its own script URL (assets/...), so a relative base (a static site that may sit

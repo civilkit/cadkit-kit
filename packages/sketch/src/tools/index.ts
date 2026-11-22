@@ -24,7 +24,7 @@ export { splitTool, splitAt, splitPoint, type SplitState, type SplitRes } from '
 export { splineAddTool, addSplinePoint, type SplineAddState, type SplineAddRes } from './splineAdd';
 export { extendTool, extendAt, planExtend, type ExtendState } from './extend';
 export { mirrorTool } from './mirror';
-export { offsetTool, applyOffset, faceOuterLoop, OFFSET_FACE_KEY, DEFAULT_FACE_OFFSET, type OffsetState } from './offset';
+export { offsetTool, applyOffset, chainOf, itemOf, leftIsInside, faceOuterLoop, OFFSET_FACE_KEY, DEFAULT_FACE_OFFSET, type OffsetState } from './offset';
 export { splineTool, type SplineState } from './spline';
 export { cvsplineTool, type CvSplineState } from './cvspline';
 export { bridgeTool, type BridgeState } from './bridge';

@@ -2,7 +2,8 @@
  *  the solver's verdict. Not part of the package surface (nothing imports it but tests). */
 import { Session } from '@ck/session';
 import { emptyPart, type PartDoc, type SketchSolverStatus } from '@ck/part-model';
-import { toFeature, type SketchDraft } from '../index';
+import { toFeature } from '../draft';
+import type { SketchDraft } from '../types';
 
 export const sessions: Session[] = [];
 export const closeSessions = async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); };

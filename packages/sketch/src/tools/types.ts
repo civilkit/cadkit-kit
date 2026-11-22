@@ -4,12 +4,12 @@
  * values and keys, and returns the next state, the next draft, a preview to
  * draw and the on-view fields to show. No DOM, no Three.js, no kernel calls.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 
 export interface Pt { x: number; y: number }
 export interface Modifiers { shift: boolean; ctrl: boolean; alt: boolean }
 
-export type SnapKind = 'point' | 'midpoint' | 'center' | 'grid' | 'axis' | 'align' | 'intersection' | 'quadrant' | 'perpendicular' | 'tangent' | 'oncurve'
+export type SnapKind = 'point' | 'midpoint' | 'center' | 'grid' | 'axis' | 'align' | 'intersection' | 'quadrant' | 'perpendicular' | 'tangent' | 'oncurve' | 'extension'
   | 'modelEndpoint' | 'modelMidpoint' | 'modelCenter' | 'modelExtent';
 /** What the snap engine found under the pointer. `pointId` is set when the hit is an existing sketch point. */
 export interface SnapHit {
@@ -25,7 +25,7 @@ export interface SnapHit {
   alignTo?: { x?: string; y?: string };
   /** For the model snaps: what was found (an i18n suffix: modelEndpoint, midExtent, bodyCentre, midExtrusion, ...). */
   model?: string;
-  /** For a model guide line: its two ends, drawn dashed. */
+  /** For a model guide line, and for `extension` (from the end that is extended to the snapped point): its two ends, drawn dashed. */
   guide?: { a: Pt; b: Pt };
 }
 

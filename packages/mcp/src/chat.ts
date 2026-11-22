@@ -6,7 +6,7 @@
 // two validated values (a model alias and a session id), there is no shell, the tools are an allow-list (no Bash, no file tools,
 // nothing else), and the working directory is an empty temporary folder. The page sends text, nothing else reaches the command line.
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -121,6 +121,20 @@ export function eventMapper(): (line: string) => ChatEventOut[] {
   };
 }
 
+/** The scratch folders of chats that were never cleaned up (a daemon that was killed): `ck-chat-*` folders in `root` that are EMPTY and older than `olderThanMs` are removed. A folder with anything in it is left alone (rmdir fails on it); returns how many went. */
+export function sweepScratch(root = tmpdir(), olderThanMs = 12 * 3600_000, keep?: string | null): number {
+  let n = 0;
+  let names: string[] = [];
+  try { names = readdirSync(root); } catch { return 0; }
+  for (const name of names) {
+    if (!name.startsWith('ck-chat-')) continue;
+    const p = join(root, name);
+    if (p === keep) continue;
+    try { if (Date.now() - statSync(p).mtimeMs >= olderThanMs) { rmdirSync(p); n++; } } catch { /* not empty, not a folder or already gone */ }
+  }
+  return n;
+}
+
 export class ChatRunner {
   private cwd: string | null = null;
   private current: ChildProcess | null = null;
@@ -130,6 +144,7 @@ export class ChatRunner {
   /** Run one turn; `emit` gets each event, `signal` (the page went away or pressed Stop) kills the process. Always resolves. */
   run(req: ChatRequest, emit: (e: ChatEventOut) => void, signal: AbortSignal): Promise<void> {
     if (this.current) { emit({ type: 'error', code: 'busy' }); return Promise.resolve(); }
+    if (!this.cwd) sweepScratch(undefined, undefined, null);
     this.cwd ??= mkdtempSync(join(tmpdir(), 'ck-chat-'));
     return new Promise((resolve) => {
       let child: ChildProcess;

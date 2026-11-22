@@ -1,4 +1,4 @@
-// Generates src/registry.generated.json mechanically from the TypeScript source of packages/script (recorder.ts, selectors.ts) and the
+// Generates src/registry.generated.json mechanically from the TypeScript source of packages/script (recorder.ts, core.ts, selectors.ts) and the
 // hand-written pitfall notes in notes/<id>.md. A purely mechanical extraction: no AI, no kernel. Run: npm run skill:generate
 // The TypeScript compiler API is not available (typescript 7 is the native compiler), so the source is parsed with @babel/parser
 // (typescript plugin), which keeps comments and positions. Needs the JSDoc tags: @domain, @param, @example, @see.
@@ -31,7 +31,9 @@ function parseDoc(comment) {
 const lastDoc = (node) => [...(node.leadingComments ?? [])].reverse().find((c) => c.type === 'CommentBlock' && c.value.startsWith('*'));
 
 export function generate() {
-  const src = fs.readFileSync(path.join(scriptSrc, 'recorder.ts'), 'utf8');
+  // recorder.ts plus core.ts (the plain types and at()/plane() it re-exports; core's imports and recorder's core import/re-export lines are dropped so the two read as one file)
+  const coreBody = fs.readFileSync(path.join(scriptSrc, 'core.ts'), 'utf8').replace(/^import .*;\n/gm, '');
+  const src = coreBody + '\n' + fs.readFileSync(path.join(scriptSrc, 'recorder.ts'), 'utf8').replace(/^(import .* from '\.\/core'|export \* from '\.\/core');\n/gm, '');
   const selSrc = fs.readFileSync(path.join(scriptSrc, 'selectors.ts'), 'utf8');
   const ast = parseTs(src);
   let curSrc = src;

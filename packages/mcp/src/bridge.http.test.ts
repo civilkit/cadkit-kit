@@ -1,7 +1,7 @@
 // The agent link end to end on loopback: the real daemon routes, the real MCP tools and the app's BridgeClient, with a stand-in
 // for the app's handlers. No kernel is needed (the daemon gets a fake backend), so this runs without CK_WASM.
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -392,5 +392,143 @@ describe('app_edit', () => {
     const stale = await rpc(d, 'app_edit', { expectedRevision: 1, ops });
     expect(stale.isError).toBe(true);
     expect(stale.body.error).toMatchObject({ code: 'stale_revision', hint: 'read app_state with sinceRevision' });
+  });
+});
+
+describe('app_batch', () => {
+  /** A stand-in app that knows the batch op: it runs each step through `one`, like the real handler does, and counts the requests it was sent. */
+  const batching = (one: (op: string, a: Record<string, unknown>) => Promise<unknown>, log: string[] = []) => async (op: string, args: Record<string, unknown>): Promise<unknown> => {
+    log.push(op);
+    if (op !== 'batch') return one(op, args);
+    const results: unknown[] = [];
+    let stopped = false;
+    for (const st of args.steps as Array<{ op: string; args: Record<string, unknown> }>) {
+      if (stopped) { results.push({ ok: false, skipped: true }); continue; }
+      try { results.push({ ok: true, result: await one(st.op, st.args) }); }
+      catch (e) { results.push({ ok: false, error: { code: (e as BridgeError).code, message: (e as Error).message, ...((e as BridgeError).hint ? { hint: (e as BridgeError).hint } : {}) } }); if (args.stopOnError !== false) stopped = true; }
+    }
+    return { results };
+  };
+  const steps = (...s: unknown[]) => ({ steps: s });
+  it('refuses an unknown step key before anything runs, and says where parameters go', async () => {
+    const d = await boot();
+    const seen: string[] = [];
+    const app = appClient({ edit: () => true, handle: async (op) => { seen.push(op); return { revision: 1 }; } });
+    await app.connect(await pairCode(d));
+    const r = await rpc(d, 'app_batch', steps({ tool: 'app_state' }, { tool: 'app_screenshot', view: 'top' }));
+    expect(r.isError).toBe(true);
+    expect(r.body.error.code).toBe('bad_input');
+    expect(r.body.error.message).toMatch(/steps\[1\]\.view: unknown field.*parameters go inside "args"/);
+    expect(seen).toEqual([]);
+  });
+  it('checks every step first: a bad argument in step 2 or an edit without permission runs nothing', async () => {
+    const d = await boot();
+    const seen: string[] = [];
+    const app = appClient({ edit: () => false, handle: async (op) => { seen.push(op); return {}; } });
+    await app.connect(await pairCode(d));
+    const bad = await rpc(d, 'app_batch', steps({ tool: 'app_state' }, { tool: 'app_state', args: { limit: 0 } }, { tool: 'app_open_asset', args: {} }));
+    expect(bad.body.error.message).toMatch(/steps\[1\]\.args\.limit.*steps\[2\]\.tool: app_open_asset cannot be a batch step/);
+    const noEdit = await rpc(d, 'app_batch', steps({ tool: 'app_state' }, { tool: 'app_undo' }));
+    expect(noEdit.body.error.code).toBe('edit_not_allowed');
+    expect(seen).toEqual([]);
+  });
+  it('runs the steps in order and returns one result each; a failure stops the rest unless stopOnError is false', async () => {
+    const d = await boot();
+    const seen: Array<[string, Record<string, unknown>]> = [];
+    const app = appClient({ edit: () => true, handle: batching(async (op, a) => {
+      seen.push([op, a]);
+      if (op === 'bodies') throw new BridgeError('no_body', 'no solid', 'build something');
+      if (op === 'edit') return { revision: 8 };
+      return { revision: 7, open: true };
+    }) });
+    await app.connect(await pairCode(d));
+    const r = await rpc(d, 'app_batch', steps({ tool: 'app_edit', args: { ops: [{ op: 'remove', id: 'F1' }] }, label: 'drop' }, { tool: 'app_bodies', args: {} }, { tool: 'app_undo' }));
+    expect(r.isError).toBe(true);
+    expect(r.body).toMatchObject({ ok: false, steps: 3, failed: 1, skipped: 1 });
+    expect(r.body.results.map((x: { ok: boolean; skipped?: boolean }) => [x.ok, !!x.skipped])).toEqual([[true, false], [false, false], [false, true]]);
+    expect(r.body.results[1].error).toMatchObject({ code: 'no_body', hint: 'build something' });
+    expect(seen.map(([o]) => o)).toEqual(['edit', 'bodies']);
+    seen.length = 0;
+    const all = await rpc(d, 'app_batch', { ...steps({ tool: 'app_bodies', args: {} }, { tool: 'app_state' }), stopOnError: false });
+    expect(all.body).toMatchObject({ failed: 1 });
+    expect(all.body.results[1].ok).toBe(true);
+  });
+  it('a screenshot step comes back as an image beside the JSON', async () => {
+    const d = await boot();
+    const app = appClient({ handle: batching(async () => ({ png: 'AAAA', view: 'top', size: 64 })) });
+    await app.connect(await pairCode(d));
+    const r = await rpc(d, 'app_batch', steps({ tool: 'app_screenshot', args: { view: 'top', size: 64 } }));
+    expect(r.body.results[0].result).toMatchObject({ view: 'top', image: 'attached as image 1' });
+    expect(r.body.results[0].result.png).toBeUndefined();
+    expect(r.content.some((c) => c.type === 'image' && c.data === 'AAAA')).toBe(true);
+  });
+  it('is ONE request to the app whatever the number of steps', async () => {
+    const d = await boot();
+    const log: string[] = [];
+    const app = appClient({ edit: () => true, handle: batching(async () => ({ revision: 2 }), log) });
+    await app.connect(await pairCode(d));
+    const r = await rpc(d, 'app_batch', steps({ tool: 'app_state' }, { tool: 'app_undo' }, { tool: 'app_state' }, { tool: 'app_bodies', args: {} }));
+    expect(r.body).toMatchObject({ ok: true, steps: 4, failed: 0 });
+    expect(log).toEqual(['batch']);
+  });
+  it('falls back to one request per step for an app that does not know batch', async () => {
+    const d = await boot();
+    const log: string[] = [];
+    const app = appClient({ edit: () => true, handle: async (op) => { log.push(op); if (op === 'batch') throw new BridgeError('unknown_op', 'the app does not know batch'); return { revision: 3 }; } });
+    await app.connect(await pairCode(d));
+    const r = await rpc(d, 'app_batch', steps({ tool: 'app_state' }, { tool: 'app_state' }));
+    expect(r.body).toMatchObject({ ok: true, steps: 2 });
+    expect(log).toEqual(['batch', 'state', 'state']);
+  });
+});
+
+describe('app_batch with a script file', () => {
+  it('reads app_run_script {file} from an allowed folder; other places and types are refused before any step runs', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'scripts-'));
+    dirs.push(root);
+    writeFileSync(join(root, 'plate.ckscript'), 'part("P").box(1,2,3)');
+    writeFileSync(join(root, 'notes.txt'), 'x');
+    const old = process.env.CK_MCP_ASSET_ROOTS;
+    process.env.CK_MCP_ASSET_ROOTS = root;
+    try {
+      const d = await boot();
+      const seen: Array<Record<string, unknown>> = [];
+      const app = appClient({ edit: () => true, handle: async (op, a) => { seen.push({ op, ...a }); return { results: [{ ok: true, result: { ok: true } }] }; } });
+      await app.connect(await pairCode(d));
+      expect((await rpc(d, 'app_batch', { steps: [{ tool: 'app_run_script', args: { file: 'plate.ckscript' } }] })).body.ok).toBe(true);
+      expect((seen[0].steps as Array<{ args: { code: string } }>)[0].args.code).toBe('part("P").box(1,2,3)');
+      seen.length = 0;
+      for (const [file, code] of [['notes.txt', 'asset_extension_not_allowed'], ['missing.ckscript', 'asset_not_found'], ['../x.ckscript', 'path_traversal']]) {
+        const r = await rpc(d, 'app_batch', { steps: [{ tool: 'app_state' }, { tool: 'app_run_script', args: { file } }] });
+        expect(r.body.error.code, file).toBe(code);
+      }
+      expect((await rpc(d, 'app_batch', { steps: [{ tool: 'app_run_script', args: { file: 'plate.ckscript', code: 'x' } }] })).body.error.code).toBe('bad_input');
+      expect(seen).toEqual([]);
+    } finally { if (old === undefined) delete process.env.CK_MCP_ASSET_ROOTS; else process.env.CK_MCP_ASSET_ROOTS = old; }
+  });
+});
+
+describe('app_selection', () => {
+  it('reaches the app without the edit permission, validates limit, and works as a batch step', async () => {
+    const d = await boot();
+    const seen: Array<Record<string, unknown>> = [];
+    const app = appClient({ edit: () => false, handle: async (op, a) => { seen.push({ op, ...a }); return { count: 1, items: [{ id: 'F2', kind: 'feature' }] }; } });
+    await app.connect(await pairCode(d));
+    expect((await rpc(d, 'app_selection', { limit: 5 })).body).toMatchObject({ ok: true, count: 1 });
+    expect(seen[0]).toEqual({ op: 'selection', limit: 5 });
+    expect((await rpc(d, 'app_selection', { limit: 0 })).body.error.code).toBe('bad_input');
+    expect((await rpc(d, 'app_selection', { max: 1 })).body.error.message).toMatch(/unknown field/);
+  });
+});
+
+describe('app_settings', () => {
+  it('reaches the app read-only with query and limit, and refuses a bad limit', async () => {
+    const d = await boot();
+    const seen: Array<Record<string, unknown>> = [];
+    const app = appClient({ edit: () => false, handle: async (op, a) => { seen.push({ op, ...a }); return { count: 1, returned: 1, settings: [{ key: 'nav.zoomSpeed', value: 1 }] }; } });
+    await app.connect(await pairCode(d));
+    expect((await rpc(d, 'app_settings', { query: 'nav', limit: 10 })).body).toMatchObject({ ok: true, settings: [{ key: 'nav.zoomSpeed', value: 1 }] });
+    expect(seen[0]).toEqual({ op: 'settings', query: 'nav', limit: 10 });
+    expect((await rpc(d, 'app_settings', { limit: 0 })).body.error.code).toBe('bad_input');
   });
 });

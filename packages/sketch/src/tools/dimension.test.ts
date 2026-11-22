@@ -172,3 +172,30 @@ describe('dimension value box command keys', () => {
     expect(run(dimensionTool, [point('p1')]).fields).toEqual([]);
   });
 });
+
+describe('radial offset between concentric circles', () => {
+  const rings: SketchDraft = { ...draft, points: [{ id: 'p1', x: 0, y: 0 }, { id: 'p2', x: 30, y: 0 }],
+    entities: [{ id: 'e1', type: 'circle', c: 'p1', r: 10 }, { id: 'e2', type: 'circle', c: 'p1', r: 14 }, { id: 'e3', type: 'circle', c: 'p2', r: 5 }] };
+  const ent = (id: string): ToolEvent => ({ type: 'click', at: { x: 0, y: 0 }, snap: { kind: 'grid', at: { x: 0, y: 0 }, entityId: id }, mods: M });
+  it('two circles with one centre measure the gap, smaller first, in either pick order', () => {
+    for (const order of [['e1', 'e2'], ['e2', 'e1']]) {
+      const o = run(dimensionTool, order.map(ent), rings);
+      expect(o.state.pending?.spec).toMatchObject({ type: 'raddiff', refs: ['e1', 'e2'] });
+      expect(o.state.pending?.measured).toBeCloseTo(4);
+    }
+  });
+  it('commits a raddiff with the typed gap', () => {
+    const o = run(dimensionTool, [ent('e2'), ent('e1'), typed(6)], rings);
+    expect(o.draft.constraints[0]).toMatchObject({ type: 'raddiff', refs: ['e1', 'e2'], value: 6 });
+    expect(run(dimensionTool, [ent('e1'), ent('e2'), typed(6), ent('e1'), ent('e2'), typed(7)], rings).hint).toBe('app.sketch.hint.dimension.exists');
+  });
+  it('a circle and an arc with one centre work too; circles with different centres still measure the centre distance', () => {
+    const arcs: SketchDraft = { ...rings, points: [...rings.points, { id: 'p3', x: 20, y: 0 }, { id: 'p4', x: 0, y: 20 }], entities: [...rings.entities, { id: 'e4', type: 'arc', c: 'p1', p1: 'p3', p2: 'p4' }] };
+    expect(run(dimensionTool, [ent('e1'), ent('e4')], arcs).state.pending?.spec).toMatchObject({ type: 'raddiff', refs: ['e1', 'e4'] });
+    expect(run(dimensionTool, [ent('e1'), ent('e3')], rings).state.pending?.spec.type).toBe('distance');
+  });
+  it('equal radii on one centre are refused', () => {
+    const same: SketchDraft = { ...rings, entities: [rings.entities[0], { id: 'e2', type: 'circle', c: 'p1', r: 10 }] };
+    expect(run(dimensionTool, [ent('e1'), ent('e2')], same).state.pending?.spec.type).not.toBe('raddiff');
+  });
+});

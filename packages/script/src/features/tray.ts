@@ -6,7 +6,8 @@
 // foot: true adds the Gridfinity foot under every grid cell (three lofts per cell: a 0.8 mm chamfer, 1.8 mm straight, a 2.15 mm chamfer, 4.75 mm in all) so the part seats in a Gridfinity baseplate;
 // the foot is part of the height and the floor is then the thickness above it.
 // NOT modelled yet: a stacking flange, dividers and labels, several narrow trays in one module.
-import { at, type Num, type PartBuilder } from '../recorder';
+import { at, type Num } from '../core';
+import { type PartBuilder } from '../recorder';
 import { H } from './h';
 
 export type TrayEnds = 'none' | 'front' | 'back' | 'both';

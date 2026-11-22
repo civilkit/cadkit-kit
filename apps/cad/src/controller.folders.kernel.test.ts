@@ -3,7 +3,8 @@ import { Session } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
 import { createStore } from '@kit/store';
 import { Controller, type KernelFactory, type ViewSink } from './controller';
-import { dropPlan, groupPlan, patchOf, renameFolderPlan, ungroupPlan, type Plan } from './treeFolders';
+import { folderToggleOps } from './historyFolder';
+import { folderIds, dropPlan, groupPlan, patchOf, renameFolderPlan, ungroupPlan, type Plan } from './treeFolders';
 import type { FeatureRow } from '@kit/ui';
 
 const rect = (id: string, x0: number, y0: number, x1: number, y1: number) => ({
@@ -122,5 +123,39 @@ describe('folders through the controller, on the real kernel', { skip: !process.
     const again = await world();
     await again.controller.load(saved);
     expect(again.groups()).toBe('- - Folder Folder Folder Folder');
+  });
+
+  it('deleting a folder removes all its features and their sketches as one undo step', async () => {
+    const w = await world();
+    await w.controller.edit(ops(groupPlan(w.rows(), w.feats(), ['F2', 'F4'], 'Folder')));
+    const ids = folderIds(w.rows(), w.feats(), 'Folder');
+    expect(ids).toEqual(['F1', 'F2', 'F3', 'F4']);
+    const n = w.controller.history().length;
+    const r = await w.controller.deleteFeatures(ids);
+    expect(r!.ok).toBe(true);
+    expect(w.controller.history().length).toBe(n + 1);
+    expect(w.feats().map((f) => f.id)).toEqual(['F5', 'F6']);
+    expect(w.controller.bodyBox()!.max[0]).toBeCloseTo(60, 3);
+    expect(w.controller.bodyBox()!.min[0]).toBeCloseTo(50, 3);
+    await w.controller.undo();
+    expect(w.feats().map((f) => f.id)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6']);
+    expect(w.groups()).toBe('Folder Folder Folder Folder - -');
+    expect(w.controller.bodyBox()!.min[0]).toBeCloseTo(0, 3);
+  });
+
+  it('suppressing a folder switches off every feature in it, the body follows, and unsuppress brings it back', async () => {
+    const w = await world();
+    await w.controller.edit(ops(groupPlan(w.rows(), w.feats(), ['F2', 'F4'], 'Folder')));
+    const ids = folderIds(w.rows(), w.feats(), 'Folder');
+    const n = w.controller.history().length;
+    const r = await w.controller.edit(folderToggleOps(w.feats() as never, ids, 'Folder'));
+    expect(r.ok).toBe(true);
+    expect(w.controller.history().length).toBe(n + 1);
+    const sup = () => (w.controller.document()!.features as unknown as Array<{ id: string; suppressed?: boolean }>).filter((f) => f.suppressed).map((f) => f.id);
+    expect(sup()).toEqual(['F1', 'F2', 'F3', 'F4']);
+    expect(w.controller.bodyBox()!.min[0]).toBeCloseTo(50, 3);
+    await w.controller.edit(folderToggleOps(w.feats() as never, ids, 'Folder'));
+    expect(sup()).toEqual([]);
+    expect(w.controller.bodyBox()!.min[0]).toBeCloseTo(0, 3);
   });
 });

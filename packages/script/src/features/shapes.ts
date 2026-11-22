@@ -1,7 +1,8 @@
 // Loft, sweep, rib, mirror and gear: feature helpers that build several sketches or reuse an app generator. Mixed into PartBuilder by features/index.ts.
-import type { EditOp, FeatureHandle, Num, OffsetPlane, Plane, PartBuilder } from '../recorder';
+import type { EditOp, FeatureHandle, Num, OffsetPlane, Plane } from '../core';
+import type { PartBuilder } from '../recorder';
 import type { FaceSel } from '../selectors';
-import { DEFAULT_GEAR, gearFeatures, rolesFor, type GearParams } from '../../../../apps/cad/src/gearData';
+import { DEFAULT_GEAR, gearFeatures, rolesFor, type GearParams } from '@kit/catalog';
 import { H, applyFrom, applyNewBody, planeRef, sketchOps, type SketchSpec } from './h';
 
 type End = 'cap' | 'point';

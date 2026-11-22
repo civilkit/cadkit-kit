@@ -20,7 +20,7 @@
  * boundary edges of selected faces, which includes the face the sketch is on); a click projects the edge nearest the
  * pointer (its projection, within the pick tolerance); a click on an already projected edge says so.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { angleOf, dist, TAU, TOL, wrap } from './edit-geom';
 import { ptOf, withEntity, withPoint } from './edit-draft';
 import type { BodyEdge, FieldSpec, PlaneFrame3, Pt, PreviewShape, Tool, ToolEnv, ToolOutput } from './types';

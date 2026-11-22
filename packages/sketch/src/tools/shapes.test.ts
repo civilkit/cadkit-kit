@@ -26,7 +26,7 @@ describe('centre rectangle tool', () => {
   it('centre then corner makes a symmetric axis-aligned rectangle', () => {
     const o = run(centerRectangleTool, [click(10, 10), move(14, 13), click(14, 13)]);
     expect(xy(o.draft)).toEqual([[10, 10], [6, 7], [14, 7], [14, 13], [6, 13]]);
-    expect(o.draft.entities.map((e) => [e.p1, e.p2])).toEqual([['p2', 'p3'], ['p3', 'p4'], ['p4', 'p5'], ['p5', 'p2']]);
+    expect(o.draft.entities.filter((e) => e.type === 'line').map((e) => [e.p1, e.p2])).toEqual([['p2', 'p3'], ['p3', 'p4'], ['p4', 'p5'], ['p5', 'p2']]);
     expect(o.draft.constraints.map((c) => c.type)).toEqual(['horizontal', 'vertical', 'horizontal', 'vertical']);
   });
 
@@ -139,11 +139,23 @@ describe('polygon tool', () => {
   it('a hexagon is six lines sharing six vertices, a vertex at the pointer', () => {
     const o = run(polygonTool, [click(0, 0), click(10, 0)]);
     expect(o.draft.points).toHaveLength(7);               // centre + 6
-    expect(o.draft.entities).toHaveLength(6);
+    expect(o.draft.entities.filter((e) => e.type === 'line')).toHaveLength(6);
     expect(o.draft.points[1]).toMatchObject({ x: 10, y: 0 });
     for (const p of o.draft.points.slice(1)) expect(Math.hypot(p.x, p.y)).toBeCloseTo(10, 9);
-    expect(o.draft.entities.map((e) => [e.p1, e.p2])).toEqual([['p2', 'p3'], ['p3', 'p4'], ['p4', 'p5'], ['p5', 'p6'], ['p6', 'p7'], ['p7', 'p2']]);
+    expect(o.draft.entities.filter((e) => e.type === 'line').map((e) => [e.p1, e.p2])).toEqual([['p2', 'p3'], ['p3', 'p4'], ['p4', 'p5'], ['p5', 'p6'], ['p6', 'p7'], ['p7', 'p2']]);
     expect(o.draft.constraints.filter((c) => c.type === 'equal').map((c) => c.refs)).toEqual([['e1', 'e2'], ['e2', 'e3'], ['e3', 'e4'], ['e4', 'e5'], ['e5', 'e6']]);
+  });
+
+  it('four or more sides get a construction circle with every vertex on it; a triangle needs none', () => {
+    const o = run(polygonTool, [click(0, 0), click(10, 0)]);
+    const circle = o.draft.entities.find((e) => e.type === 'circle');
+    expect(circle).toMatchObject({ c: 'p1', construction: true });
+    expect(circle!.r).toBeCloseTo(10, 9);
+    expect(o.draft.constraints.filter((c) => c.type === 'pointOnCircle').map((c) => c.refs)).toEqual(['p2', 'p3', 'p4', 'p5', 'p6', 'p7'].map((p) => [p, circle!.id]));
+    const sq = run(polygonTool, [{ type: 'key', key: 'm' }, { type: 'key', key: '-' }, { type: 'key', key: '-' }, click(0, 0), click(5, 0)]);
+    expect(sq.draft.entities.find((e) => e.type === 'circle')!.r).toBeCloseTo(5 * Math.SQRT2, 9);   // circumscribed square: circumradius = apothem / cos(pi/4)
+    const tri = run(polygonTool, [{ type: 'field', id: 'sides', value: 3 }, click(0, 0), click(0, 10)]);
+    expect(tri.draft.entities.some((e) => e.type === 'circle')).toBe(false);
   });
 
   it('circumscribed puts an edge midpoint at the pointer: the apothem is the radius', () => {

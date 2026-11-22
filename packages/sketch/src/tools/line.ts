@@ -20,7 +20,7 @@
  * to measure against: a typed 0, 180 or 90 there gets the horizontal / vertical constraint, with auto constraints on), for the segment that closes the chain (its length and both ends are already
  * given), after an arc, when the new constraint would repeat or contradict one (`refusal`); the hint line says so when it is skipped.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { addConstraintOf, addLine, addPoint, pointOf, pruneOrphanPoints } from './builders';
 import { angleSpec, appendSpec, orientations, refusal } from './constraints';
 import { axisLine } from './axisLine';

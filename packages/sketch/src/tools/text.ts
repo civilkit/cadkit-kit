@@ -4,7 +4,7 @@
  * (string, size, font, anchor grid, angle, spacing, mirror, on arc) edits it live; the app then drops to Select mode with the new
  * entity selected. Kernel convention: entity `text {string, font, height, p, anchor}`; the anchor is the sketch point `p`.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { addText } from '../text';
 import type { Pt, Tool, ToolOutput } from './types';
 

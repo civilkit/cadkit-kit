@@ -16,7 +16,7 @@
  *                   whether the pin adds anything: when the degrees of freedom do not drop the point was already determined.
  */
 import type { SketchSolverStatus } from '@ck/part-model';
-import type { DraftConstraint, DraftEntity, SketchDraft } from './index';
+import type { DraftConstraint, DraftEntity, SketchDraft } from './types';
 import { nextId } from './tools/builders';
 import { angleSpec } from './tools/constraints';
 import type { Pt } from './tools/types';
@@ -37,7 +37,7 @@ export interface DefineResult {
   fully: boolean;
 }
 
-const DIM = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'angle']);
+const DIM = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'raddiff', 'angle']);
 const round = (v: number) => Math.round(v * 1e4) / 1e4;
 
 /**

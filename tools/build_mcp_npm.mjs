@@ -28,7 +28,7 @@ const alias = {
   '@kit/sketch': 'packages/sketch/src/index.ts', '@kit/script': 'packages/script/src/index.ts', '@kit/skill': 'packages/skill/src/index.ts',
   '@kit/agent-tools': 'packages/agent-tools/src/index.ts', '@kit/plugin': 'packages/plugin/src/index.ts', '@kit/plugin-tools': 'packages/plugin-tools/src/index.ts', '@kit/readback': 'packages/readback/src/index.ts', '@kit/mcp': 'packages/mcp/src/index.ts',
   '@kit/agent-link': 'packages/agent-link/src/index.ts', '@kit/snapshot': 'packages/snapshot/src/index.ts', '@kit/viewdata': 'packages/viewdata/src/index.ts',
-  '@kit/cad-drawing': 'apps/cad/src/drawing/headless.ts',
+  '@kit/cad-drawing': 'packages/drawing/src/drawing/headless.ts',
 };
 for (const [k, v] of Object.entries(alias)) alias[k] = resolve(ROOT, v);
 Object.assign(alias, {

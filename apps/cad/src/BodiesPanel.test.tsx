@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render } from '@testing-library/preact';
+import { act, cleanup, fireEvent, render } from '@testing-library/preact';
 import { BodiesPanel, type BodiesPanelProps } from './BodiesPanel';
 import type { BodyRow } from './bodies';
 
@@ -22,6 +22,21 @@ describe('BodiesPanel made-by line', () => {
     expect(li('@body:b').querySelector('.body-origin')).toBeNull();
     expect(li('@body:c').querySelector('.body-origin')).toBeNull();
     expect(li('@body:a').querySelector('.body-name')!.textContent).toBe('History');
+  });
+});
+
+describe('BodiesPanel slow second click', () => {
+  it('renames the only selected body after a slow second click', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(10_000);
+      const { r, li } = setup({ selected: ['@body:a'] });
+      fireEvent.click(li('@body:a'));
+      vi.advanceTimersByTime(900);
+      fireEvent.click(li('@body:a'));
+      act(() => { vi.advanceTimersByTime(400); });
+      expect(r.container.querySelector('input.body-name-edit')).not.toBeNull();
+    } finally { vi.useRealTimers(); }
   });
 });
 

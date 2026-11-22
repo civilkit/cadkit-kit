@@ -7,6 +7,7 @@ import { APP_READBACK_TOOLS } from '@kit/readback';
 import type { Backend } from './protocol';
 import { loadAssetPolicy, readAsset, resolveAsset, type AssetPolicy } from './assetPolicy';
 import { JobRunner, type JobContext, type JobOutcome } from './jobs';
+import { BATCH_INPUT, BATCH_OPS, checkShape, planBatch, readScriptFiles, type BatchStep } from './batch';
 import { CHECK_TOOLS, bindParams, judge, listRecipes, recipeEntry, runKey, substitute, type Recipe, type RecipeCheck } from './recipes';
 
 /** What a bridge tool may use besides the bridge: the user's rules for which files may be opened, and the output budget of this call. */
@@ -97,6 +98,57 @@ async function runRecipe(bridge: Bridge, policy: AssetPolicy, r: Recipe, params:
   return outcome;
 }
 
+/** One step of a batch as the agent sees it. An image (a screenshot) is moved out of the JSON into `images`. */
+interface StepResult { step: number; tool: string; label?: string; ok: boolean; result?: Record<string, unknown>; error?: { code: string; message: string; hint?: string }; skipped?: true }
+
+/** Run a checked batch one step at a time, asking the app once per step (the revision an edit needs is carried from the step before). Only for an app too old to know the batch op. */
+async function runBatchSteps(bridge: Bridge, steps: BatchStep[], stopOnError: boolean): Promise<StepResult[]> {
+  const out: StepResult[] = [];
+  let revision: number | null = null;
+  let stopped = false;
+  for (const st of steps) {
+    const head = { step: st.index, tool: st.tool, ...(st.label ? { label: st.label } : {}) };
+    if (stopped) { out.push({ ...head, ok: false, skipped: true }); continue; }
+    try {
+      let args = st.args;
+      if (st.op === 'edit' && args.expectedRevision === undefined) {
+        revision ??= ((await bridge.request('state', { limit: 1 })) as { revision?: number }).revision ?? 0;
+        args = { ...args, expectedRevision: revision };
+      }
+      const result = await bridge.request(st.op, args) as Record<string, unknown>;
+      if (typeof result.revision === 'number' && (st.op === 'edit' || st.op === 'run_script' || st.op === 'plugin_run')) revision = result.revision; else if (st.op === 'undo' || st.op === 'redo' || st.op === 'run_script' || st.op === 'plugin_run') revision = null;
+      out.push({ ...head, ok: true, result });
+    } catch (e) {
+      out.push({ ...head, ok: false, error: { code: (e as { code?: string }).code ?? 'error', message: String((e as Error).message), ...((e as { hint?: string }).hint ? { hint: (e as { hint?: string }).hint } : {}) } });
+      if (stopOnError) stopped = true;
+    }
+  }
+  return out;
+}
+
+/** Run a checked batch with ONE request to the app (one round trip, whatever the number of steps); an older app that does not know `batch` gets the steps one by one. */
+async function runBatch(bridge: Bridge, steps: BatchStep[], stopOnError: boolean): Promise<StepResult[]> {
+  let reply: { results?: Array<{ ok: boolean; result?: Record<string, unknown>; error?: StepResult['error']; skipped?: true }> };
+  try { reply = await bridge.request('batch', { steps: steps.map((s) => ({ op: s.op, args: s.args })), stopOnError }, { timeoutMs: Math.min(10 * 60_000, 60_000 * steps.length) }) as typeof reply; }
+  catch (e) { if (e instanceof BridgeError && e.code === 'unknown_op') return runBatchSteps(bridge, steps, stopOnError); throw e; }
+  return steps.map((s, n) => ({ step: s.index, tool: s.tool, ...(s.label ? { label: s.label } : {}), ...(reply.results?.[n] ?? { ok: false, skipped: true as const }) }));
+}
+
+/** The MCP result of a batch: one JSON of every step, with each screenshot's PNG attached as an image after it. */
+function batchResult(results: StepResult[], ctx: ToolContext): CallResult {
+  const images: Array<{ type: 'image'; data: string; mimeType: string }> = [];
+  const rows = results.map((r) => {
+    const png = r.result && typeof r.result.png === 'string' ? r.result.png : null;
+    if (!png) return r;
+    images.push({ type: 'image', data: png, mimeType: 'image/png' });
+    const { png: _p, ...rest } = r.result!;
+    return { ...r, result: { ...rest, image: `attached as image ${images.length}` } };
+  });
+  const failed = results.filter((r) => !r.ok && !r.skipped).length;
+  const skipped = results.filter((r) => r.skipped).length;
+  return { ...(failed ? { isError: true } : {}), content: [{ type: 'text', text: ctx.json({ ok: failed === 0, steps: results.length, failed, ...(skipped ? { skipped } : {}), results: rows }) }, ...images] };
+}
+
 const viaApp = (op: BridgeOp, bridge: Bridge, args: Record<string, unknown>) => bridge.request(op, args) as Promise<Record<string, unknown>>;
 
 export const BRIDGE_TOOLS: BridgeTool[] = [
@@ -130,6 +182,18 @@ export const BRIDGE_TOOLS: BridgeTool[] = [
       includeBlobs: { type: 'boolean', description: 'with fields params: keep long values instead of {blob: chars}' },
     }),
     async run(i, bridge, ctx) { return ctx.text({ ok: true, ...(await viaApp('state', bridge, i)) }); },
+  },
+  {
+    name: 'app_selection',
+    description: 'What the user has selected in the app right now, resolved: each entry is {id, kind: feature | face_or_edge | unresolved, feature: {id, type, name?, error?}} (a face or edge belongs to the feature its name starts with). Reads only (no edit permission needed). limit caps the entries (default 50, at most 200); count is the whole selection.' + NEEDS_APP,
+    inputSchema: obj({ limit: { type: 'integer', minimum: 1, maximum: 200 } }),
+    async run(i, bridge, ctx) { return ctx.text({ ok: true, ...(await viaApp('selection', bridge, i)) }); },
+  },
+  {
+    name: 'app_settings',
+    description: 'The user\'s app preferences (sketch input and display, navigation) as a list sorted by key, each {key, value} with dotted keys such as sketch.show.dimensions or nav.orbitMode. query keeps the keys that contain that text; limit caps the list (default 200). Reads only: an agent cannot change settings. No edit permission needed.' + NEEDS_APP,
+    inputSchema: obj({ query: { type: 'string', maxLength: 80 }, limit: { type: 'integer', minimum: 1, maximum: 500 } }),
+    async run(i, bridge, ctx) { return ctx.text({ ok: true, ...(await viaApp('settings', bridge, i)) }); },
   },
   {
     name: 'app_screenshot',
@@ -187,6 +251,16 @@ export const BRIDGE_TOOLS: BridgeTool[] = [
       reason: { type: 'string', maxLength: 120 }, dryRun: { type: 'boolean' },
     }, ['expectedRevision', 'ops']),
     async run(i, bridge, ctx) { return ctx.text({ ok: true, ...(await viaApp('edit', bridge, i)) }); },
+  },
+  {
+    name: 'app_batch',
+    description: 'Run several app tools in ONE call: steps [{tool, args?, label?}], each tool one of ' + Object.keys(BATCH_OPS).join(', ') + '. The parameters of a tool go inside "args" (a step with any other key is refused). The whole batch is checked first (tool names, arguments, edit permission): if anything is wrong nothing runs. Steps then run in order; stopOnError (default true) stops at the first failure and reports the rest as skipped. An app_run_script step may give file (a .ckscript or .js file below a folder the user allowed, as for app_open_asset) instead of code. An app_edit step may leave out expectedRevision: it uses the revision the batch has reached. Returns one result per step; screenshots come back as images.' + NEEDS_APP,
+    inputSchema: BATCH_INPUT,
+    async run(i, bridge, ctx) {
+      checkShape(i);                                           // keys first: a misplaced parameter is named before any file is read
+      const steps = planBatch(await readScriptFiles(i, ctx.assetPolicy()), (n) => BRIDGE_TOOLS.find((t) => t.name === n)?.inputSchema, (op) => bridge.check(op));
+      return batchResult(await runBatch(bridge, steps, i.stopOnError !== false), ctx);
+    },
   },
   {
     name: 'app_job_start',

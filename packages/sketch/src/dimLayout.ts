@@ -9,24 +9,21 @@
  * outside the extension lines with a short leader (the usual CAD way). When every place is taken the label is hidden (shown again while one of the
  * things it measures is hovered or selected) instead of being drawn over others.
  */
-import type { SketchDraft, DraftEntity } from './index';
+import type { SketchDraft, DraftEntity } from './types';
 import { dimensionShape, measuredLength, type Annotation, type DimShape } from './annotations';
 import { bsplineCurve, fitCurve } from './tools/splineMath';
 import type { Pt } from './tools/types';
-import { placementsOf } from './dimPlacement';
+import { placementsOf, LEVEL_PX, MAX_LEVEL, type ToPx } from './dimPlacement';
+export { LEVEL_PX, MAX_LEVEL, type ToPx } from './dimPlacement';
 
 export type DimDisplay = 'all' | 'driving' | 'selected';
 export const DIM_DISPLAYS: readonly DimDisplay[] = ['all', 'driving', 'selected'];
 
 export interface PxRect { x: number; y: number; w: number; h: number }
-export type ToPx = (u: number, v: number) => { x: number; y: number } | null;
 
 /** An oriented rectangle: centre, half sizes along its own axes, angle in radians. */
 export interface Obb { x: number; y: number; hw: number; hh: number; a: number }
 
-/** One dimension line level, in pixels. */
-export const LEVEL_PX = 26;
-export const MAX_LEVEL = 6;
 const MARGIN = 2;          // clear space around a label
 const ZONE = 4;            // a segment's hit zone: this far each side of the curve
 

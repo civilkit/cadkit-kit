@@ -5,7 +5,7 @@
  * constraint (`vertical` for x = 0, `horizontal` for y = 0, `coincident` when both are) instead of a dimension of 0.
  * Pure; the app wires it to the coordinate box (apps/cad/src/CoordBox.tsx).
  */
-import type { SketchDraft } from './index';
+import type { SketchDraft } from './types';
 import { addConstraintOf } from './tools/builders';
 import type { Pt } from './tools/types';
 

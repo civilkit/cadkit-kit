@@ -7,7 +7,7 @@
  * (`foldSolution`). The panel previews a change with the kernel's `equationCurve` query and applies it only when it fits. No DOM,
  * no kernel calls here.
  */
-import type { DraftEntity, SketchDraft } from './index';
+import type { DraftEntity, SketchDraft } from './types';
 import { nextId } from './tools/builders';
 import type { Pt } from './tools/types';
 

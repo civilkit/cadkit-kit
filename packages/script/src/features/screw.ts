@@ -8,7 +8,8 @@
 // APPROXIMATIONS, deliberately: the CROSS (Phillips) drive is two crossed tapered arms (the bit tip as a tool: one thin profile with a blunt flat tip, copied at 90 degrees and subtracted), not the real wing
 // profile; the TORX drive is a six-lobed outline of 12 true tangent arcs between the ISO 10664 tip (A) and valley (B) diameters, with lobe radii chosen
 // for tangency rather than taken from the standard. Both fit the right socket loosely and are meant for looks, fit checks and mass, not for toleranced drives.
-import type { Num, OffsetPlane, PartBuilder, SketchBuilder } from '../recorder';
+import type { Num, OffsetPlane } from '../core';
+import type { PartBuilder, SketchBuilder } from '../recorder';
 import type { PlaneBase } from '../planes';
 import { H } from './h';
 

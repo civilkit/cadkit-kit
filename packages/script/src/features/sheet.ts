@@ -1,7 +1,8 @@
 // Sheet metal: rules, base flange, edge flange, hem, fold, contour flange, unfold, refold. Mixed into PartBuilder by features/index.ts.
 // Each method writes one kernel feature (the wire shapes are in sheetCatalog.ts and the kernel's docs/sheet-metal.md); numbers may be expressions.
 // The base flange and contour flange use the last sketch, as extrude does. Edges are picked by a point on them, an outline index or a role.
-import type { EditOp, Num, PartBuilder } from '../recorder';
+import type { EditOp, Num } from '../core';
+import type { PartBuilder } from '../recorder';
 import { H } from './h';
 
 type P3 = [number, number, number];

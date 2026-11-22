@@ -1,6 +1,7 @@
 // Shared plumbing of the feature mixins (loft, sweep, mirror, ...). recorder.ts binds the helpers it owns once, after the classes exist,
 // so the mixins never import recorder.ts at run time (no import cycle) and recorder.ts stays untouched by new features.
-import type { Ctx, EditOp, Expr, OffsetPlane, Plane, PlaneRef, SketchBuilder as SketchBuilderT } from '../recorder';
+import type { Ctx, EditOp, OffsetPlane, Plane, PlaneRef } from '../core';
+import type { Expr, SketchBuilder as SketchBuilderT } from '../recorder';
 import type { EdgeSel, FaceSel, FacesSel, Geometry } from '../selectors';
 import { buildPlane } from '../planes';
 

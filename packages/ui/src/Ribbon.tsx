@@ -165,9 +165,16 @@ export function Ribbon(p: {
 
   return (
     <div class={'ribbon' + (iconsOnly ? ' icons-only' : '')}>
-      <div class="rb-tabs">
+      <div class="rb-tabs" role="tablist" onKeyDown={(e) => {
+        const i = tabs.indexOf(p.activeTab);
+        const to = e.key === 'ArrowRight' ? (i + 1) % tabs.length : e.key === 'ArrowLeft' ? (i - 1 + tabs.length) % tabs.length : e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : -1;
+        if (to < 0 || tabs.length === 0) return;
+        e.preventDefault();
+        p.onTab(tabs[to]);
+        (e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="tab"]')[to]?.focus();
+      }}>
         {tabs.map((tab) => (
-          <button key={tab} class={'rb-tab' + (tab === p.activeTab ? ' on' : '')} data-testid={'ribbon-tab-' + tab} aria-label={p.tabLabel?.(tab) ?? t('tab.' + tab, undefined, tab)} aria-selected={tab === p.activeTab} onClick={() => p.onTab(tab)}>
+          <button key={tab} role="tab" tabIndex={tab === p.activeTab ? 0 : -1} class={'rb-tab' + (tab === p.activeTab ? ' on' : '')} data-testid={'ribbon-tab-' + tab} aria-label={p.tabLabel?.(tab) ?? t('tab.' + tab, undefined, tab)} aria-selected={tab === p.activeTab} onClick={() => p.onTab(tab)}>
             {p.tabLabel?.(tab) ?? t('tab.' + tab, undefined, tab)}
           </button>
         ))}

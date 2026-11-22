@@ -39,5 +39,6 @@ export function buildStudioEnv(renderer: THREE.WebGLRenderer): THREE.Texture {
   const pm = new THREE.PMREMGenerator(renderer);
   const rt = pm.fromScene(scene, 0, 0.1, 100);
   pm.dispose(); mat.dispose(); (scene.children[0] as THREE.Mesh).geometry.dispose();
+  rt.texture.addEventListener('dispose', () => rt.dispose());   // the texture is all we keep: freeing it frees the target behind it too
   return rt.texture;
 }

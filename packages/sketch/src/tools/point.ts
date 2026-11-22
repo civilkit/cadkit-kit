@@ -8,7 +8,7 @@
  * defined; the fields stay up for the next point until Escape. A click, or Enter, with only one of them locked takes the
  * other from the pointer (and dimensions the typed one).
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { addConstraintOf, addPoint } from './builders';
 import { addEntity } from './shape-helpers';
 import type { FieldSpec, Pt, Tool, ToolOutput } from './types';

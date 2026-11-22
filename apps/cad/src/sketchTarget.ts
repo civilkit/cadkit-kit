@@ -1,4 +1,5 @@
 import { isPlaneId, type PlaneId } from './planeNames';
+import { safeStorage } from '@kit/platform';
 
 /** What the Sketch button (and S) starts a sketch on. */
 export type SketchTarget =
@@ -20,6 +21,6 @@ export function sketchTarget(s: { face: string | null; plane: string | null; fea
 const KEY = 'cad.lastSketchPlane';
 /** The origin plane the last sketch was started on (kept per device). */
 export const lastSketchPlane = {
-  get(): PlaneId | null { try { const v = localStorage.getItem(KEY); return isPlaneId(v) ? v : null; } catch { return null; } },
-  set(id: PlaneId): void { try { localStorage.setItem(KEY, id); } catch { /* private window */ } },
+  get(): PlaneId | null { const v = safeStorage.get(KEY); return isPlaneId(v) ? v : null; },
+  set(id: PlaneId): void { safeStorage.set(KEY, id); },
 };

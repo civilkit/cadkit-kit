@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/ho
 import { DEFAULT_STEP, STEP_SIZES, holdRepeat, sanitizeStep, type ViewRoll, type ViewTurn } from '@kit/viewport';
 import { Icon } from '@kit/ui';
 import { t } from './i18n';
+import { safeStorage } from '@kit/platform';
 
 const ARROWS_KEY = 'cad.viewnav.arrows';
 const GROUPS_KEY = 'cad.viewnav.groups';
@@ -10,8 +11,8 @@ const SIZE_KEY = 'cad.viewnav.size';
 /** The cube's size as a percentage of the standard one (the arrows keep their size and stay round it). */
 export const CUBE_SIZES = [75, 100, 125, 150] as const;
 export const sanitizeCubeSize = (n: number): number => (CUBE_SIZES as readonly number[]).includes(n) ? n : 100;
-const read = (k: string): string | null => { try { return localStorage.getItem(k); } catch { return null; } };
-const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private window */ } };
+const read = (k: string): string | null => safeStorage.get(k);
+const write = (k: string, v: string): void => { safeStorage.set(k, v); };
 
 /** The button groups of the ring the menu switches on and off: turn left/right (yaw), turn up/down (pitch), roll and Home. */
 export type NavGroup = 'yaw' | 'pitch' | 'roll' | 'home';

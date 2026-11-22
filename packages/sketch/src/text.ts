@@ -7,7 +7,7 @@
  * request from a draft, and edits a text entity immutably (the panel and the tool both use it). No DOM, no kernel calls: the
  * caller injects the fetch.
  */
-import type { DraftEntity, SketchDraft } from './index';
+import type { DraftEntity, SketchDraft } from './types';
 import { nextId } from './tools/builders';
 import type { Pt } from './tools/types';
 import { sampleSpline } from './tools/splineOffset';

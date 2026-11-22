@@ -15,7 +15,7 @@
  * an end on the start (`app.sketch.hint.degenerate`). After an arc is placed the chain continues from its end,
  * tangent to it; Escape ends the chain.
  */
-import type { DraftEntity, SketchDraft } from '../index';
+import type { DraftEntity, SketchDraft } from '../types';
 import { addPoint, pointOf } from './builders';
 import { addArc, addTangent, angleOf, arcPolyline, ccwTangent, dist, ownersAt, sweepCcw } from './builders-arcs';
 import type { FieldSpec, Pt, Tool, ToolOutput, ToolSettings } from './types';

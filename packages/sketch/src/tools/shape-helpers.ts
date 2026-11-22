@@ -1,5 +1,5 @@
 /** Helpers shared by the shape tools (centre rectangle, point, centreline, ellipse, polygon, slot). Not part of builders.ts. */
-import type { DraftEntity, SketchDraft } from '../index';
+import type { DraftEntity, SketchDraft } from '../types';
 import { nextId } from './builders';
 import type { Pt, PreviewShape } from './types';
 

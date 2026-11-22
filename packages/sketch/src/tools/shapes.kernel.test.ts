@@ -112,7 +112,7 @@ describe('shape tools draw sketches the real kernel accepts', { skip: !process.e
 
   it('circumscribed pentagon and a triangle are valid solids', async () => {
     const pent = run(polygonTool, [key('m'), key('-'), click(0, 0), click(5, 0)]);          // 5 sides, apothem 5
-    expect(pent.draft.entities).toHaveLength(5);
+    expect(pent.draft.entities.filter((e) => e.type === 'line')).toHaveLength(5);
     const a = await build(pent.draft, 2);
     expect(a.r.ok).toBe(true);
     expect(a.facts.volume).toBeCloseTo(5 * 25 * Math.tan(Math.PI / 5) * 2, 3);              // area = n a^2 tan(pi/n)
@@ -122,6 +122,17 @@ describe('shape tools draw sketches the real kernel accepts', { skip: !process.e
     expect(b.r.ok).toBe(true);
     expect(b.facts.volume).toBeCloseTo((Math.sqrt(3) / 4) * (10 * Math.sqrt(3)) ** 2, 3);
     expect(b.status?.conflicts).toEqual([]);
+  });
+
+  it('a polygon with its construction circle is not extruded as a second profile, has no conflicts and four degrees of freedom', async () => {
+    const o = run(polygonTool, [click(0, 0), click(10, 0)]);
+    expect(o.draft.entities.some((e) => e.type === 'circle' && e.construction)).toBe(true);
+    const { r, facts, status } = await build(o.draft, 4);
+    expect(r.ok).toBe(true);
+    expect(facts.solids).toBe(1);
+    expect(facts.volume).toBeCloseTo((3 * Math.sqrt(3) / 2) * 100 * 4, 3);
+    expect(status?.conflicts).toEqual([]);
+    expect(status?.dof).toBe(4);                                     // centre (2), size, turn: nothing can shear
   });
 
   it('horizontal slot: arcs counter-clockwise p1 -> p2 give box (L + w) x w and area L w + pi (w/2)^2', async () => {

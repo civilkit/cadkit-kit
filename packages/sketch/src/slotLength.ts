@@ -15,7 +15,7 @@
  * the present geometry, so a later change of the slot's width changes the overall length the label shows while the
  * stored centre distance stays what was dimensioned.
  */
-import type { DraftConstraint, SketchDraft } from './index';
+import type { DraftConstraint, SketchDraft } from './types';
 import { angleOf, dist, sweepCcw } from './tools/builders-arcs';
 import type { Pt } from './tools/types';
 

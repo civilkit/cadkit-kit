@@ -2,8 +2,7 @@
 // The geometry is the sketch package's own (the GUI Offset tool): lines and arcs joined at the intersection of their offset curves,
 // circles, and fit-point splines.
 import type { SketchBuilder } from '../recorder';
-import type { DraftEntity, SketchDraft } from '../../../sketch/src/index';
-import { applyOffset, chainOf, itemOf, leftIsInside } from '../../../sketch/src/tools/offset';
+import { applyOffset, chainOf, itemOf, leftIsInside, type DraftEntity, type SketchDraft } from '@kit/sketch';
 
 type Priv = { pointList: Array<Record<string, unknown>>; entities: Array<Record<string, unknown>>; cwArcs: Set<string>; np: number; ne: number };
 

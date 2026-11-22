@@ -41,6 +41,7 @@ export async function main(argv: string[]): Promise<number> {
     const idleMs = idle !== undefined ? Number(idle) * 1000 : process.env.CK_MCP_IDLE_SECONDS ? Number(process.env.CK_MCP_IDLE_SECONDS) * 1000 : undefined;
     const origins = (arg('--allow-origin', argv) ?? '').split(',').filter(Boolean);
     const d = await startDaemon({ wasmPath: wasm, idleMs, allowedOrigins: origins });
+    for (const sig of ['SIGINT', 'SIGTERM'] as const) process.once(sig, () => { void d.close(); });   // closing removes the chat's scratch folder
     process.stderr.write(`ck-cad daemon on 127.0.0.1:${d.port} (pid ${process.pid})\n`);
     await new Promise<void>((r) => d.server.once('close', () => r()));
     return 0;

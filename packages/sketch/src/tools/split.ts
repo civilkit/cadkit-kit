@@ -24,7 +24,7 @@
  *    constraint kind not listed above. `dropped` names the kinds, so the editor can say so.
  * Control-point splines, ellipses and the rest are not split (`splitUnsupported`).
  */
-import type { DraftConstraint, DraftEntity, SketchDraft } from '../index';
+import type { DraftConstraint, DraftEntity, SketchDraft } from '../types';
 import { dist, nearestOn, TOL } from './edit-geom';
 import { curveOf, entityOf, pruneDangling, ptOf, replaceEntity, withConstraint, withEntity, withPoint } from './edit-draft';
 import { fitLocate } from './splineMath';

@@ -4,7 +4,10 @@ import type { FeatureStatus } from '@kit/store';
 import { t } from './i18n';
 import { Icon, featureIconName } from './icons';
 import { InlineName } from './InlineName';
+import { HistoryPlayer } from './HistoryPlayer';
 import { textAttrs } from './keypad';
+import { createSlowClick } from './slowClick';
+import { safeStorage } from '@kit/platform';
 
 /** Curve features make no faces or bodies, so a row of one has nothing for the select-in-viewport button to pick. */
 const CURVE_ROWS = new Set(['editCurve', 'projectCurve', 'offsetCurve', 'compositeCurve', 'helix']);
@@ -17,18 +20,16 @@ const isSketch = (type: string) => type === 'sketch' || type === 'sketch3d';
 /** Lists longer than this render only the rows near the viewport; a row is at least this tall (px). */
 const VIRT_MIN = 120, ROW_H = 34, OVERSCAN = 12;
 const COLLAPSED_KEY = 'cad.treeCollapsed';
-const loadCollapsed = (): string[] => { try { return JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]') as string[]; } catch { return []; } };
+const loadCollapsed = (): string[] => safeStorage.getJson<string[]>(COLLAPSED_KEY, []);
 /** Folder open / closed choices per document (the part name), remembered between sessions. A folder the user never touched is closed in a list longer than FOLDER_AUTO_CLOSE rows. */
 const FOLDERS_KEY = 'cad.treeFolders';
 export const FOLDER_AUTO_CLOSE = 40;
-const loadFolders = (doc: string): Record<string, boolean> => { try { return (JSON.parse(localStorage.getItem(FOLDERS_KEY) ?? '{}') as Record<string, Record<string, boolean>>)[doc] ?? {}; } catch { return {}; } };
+const loadFolders = (doc: string): Record<string, boolean> => safeStorage.getJson<Record<string, Record<string, boolean>>>(FOLDERS_KEY, {})[doc] ?? {};
 const saveFolders = (doc: string, map: Record<string, boolean>): void => {
-  try {
-    const all = JSON.parse(localStorage.getItem(FOLDERS_KEY) ?? '{}') as Record<string, Record<string, boolean>>;
-    delete all[doc]; all[doc] = map;
-    for (const k of Object.keys(all).slice(0, Math.max(0, Object.keys(all).length - 40))) delete all[k];   // keep the 40 documents used last
-    localStorage.setItem(FOLDERS_KEY, JSON.stringify(all));
-  } catch { /* private window */ }
+  const all = safeStorage.getJson<Record<string, Record<string, boolean>>>(FOLDERS_KEY, {});
+  delete all[doc]; all[doc] = map;
+  for (const k of Object.keys(all).slice(0, Math.max(0, Object.keys(all).length - 40))) delete all[k];   // keep the 40 documents used last
+  safeStorage.setJson(FOLDERS_KEY, all);
 };
 const escapeRe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -107,7 +108,7 @@ export function FeatureTree(p: {
   onRenamingChange?(id: string | null): void;
   /** Rollback marker: the number of features the model is built from (0..n-1), null for all of them. */
   rollback?: number | null;
-  onRollback?(count: number | null): void;
+  onRollback?(count: number | null): unknown;
   partName?: string;
   /** Fixed rows above the features: material, the three planes, the origin. */
   refs?: RefRow[];
@@ -132,8 +133,12 @@ export function FeatureTree(p: {
   const [ownRenaming, setOwnRenaming] = useState<string | null>(null);
   const renaming = p.renaming !== undefined ? p.renaming : ownRenaming;
   const setRenaming = (v: string | null) => { setOwnRenaming(v); p.onRenamingChange?.(v); };
+  const slowRef = useRef<ReturnType<typeof createSlowClick> | null>(null);
+  const setRenamingRef = useRef(setRenaming); setRenamingRef.current = setRenaming;
+  const slow = (slowRef.current ??= createSlowClick((id) => setRenamingRef.current(id)));   // a slow second click on the selected row renames it
+  useEffect(() => () => slow.cancel(), []);
   const [collapsed, setCollapsed] = useState<string[]>(loadCollapsed);
-  const persist = (n: string[]) => { try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify(n)); } catch { /* private window */ } };
+  const persist = (n: string[]) => { safeStorage.setJson(COLLAPSED_KEY, n); };
   const toggle = (id: string) => setCollapsed((c) => { const n = c.includes(id) ? c.filter((x) => x !== id) : [...c, id]; persist(n); return n; });
   const owner = sketchOwners(p.rows);
   const childrenOf = new Map<string, FeatureRow[]>();
@@ -272,8 +277,8 @@ export function FeatureTree(p: {
           draggable={!renamingThis}
           onMouseEnter={() => { hovered.current = r.id; p.onHoverFeature?.(r.id); }}
           onMouseLeave={() => { hovered.current = null; p.onHoverFeature?.(null); }}
-          onClick={(e) => p.onSelect(r.id, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey })}
-          onDblClick={() => p.onEdit?.(r.id)}
+          onClick={(e) => { const plain = !(e.ctrlKey || e.metaKey || e.shiftKey); if (p.onRename) slow.click(r.id, picked.size === 1 && picked.has(r.id), plain); p.onSelect(r.id, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey }); }}
+          onDblClick={() => { slow.cancel(); p.onEdit?.(r.id); }}
           onContextMenu={p.onContextMenu ? (e: MouseEvent) => { e.preventDefault(); p.onContextMenu!({ kind: 'row', id: r.id }, e.clientX, e.clientY, { ...(p.onRollback ? { rollbackHere: () => moveMarker(topOf(r.id) + 1) } : {}), collapseAllFolders: () => collapseFolders(folderOfTop.get(topIdOf(r.id))) }); } : undefined}
           onDragStart={() => { dragId.current = r.id; dragFolder.current = null; }}
           onDragOver={(e) => e.preventDefault()}
@@ -533,6 +538,7 @@ export function FeatureTree(p: {
             <button type="button" class={'tree-search-btn' + (searchOpen ? ' on' : '')} aria-pressed={searchOpen}
               title={t('ui.tree.search', undefined, 'Search features') + ' (Ctrl+F)'} aria-label={t('ui.tree.search', undefined, 'Search features')}
               onClick={() => { if (searchOpen) closeSearch(); else openSearch(); }}><Icon name="search" size={15} /></button>
+            {p.onRollback ? <HistoryPlayer total={p.rows.length} rollback={p.rollback ?? null} onRollback={p.onRollback} /> : null}
           </> : null}
           {searchOpen ? (
             <div class="tree-search" role="search">

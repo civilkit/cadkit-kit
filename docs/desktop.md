@@ -22,6 +22,8 @@ Needs Node 22, Rust (`rustup target add aarch64-apple-darwin x86_64-apple-darwin
 WASM_SRC=/path/to/ck_wasm.wasm CK_REBUILD=/path/to/kernel-checkout tools/desktop_build.sh
 ```
 
+The app also embeds the native Rust kernel (`ck-native`, a Cargo path dependency). The script points that dependency at `CK_REBUILD` (the same checkout as the wasm, not whatever `../rebuild` has checked out), exports `CK_COMMIT` from it, and after the build fails unless the kernel commit is found in each `.app` binary. A Mac release therefore cannot pair a gated wasm with a different native kernel.
+
 It builds the static app into `dist-pages-civilkit/cad` (`npm run build:pages`), then `npm run build:mac` in `desktop/` makes a `.app` and `.dmg` for aarch64 and x86_64 under `desktop/src-tauri/target/<triple>/release/bundle/`, and checks the signature. `SKIP_WEB=1` reuses an existing web build.
 
 The apps are ad-hoc signed (`signingIdentity: "-"`): a valid signature without a Developer ID. An arm64 app with a broken signature shows "is damaged", so the signature is verified with `codesign --verify --deep --strict`.

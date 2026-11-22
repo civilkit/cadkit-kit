@@ -2,7 +2,7 @@
 // `Session.bodyForView` hands the viewer only the solid: the kernel's regen reply also carries `surfaces` (one sheet body per
 // feature id, same face and edge records as the solid), which the Session reports as `regenReport().surfaces`.
 import { meshFromBody } from '@ck/mesh';
-import { mergedBox, type ViewSurface } from '../../viewport/src/surfaces';
+import { mergedBox, type ViewSurface } from '@kit/viewport';
 
 type Feat = { type?: string; surface?: unknown; solid?: unknown };
 

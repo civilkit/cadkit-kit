@@ -16,7 +16,7 @@ const baseFeatures = [
   { id: 'F4', type: 'sketch', plane: { kind: 'face', id: 'F2.C1' } },
 ];
 
-function setup(extra: Array<{ id: string; type: string; [k: string]: unknown }> = []) {
+function setup(extra: Array<{ id: string; type: string; [k: string]: unknown }> = [], deps: Partial<Parameters<typeof useTreeInteraction>[0]> = {}) {
   const features = [...baseFeatures, ...extra];
   const store = createStore();
   const edits: EditOp[][] = [];
@@ -39,8 +39,8 @@ function setup(extra: Array<{ id: string; type: string; [k: string]: unknown }> 
   function Harness() {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     api = useTreeInteraction({
-      controller: controller as never, store, viewport: () => ({ orbitBy: orbit, panBy: vi.fn() }), selectedId, setSelectedId, setRefSel, redraw: () => {},
-      edit: async (ops) => { edits.push(ops); }, startEditing: (id) => started.push(id), rows: () => features.map((f) => ({ id: f.id, type: f.type })), exportFolder: () => {}, extractFolder: () => {},
+      controller: controller as never, store, viewport: () => ({ orbitBy: orbit, panBy: vi.fn(), zoomBy: vi.fn() }), selectedId, setSelectedId, setRefSel, redraw: () => {},
+      edit: async (ops) => { edits.push(ops); }, startEditing: (id) => started.push(id), rows: () => features.map((f) => ({ id: f.id, type: f.type })), exportFolder: () => {}, extractFolder: () => {}, ...deps,
     });
     return <FeatureTree rows={features.map((f) => ({ id: f.id, type: f.type }))} status={[]} selectedId={selectedId} onMove={() => {}} {...api.treeProps} />;
   }
@@ -153,5 +153,26 @@ describe('tree interaction in the app', () => {
     expect(w.controller.setRollback).toHaveBeenCalledWith(null);
     w.act().orbit(10, 0);
     expect(w.orbit).toHaveBeenCalledWith(10, 0);
+  });
+});
+
+describe('Redefine Sketch Plane in the row menu', () => {
+  it('a sketch row offers it and runs the app handler; other rows do not', () => {
+    const redefinePlane = vi.fn();
+    const { row, api } = setup([], { redefinePlane });
+    fireEvent.contextMenu(row('F1'));
+    const items = api().menu!.items;
+    const it = items.find((x) => x.id === 'redefine-plane')!;
+    expect(it).toBeTruthy();
+    expect(it.enabled).toBe(true);
+    act(() => api().runMenu('redefine-plane'));
+    expect(redefinePlane).toHaveBeenCalledWith('F1');
+    fireEvent.contextMenu(row('F2'));
+    expect(api().menu!.items.some((x) => x.id === 'redefine-plane')).toBe(false);
+  });
+  it('is not offered when the app gives no handler', () => {
+    const { row, api } = setup();
+    fireEvent.contextMenu(row('F1'));
+    expect(api().menu!.items.some((x) => x.id === 'redefine-plane')).toBe(false);
   });
 });

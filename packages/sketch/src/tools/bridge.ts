@@ -25,8 +25,8 @@
  *
  * The preview type has line segments only, so the bridge is previewed as its sampled curve in line segments.
  */
-import type { DraftEntity, SketchDraft } from '../index';
-import { addConstraint } from '../index';
+import type { DraftEntity, SketchDraft } from '../types';
+import { addConstraint } from '../draft';
 import { nextId, pointOf } from './builders';
 import { bsplineCurve, fitEndDerivative } from './splineMath';
 import type { PreviewShape, Pt, Tool, ToolOutput, ToolSettings } from './types';

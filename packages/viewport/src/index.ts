@@ -1,6 +1,6 @@
 export { groupByFace, faceOfVertexIndex, edgeSegments, facesGeometry, namesBox, nameOwner, withoutOwned } from './meshgeom';
 export { pickFace, nearestEdge } from './pick';
-export { sketchPolylines, curvePolylines, planeOutlines, axisLines } from './layers';
+export { sketchPolylines, selectedSketchPolylines, curvePolylines, planeOutlines, axisLines } from './layers';
 export type { BodyMesh, FaceRange, Grouped } from './meshgeom';
 export type { Frame, Polyline, IdPolylines, IdQuad, SketchLayerItem, CurveLayerItem, PlaneLayerItem } from './layers';
 export { Viewport } from './viewport';
@@ -24,6 +24,7 @@ export { ANALYSIS_MODES, DEFAULT_ANALYSIS, sanitizeAnalysis, vertexCurvatures, g
 export type { AnalysisMode, AnalysisOptions, Legend } from './analysis';
 export * from './camerarig';
 export * from './viewnav';
+export * from './navTolerance';
 export { chamferCube, CUBE_HALF, CUBE_BEVEL, type CubeGeometry } from './viewcubeGeom';
 export { OrbitRig } from './orbitrig';
 export { markerStyleFor, markerSegments, markerColor, MARKER_HALF_PX, ANCHOR_HALF_PX } from './snapMarks';

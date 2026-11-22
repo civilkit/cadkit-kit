@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { resolve } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import {
-  sketchPolylines, curvePolylines, planeOutlines, axisLines,
+  sketchPolylines, selectedSketchPolylines, curvePolylines, planeOutlines, axisLines,
   type Frame, type SketchLayerItem, type CurveLayerItem, type PlaneLayerItem,
 } from './layers';
 
@@ -261,5 +261,17 @@ describe('splines draw as curves, not control polygons', () => {
     const sketch = { points, entities: [{ id: 'e', type: 'spline', pts: points.map((p) => p.id), closed: true }] } as never;
     const line = sketchPolylines([{ id: 's', frame, sketch }])[0].polylines[0];
     for (const p of points) expect(line.some((q) => Math.hypot(q[0] - p.x, q[1] - p.y) < 1e-6)).toBe(true);
+  });
+});
+
+describe('selectedSketchPolylines', () => {
+  const sk = (id: string) => ({ id, frame: FRONT, sketch: { points: [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 1, y: 0 }], entities: [{ id: 'l', type: 'line', p1: 'a', p2: 'b' }] } });
+  const all = asSketches([sk('s1'), sk('s2')]);
+  it('returns only the chosen sketch', () => { expect(selectedSketchPolylines(all, 's2')).toHaveLength(1); });
+  it('nothing for no id, an unknown id or a hidden sketch', () => {
+    expect(selectedSketchPolylines(all, null)).toEqual([]);
+    expect(selectedSketchPolylines(all, 'zz')).toEqual([]);
+    expect(selectedSketchPolylines(all, 's1', new Set(['s1']))).toEqual([]);
+    expect(selectedSketchPolylines(undefined, 's1')).toEqual([]);
   });
 });

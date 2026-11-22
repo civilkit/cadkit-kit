@@ -1,7 +1,8 @@
 // What the app does when a linked agent asks (docs/agent-bridge.md). Pure over a small `deps` object, so the rules (what is exposed,
 // what is refused, what a result looks like) are tested without the app. The wiring to the controller is in `link.ts`.
-import { BridgeError, EDIT_OPS, type BridgeOp } from '@kit/agent-link';
+import { BATCH_STEP_OPS, BridgeError, EDIT_OPS, type BridgeOp } from '@kit/agent-link';
 import { APP_READBACK_TOOLS, ReadbackError, type ReadbackHost } from '@kit/readback';
+import { lastProfile } from '../regenProfile';
 import { RevisionTracker, compactState, type StateInput } from './stateQuery';
 import { diffFeatures, planEdit, snapshotFeatures, type KernelOp } from './agentEdit';
 
@@ -12,7 +13,22 @@ export interface RunReport { ok: boolean; errors: Array<{ line: number; message:
 export interface PluginGeneratorInfo { plugin: string; generator: string; title: string; description?: string; parameters: unknown }
 export interface PluginRunReport { ok: boolean; message?: string; issues?: Array<{ param: string; message: string }>; group?: string; created?: number; featureCount?: number }
 
+/** Nested preference objects as a flat, sorted list of `{key, value}` (`sketch.show.dimensions`): what app_settings returns. Only plain values; text is cut at 80 characters. */
+export function settingsList(groups: Record<string, unknown>, filter?: string): Array<{ key: string; value: string | number | boolean | null }> {
+  const out: Array<{ key: string; value: string | number | boolean | null }> = [];
+  const walk = (prefix: string, v: unknown, depth: number) => {
+    if (v === null || typeof v === 'number' || typeof v === 'boolean') out.push({ key: prefix, value: v as number | boolean | null });
+    else if (typeof v === 'string') out.push({ key: prefix, value: v.length > 80 ? v.slice(0, 80) : v });
+    else if (v && typeof v === 'object' && depth < 3 && !Array.isArray(v)) for (const [k, x] of Object.entries(v)) walk(`${prefix}.${k}`, x, depth + 1);
+  };
+  for (const [g, v] of Object.entries(groups)) walk(g, v, 0);
+  const f = filter?.toLowerCase();
+  return out.filter((r) => !f || r.key.toLowerCase().includes(f)).sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+}
+
 export interface AppDeps {
+  /** The user's preferences by group (for example { sketch: {...}, nav: {...} }), read fresh at each call; app_settings lists them. */
+  settings?(): Record<string, unknown>;
   /** Every plugin generator the app has registered (built-in and installed, enabled ones only). */
   plugins?(): Array<{ id: string; name: string; version: string; builtin: boolean; generators: PluginGeneratorInfo[] }>;
   /** Run one generator on the open document: one folder, one undo step, exactly like the Plugins panel's Add. */
@@ -87,7 +103,7 @@ export function makeAppHandler(d: AppDeps): (op: BridgeOp, args: Record<string, 
   /** Remember the document as it is now, so a later `sinceRevision` can say what changed (before and after every edit, and at every read). */
   const observe = () => { const s = source(); if (s) tracker.observe({ documentId: s.documentId, revision: s.revision, features: (s.doc.features ?? []) as Array<Record<string, unknown>>, bad: s.bad }); };
   return async (op, args) => {
-    const edits = EDIT_OPS.has(op);
+    const edits = EDIT_OPS.has(op) || op === 'batch';
     if (edits) observe();
     try { return await run(op, args); } finally { if (edits) observe(); }
   };
@@ -103,7 +119,9 @@ export function makeAppHandler(d: AppDeps): (op: BridgeOp, args: Record<string, 
           const state = { documentId: src.documentId, revision: src.revision, name: doc.name ?? null, features: (doc.features ?? []) as Array<Record<string, unknown>>, bad, variableCount: (doc.variables ?? []).length, selection: d.selection(), hasSolid: d.hasSolid(), faces: d.facts().faces, bounds: b };
           const out = compactState(state, args as StateInput, tracker);
           tracker.observe(state);
-          return out;
+          // where the time of the last load or rebuild went (see regenProfile.ts), so an agent can tell a slow phase from a hang
+          const prof = lastProfile.value;
+          return prof && out && typeof out === 'object' ? { ...(out as object), lastRegen: { kind: prof.kind, features: prof.features, totalMs: Math.round(prof.totalMs), phases: prof.phases.map((x) => ({ phase: x.phase, ms: Math.round(x.ms) })) } } : out;
         }
         tracker.observe({ documentId: src.documentId, revision: src.revision, features: (doc.features ?? []) as Array<Record<string, unknown>>, bad });
         const features = (doc.features ?? []).map((f) => ({
@@ -214,6 +232,52 @@ export function makeAppHandler(d: AppDeps): (op: BridgeOp, args: Record<string, 
         const tool = APP_READBACK_TOOLS.find((t) => t.name === op)!;
         try { const { data, summary } = await tool.run(args, host); return { ...(summary ? { summary } : {}), ...(data as Record<string, unknown>) }; }
         catch (e) { if (e instanceof ReadbackError) throw new BridgeError(e.code, e.message, e.hint); throw e; }
+      }
+      case 'selection': {
+        // what the user has selected, resolved: each entry names the feature it belongs to (a face or edge name starts with its feature id, e.g. F2.C1)
+        const src = source();
+        const features = new Map(((src?.doc.features ?? []) as Array<Record<string, unknown>>).map((f) => [String(f.id), f]));
+        const ids = d.selection();
+        const limit = typeof args.limit === 'number' ? Math.max(1, Math.min(200, Math.round(args.limit))) : 50;
+        const items = ids.slice(0, limit).map((id) => {
+          const own = features.get(id);
+          const f = own ?? features.get(id.split('.')[0]);
+          return {
+            id, kind: own ? 'feature' : f ? 'face_or_edge' : 'unresolved',
+            ...(f ? { feature: { id: String(f.id), type: String(f.type), ...(f.name ? { name: String(f.name) } : {}), ...(src?.bad.has(String(f.id)) ? { error: src.bad.get(String(f.id))!.code ?? 'error' } : {}) } } : {}),
+          };
+        });
+        return { documentId: src?.documentId ?? null, revision: src?.revision ?? 0, count: ids.length, returned: items.length, items };
+      }
+      case 'settings': {
+        // read only: the user's preferences as a sorted list; an agent cannot change them
+        if (!d.settings) throw new BridgeError('unsupported', 'this app build does not list settings');
+        const all = settingsList(d.settings(), typeof args.query === 'string' ? args.query : undefined);
+        const limit = typeof args.limit === 'number' ? Math.max(1, Math.min(500, Math.round(args.limit))) : 200;
+        return { count: all.length, returned: Math.min(all.length, limit), settings: all.slice(0, limit) };
+      }
+      case 'batch': {
+        // several steps in ONE request: each step is {op, args}; the permission and the argument checks are the single op's own. An edit step without expectedRevision takes the revision the batch has reached.
+        const raw = args.steps;
+        if (!Array.isArray(raw) || !raw.length || raw.length > 20) throw new BridgeError('bad_input', 'steps must be a list of 1 to 20 steps');
+        const results: Array<{ ok: boolean; result?: unknown; error?: { code: string; message: string; hint?: string }; skipped?: true }> = [];
+        let stopped = false, edited = false;
+        for (const st of raw as Array<{ op?: unknown; args?: unknown }>) {
+          if (stopped) { results.push({ ok: false, skipped: true }); continue; }
+          try {
+            const sop = st.op as BridgeOp;
+            if (!BATCH_STEP_OPS.has(sop)) throw new BridgeError('bad_input', `${String(st.op)} cannot be a batch step`);
+            const sargs = { ...((st.args ?? {}) as Record<string, unknown>) };
+            if (sop === 'edit' && sargs.expectedRevision === undefined) sargs.expectedRevision = source()?.revision ?? 0;
+            if (EDIT_OPS.has(sop)) edited = true;
+            results.push({ ok: true, result: await run(sop, sargs) });
+          } catch (e) {
+            const be = e instanceof BridgeError ? e : new BridgeError('app_error', String((e as Error)?.message ?? e));
+            results.push({ ok: false, error: { code: be.code, message: be.message, ...(be.hint ? { hint: be.hint } : {}) } });
+            if (args.stopOnError !== false) stopped = true;
+          }
+        }
+        return { results, edited };
       }
       default: throw new BridgeError('unknown_op', `the app does not know ${String(op)}`);
     }

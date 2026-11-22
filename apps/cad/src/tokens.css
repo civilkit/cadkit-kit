@@ -1,5 +1,19 @@
-/* Design tokens: colours, type and spacing for the CAD app. A dark theme is a change of these values. */
+/* Design tokens: colours, type, spacing and stacking for the CAD app. A dark theme is a change of these values.
+ *
+ * Breakpoints in use (CSS variables do not work inside media queries, so these stay literal; keep them in step):
+ *   640px   phone: ribbon collapses, sketch bar spans the width, tool rows go single-column (max-width)
+ *   700px   motion timeline rows stack to one column (max-width)
+ *   760px   narrow layout: floating-panel splitters hidden, compact viewport overlays (max-width)
+ *   900px   tablet: ribbon and sketch bar reflow, undo card stacks (max-width); 901px is the matching desktop side (min-width)
+ *  1100px   selection-mode hints (kbd) hidden (max-width)
+ *  1600px   wide-screen layout tightening (max-width)
+ *   Also: (pointer: coarse) for touch sizing, (max-height: 820px / 520px) for short windows, prefers-reduced-motion, prefers-color-scheme.
+ *
+ * Stacking: --z-* are the layers above the viewport, low to high. Local 1 to 3 inside one component stay literal. */
 :root {
+  --z-float: 4; --z-vp-layer: 5; --z-hud: 6; --z-panel: 7; --z-menu: 8; --z-dropdown: 20; --z-popover: 30;
+  --z-tool-scrim: 38; --z-sheet-scrim: 39; --z-sheet: 40; --z-nav: 41; --z-tool-tray: 42; --z-dof-pop: 45; --z-dialog: 50;
+  --z-toast: 60; --z-toast-top: 61; --z-keypad: 300; --z-tooltip: 1000; --z-help: 1100;
   --accent: #0b74dc; --accent-soft: #e2f0fe;
   --bg: #eef0f3; --panel: #ffffff; --panel-2: #f6f7f9;
   --line: #d5d9e0; --line-soft: #e6e9ee;

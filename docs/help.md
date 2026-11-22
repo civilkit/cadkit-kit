@@ -8,7 +8,7 @@ A round **?** opens a small card (name, one sentence, **Open the guide**) for th
 
 | Topic id | For |
 | --- | --- |
-| `guide` | the guide's front page (the global `?` in the status bar) |
+| `guide` | the guide's front page (the global `?` button in the status bar) |
 | `sketch`, `sketch:<tool id>` | the sketch tools (ids from `packages/sketch/src/registry.ts`, plus `select`) |
 | `sketch3d` | the 3D Sketch panel |
 | `feature:<type>` | one per `FEATURE_TYPES` entry (the feature editors) |
@@ -23,7 +23,7 @@ The name and sentence of each topic are catalogue messages in `locales/help.ts` 
 ## The buttons
 
 - `HelpButton` (apps/cad/src/HelpButton.tsx) with `topic`; in every `fedit-head` (the editors pass it to `FeatureEditor` as `headExtra`), in the Status group of the sketch ribbon and the sketch bar (`SketchControls.tool` is the active tool), and in the status bar (`StatusBar help`).
-- `HelpHost` is mounted once: it draws the card (placed with `placeTip`, clamped to the window, closed by Escape or a tap outside) and owns **F1** and **?** (not in a text box), which open the card for `currentTopic(...)` from the open wizard, editor or sketch tool.
+- `HelpHost` is mounted once: it draws the card (placed with `placeTip`, clamped to the window, closed by Escape or a tap outside) and owns **F1**, which opens the card for `currentTopic(...)` from the open wizard, editor or sketch tool.
 - A touch target is 44 px: a 32 px circle with an invisible ring (`@media (pointer: coarse)` in app.css).
 
 ## Tests
@@ -33,3 +33,7 @@ The name and sentence of each topic are catalogue messages in `locales/help.ts` 
 ## When the guide changes
 
 A new anchor exists on the public site only after the guide is deployed: `PAGES_DOCS=1 npm run build:pages` builds the guide (mdBook) into the site folder as `docs/cad/`, and the release flow in `docs/releasing.md` and `docs/pages-deploy.md` deploys it. Until then the card's link opens the page at its top (the browser ignores an anchor that is not there). Deploy the docs with the app.
+
+## Keyboard shortcut cheat sheet
+
+The **?** key (not in a text box) and the command **Keyboard shortcuts** open `ShortcutSheet`, a searchable list of every key. `apps/cad/src/shortcuts.ts` builds it from the command table's `keys`, `SHORTCUTS` in `commands.ts` and the sketch tool registry; only keys handled in code with no table behind them are in `FIXED_SHORTCUTS`. `shortcuts.test.ts` fails when a table entry is missing from the sheet. Add a key to a table and it appears; add a hard-coded key handler and add a row to `FIXED_SHORTCUTS`.

@@ -186,3 +186,21 @@ describe('chat command line and event mapping', () => {
     expect(m('not json')).toEqual([]);
   });
 });
+
+describe('sweepScratch', () => {
+  it('removes old EMPTY ck-chat folders only: not full ones, not young ones, not other names', async () => {
+    const { sweepScratch } = await import('./chat');
+    const { mkdirSync, writeFileSync, existsSync, utimesSync } = await import('node:fs');
+    const root = mkdtempSync(join(tmpdir(), 'sweep-'));
+    try {
+      const old = new Date(Date.now() - 48 * 3600_000);
+      const make = (name: string, o: { age?: Date; file?: boolean } = {}) => { const p = join(root, name); mkdirSync(p); if (o.file) writeFileSync(join(p, 'x'), '1'); if (o.age) utimesSync(p, o.age, o.age); return p; };
+      const gone = make('ck-chat-aaa', { age: old });
+      const full = make('ck-chat-bbb', { age: old, file: true });
+      const young = make('ck-chat-ccc');
+      const other = make('other-ddd', { age: old });
+      expect(sweepScratch(root, 12 * 3600_000)).toBe(1);
+      expect([gone, full, young, other].map((p) => existsSync(p))).toEqual([false, true, true, true]);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+});

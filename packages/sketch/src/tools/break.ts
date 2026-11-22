@@ -4,7 +4,7 @@
  * and an outline through the curve stays closed. A crossing at an end of the curve is not a cut (nothing to break there);
  * a curve with no crossing is refused with a hint. Splines and ellipses are not broken (use Split entity at a point).
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { curveOf, entityOf, ptOf } from './edit-draft';
 import { dist, intersect, nearestOn } from './edit-geom';
 import { splitAt } from './split';

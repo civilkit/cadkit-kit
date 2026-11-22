@@ -5,6 +5,7 @@
 import type { EditOp } from '@ck/session';
 import type { FeatureWarning } from '@kit/store';
 import { faceInfo, type MeshLike } from './handles/geom';
+import { safeStorage } from '@kit/platform';
 
 type Wire = Record<string, unknown>;
 
@@ -376,10 +377,10 @@ export const startMatters = (x: FaceExtent | null): boolean => !x?.open || x.ope
 export interface ThreadPrefs { modeled?: boolean; lastSize?: Record<string, string>; modeledMs?: number }
 const PREFS_KEY = 'ck.thread.prefs';
 export function loadThreadPrefs(): ThreadPrefs {
-  try { const raw = globalThis.localStorage?.getItem(PREFS_KEY); const v = raw ? JSON.parse(raw) : null; return v && typeof v === 'object' ? v as ThreadPrefs : {}; } catch { return {}; }
+  const v = safeStorage.getJson<unknown>(PREFS_KEY, null); return v && typeof v === 'object' ? v as ThreadPrefs : {};
 }
 export function saveThreadPrefs(patch: Partial<ThreadPrefs>): void {
-  try { globalThis.localStorage?.setItem(PREFS_KEY, JSON.stringify({ ...loadThreadPrefs(), ...patch })); } catch { /* storage unavailable: the choice is just not remembered */ }
+  safeStorage.setJson(PREFS_KEY, { ...loadThreadPrefs(), ...patch });   // unavailable storage: the choice is just not remembered
 }
 export const rememberSize = (standard: string, size: string): void => saveThreadPrefs({ lastSize: { ...(loadThreadPrefs().lastSize ?? {}), [standard]: size } });
 /** The kernel's reason a modeled thread was not built (the committed entry says modeled:false although it was asked for), or null. */

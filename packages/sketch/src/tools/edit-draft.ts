@@ -5,7 +5,7 @@
  * draft. `pruneDangling` drops any constraint that does not, and every edit tool runs it last, so no tool ever
  * leaves a dangling ref.
  */
-import type { DraftConstraint, DraftEntity, DraftPoint, SketchDraft } from '../index';
+import type { DraftConstraint, DraftEntity, DraftPoint, SketchDraft } from '../types';
 import { nextId } from './builders';
 import type { CurveG } from './edit-geom';
 import type { Pt } from './types';

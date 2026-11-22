@@ -4,7 +4,8 @@
 // Built only from features the kernel already has: one revolve per ring (the chamfers and the ball groove are part of the profile, the groove a true arc, and a shield or seal is part of the outer
 // ring's profile, like the 625-2Z of the NEMA 17 sample), and for an open bearing one revolve of a half disc per ball. Every ring and ball is its own
 // body, so the bearing can be assembled and the parts moved or hidden one by one.
-import type { Ctx, EditOp, Num, OffsetPlane, PartBuilder, PlaneRef } from '../recorder';
+import type { Ctx, EditOp, Num, OffsetPlane, PlaneRef } from '../core';
+import type { PartBuilder } from '../recorder';
 import type { PlaneBase } from '../planes';
 import { bearingModel, bearingPreset, BEARING_SEALS, housingSeat, innerRingPath, outerRingPath, type PathNode, SEAT_FITS, type BearingSeal, type SeatFit } from '../bearingTable';
 import { H } from './h';

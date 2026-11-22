@@ -19,7 +19,7 @@
  * referenced it (a dimension on the corner, a coincident) are dropped with it. Horizontal/vertical and other
  * line-level constraints stay valid because the lines keep their direction.
  */
-import type { DraftEntity, SketchDraft } from '../index';
+import type { DraftEntity, SketchDraft } from '../types';
 import { add, arcSweep, cornerGeometry, cross, dist, len, PARALLEL_SIN, sample, scale, sub, type Corner, type CurveG } from './edit-geom';
 import { dropOrphans, entityOf, entityPoints, ptOf, replaceEntity, withConstraint, withEntity, withPoint } from './edit-draft';
 import type { FieldSpec, Pt, PreviewShape, Tool, ToolEvent, ToolOutput, ToolSettings } from './types';

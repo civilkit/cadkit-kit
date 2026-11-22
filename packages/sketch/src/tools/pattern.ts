@@ -39,7 +39,7 @@
  *  - the originals and their constraints are not touched. The copies follow the SPACING (and the anchor), not the later
  *    shape of the original: reshaping the original does not reshape the copies.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { entityShape } from '../select';
 import { arcSweep, TOL } from './edit-geom';
 import { curveOf, entityOf, entityPoints, ptOf, withConstraint, withEntity, withPoint } from './edit-draft';

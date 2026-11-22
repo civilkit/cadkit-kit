@@ -7,7 +7,7 @@
  *                  existing one of the same kind on the same entity); the kernel then moves the sketch
  *   deleteEntity   remove the entity, the constraints that referred to it and any point nothing else uses
  */
-import type { DraftEntity, SketchDraft } from './index';
+import type { DraftEntity, SketchDraft } from './types';
 import { addConstraintOf } from './tools/builders';
 import { arcSlotParams, findArcSlot, withArcSlotParams } from './arcSlotEdit';
 import { arcPolyline } from './tools/builders-arcs';

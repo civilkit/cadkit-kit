@@ -2,7 +2,7 @@
 // these are the concave edges where the boss meets the body. Faces are named `<feature id>.<role>`, so ownership is the prefix.
 import type { EditOp } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
-import { edgeRefs, niceSize, type Box, type ViewEdge } from './featureCommands';
+import { edgeRefs, niceSize, type Box, type ViewEdge } from './edgeRefs';
 
 const owner = (face: string): string => face.split('.')[0];
 

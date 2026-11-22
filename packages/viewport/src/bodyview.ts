@@ -126,3 +126,52 @@ export function rangeCentre(positions: ArrayLike<number>, startVertex: number, v
   const n = Math.max(1, vertexCount);
   return [x / n, y / n, z / n];
 }
+
+/** The bounding sphere of one contiguous vertex range of a position array. A geometry that shares a big buffer through a draw range has to
+ *  be given this: three.js would otherwise take the sphere of the whole buffer, and no body's draw could ever be culled on its own. */
+export function rangeSphere(positions: ArrayLike<number>, startVertex: number, vertexCount: number): { centre: [number, number, number]; radius: number } {
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let v = startVertex; v < startVertex + vertexCount; v++) for (let k = 0; k < 3; k++) { const p = positions[v * 3 + k]; if (p < lo[k]) lo[k] = p; if (p > hi[k]) hi[k] = p; }
+  if (vertexCount <= 0) return { centre: [0, 0, 0], radius: 0 };
+  const c: [number, number, number] = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+  let r2 = 0;
+  for (let v = startVertex; v < startVertex + vertexCount; v++) r2 = Math.max(r2, (positions[v * 3] - c[0]) ** 2 + (positions[v * 3 + 1] - c[1]) ** 2 + (positions[v * 3 + 2] - c[2]) ** 2);
+  return { centre: c, radius: Math.sqrt(r2) };
+}
+
+/** Centroids (3 numbers per triangle) of the triangles of a vertex range of a non-indexed position array. */
+export function triangleCentroids(positions: ArrayLike<number>, startVertex: number, vertexCount: number): Float32Array {
+  const n = Math.floor(vertexCount / 3), out = new Float32Array(n * 3);
+  for (let t = 0; t < n; t++) for (let k = 0; k < 3; k++) {
+    const b = (startVertex + t * 3) * 3 + k;
+    out[t * 3 + k] = (positions[b] + positions[b + 3] + positions[b + 6]) / 3;
+  }
+  return out;
+}
+
+/** Fill `index` (3 entries per triangle, `base` + the triangle's own vertex numbers) with the triangles of `centroids` ordered farthest first, so that
+ *  blending them without depth writes composes correctly even for a body that is not convex or that encloses another. The camera is a point
+ *  (perspective) or, when `dir` is given, a direction the camera looks along (orthographic: the depth along it). A counting sort over 16-bit
+ *  keys, linear in the triangle count; triangles closer together than the key step keep their order. */
+export function sortTrianglesBackToFront(centroids: Float32Array, cam: readonly [number, number, number], dir: readonly [number, number, number] | null, base: number, index: Uint32Array): void {
+  const n = centroids.length / 3;
+  const key = new Float32Array(n);
+  let lo = Infinity, hi = -Infinity;
+  for (let t = 0; t < n; t++) {
+    const x = centroids[t * 3] - cam[0], y = centroids[t * 3 + 1] - cam[1], z = centroids[t * 3 + 2] - cam[2];
+    const d = dir ? x * dir[0] + y * dir[1] + z * dir[2] : Math.sqrt(x * x + y * y + z * z);
+    key[t] = d;
+    if (d < lo) lo = d;
+    if (d > hi) hi = d;
+  }
+  const B = 65536, scale = hi > lo ? (B - 1) / (hi - lo) : 0;
+  const count = new Uint32Array(B + 1);
+  const bucket = new Uint16Array(n);
+  // farthest first: bucket 0 holds the largest keys
+  for (let t = 0; t < n; t++) { const b = B - 1 - Math.round((key[t] - lo) * scale); bucket[t] = b; count[b + 1]++; }
+  for (let b = 0; b < B; b++) count[b + 1] += count[b];
+  for (let t = 0; t < n; t++) {
+    const o = count[bucket[t]]++ * 3, v = base + t * 3;
+    index[o] = v; index[o + 1] = v + 1; index[o + 2] = v + 2;
+  }
+}

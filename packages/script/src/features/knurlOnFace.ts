@@ -3,7 +3,8 @@
 // Same planes as the bearing built on a face (bearing.ts): a plane offset from the face for the groove profiles across the cylinder, and for everything
 // drawn along the axis (rings, the sweep path) a guide axis lying in the face and a plane through that axis, perpendicular to the face, whose sketch y runs
 // into the part from the face. The kernel gives the planes; nothing here needs the geometry of the part.
-import type { Ctx, EditOp, PartBuilder, PlaneRef } from '../recorder';
+import type { Ctx, EditOp, PlaneRef } from '../core';
+import type { PartBuilder } from '../recorder';
 import { cross3, dot3, type V3 } from './screw';
 import { faceXY, r9 } from './bearing';
 

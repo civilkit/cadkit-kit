@@ -25,7 +25,7 @@
  * a plain copy, delete the constraints. The kernel has no single "mirror" constraint, so one constraint per point pair is the limit.
  * Escape drops the selection, then the whole operation.
  */
-import type { DraftEntity, SketchDraft } from '../index';
+import type { DraftEntity, SketchDraft } from '../types';
 import { entityShape } from '../select';
 import { AXIS_KEYS, axisLine } from './axisLine';
 import { arcSweep, distToLine, reflect, sample, TOL, type CurveG } from './edit-geom';

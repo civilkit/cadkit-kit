@@ -3,6 +3,7 @@
 // into the generic FeatureEditor through its `options` prop, so sketch, axis, edges and faces keep their pick buttons and
 // the shape list. Only fields the kernel really reads are offered.
 import { cutFromPatch, nextBodyName, opChoiceOf, opChoices, opPatch, targetBodiesOf, targetBodyOf, targetPatch } from './extrudeOp';
+import { isValidFrame, makeIndependentPlanePatch } from './frozenPose';
 import { usedBodyNames } from './bodyOps';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
@@ -1064,12 +1065,34 @@ function TrimOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
   );
 }
 
-/** The Base plane of a reference plane, as a selector: Front / Top / Right, an earlier Plane feature, or the planar face it hangs on. */
+/** The Base plane of a reference plane, as a selector: Front / Top / Right, an earlier Plane feature, or the planar face it hangs on.
+ *  When holding a `frozenFrame`, offers to reattach (clearing `frozenFrame`) or convert to an independent fixed frame. */
 function PlaneOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
   const choices = planeBaseChoices(p.doc, String(p.eff.id ?? ''), p.eff.base);
+  const frozen = isValidFrame(p.eff.frozenFrame) && p.eff.mode !== 'frame' ? p.eff.frozenFrame : null;
   return (
     <Section id="planeBase" title={t('opt.plane.base')}>
-      <Select name="base" label={t('opt.plane.base')} value={planeBaseValue(p.eff.base)} options={choices} onChange={(v) => p.change(planeBasePatch(v))} />
+      <Select name="base" label={t('opt.plane.base')} value={planeBaseValue(p.eff.base)} options={choices} onChange={(v) => p.change({ ...planeBasePatch(v), ...(frozen ? { frozenFrame: null } : {}) })} />
+      {frozen ? (
+        <>
+          <div class="fedit-note fedit-warn" role="status" data-note="detached">{t('opt.plane.detachedNote')}</div>
+          <button type="button" class="fedit-pick" data-act="make-independent" onClick={() => p.change(makeIndependentPlanePatch(frozen))}>{t('opt.plane.makeIndependent')}</button>
+        </>
+      ) : null}
+    </Section>
+  );
+}
+
+/** Reattach control shown for a sketch currently holding a `frozenFrame`. */
+function SketchReattachOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const choices = planeBaseChoices(p.doc, String(p.eff.id ?? ''), p.eff.plane);
+  return (
+    <Section id="sketchPlane" title={t('opt.sketch.plane')}>
+      <div class="fedit-note fedit-warn" role="status" data-note="detached">{t('opt.sketch.detachedNote')}</div>
+      <Select name="plane" label={t('opt.sketch.plane')} value={planeBaseValue(p.eff.plane)} options={choices} onChange={(v) => {
+        const next = planeBasePatch(v).base;
+        p.change({ plane: next, frozenFrame: null });
+      }} />
     </Section>
   );
 }
@@ -1486,6 +1509,9 @@ export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null =
 }
 function optionsForType(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null, actions?: ThinActions): OptionsResult | null {
   const type = String(a.eff.type ?? '');
+  if (type === 'sketch' && isValidFrame(a.eff.frozenFrame)) {
+    return { hide: new Set(['plane', 'frozenFrame']), node: <SketchReattachOptions eff={a.eff} change={a.change} doc={doc} /> };
+  }
   const hide = managedPaths(type);
   if (!hide.size) return null;
   const common = { eff: a.eff, change: a.change };

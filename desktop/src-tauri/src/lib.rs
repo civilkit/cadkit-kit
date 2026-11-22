@@ -1,4 +1,8 @@
 // CivilKit CAD desktop shell: one window that loads the bundled static build (tauri://localhost/cad/) and works offline.
+mod slicer;
+
+use std::io::Read;
+use std::net::TcpListener;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -156,21 +160,65 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     Menu::with_items(app, &[&app_menu, &file, &edit, &view, &window, &help])
 }
 
+fn start_embedded_kernel() -> Result<(String, String), String> {
+    let mut raw = [0u8; 32];
+    std::fs::File::open("/dev/urandom")
+        .and_then(|mut f| f.read_exact(&mut raw))
+        .map_err(|e| format!("random: {e}"))?;
+    let mut token = String::with_capacity(64);
+    for b in raw {
+        token.push_str(&format!("{b:02x}"));
+    }
+    let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| format!("bind: {e}"))?;
+    let port = listener.local_addr().map_err(|e| format!("addr: {e}"))?.port();
+    let mut cfg = ck_native::Config::default();
+    cfg.token = token.clone();
+    cfg.dir = None;
+    cfg.origins = vec!["tauri://localhost".into(), "http://tauri.localhost".into(), "https://tauri.localhost".into()];
+    cfg.quiet = true;
+    std::thread::Builder::new()
+        .name("ck-native-http".into())
+        .spawn(move || ck_native::serve(listener, cfg))
+        .map_err(|e| format!("spawn: {e}"))?;
+    Ok((format!("http://127.0.0.1:{port}"), token))
+}
+
+fn build_init_script(embedded: Option<(&str, &str)>) -> String {
+    match embedded {
+        Some((url, token)) => format!(
+            "window.__CK_NATIVE__ = Object.freeze({{ url: {}, token: {} }});\n{}",
+            serde_json_string(url),
+            serde_json_string(token),
+            INIT_SCRIPT
+        ),
+        None => INIT_SCRIPT.to_string(),
+    }
+}
+
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .invoke_handler(tauri::generate_handler![slicer::detect_slicers, slicer::open_in_slicer])
         .setup(|app| {
             app.set_menu(build_menu(app.handle())?)?;
+            let embedded = match start_embedded_kernel() {
+                Ok(pair) => Some(pair),
+                Err(e) => {
+                    eprintln!("embedded kernel unavailable: {e}");
+                    None
+                }
+            };
+            let init_script = build_init_script(embedded.as_ref().map(|(u, t)| (u.as_str(), t.as_str())));
             let handle = app.handle().clone();
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("cad/index.html".into()))
                 .title("CivilKit CAD")
                 .inner_size(1440.0, 900.0)
                 .min_inner_size(900.0, 600.0)
                 .disable_drag_drop_handler() // the page handles file drops itself (HTML5 drag and drop)
-                .initialization_script(INIT_SCRIPT)
+                .initialization_script(init_script)
                 // only the bundled app is ever shown in the window
                 .on_navigation(|url| matches!(url.scheme(), "tauri" | "about" | "blob" | "data") || url.host_str() == Some("tauri.localhost"))
                 .on_page_load(move |_w, payload| {
@@ -217,4 +265,44 @@ pub fn run() {
         }
         let _ = (&handle, &event);
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use std::net::TcpStream;
+    use std::time::Duration;
+
+    fn http_get(addr: &str, auth: Option<&str>) -> String {
+        let mut s = TcpStream::connect(addr).expect("connect to embedded kernel");
+        s.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        let auth_hdr = auth.map(|t| format!("Authorization: Bearer {t}\r\n")).unwrap_or_default();
+        let req = format!("GET /version HTTP/1.1\r\nHost: {addr}\r\nOrigin: tauri://localhost\r\n{auth_hdr}Connection: close\r\n\r\n");
+        s.write_all(req.as_bytes()).unwrap();
+        let mut resp = String::new();
+        s.read_to_string(&mut resp).unwrap();
+        resp
+    }
+
+    #[test]
+    fn embedded_kernel_serves_version_and_requires_token() {
+        let (url, token) = start_embedded_kernel().expect("start embedded kernel");
+        assert!(url.starts_with("http://127.0.0.1:"));
+        assert_eq!(token.len(), 64);
+        let addr = url.trim_start_matches("http://");
+
+        let ok = http_get(addr, Some(&token));
+        assert!(ok.starts_with("HTTP/1.1 200 OK"), "{ok}");
+        assert!(ok.contains("Access-Control-Allow-Origin: tauri://localhost"), "{ok}");
+        assert!(ok.contains("\"protocol\":1"), "{ok}");
+
+        let unauth = http_get(addr, None);
+        assert!(unauth.starts_with("HTTP/1.1 401"), "{unauth}");
+
+        let init = build_init_script(Some((&url, &token)));
+        assert!(init.starts_with("window.__CK_NATIVE__ = Object.freeze("));
+        assert!(init.contains(&url));
+        assert!(init.contains(&token));
+    }
 }

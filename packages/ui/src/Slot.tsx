@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Icon } from './icons';
 import { Tip } from './Tip';
 import { t } from './i18n';
+import { safeStorage } from '@kit/platform';
 
 /** One entry of a slot: a command or a sketch tool, reduced to what a button needs. */
 export interface SlotItem { id: string; label: string; keys?: string; tip?: string; icon?: string; /** Why the item is disabled right now; the tooltip says so while it is. */ why?(): string | undefined; enabled?(): boolean; pressed?(): boolean; run(): void }
@@ -16,7 +17,7 @@ const LAST_KEY = 'kit.slotLast';
 const listeners = new Set<() => void>();
 let last: Record<string, string> | null = null;
 const load = (): Record<string, string> => {
-  if (!last) { try { last = JSON.parse(localStorage.getItem(LAST_KEY) ?? '{}') as Record<string, string>; } catch { last = {}; } }
+  if (!last) last = safeStorage.getJson<Record<string, string>>(LAST_KEY, {});
   return last!;
 };
 export const slotMemory = {
@@ -24,7 +25,7 @@ export const slotMemory = {
   set(slot: string, item: string): void {
     if (load()[slot] === item) return;
     last = { ...load(), [slot]: item };
-    try { localStorage.setItem(LAST_KEY, JSON.stringify(last)); } catch { /* private window */ }
+    safeStorage.setJson(LAST_KEY, last);
     listeners.forEach((f) => f());
   },
   reset(): void { last = {}; listeners.forEach((f) => f()); },

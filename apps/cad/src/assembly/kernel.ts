@@ -104,3 +104,112 @@ export async function partMassProps(session: Session, part: unknown): Promise<{ 
   cache.set(key, out);
   return out;
 }
+
+export type KernelFaceGeo =
+  | { kind: 'plane'; o: [number, number, number]; n: [number, number, number] }
+  | { kind: 'cylinder' | 'cone'; o: [number, number, number]; d: [number, number, number]; r?: number }
+  | { kind: 'sphere'; c: [number, number, number]; r: number }
+  | { kind: 'other' };
+
+export interface UrdfKernelData {
+  /** Exact per-component (insertPart feature id) local mass properties from the kernel. */
+  componentMass: Map<string, { volume?: number; com?: number[]; inertia?: number[][]; principal?: number[]; axes?: number[][] }>;
+  /** World-frame face geometry keyed by face name for active mates. */
+  faceGeo: Map<string, KernelFaceGeo>;
+}
+
+const vec3 = (a: unknown): [number, number, number] =>
+  Array.isArray(a) && a.length >= 3 && a.every((x) => typeof x === 'number' && Number.isFinite(x))
+    ? [a[0], a[1], a[2]] : [0, 0, 0];
+
+const unit3 = (v: [number, number, number]): [number, number, number] => {
+  const n = Math.hypot(v[0], v[1], v[2]);
+  return n > 1e-12 ? [v[0] / n, v[1] / n, v[2] / n] : [0, 0, 1];
+};
+
+/** Read per-component B-rep mass properties and mate face geometry for URDF export. Runs on the session's kernel transport
+ *  without disturbing the open document (per-part regens use a dedicated scratch tag). */
+export async function urdfKernelData(
+  session: Session,
+  doc: { features?: Array<Record<string, unknown>> },
+): Promise<UrdfKernelData> {
+  const componentMass = new Map<string, { volume?: number; com?: number[]; inertia?: number[][]; principal?: number[]; axes?: number[][] }>();
+  const faceGeo = new Map<string, KernelFaceGeo>();
+  const inner = session as unknown as Inner;
+  const k = inner.kernel;
+  if (!k || !inner.tag || !Array.isArray(doc.features)) return { componentMass, faceGeo };
+
+  const live = doc.features.filter((f) => f.suppressed !== true);
+
+  // Per-component exact B-rep mass properties (deduplicated by part content)
+  const inserts = live.filter((f) => f.type === 'insertPart' && f.part);
+  const byPartText = new Map<string, { volume?: number; com?: number[]; inertia?: number[][]; principal?: number[]; axes?: number[][] } | null>();
+  const ptag = `${inner.tag}-urdf`;
+  for (const f of inserts) {
+    const id = String(f.id ?? '');
+    if (!id) continue;
+    const text = JSON.stringify(f.part);
+    let m = byPartText.get(text);
+    if (m === undefined) {
+      m = null;
+      try {
+        const r = await k.request({ type: 'regen', tag: ptag, part: f.part });
+        if (r?.ok && !r.trap) {
+          const mr = await k.request({ type: 'massProps', tag: ptag });
+          if (mr?.ok && mr.result && typeof mr.result === 'object') {
+            m = mr.result as { volume?: number; com?: number[]; inertia?: number[][]; principal?: number[]; axes?: number[][] };
+          }
+        }
+      } catch { /* fall back to mesh inertia */ }
+      byPartText.set(text, m);
+    }
+    if (m) componentMass.set(id, m);
+  }
+
+  // Face geometry for active mates at the current assembled pose
+  const faceNames = new Set<string>();
+  for (const f of live) {
+    if (f.type !== 'mate') continue;
+    for (const key of ['a', 'b', 'a2', 'b2', 'c']) {
+      if (typeof f[key] === 'string' && f[key]) faceNames.add(f[key] as string);
+    }
+  }
+  const names = [...faceNames];
+  if (names.length) {
+    type MeasureItem = { surface?: string; normal?: number[]; center?: number[]; axis?: number[]; radius?: number };
+    let items: Array<MeasureItem | null> = [];
+    try {
+      const mr = await k.request({ type: 'measure', tag: inner.tag, refs: names.map((id) => ({ kind: 'face', id })) });
+      if (mr?.ok && mr.result && Array.isArray((mr.result as { items?: unknown }).items)) {
+        items = (mr.result as { items: Array<MeasureItem | null> }).items;
+      }
+    } catch {
+      for (const id of names) {
+        try {
+          const mr = await k.request({ type: 'measure', tag: inner.tag, refs: [{ kind: 'face', id }] });
+          const one = mr?.ok && mr.result ? (mr.result as { items?: Array<MeasureItem | null> }).items?.[0] ?? null : null;
+          items.push(one);
+        } catch { items.push(null); }
+      }
+    }
+    let cents: Array<{ centroid?: number[] }> = [];
+    try {
+      const dr = await k.request({ type: 'describe', tag: inner.tag, names });
+      if (dr?.ok && dr.result && Array.isArray((dr.result as { items?: unknown }).items)) {
+        cents = (dr.result as { items: Array<{ centroid?: number[] }> }).items;
+      }
+    } catch { /* centroids optional */ }
+
+    names.forEach((n, i) => {
+      const it = items[i];
+      if (!it) { faceGeo.set(n, { kind: 'other' }); return; }
+      const c = vec3(cents[i]?.centroid);
+      if (it.surface === 'plane' && it.normal) faceGeo.set(n, { kind: 'plane', o: c, n: unit3(vec3(it.normal)) });
+      else if ((it.surface === 'cylinder' || it.surface === 'cone') && it.axis) faceGeo.set(n, { kind: it.surface, o: vec3(it.center), d: unit3(vec3(it.axis)), ...(typeof it.radius === 'number' ? { r: it.radius } : {}) });
+      else if (it.surface === 'sphere' && it.center) faceGeo.set(n, { kind: 'sphere', c: vec3(it.center), r: it.radius ?? 0 });
+      else faceGeo.set(n, { kind: 'other' });
+    });
+  }
+
+  return { componentMass, faceGeo };
+}

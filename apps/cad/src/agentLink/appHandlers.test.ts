@@ -245,3 +245,62 @@ describe('app handler: edit transactions', () => {
     await fails(makeAppHandler(mk({ document: () => null }))('edit', { expectedRevision: 5, ops: [{ op: 'remove', id: 'F1' }] }), 'no_document');
   });
 });
+
+describe('app handler: batch', () => {
+  it('runs the steps in one request, with each step\'s own permission check and a skip after a failure', async () => {
+    const d = deps({ allowEdit: () => false });
+    const r = await makeAppHandler(d)('batch', { steps: [{ op: 'state', args: { detail: 'summary' } }, { op: 'undo' }, { op: 'state' }] }) as { results: Array<{ ok: boolean; skipped?: boolean; error?: { code: string } }>; edited: boolean };
+    expect(r.results.map((x) => [x.ok, !!x.skipped])).toEqual([[true, false], [false, false], [false, true]]);
+    expect(r.results[1].error?.code).toBe('edit_not_allowed');
+    expect(d.calls).toEqual([]);
+  });
+  it('stopOnError false keeps going; an edit step without expectedRevision takes the current revision; unknown ops are refused', async () => {
+    const edit = vi.fn(async (_rev: number, _ops: unknown[], _reason: string) => ({ ok: true as const }));
+    const d = deps({ allowEdit: () => true, revision: () => 9, edit });
+    const r = await makeAppHandler(d)('batch', { stopOnError: false, steps: [{ op: 'open_asset', args: {} }, { op: 'edit', args: { ops: [{ op: 'setParam', id: 'F2', path: 'depth', value: 5 }] } }, { op: 'undo' }] }) as { results: Array<{ ok: boolean; error?: { code: string } }>; edited: boolean };
+    expect(r.results[0].error?.code).toBe('bad_input');
+    expect(r.results[1].ok).toBe(true);
+    expect(edit.mock.calls[0][0]).toBe(9);
+    expect(r.results[2].ok).toBe(true);
+    expect(r.edited).toBe(true);
+  });
+  it('needs 1 to 20 steps', async () => {
+    await fails(makeAppHandler(deps())('batch', { steps: [] }), 'bad_input');
+  });
+});
+
+describe('app handler: selection', () => {
+  it('resolves each selected id to its feature, with no edit permission needed', async () => {
+    const d = deps({ selection: () => ['F2', 'F3.C1', 'k9'], status: () => [{ id: 'F3', ok: false, code: 'fillet_failed' }] });
+    const r = await makeAppHandler(d)('selection', {}) as { count: number; items: Array<Record<string, unknown>> };
+    expect(r.count).toBe(3);
+    expect(r.items).toEqual([
+      { id: 'F2', kind: 'feature', feature: { id: 'F2', type: 'extrude', name: 'Pad' } },
+      { id: 'F3.C1', kind: 'face_or_edge', feature: { id: 'F3', type: 'fillet', error: 'fillet_failed' } },
+      { id: 'k9', kind: 'unresolved' },
+    ]);
+  });
+  it('limit caps the entries but not the count; an empty selection is an empty list', async () => {
+    expect(await makeAppHandler(deps({ selection: () => ['F1', 'F2', 'F3'] }))('selection', { limit: 2 })).toMatchObject({ count: 3, returned: 2 });
+    expect(await makeAppHandler(deps({ selection: () => [] }))('selection', {})).toMatchObject({ count: 0, items: [] });
+  });
+});
+
+describe('app handler: settings', () => {
+  const prefs = { sketch: { gridSnap: true, arcSwitch: 'hover', show: { relations: false, dimensions: true }, snaps: ['a', 'b'] }, nav: { zoomSpeed: 1.5, orbitMode: 'turntable' } };
+  it('lists the preferences flat and sorted by key; arrays are left out', async () => {
+    const r = await makeAppHandler(deps({ settings: () => prefs }))('settings', {}) as { count: number; settings: Array<{ key: string; value: unknown }> };
+    expect(r.settings.map((s) => s.key)).toEqual(['nav.orbitMode', 'nav.zoomSpeed', 'sketch.arcSwitch', 'sketch.gridSnap', 'sketch.show.dimensions', 'sketch.show.relations']);
+    expect(r.settings.find((s) => s.key === 'sketch.show.relations')!.value).toBe(false);
+    expect(r.count).toBe(6);
+  });
+  it('query filters on the key and limit caps the list', async () => {
+    const h = makeAppHandler(deps({ settings: () => prefs }));
+    expect((await h('settings', { query: 'SHOW' }) as { settings: unknown[] }).settings).toHaveLength(2);
+    expect(await h('settings', { limit: 2 })).toMatchObject({ count: 6, returned: 2 });
+  });
+  it('needs no edit permission, and an app build without settings says so', async () => {
+    expect(await makeAppHandler(deps({ allowEdit: () => false, settings: () => prefs }))('settings', {})).toMatchObject({ count: 6 });
+    await fails(makeAppHandler(deps())('settings', {}), 'unsupported');
+  });
+});

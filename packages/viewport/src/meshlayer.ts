@@ -73,7 +73,7 @@ export class MeshLayer {
     const wm = new THREE.MeshBasicMaterial({ color: '#2b2b2b', wireframe: true, transparent: true, opacity: 0.6 });
     const wire = new THREE.Mesh(geo, wm);
     wire.visible = false;
-    for (const o of [solid, wire]) { o.raycast = () => { /* picked through the BVH, not by three.js */ }; o.frustumCulled = false; }
+    for (const o of [solid, wire]) { o.raycast = () => { /* picked through the BVH, not by three.js */ }; }   // frustum culling stays on: a mesh out of view is left out of the draw (its sphere is computed above)
     const group = new THREE.Group();
     group.matrixAutoUpdate = false;
     group.add(solid, wire);

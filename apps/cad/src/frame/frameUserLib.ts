@@ -2,6 +2,7 @@
 // errors that say where the problem is, kept in the browser's storage, and copied into each frame feature that uses it (`library`), so a
 // shared file still opens and prices correctly on a machine that never imported the library.
 import { BUILTIN_FITTINGS, BUILTIN_MATERIALS, BUILTIN_PROFILES, FITTINGS, MATERIALS, PROFILES, extendLibrary, type FittingDef, type MaterialDef, type ProfileDef } from './frameLib';
+import { safeStorage } from '@kit/platform';
 
 export interface UserLibrary { profiles?: ProfileDef[]; fittings?: Record<string, FittingDef>; materials?: Record<string, MaterialDef> }
 export type Checked = { ok: true; lib: UserLibrary; summary: { profiles: number; fittings: number; materials: number } } | { ok: false; errors: string[] };
@@ -108,9 +109,9 @@ export function importLibraryText(text: string): Checked {
 }
 
 const read = (): UserLibrary => {
-  try { const v = JSON.parse(localStorage.getItem(STORE_KEY) ?? 'null'); return isObj(v) ? (v as UserLibrary) : {}; } catch { return {}; }
+  const v = safeStorage.getJson<unknown>(STORE_KEY, null); return isObj(v) ? (v as UserLibrary) : {};
 };
-const write = (l: UserLibrary): void => { try { localStorage.setItem(STORE_KEY, JSON.stringify(l)); } catch { /* storage blocked: the library lasts for this session */ } };
+const write = (l: UserLibrary): void => { safeStorage.setJson(STORE_KEY, l); /* blocked storage: the library lasts for this session */ };
 
 /** Merge `l` (already checked) into the live library and the browser's stored copy; an id imported again is replaced. */
 export function installLibrary(l: UserLibrary): void {
@@ -138,7 +139,7 @@ export function clearStoredLibrary(): void {
   for (const p of cur.profiles ?? []) { const i = PROFILES.findIndex((x) => x.id === p.id); if (i >= 0) PROFILES.splice(i, 1); }
   for (const id of Object.keys(cur.fittings ?? {})) delete FITTINGS[id];
   for (const id of Object.keys(cur.materials ?? {})) delete MATERIALS[id];
-  try { localStorage.removeItem(STORE_KEY); } catch { /* nothing stored */ }
+  safeStorage.remove(STORE_KEY);
 }
 
 /** Frame features of a document that carry a `library`: adopt what this browser does not know yet (an id already here is kept). Returns how many profiles were added. */

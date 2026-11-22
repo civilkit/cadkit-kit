@@ -1,5 +1,5 @@
 // Writes the sample drawings into the sample parts (`drawing` field). Run only on purpose:
-//   DWG_SAMPLES=1 CK_WASM=... npx vitest run apps/cad/src/drawing/samples.gen.test.ts
+//   DWG_SAMPLES=1 CK_WASM=... npx vitest run packages/drawing/src/drawing/samples.gen.test.ts
 import { describe, it } from 'vitest';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Session } from '@ck/session';

@@ -14,7 +14,7 @@
  * the shared point; with the arcs' own equal-radius equations that leaves six degrees of freedom (centre x and y, R,
  * start angle, sweep, width), the equal-cap-radius constraint would be redundant (both caps are w/2 by concentricity).
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { addConstraintOf, addPoint } from './builders';
 import { addTangent, angleOf, arcPolyline, dist } from './builders-arcs';
 import { segmentEnd } from './geometry';

@@ -8,7 +8,7 @@
  * `radius refs=[ellipseId]` (the solver treats an ellipse's `r` as its radius). A typed angle pins geometry only.
  * H/V snapping of the axis direction is applied to the geometry but writes no constraint (the axis has no line).
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { addConstraintOf, addPoint } from './builders';
 import { segmentEnd } from './geometry';
 import { addEntity, applyLock, hasValues, polyline } from './shape-helpers';

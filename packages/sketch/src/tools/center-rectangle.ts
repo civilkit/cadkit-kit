@@ -7,7 +7,7 @@
  *
  * Kernel conventions used: horizontal/vertical refs=[lineId], distance refs=[p1,p2] + value.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { addConstraintOf, addLine, addPoint } from './builders';
 import { applyLock, hasValues } from './shape-helpers';
 import type { FieldSpec, Pt, Tool, ToolOutput, ToolSettings } from './types';

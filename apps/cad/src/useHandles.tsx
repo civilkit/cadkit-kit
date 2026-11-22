@@ -19,6 +19,7 @@ import { SNAP_PX } from './catalog/placer';
 import { t } from './i18n';
 import { whyNot } from './select/selectCommands';
 import { gestureHint, menuItems, selectionKind, type MenuItem } from './menuModel';
+import { safeStorage } from '@kit/platform';
 
 export interface HandlesDeps {
   controller: Controller;
@@ -55,10 +56,10 @@ export function useHandles(p: HandlesDeps) {
   // a drag in progress keeps its handle: the preview it causes changes the thread entry and must not rebuild the handle under the pointer
   const dragging = useRef(false);
   const [tick, setTick] = useState(0);
-  const [about, setAboutState] = useState<AboutMode>(() => { try { const v = localStorage.getItem('cad.sizeBoxAbout'); return (ABOUT_MODES as string[]).includes(v ?? '') ? (v as AboutMode) : DEFAULT_ABOUT; } catch { return DEFAULT_ABOUT; } });
+  const [about, setAboutState] = useState<AboutMode>(() => { const v = safeStorage.get('cad.sizeBoxAbout'); return (ABOUT_MODES as string[]).includes(v ?? '') ? (v as AboutMode) : DEFAULT_ABOUT; });
   const aboutRef = useRef(about);
   aboutRef.current = about;
-  const setAbout = (m: AboutMode) => { setAboutState(m); try { localStorage.setItem('cad.sizeBoxAbout', m); } catch { /* private window */ } };
+  const setAbout = (m: AboutMode) => { setAboutState(m); safeStorage.set('cad.sizeBoxAbout', m); };
   const [boxOn, setBoxOn] = useState(false);
   const session = useRef<HandleSession | null>(null);
   const [fieldsOpen, setFieldsOpen] = useState(false);

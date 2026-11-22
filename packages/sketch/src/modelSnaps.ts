@@ -10,7 +10,7 @@ import { classifyCurve, flatten, type Projected } from './tools/project';
 import { dist, intersect, nearestOn, type CurveG } from './tools/edit-geom';
 import { withPoint } from './tools/edit-draft';
 import { addConstraintOf } from './tools/builders';
-import type { SketchDraft } from './index';
+import type { SketchDraft } from './types';
 import type { BodyEdge, PlaneFrame3, Pt, SnapHit } from './tools/types';
 
 export const MODEL_SNAP_KINDS = ['modelEndpoint', 'modelMidpoint', 'modelCenter', 'modelExtent'] as const;

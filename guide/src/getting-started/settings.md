@@ -73,7 +73,7 @@ How the sketch editor takes input. See [Sketch tools](../sketching/tools.md) and
 | **Keep the view when entering a sketch (Look normal squares it up)** | on / off | On |
 | **Auto look normal for new sketches** | on / off | Off |
 
-The **Snaps** menu in the **Status** group of the sketch tab holds the rest: which kinds of snap are on (**End points**, **Centres**, **Midpoints**, **Quadrants**, **Intersections**, **Perpendicular**, **Tangent**, **On curve**, the model snaps, **Alignment guides** and **Grid**), **Add constraints from snaps**, and **Auto-constrain from guides**.
+The **Snaps** menu in the **Status** group of the sketch tab holds the rest: which kinds of snap are on (**End points**, **Centres**, **Midpoints**, **Quadrants**, **Intersections**, **Perpendicular**, **Tangent**, **On curve**, **Extension of a line or arc**, the model snaps, **Alignment guides** and **Grid**), **Add constraints from snaps**, and **Auto-constrain from guides**.
 
 ## Navigation tab
 

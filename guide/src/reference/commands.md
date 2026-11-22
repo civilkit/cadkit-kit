@@ -19,6 +19,7 @@ Where the ribbon shows a shorter caption than the command's name, the table give
 - **Ctrl** means **Ctrl** on Windows and Linux and **Cmd** on macOS.
 - Single letters are used for view, pick and sketch tools, so most modelling commands use **Shift** plus a letter. For example **Extrude** is **Shift+E**.
 - While a sketch is open, the sketch tools take their own letters (for example **L** for Line), and the Shift+letter modelling shortcuts do not run. Combinations with **Ctrl** (such as **Ctrl+S** and **Ctrl+Z**) still work. See "Sketch tab" below.
+- Press **?** (with no text field focused) to open the **keyboard shortcut cheat sheet**: a searchable list of every shortcut, grouped as General, View, Sketch tools and Modelling. It is also in command search as **Keyboard shortcuts**. It is built from the app's own key tables, so it always matches what the keys do. **Esc** closes it. **F1** opens help for the tool you are using.
 - Shortcuts do not fire while you are typing in a text, number or list field.
 
 ![The ribbon with the Home tab selected and the Extrude button flyout open, showing Extruded cut.](../img/ribbon-tabs.png)

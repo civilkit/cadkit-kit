@@ -2,7 +2,8 @@
 // Built only from features the kernel already has: one multi-profile extrude cut (straight), one multi-profile revolve cut (rings),
 // and a twisted sweep cut along the cylinder axis (helical). No circular pattern: it only rotates about a world axis through the origin,
 // and one cut with N profiles is also several times faster than N patterned cuts.
-import type { Num, OffsetPlane, PartBuilder, Plane, PlaneRef, SketchBuilder } from '../recorder';
+import type { Num, OffsetPlane, Plane, PlaneRef } from '../core';
+import type { PartBuilder, SketchBuilder } from '../recorder';
 import { H } from './h';
 import type { CosmeticKnurl } from '../cosmeticKnurl';
 import { facetedKnurl, facetedRefusal } from './knurlFaceted';

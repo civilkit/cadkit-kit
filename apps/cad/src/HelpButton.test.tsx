@@ -88,17 +88,11 @@ describe('F1 and ?', () => {
     fireEvent.keyDown(document.body, { key: 'F1' });
     expect(screen.getByTestId('help-card').getAttribute('data-topic')).toBe('guide');
   });
-  it('? opens it when no text box has the focus, and is left alone in one', () => {
+  it('? is the shortcut cheat sheet now, not help; F1 with Ctrl or Cmd is not taken', () => {
     app({ sketching: true, tool: 'line' });
-    fireEvent.keyDown(screen.getByTestId('box'), { key: '?', shiftKey: true });
-    expect(helpOpen()).toBeNull();
     fireEvent.keyDown(document.body, { key: '?', shiftKey: true });
-    expect(screen.getByTestId('help-card').getAttribute('data-topic')).toBe('sketch:line');
-  });
-  it('F1 and ? with Ctrl or Cmd are not taken', () => {
-    app({ sketching: true, tool: 'line' });
+    expect(helpOpen()).toBeNull();
     fireEvent.keyDown(document.body, { key: 'F1', ctrlKey: true });
-    fireEvent.keyDown(document.body, { key: '?', metaKey: true });
     expect(helpOpen()).toBeNull();
   });
   it('the card hangs from the button of that topic when it is on screen', () => {

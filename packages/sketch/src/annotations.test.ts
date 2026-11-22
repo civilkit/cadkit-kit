@@ -234,3 +234,18 @@ describe('rectangle axis locks', () => {
     expect([...f].sort()).toEqual(['a', 'b', 'l1']);
   });
 });
+
+describe('radial offset dimension (raddiff)', () => {
+  const d = { id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [], points: [{ id: 'p1', x: 0, y: 0 }], constraints: [{ id: 'k1', type: 'raddiff', refs: ['e1', 'e2'], value: 4 }],
+    entities: [{ id: 'e1', type: 'circle', c: 'p1', r: 10 }, { id: 'e2', type: 'circle', c: 'p1', r: 14 }] } as unknown as SketchDraft;
+  it('is labelled and drawn as a short radial dimension line between the two circles', () => {
+    const [a] = annotate(d);
+    expect(a).toMatchObject({ kind: 'dimension', type: 'raddiff', text: '4 mm', value: 4 });
+    expect(a.shape?.kind).toBe('linear');
+    const line = (a.shape as { line: [{ x: number; y: number }, { x: number; y: number }] }).line;
+    expect(Math.hypot(line[1].x - line[0].x, line[1].y - line[0].y)).toBeCloseTo(4);
+  });
+  it('can be set to a new value', () => {
+    expect(setConstraintValue(d, 'k1', 6)?.constraints[0].value).toBe(6);
+  });
+});

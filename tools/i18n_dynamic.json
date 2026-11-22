@@ -88,6 +88,12 @@
   "check.severity.info",
   "check.severity.warn"
  ],
+ "shortcuts.group.+": [
+  "shortcuts.group.general",
+  "shortcuts.group.model",
+  "shortcuts.group.sketch",
+  "shortcuts.group.view"
+ ],
  "layer.+": [
   "layer.axes",
   "layer.curves",
@@ -559,6 +565,7 @@
   "app.sketch.snapkind.align",
   "app.sketch.snapkind.center",
   "app.sketch.snapkind.endpoint",
+  "app.sketch.snapkind.extension",
   "app.sketch.snapkind.grid",
   "app.sketch.snapkind.intersection",
   "app.sketch.snapkind.midpoint",
@@ -595,6 +602,7 @@
   "app.sketch.constraint.parallel",
   "app.sketch.constraint.perpendicular",
   "app.sketch.constraint.pldist",
+  "app.sketch.constraint.raddiff",
   "app.sketch.constraint.pointOnCircle",
   "app.sketch.constraint.pointOnLine",
   "app.sketch.constraint.radius",
@@ -1274,6 +1282,7 @@
   "app.sketch.snap.align",
   "app.sketch.snap.center",
   "app.sketch.snap.endpoint",
+  "app.sketch.snap.extension",
   "app.sketch.snap.grid",
   "app.sketch.snap.intersection",
   "app.sketch.snap.midpoint",
@@ -2462,5 +2471,28 @@
   "help.wizard.spring.sum",
   "help.wizard.standoff.sum",
   "help.wizard.washer.sum"
+ ],
+ "app.profile.phase.${x.phase}": [
+  "app.profile.phase.kernel",
+  "app.profile.phase.fonts",
+  "app.profile.phase.view",
+  "app.profile.phase.report",
+  "app.profile.phase.reading",
+  "app.profile.phase.building",
+  "app.profile.phase.checks"
+ ],
+ "app.profile.phase.${p.phase}": [
+  "app.profile.phase.kernel",
+  "app.profile.phase.fonts",
+  "app.profile.phase.view",
+  "app.profile.phase.report",
+  "app.profile.phase.reading",
+  "app.profile.phase.building",
+  "app.profile.phase.checks"
+ ],
+ "app.profile.${p.kind}": [
+  "app.profile.edit",
+  "app.profile.load",
+  "app.profile.rebuild"
  ]
 }

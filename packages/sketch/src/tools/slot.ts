@@ -12,7 +12,7 @@
  * (c2 - n h) to (c2 + n h) (bulging along +d) and the end arc at centre 1 from (c1 + n h) to (c1 - n h) (bulging along -d).
  * Tangency between lines and arcs is not constrained (the tangent refs convention was not verified).
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { addConstraintOf, addLine, addPoint } from './builders';
 import { segmentEnd } from './geometry';
 import { addArc, applyLock, arcPoints, hasValues, polyline } from './shape-helpers';

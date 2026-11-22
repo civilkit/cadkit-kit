@@ -2,6 +2,7 @@
 // pattern); this file builds the requests, keeps the last options and names the files. No DOM.
 import type { FlatPattern } from './model';
 import { fileStem } from '../exportFiles';
+import { safeStorage } from '@kit/platform';
 
 export const DXF_VERSIONS = ['R2000', 'R12'] as const;
 export const DXF_UNITS = ['mm', 'cm', 'm', 'in', 'ft'] as const;
@@ -30,7 +31,7 @@ export const BEND_MIME: Record<BendFormat, string> = { csv: 'text/csv', json: 'a
 
 const KEY = 'cad.sheet.dxf';
 /** The options last used (a stored choice that is not valid is ignored field by field). */
-export function loadDxfOptions(read: (k: string) => string | null = (k) => { try { return localStorage.getItem(k); } catch { return null; } }): DxfOptions {
+export function loadDxfOptions(read: (k: string) => string | null = (k) => safeStorage.get(k)): DxfOptions {
   try {
     const o = JSON.parse(read(KEY) ?? '{}') as Partial<DxfOptions>;
     return {
@@ -46,5 +47,5 @@ export function loadDxfOptions(read: (k: string) => string | null = (k) => { try
   } catch { return { ...DEFAULT_DXF }; }
 }
 export function saveDxfOptions(o: DxfOptions): void {
-  try { localStorage.setItem(KEY, JSON.stringify(o)); } catch { /* private window: the options last for this session only */ }
+  safeStorage.setJson(KEY, o);   // blocked storage: the options last for this session only
 }

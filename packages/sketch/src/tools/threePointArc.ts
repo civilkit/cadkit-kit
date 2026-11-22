@@ -9,7 +9,7 @@
  * Refused with a hint: collinear points (`app.sketch.hint.collinear`) and coincident points, which includes closing
  * on the first point (`app.sketch.hint.degenerate`). Escape drops the shape.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { addPoint } from './builders';
 import { addArc, angleOf, arcPolyline, circumcircle, dist, sweepCcw, turnsCcw } from './builders-arcs';
 import type { FieldSpec, Pt, Tool, ToolOutput, ToolSettings } from './types';

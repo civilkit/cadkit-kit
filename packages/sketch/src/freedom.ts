@@ -10,7 +10,7 @@
  */
 import type { SketchSolverStatus } from '@ck/part-model';
 import { addCandidate, entityPoints, relationTolerance, roundDimension, suggestRelations, type Candidate, type Solve } from './define';
-import type { SketchDraft } from './index';
+import type { SketchDraft } from './types';
 import { nextId } from './tools/builders';
 import { refDimsOf } from './refdims';
 

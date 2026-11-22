@@ -3,19 +3,19 @@
 // ONE edit, `creatorCommands` registers them as palette and ribbon commands, and the app opens the Editor on the new feature.
 // moveFace and moveBody are made by the positioning ball (triball/ops.ts) and scale by add-scale below. dome, fillpattern, spattern,
 // splitLine, surfaceOffset and cutWithSurface have no command yet; see docs/feature-commands.md.
-import { groundPlaneId, isPlaneId, planeName } from './planeNames';
-import { fmtNum, type Command } from '@kit/ui';
+import { groundPlaneId, isPlaneId } from './planeNames';
+import type { Command } from '@kit/ui';
 import type { EditOp } from '@ck/session';
 import { t } from './i18n';
 import { SURFACE_TYPES } from '@kit/viewdata';
 import { DEFAULT_GEAR, defaultPair, gearCommitOps, type GearParams } from './gearData';
-import { isSplinePath } from './sketch3d/model';
 import { defaultSplitPlane } from './splitRules';
+import { isOpenSketch, isClosedSketch, isPointSketch, hasCurves, isSurfaceFeature, entitiesOf, hasCircle, type Ent, type Feat } from './sketchKinds';
+import { hasAutoName, featureLabel, refLabel, planeDefaultName } from './featureLabels';
+export { isOpenSketch, isClosedSketch, isPointSketch, hasCurves, isSurfaceFeature, hasAutoName, featureLabel, refLabel, planeDefaultName };
 import { combineBodyOps, refOf as bodyRefOf, type BodyTarget } from './bodyOps';
 import { axisLine, edgeRefs, faceNames, niceSize, patternSeed, type Box, type Ctx, type FeatureActions, type ViewEdge } from './featureCommands';
 
-type Feat = { id: string; type: string; [k: string]: unknown };
-type Ent = { id: string; type: string; p1?: string; p2?: string; pts?: string[]; construction?: boolean; closed?: boolean };
 
 const feats = (c: Ctx): Feat[] => (c.doc?.features ?? []) as unknown as Feat[];
 const hasSolid = (c: Ctx): boolean => !!c.box;
@@ -23,45 +23,6 @@ const faceMode = (c: Ctx): string[] => (c.mode === 'face' ? faceNames(c.selectio
 
 // ---- sketches by what they hold ----
 
-const entitiesOf = (s: Feat): Ent[] => ((s.entities as Ent[] | undefined) ?? []).filter((e) => !e.construction);
-/** Endpoints of the open-able entities (line, arc, spline), counted per point. */
-function degrees(ents: Ent[]): Map<string, number> {
-  const d = new Map<string, number>();
-  const bump = (p?: string) => { if (p) d.set(p, (d.get(p) ?? 0) + 1); };
-  for (const e of ents) {
-    if (e.type === 'line' || e.type === 'arc') { bump(e.p1); bump(e.p2); }
-    else if ((e.type === 'spline' || e.type === 'cvspline') && e.pts && e.pts.length > 1) {
-      // a closed spline is a loop: both ends are one point, so it counts twice and never reads as an open chain
-      const k = e.closed === true ? 2 : 1;
-      for (let i = 0; i < k; i++) { bump(e.pts[0]); bump(e.pts[e.pts.length - 1]); }
-    }
-  }
-  return d;
-}
-const chainEntities = (ents: Ent[]) => ents.filter((e) => e.type === 'line' || e.type === 'arc' || e.type === 'spline' || e.type === 'cvspline');
-const hasCircle = (s: Feat): boolean => entitiesOf(s).some((e) => e.type === 'circle' || e.type === 'ellipse' || e.type === 'text');   // lettering is closed loops too
-/** A chain of lines / arcs with two loose ends (what a rib is drawn from). */
-export const isOpenSketch = (s: Feat): boolean => {
-  if (s.type === 'sketch3d') return isSplinePath(s);   // a 3D sketch is a path when it holds one open spline (the only 3D path the kernel sweeps)
-  const ents = entitiesOf(s);
-  const chain = chainEntities(ents);
-  return chain.length > 0 && !hasCircle(s) && [...degrees(ents).values()].some((n) => n === 1);
-};
-/** Something that bounds a region: a circle / ellipse, or lines and arcs that all meet in pairs. */
-export const isClosedSketch = (s: Feat): boolean => {
-  if (s.type === 'sketch3d') return false;
-  const ents = entitiesOf(s);
-  if (hasCircle(s)) return true;
-  const d = degrees(ents);
-  return chainEntities(ents).length > 0 && d.size > 0 && [...d.values()].every((n) => n >= 2);
-};
-/** A sketch whose only (non-construction) entity is one point: a loft can end in it (the apex). */
-export const isPointSketch = (s: Feat): boolean => {
-  if (s.type === 'sketch3d') return false;
-  const ents = entitiesOf(s);
-  return ents.length === 1 && ents[0].type === 'point';
-};
-export const hasCurves = (s: Feat): boolean => s.type !== 'sketch3d' && (hasCircle(s) || chainEntities(entitiesOf(s)).length > 0);
 const hasAxisLine = (s: Feat): boolean => isClosedSketch(s) && axisLine(s) !== null;
 
 /** The sketch a command uses: the one selected in the tree if it fits, else the last that fits. */
@@ -74,9 +35,6 @@ export function sketchWhere(c: Ctx, fits: (s: Feat) => boolean, with3d = false):
 
 /** Feature types that leave a surface body registered under their id. */
 export { SURFACE_TYPES };
-/** Whether this feature leaves a surface body: the types above, a Knit that is not a solid, a Sweep or Loft asked for a surface. */
-export const isSurfaceFeature = (f: Feat): boolean =>
-  SURFACE_TYPES.includes(f.type) || (f.type === 'knit' && f.solid !== true) || ((f.type === 'loft' || f.type === 'sweep') && f.surface === true);
 const surfaceFeatures = (c: Ctx): Feat[] => feats(c).filter(isSurfaceFeature);
 /** Surface features that own the faces / edges in the viewport selection (names are `<feature>.…`), in selection order. */
 export function surfacesInSelection(c: Ctx): Feat[] {
@@ -97,31 +55,6 @@ const planeFeatures = (c: Ctx): Feat[] => feats(c).filter((f) => f.type === 'pla
 
 // ---- the edits (each is ONE edit) ----
 
-type RefIn = { kind?: string; id?: string } | null | undefined;
-type DocIn = { features?: unknown[] } | null | undefined;
-const escRe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-/** A regex for a default-name template such as `Plane {offset} from {base}`: the old documents carry no autoName flag, so their names are recognised by shape. */
-const templateRe = (key: string) => new RegExp('^' + t(key).split(/\{\w+\}/).map(escRe).join('.+') + '$');
-/** True when a Plane or Sketch still carries a generated name (autoName true, or an old document whose name has the generated shape and was not renamed by the user). */
-export function hasAutoName(f: { type?: string; name?: unknown; autoName?: unknown } | null | undefined): boolean {
-  if (!f) return false;
-  if (f.autoName === true) return true;
-  if (f.autoName === false) return false;
-  const n = typeof f.name === 'string' ? f.name : '';
-  if (f.type === 'plane') return !n || templateRe('app.plane.defaultName').test(n) || templateRe('app.plane.midName').test(n);
-  if (f.type === 'sketch') return templateRe('app.sketch.defaultName').test(n);
-  return false;
-}
-/** The name a feature is shown under: a generated Plane / Sketch name is derived live from its current offset, base and plane (so `Plane -60 from Right` stays true when the offset is edited); a user's name is kept. */
-export function featureLabel(doc: DocIn, f: Feat | undefined | null): string {
-  if (!f) return '';
-  const name = typeof f.name === 'string' ? f.name : '';
-  try {
-    if (f.type === 'plane' && hasAutoName(f as never) && (f.mode === 'offset' || f.mode === 'mid' || f.mode === undefined)) return planeDefaultName(doc, f as never);
-    if (f.type === 'sketch' && hasAutoName(f as never) && f.plane && (f.plane as { kind?: string }).kind !== 'face') return t('app.sketch.defaultName', { plane: refLabel(doc, f.plane as never) });
-  } catch { /* a field of an unexpected shape never takes the tree down: show the stored name */ }
-  return name || String(f.id ?? '');
-}
 /**
  * The ops that keep the STORED name of a generated Plane / Sketch true after an edit of an offset, base or plane (the tree shows
  * the live name already; the stored one is what a saved file, a script and an agent read). Only runs for edits that touch those fields.
@@ -151,18 +84,6 @@ export function syncNameOps(features: Array<Record<string, unknown>>, ops: EditO
     if (want && want !== c.name) out.push({ op: 'set', id: c.id, path: 'name', value: want } as EditOp);
   }
   return out;
-}
-/** What a reference counts as in a default name: Front / Top / Right, a plane feature's displayed label (never a stale stored one), or the face id. */
-export function refLabel(doc: DocIn, ref: RefIn): string {
-  if (!ref?.id) return planeName('front');
-  if (ref.kind === 'std') return planeName(ref.id).replace(/ Plane$/, '');
-  const f = ((doc?.features ?? []) as Feat[]).find((x) => x.id === ref.id);
-  return f ? featureLabel(doc, f) : ref.id;
-}
-/** The default name of a new Plane feature: `Plane -60 from Front` (offset) or `Plane between A and B`. */
-export function planeDefaultName(doc: DocIn, f: { mode?: string; base?: RefIn; base2?: RefIn; offset?: number | string }): string {
-  if (f.mode === 'mid') return t('app.plane.midName', { a: refLabel(doc, f.base), b: refLabel(doc, f.base2) });
-  return t('app.plane.defaultName', { offset: fmtNum(f.offset), base: refLabel(doc, f.base) });
 }
 /** The base a new plane offsets from: a picked planar face, else a Plane feature selected in the tree, else the Front / Top / Right plane chosen, else Front. */
 export function planeBase(c: Ctx): { kind: string; id: string } {

@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { matchShortcut } from './commands';
-import { ORBIT_STEP_DEG, orbitPixels, treeCommands, treeKey, type KeyLike, type TreeActions } from './treeCommands';
+import { ORBIT_STEP_DEG, ZOOM_STEP_PX, orbitPixels, treeCommands, treeKey, type KeyLike, type TreeActions } from './treeCommands';
 
 const key = (k: string, mods: Partial<KeyLike> = {}): KeyLike => ({ key: k, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...mods });
 const actions = (over: Partial<TreeActions> = {}): TreeActions => ({
   isSketching: () => false, hasDocument: () => true, selected: () => ['F2'], rename: vi.fn(), groupSelected: vi.fn(), deleteSelected: vi.fn(), suppressSelected: vi.fn(),
-  rebuild: vi.fn(), selectAll: vi.fn(), rollForward: vi.fn(), isRolledBack: () => false, redo: vi.fn(), clearSelection: () => false, orbit: vi.fn(), pan: vi.fn(), ...over,
+  rebuild: vi.fn(), selectAll: vi.fn(), rollForward: vi.fn(), isRolledBack: () => false, redo: vi.fn(), clearSelection: () => false, orbit: vi.fn(), pan: vi.fn(), zoom: vi.fn(), ...over,
 });
 
 describe('tree commands', () => {
@@ -64,6 +64,20 @@ describe('treeKey', () => {
     treeKey(key('ArrowLeft', { altKey: true }), a, true);
     expect(a.pan).toHaveBeenCalledWith(-40, 0);
     expect(treeKey(key('ArrowDown'), a, false)).toBe(false);
+  });
+  it('+ and PageUp zoom in, - and PageDown zoom out; Ctrl combinations and panel focus are left alone', () => {
+    const a = actions();
+    expect(treeKey(key('+', { shiftKey: true }), a, true)).toBe(true);
+    expect(a.zoom).toHaveBeenLastCalledWith(-ZOOM_STEP_PX);
+    treeKey(key('='), a, true);
+    expect(a.zoom).toHaveBeenLastCalledWith(-ZOOM_STEP_PX);
+    treeKey(key('-'), a, true);
+    expect(a.zoom).toHaveBeenLastCalledWith(ZOOM_STEP_PX);
+    treeKey(key('PageDown', { shiftKey: true }), a, true);
+    expect(a.zoom).toHaveBeenLastCalledWith(ZOOM_STEP_PX * 3);
+    expect(treeKey(key('-', { ctrlKey: true }), a, true)).toBe(false);
+    expect(treeKey(key('-'), a, false)).toBe(false);
+    expect(treeKey(key('-'), actions({ isSketching: () => true }), true)).toBe(false);
   });
   it('is silent while sketching and with no document', () => {
     expect(treeKey(key('ArrowLeft'), actions({ isSketching: () => true }), true)).toBe(false);

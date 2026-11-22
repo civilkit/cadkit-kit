@@ -1,7 +1,8 @@
 // Typed helpers for kernel features that had no script method: draft, moveFace, lip / groove, scale, split, deleteBody, deleteFace,
 // helix, axis, sphere and moveBody. Each emits exactly the kernel feature (field names of the format book, features-edits.md /
 // features-patterns.md / features-solids.md / planes.md). Mixed into PartBuilder by features/index.ts.
-import type { EditOp, FeatureHandle, Num, OffsetPlane, PartBuilder, Plane, PlaneRef } from '../recorder';
+import type { EditOp, FeatureHandle, Num, OffsetPlane, Plane, PlaneRef } from '../core';
+import type { PartBuilder } from '../recorder';
 import type { EdgeSel, FaceSel, FacesSel } from '../selectors';
 import { H, applyNewBody, planeRef, sketchOps } from './h';
 import { splitByPlane } from './enclosure';

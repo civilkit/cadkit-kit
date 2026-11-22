@@ -1,5 +1,6 @@
 // Surfaces, threads, assemblies and the raw-feature escape hatch. Mixed into PartBuilder by features/index.ts.
-import type { Ctx, EditOp, Num, OffsetPlane, PartBuilder, Plane } from '../recorder';
+import type { Ctx, EditOp, Num, OffsetPlane, Plane } from '../core';
+import type { PartBuilder } from '../recorder';
 import type { EdgeSel, FaceSel } from '../selectors';
 import { FEATURE_TYPES } from '@ck/part-model';
 import { H, memOf, planeRef, sketchOps, type SketchSpec } from './h';

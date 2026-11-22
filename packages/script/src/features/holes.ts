@@ -1,8 +1,8 @@
 // Hole feature JSON for every kind (simple, counterbore, countersink, tapped), shared by hole() and holes.*.
-import type { Ctx, EditOp, HoleOpts } from '../recorder';
+import type { Ctx, EditOp, HoleOpts } from '../core';
 import type { FaceSel } from '../selectors';
 import { H, memOf } from './h';
-import { ISO_TABLE, ISO_SIZES } from '../../../../apps/cad/src/holeData';
+import { ISO_TABLE, ISO_SIZES } from '@kit/catalog';
 import { threadOp } from './misc';
 
 const ISO = /^M\d+(\.\d+)?$/;

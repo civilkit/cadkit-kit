@@ -20,7 +20,13 @@ export interface Platform {
   readHandle?(handle: unknown): Promise<{ name: string; text: string } | 'denied' | null>;
   /** Small persistent store for file handles (IndexedDB on the web). Null when unavailable. */
   handleStore?(): HandleStore | null;
+  /** Detect installed desktop 3D-printing slicers (Tauri desktop only; empty in browser). */
+  detectSlicers?(): Promise<SlicerInfo[]>;
+  /** Open a `.3mf`/`.stl` plate in a detected slicer (desktop) or download it (browser fallback). */
+  openInSlicer?(slicerId: string, bytes: Uint8Array, filename: string): Promise<SendToSlicerResult>;
 }
+
+import type { SlicerInfo, SendToSlicerResult } from './slicer';
 
 export interface SavedDocument { name: string; handle: unknown | null }
 export interface HandleStore {
@@ -33,3 +39,5 @@ export { createWebPlatform } from './web';
 export { saveDocumentWith, readHandleWith, idbHandleStore, type FsEnv } from './fsaccess';
 export { FILE_KINDS, fileKindOf, isBinaryName, acceptFor, type FileKind } from './kinds';
 export { gzipText, bytesText, fileText, isGzip, wantsGzip } from './gzip';
+export { safeStorage } from './safeStorage';
+export { detectDesktopSlicers, hasDesktopSlicerBridge, sendToSlicerWith, type SlicerInfo, type SendToSlicerResult } from './slicer';

@@ -57,4 +57,18 @@ describe('MeshLayer', () => {
     expect(mats.map((m) => [m.opacity, m.transparent, m.depthWrite])).toEqual([[1, false, true], [0.4, true, false]]);
     l.set([]);
   });
+
+  it('leaves meshes out of view out of the draw: frustum culling is on, and a scene of 100 meshes draws only the ones in view', () => {
+    const l = new MeshLayer();
+    const list = Array.from({ length: 100 }, (_, i) => tri('m' + i, { matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, i * 10, 0, 0, 1] }));
+    l.set(list);
+    const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 1000);
+    cam.position.set(50, 0, 60); cam.lookAt(50, 0, 0);
+    l.group.updateMatrixWorld(true); cam.updateMatrixWorld(true);
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+    let drawn = 0;
+    l.group.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && m.visible && (!m.frustumCulled || frustum.intersectsObject(m))) drawn++; });
+    expect(drawn).toBeLessThan(20);   // before the change: 100 solids drawn whatever the view
+    expect(drawn).toBeGreaterThan(0);
+  });
 });

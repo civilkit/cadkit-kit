@@ -36,6 +36,23 @@ describe('snapAt', () => {
     expect(alignSourceAt(d, 'a')).toEqual({ x: 0, y: 0 });
     expect(alignSourceAt(d, 'mid:nope')).toBeUndefined();
   });
+  it('snaps to the extension of a line past its end, with a dashed guide from that end', () => {
+    // e1 runs (10,0) to (10,8): its extension upward is x = 10, y > 8, downward y < 0
+    expect(snapAt(draft(), { x: 10.2, y: 15 }, { tolerance: 0.5, kinds: { align: false } })).toMatchObject({ kind: 'extension', entityId: 'e1', at: { x: 10, y: 15 }, guide: { a: { x: 10, y: 8 }, b: { x: 10, y: 15 } } });
+    expect(snapAt(draft(), { x: 9.8, y: -6 }, { tolerance: 0.5, kinds: { align: false } })).toMatchObject({ kind: 'extension', at: { x: 10, y: -6 }, guide: { a: { x: 10, y: 0 } } });
+    expect(snapAt(draft(), { x: 11, y: 15 }, { tolerance: 0.5, kinds: { align: false } })).toBeUndefined();   // too far off the line
+    expect(snapAt(draft(), { x: 10.2, y: 15 }, { tolerance: 0.5, kinds: { align: false, extension: false } })).toBeUndefined();
+    expect(snapAt(draft(), { x: 10.2, y: 15 }, { tolerance: 0.5, kinds: { align: false }, skip: new Set(['p2']) })).toBeUndefined();   // the line being dragged guides nothing
+  });
+  it('snaps to the tangent continuation of an arc past its end', () => {
+    // arc about the origin from (5,0) counter-clockwise to (0,5): it continues from (0,5) toward -x, and back from (5,0) toward -y
+    const d: SketchDraft = { id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [], constraints: [],
+      points: [{ id: 'c', x: 0, y: 0 }, { id: 'a', x: 5, y: 0 }, { id: 'b', x: 0, y: 5 }], entities: [{ id: 'arc', type: 'arc', c: 'c', p1: 'a', p2: 'b' }] };
+    const k = { align: false, quadrant: false, oncurve: false } as const;
+    expect(snapAt(d, { x: -6, y: 5.2 }, { tolerance: 0.5, kinds: k })).toMatchObject({ kind: 'extension', entityId: 'arc', at: { x: -6, y: 5 } });
+    expect(snapAt(d, { x: 5.2, y: -7 }, { tolerance: 0.5, kinds: k })).toMatchObject({ kind: 'extension', at: { x: 5, y: -7 } });
+    expect(snapAt(d, { x: 6, y: 5.2 }, { tolerance: 0.5, kinds: k })).toBeUndefined();
+  });
   it('aligns with other points in x, y or both', () => {
     expect(snapAt(draft(), { x: 10.2, y: 20 }, { tolerance: 0.5 })).toEqual({ kind: 'align', at: { x: 10, y: 20 }, alignTo: { x: 'p1' } });
     expect(snapAt(draft(), { x: 30, y: 8.2 }, { tolerance: 0.5 })).toEqual({ kind: 'align', at: { x: 30, y: 8 }, alignTo: { y: 'p2' } });

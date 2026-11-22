@@ -6,7 +6,7 @@
  * fitted through the points again, so it can shift slightly (the hint says so). Picking a place that already is a data
  * point is refused; control-point splines have their own points and are not handled.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { entityOf, ptOf, replaceEntity, withPoint } from './edit-draft';
 import { splineIds } from './split';
 import { fitLocate } from './splineMath';

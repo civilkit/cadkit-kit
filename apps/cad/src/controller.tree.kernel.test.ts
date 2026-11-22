@@ -111,6 +111,22 @@ describe('tree interaction against the real kernel', { skip: !process.env.CK_WAS
     expect(w.controller.rollbackCount()).toBe(2);
   });
 
+  it('deleting after the marker leaves the view alone; deleting before it keeps the marker on the same feature', async () => {
+    const w = await world();
+    await w.controller.setRollback(2);
+    const h = w.height();
+    const r = await w.controller.deleteFeatures(['F4']);
+    expect(r!.ok).toBe(true);
+    expect(w.controller.rollbackCount()).toBe(2);
+    expect(w.height()).toBeCloseTo(h, 3);
+    expect(w.controller.features().map((f) => f.id)).toEqual(['F1', 'F2', 'F3']);
+    const w2 = await world();
+    await w2.controller.setRollback(3);              // F3 is the last one on
+    await w2.controller.deleteFeatures(['F2']);      // before the marker: the marker stays on F3
+    expect(w2.controller.features().map((f) => f.id)).toEqual(['F1', 'F3', 'F4']);
+    expect(w2.controller.rollbackCount()).toBe(2);
+  });
+
   it('a preview while rolled back builds up to the marker', async () => {
     const w = await world();
     await w.controller.setRollback(2);

@@ -19,7 +19,7 @@ import { t } from '../i18n';
 import { MIN_SIZE, type HandleCommit, type HandleSession } from './session';
 import { gridStep, moveCandidates, NO_CANDS, resolveMove, type MoveCands, type MoveMods, type MovePoint, type MoveResult } from './move';
 import type { EdgeLike } from '../catalog/geometry';
-import { clampToTip } from '../taperLimit';
+import { clampToTip } from '@kit/viewdata';
 
 type Wire = Record<string, any>;   // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -365,6 +365,9 @@ export function transformSketch(sketch: Wire, profile: Profile, from: Box, to: B
     } else if (c.type === 'radius' || c.type === 'diameter') {
       const r = radiusOf(refs[0]);
       if (r !== null) setValue(c, round3(c.type === 'radius' ? r : 2 * r));
+    } else if (c.type === 'raddiff') {
+      const r0 = radiusOf(refs[0]), r1 = radiusOf(refs[1]);
+      if (r0 !== null && r1 !== null) setValue(c, round3(Math.abs(r1 - r0)));
     } else if (c.type === 'pldist') {
       const a = at(refs[0]), l = ends(refs[1]);
       if (a && l) { const dx = l[1].x - l[0].x, dy = l[1].y - l[0].y, n = Math.hypot(dx, dy); if (n > EPS) setValue(c, round3(Math.abs((a.x - l[0].x) * dy - (a.y - l[0].y) * dx) / n)); }

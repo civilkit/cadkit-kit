@@ -3,9 +3,14 @@
  * `dimPlacement: { [dimension id]: { level, side } }` (the vocabulary of the automatic layout, see dimLayout.ts) and carried through the
  * kernel like `refDims` (unknown sketch fields are kept). The solver never reads it.
  */
-import type { SketchDraft } from './index';
+import type { SketchDraft } from './types';
 import { dimensionShape } from './annotations';
-import { LEVEL_PX, MAX_LEVEL, type ToPx } from './dimLayout';
+
+export type ToPx = (u: number, v: number) => { x: number; y: number } | null;
+
+/** One dimension line level, in pixels. */
+export const LEVEL_PX = 26;
+export const MAX_LEVEL = 6;
 
 export interface DimPlace { level: number; side: 1 | -1 }
 export type DimPlacements = Record<string, DimPlace>;

@@ -9,11 +9,14 @@
  * `equal refs=[lineA,lineB]` between consecutive sides (verified in solver.rs: for lines it equates lengths; N-1 of
  * them, so none is redundant) and, for an inscribed polygon with a committed radius, `distance refs=[centre,vertex0]`.
  * A committed radius on a circumscribed polygon, and any typed angle, pin the geometry only (no kernel constraint
- * expresses an apothem). No circle is added: tying the vertices to one needs a point-on-circle convention that was
- * not verified. Sides < 3 or a zero radius is refused with a hint.
+ * expresses an apothem). With four or more sides a construction circle about the centre is added with every vertex
+ * `pointOnCircle` on it (refs `[vertex, circle]`), so equal sides plus a common circle keep the polygon regular when
+ * dragged (inscribed or circumscribed alike: the vertices of both lie on a circle). Sides < 3 or a zero radius is
+ * refused with a hint.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { addConstraintOf, addLine, addPoint } from './builders';
+import { addCircle } from './builders-arcs';
 import { segmentEnd } from './geometry';
 import { applyLock, hasValues } from './shape-helpers';
 import type { FieldSpec, Modifiers, Pt, Tool, ToolOutput, ToolSettings } from './types';
@@ -81,6 +84,12 @@ function commit(state: PolygonState, draft: SketchDraft, settings: ToolSettings)
   const lines: string[] = [];
   for (let i = 0; i < ids.length; i++) { const l = addLine(d, ids[i], ids[(i + 1) % ids.length]); d = l.draft; lines.push(l.id); }
   for (let i = 0; i + 1 < lines.length; i++) d = addConstraintOf(d, 'equal', [lines[i], lines[i + 1]]);
+  if (state.sides > 3) {
+    // equal sides alone let a polygon of four or more sides shear when a vertex is dragged: a construction circle round the centre, with every vertex on it, keeps it regular (the circle's radius is free, so the size still follows the drag)
+    const circle = addCircle(d, c, r.len / (state.mode === 'inscribed' ? 1 : Math.cos(Math.PI / state.sides)));
+    d = { ...circle.draft, entities: circle.draft.entities.map((e) => (e.id === circle.id ? { ...e, construction: true } : e)) };
+    for (const v of ids) d = addConstraintOf(d, 'pointOnCircle', [v, circle.id]);
+  }
   if (state.mode === 'inscribed' && state.locked.r !== undefined) d = addConstraintOf(d, 'distance', [c, ids[0]], state.locked.r);
   return view(reset(state), d, settings);
 }

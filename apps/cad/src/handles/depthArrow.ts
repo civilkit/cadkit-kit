@@ -10,7 +10,7 @@
 import type { EditOp } from '@ck/session';
 import { V, type HandleSpec, type Vec3 } from '@kit/viewport';
 import { t } from '../i18n';
-import { clampToTip } from '../taperLimit';
+import { clampToTip } from '@kit/viewdata';
 import { MIN_SIZE, type HandleSession } from './session';
 import { niceStep, worldOf, type Frame3 } from './sizeBox';
 

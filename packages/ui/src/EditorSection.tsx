@@ -4,22 +4,19 @@
 import { useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import { Icon } from './icons';
+import { safeStorage } from '@kit/platform';
 
 const KEY = 'kit.editor.collapsed';
 
 export function loadCollapsed(): Record<string, boolean> {
-  try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-    return v && typeof v === 'object' ? v : {};
-  } catch { return {}; }
+  const v = safeStorage.getJson<Record<string, boolean>>(KEY, {});
+  return typeof v === 'object' ? v : {};
 }
 /** `dflt`: whether the section starts closed when the user never chose (stored only when the choice differs from it). */
 export function rememberCollapsed(id: string, closed: boolean, dflt = false): void {
-  try {
-    const all = loadCollapsed();
-    if (closed === dflt) delete all[id]; else all[id] = closed;
-    localStorage.setItem(KEY, JSON.stringify(all));
-  } catch { /* storage unavailable: the state just is not remembered */ }
+  const all = loadCollapsed();
+  if (closed === dflt) delete all[id]; else all[id] = closed;
+  safeStorage.setJson(KEY, all);   // unavailable storage: the state just is not remembered
 }
 
 export function EditorSection(p: { id: string; title: string; summary?: string; defaultClosed?: boolean; children: ComponentChildren }): JSX.Element {

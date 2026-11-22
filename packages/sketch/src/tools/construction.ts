@@ -12,7 +12,7 @@
  *  - `constructionTool`: click a line, arc, circle, ellipse or spline to flip it between normal and construction; the
  *    tool stays active. Shift-click flips every entity connected end to end to it.
  */
-import type { SketchDraft } from '../index';
+import type { SketchDraft } from '../types';
 import { entityOf } from './edit-draft';
 import { chainOf } from './offset';
 import { entityShape } from '../select';

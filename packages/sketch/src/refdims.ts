@@ -8,14 +8,14 @@
  *   makeDriving   a reference dimension becomes a driving one at its present value
  *   refAnnotations  the labels to draw: the value in brackets
  */
-import type { DraftConstraint, SketchDraft } from './index';
+import type { DraftConstraint, SketchDraft } from './types';
 import { annotate, type AnnotateOptions, type Annotation } from './annotations';
 import { angleSpec } from './tools/constraints';
 import { measure } from './tools/transform';
 import { shownValue, storedValue } from './slotLength';
 
 export interface RefDim { id: string; type: string; refs: string[]; s1?: number; s2?: number; /** the overall length across a slot's caps, see slotLength.ts */ overall?: boolean }
-export const DIM_TYPES = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'angle']);
+export const DIM_TYPES = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'raddiff', 'angle']);
 
 export const refDimsOf = (d: SketchDraft): RefDim[] => (Array.isArray(d.extras?.refDims) ? (d.extras!.refDims as RefDim[]) : []);
 const withRefs = (d: SketchDraft, list: RefDim[]): SketchDraft => {

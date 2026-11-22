@@ -3,7 +3,6 @@ import { placeTip } from '@kit/ui';
 import { t } from './i18n';
 import { currentTopic, helpCard, type HelpContext } from './helpMap';
 import { closeHelp, helpAnchorFor, helpOpen, openHelp, subscribeHelp } from './helpState';
-import { isTextEntry } from './keyGuard';
 
 /** A round '?' that opens the help card of one topic (a tool, a feature editor, a wizard, or the guide itself). At least 44 px to hit on a touch screen. */
 export function HelpButton(p: { topic: string; class?: string }) {
@@ -20,7 +19,7 @@ export function HelpButton(p: { topic: string; class?: string }) {
 }
 
 /** The help card: the topic's name, its one sentence and a link to the guide section, next to the button it came from. Closes on Escape or a tap outside.
- *  Mounted once. Also owns F1 (and '?' when no text box has the focus), which opens the card for what is being worked on: `context()`. */
+ *  Mounted once. Also owns F1, which opens the card for what is being worked on: `context()`. */
 export function HelpHost(p: { context: () => HelpContext }) {
   const [, tick] = useState(0);
   useEffect(() => subscribeHelp(() => tick((n) => n + 1)), []);
@@ -31,8 +30,7 @@ export function HelpHost(p: { context: () => HelpContext }) {
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && helpOpen()) { e.preventDefault(); e.stopImmediatePropagation(); const a = helpOpen()?.anchor; closeHelp(); a?.focus?.(); return; }
       const f1 = e.key === 'F1' && !e.ctrlKey && !e.metaKey && !e.altKey;
-      const q = e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !isTextEntry(e.target);
-      if (!f1 && !q) return;
+      if (!f1) return;
       e.preventDefault(); e.stopImmediatePropagation();
       const topic = currentTopic(ctx.current());
       openHelp(topic, helpAnchorFor(topic));

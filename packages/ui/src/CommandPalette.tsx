@@ -1,5 +1,6 @@
 import type { JSX } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useFocusTrap } from './useFocusTrap';
 import type { Command } from './Ribbon';
 import { t } from './i18n';
 import { textAttrs } from './keypad';
@@ -9,6 +10,7 @@ export function CommandPalette(p: { commands: Command[]; pinned?: string[]; onCl
   const [q, setQ] = useState('');
   const [hi, setHi] = useState(0);
   const input = useRef<HTMLInputElement>(null);
+  const trap = useFocusTrap();
   useEffect(() => input.current?.focus(), []);
   const rows = useMemo(() => {
     const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
@@ -23,7 +25,7 @@ export function CommandPalette(p: { commands: Command[]; pinned?: string[]; onCl
   };
   return (
     <div class="pal-back" onMouseDown={(e) => { if (e.target === e.currentTarget) p.onClose(); }}>
-      <div class="pal" role="dialog" aria-label={t('ui.palette.label')}>
+      <div class="pal" ref={trap} role="dialog" aria-modal="true" aria-label={t('ui.palette.label')}>
         <input {...textAttrs} type="search" enterKeyHint="search"
           ref={input}
           placeholder={t('ui.palette.search')}

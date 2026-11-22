@@ -49,8 +49,12 @@ export function screwIssue(p: ScrewParams): ScrewIssue | null {
 }
 
 /** The ops that append the screw to the document (all in one tree folder named after the wizard, see wizardGroup.ts), numbered from the document's next feature id. Throws with the helper's message. */
-export function screwOps(doc: { features: Array<{ id?: string }>; seq?: number }, p: ScrewParams): EditOp[] {
+export function screwOps(doc: { features: Array<{ id?: string; body?: unknown }>; seq?: number }, p: ScrewParams): EditOp[] {
+  // each call builds a fresh recorder, so the part's earlier screws are counted here: the second gets 'Screw 2', not a clashing 'Screw'
+  const used = new Set(doc.features.map((f) => f.body).filter((b): b is string => typeof b === 'string'));
+  let name = 'Screw';
+  for (let k = 2; used.has(name); k++) name = `Screw ${k}`;
   let n = doc.seq ?? 1;
   for (const f of doc.features) { const m = /^F(\d+)$/.exec(String(f.id ?? '')); if (m) n = Math.max(n, Number(m[1]) + 1); }
-  return groupOps(screwEditOps(screwOpts(p), n) as unknown as EditOp[], wizardGroupName(doc.features, t('screw.title')));
+  return groupOps(screwEditOps({ ...screwOpts(p), name }, n) as unknown as EditOp[], wizardGroupName(doc.features, t('screw.title')));
 }

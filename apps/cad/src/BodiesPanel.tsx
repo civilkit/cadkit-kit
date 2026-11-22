@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon, textAttrs } from '@kit/ui';
+import { Icon, textAttrs, createSlowClick } from '@kit/ui';
 import { DEFAULT_APPEARANCE, FINISHES, PICK_OPACITY, finishParams } from '@kit/viewport';
 import { t } from './i18n';
 import { TexturePicker, type LibraryControls } from './SurfaceControls';
@@ -35,6 +35,11 @@ export function BodiesPanel(p: BodiesPanelProps): JSX.Element {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const listRef = useRef<HTMLUListElement>(null);
+  const rowsRef = useRef(p.rows); rowsRef.current = p.rows;
+  const slowRef = useRef<ReturnType<typeof createSlowClick> | null>(null);
+  // a slow second click on the only selected body renames it
+  const slow = (slowRef.current ??= createSlowClick((key) => { const r = rowsRef.current.find((x) => x.key === key); if (r) { setRenaming(key); setDraft(r.name); } }));
+  useEffect(() => () => slow.cancel(), []);
   const hiddenN = p.rows.filter((r) => r.hidden).length;
   const cur = p.rows.find((r) => r.key === p.selected[p.selected.length - 1]) ?? null;
   useEffect(() => { if (renaming && !p.rows.some((r) => r.key === renaming)) setRenaming(null); }, [p.rows, renaming]);
@@ -69,8 +74,8 @@ export function BodiesPanel(p: BodiesPanelProps): JSX.Element {
             return (
               <li key={r.key} class={'body-row' + (sel ? ' sel' : '') + (r.hidden ? ' off' : '')} role="option" aria-selected={sel} tabIndex={0} data-key={r.key}
                 aria-label={r.name + (r.hidden ? ', ' + t('bodies.hidden') : '')}
-                onClick={(e) => p.onSelect(r.key, e.shiftKey || e.ctrlKey || e.metaKey)}
-                onDblClick={() => { setRenaming(r.key); setDraft(r.name); }}
+                onClick={(e) => { slow.click(r.key, p.selected.length === 1 && p.selected[0] === r.key, !(e.shiftKey || e.ctrlKey || e.metaKey)); p.onSelect(r.key, e.shiftKey || e.ctrlKey || e.metaKey); }}
+                onDblClick={() => { slow.cancel(); setRenaming(r.key); setDraft(r.name); }}
                 onKeyDown={(e) => {
                   if (e.target !== e.currentTarget) return;
                   if (e.key === ' ') { e.preventDefault(); p.onToggleHidden(r.key); }

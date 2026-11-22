@@ -6,7 +6,8 @@
 // (a bore at the tap drill and a cosmetic thread, which shows in the thread list and the drawing) and 'modeled' (the same with the real helical groove, with an optional print
 // clearance, slow). A modelled thread falls back to cosmetic with a warning when the kernel cannot cut it.
 // NOT modelled: nut bore countersinks, the washer face, nyloc rings, flanges; the standoff's end chamfers; the insert's knurl pattern (rings stand for it).
-import type { Num, OffsetPlane, PartBuilder } from '../recorder';
+import type { Num, OffsetPlane } from '../core';
+import type { PartBuilder } from '../recorder';
 import type { PlaneBase } from '../planes';
 import { H } from './h';
 import { threadOp } from './misc';

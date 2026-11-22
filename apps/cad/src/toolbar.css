@@ -2,7 +2,7 @@
    A slot is one button for a family of tools; the corner triangle, a long press, a flick or a right click opens the list. */
 
 /* ---- ribbon: one row of titled groups, what does not fit goes into the "more" menu */
-.ribbon-wrap { position: relative; z-index: 8; min-width: 0; contain: inline-size; }
+.ribbon-wrap { position: relative; z-index: var(--z-menu); min-width: 0; contain: inline-size; }
 .ribbon { min-width: 0; }
 .rb-tabs { overflow-x: auto; scrollbar-width: none; }
 .rb-tab { flex: none; }
@@ -46,7 +46,7 @@
 .slot-more-mark { position: absolute; right: 3px; bottom: 3px; width: 6px; height: 6px; background: var(--text-2); clip-path: polygon(100% 0, 100% 100%, 0 100%); pointer-events: none; }
 .slot-btn[aria-pressed="true"] ~ .slot-more::after { background: #fff; }
 /* the list */
-.slot-flyout { position: fixed; z-index: 60; display: flex; flex-direction: column; min-width: 190px; max-width: min(300px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow-y: auto; padding: 4px; border-radius: 10px; background: var(--panel); color: var(--text);
+.slot-flyout { position: fixed; z-index: var(--z-toast); display: flex; flex-direction: column; min-width: 190px; max-width: min(300px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow-y: auto; padding: 4px; border-radius: 10px; background: var(--panel); color: var(--text);
   box-shadow: 0 8px 26px rgba(0, 0, 0, .28); outline: 1px solid var(--line); outline-offset: -1px; }
 .slot-row { display: grid; grid-template-columns: 18px 1fr auto 14px; align-items: center; gap: 8px; padding: 6px 8px; border: 0; border-radius: 6px; background: none; color: inherit; font: 13px/1.2 system-ui, sans-serif; text-align: left; cursor: pointer; }
 .slot-row:hover:not(:disabled) { background: var(--accent-soft); }
@@ -64,7 +64,7 @@
 }
 
 /* ---- the tool palette (left edge): sections of slots in two columns */
-.tool-rail { position: relative; flex: 0 1 auto; min-height: 0; z-index: 4; width: 92px; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 12px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; pointer-events: auto;
+.tool-rail { position: relative; flex: 0 1 auto; min-height: 0; z-index: var(--z-float); width: 92px; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 12px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; pointer-events: auto;
   background: rgba(var(--glass-rgb), max(var(--alpha), .88)); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); outline: 1px solid var(--line); outline-offset: -1px; }
 .tool-rail .rail-sec { display: flex; flex-direction: column; gap: 2px; padding-top: 4px; border-top: 1px solid var(--line); }
 .tool-rail .rail-sec:first-child { border-top: 0; padding-top: 0; }
@@ -146,12 +146,12 @@
 .rb-strip::after { right: 0; background: linear-gradient(to left, var(--panel), transparent); }
 .rb-strip.edge-l::before, .rb-strip.edge-r::after { opacity: 1; }
 .rb-edge { position: absolute; top: 0; bottom: 6px; width: 44px; z-index: 3; padding: 0; border: 0; background: none; color: var(--text); font: 700 26px/1 system-ui, sans-serif; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; display: flex; align-items: center; }
-.rb-groups > .rb-pinned { position: sticky; z-index: 4; background: var(--panel); box-shadow: 6px 0 6px -6px rgba(0,0,0,.35); }
+.rb-groups > .rb-pinned { position: sticky; z-index: var(--z-float); background: var(--panel); box-shadow: 6px 0 6px -6px rgba(0,0,0,.35); }
 /* the strip's own left padding (8px) lies left of the first pinned group, which sticks at left: 8px: cover it, or the tools that scroll past show through that gap */
 .rb-groups > .rb-pinned:first-child::before { content: ""; position: absolute; left: -8px; top: -4px; bottom: -2px; width: 8px; background: var(--panel); }
 .rb-strip { --pin-w: 0px; --pin-end-w: 0px; }
 /* a group pinned to the right edge (the sketch Status: DOF badge, Fully define): it never scrolls away, the tool groups slide under it */
-.rb-groups > .rb-pinned-end { position: sticky; right: 0; margin-left: auto; z-index: 4; background: var(--panel); box-shadow: -6px 0 6px -6px rgba(0,0,0,.35); }
+.rb-groups > .rb-pinned-end { position: sticky; right: 0; margin-left: auto; z-index: var(--z-float); background: var(--panel); box-shadow: -6px 0 6px -6px rgba(0,0,0,.35); }
 /* sticks to the very edge of the scrollport (the strip's right padding would otherwise show the scrolled groups beside it) and covers the padding as well */
 .rb-groups > .rb-pinned-end::after { content: ""; position: absolute; left: 100%; top: -4px; bottom: -2px; width: 8px; background: var(--panel); }
 .rb-strip { overflow: clip; }

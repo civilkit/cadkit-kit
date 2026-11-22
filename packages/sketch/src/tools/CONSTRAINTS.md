@@ -29,6 +29,7 @@ a `point` entity id.
 | `pldist` | `[point, line]` (point first) | length | | absolute distance from the point to the infinite line |
 | `radius` | `[circleOrArc]` | length | | radius. For an arc, the distance of both ends from the centre |
 | `diameter` | `[circleOrArc]` | length | | 2 x radius. The stored `r` of a circle is the radius, so a diameter of 8 gives `r = 4` |
+| `raddiff` | `[smaller, larger]` (circle or arc each) | length | `sign` (default 1) | `sign * (r(refs[1]) - r(refs[0]))` equals the value; the Dimension tool writes it for two concentric circles / arcs, smaller first |
 | `angle` | `[lineA, lineB]` | **degrees** | `s1`, `s2` (each `1` or `-1`) | see below |
 
 Kernel types not verified here and not used by any tool yet: `pierce` (same as `fix`), `raddiff`, `g1`/`g2`/`g3`,

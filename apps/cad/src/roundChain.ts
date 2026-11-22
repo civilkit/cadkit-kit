@@ -2,15 +2,16 @@
 // also rounds the edges that continue it smoothly. The preference is remembered per browser; the picks are remembered by their edge
 // lists so the editor's toggle can switch an existing feature between "as picked" and "with the chain" without the (changed) body.
 import { tangentChain, type ChainEdge } from './tangentChain';
+import { safeStorage } from '@kit/platform';
 
 const KEY = 'cad.tangentChain';
 
 /** Whether tangent chains are followed. Default on. */
 export function tangentChainOn(): boolean {
-  try { return localStorage.getItem(KEY) !== '0'; } catch { return true; }
+  return safeStorage.get(KEY) !== '0';
 }
 export function setTangentChain(on: boolean): void {
-  try { localStorage.setItem(KEY, on ? '1' : '0'); } catch { /* private window */ }
+  safeStorage.set(KEY, on ? '1' : '0');
 }
 
 interface Edgeish { key?: string; faces?: string[]; pts?: number[][]; mid?: number[]; smooth?: boolean }

@@ -6,10 +6,10 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { OrbitRig } from './orbitrig';
 import { PenGuard, TouchGuard } from './touchguard';
 import { groundPlane, poseForDirection, switchUpAxis, upVector, viewDirection, type OrbitMode, type OrbitPivot, type UpAxis } from './camerarig';
-import { backToFront, finishParams, hiddenSets, lookMaterial, looksTinted, lookOpacity, pickThrough, rangeCentre, separateBodies, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
+import { backToFront, finishParams, hiddenSets, lookMaterial, looksTinted, lookOpacity, pickThrough, rangeCentre, rangeSphere, separateBodies, sortTrianglesBackToFront, triangleCentroids, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
 import { groupByFace, edgeSegments, facesGeometry, namesBox, nameOwner, withoutOwned, positionsBox, type BodyMesh, type Grouped } from './meshgeom';
 import { pickFace, nearestEdge } from './pick';
-import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
+import { sketchPolylines, selectedSketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
@@ -19,6 +19,7 @@ import { vertexName, pointOfName, BODY } from '@kit/store';
 import { boxPick, type Project, type ScreenRect } from './boxselect';
 import { buildBoxDimensions, label as textLabel } from './dimensions';
 import { clampInsets, fitLimit, insetShift, NO_INSETS, sameInsets, type SafeInsets } from './safeArea';
+import { bodyScreenPx, isRightClick, rightClickSlop, scaledPickTol } from './navTolerance';
 import { navButtons, wheelFactor, zoomAbout, zoomedDistance } from './navButtons';
 import { RefPlanes, PLANE_PICK_TOL, type RefPlaneId } from './refplanes';
 import { HandleLayer } from './handleLayer';
@@ -50,8 +51,11 @@ export interface ViewFrame {
 }
 
 /** The soft tint of a feature hovered in the history tree (fill and lines): a pale amber, quieter than the hover and selection colours. */
+/** Above this many transparent triangles the per-frame triangle sort is skipped (the body order and the back/front passes remain). */
+const GLASS_SORT_MAX_TRIS = 400_000;
 const FEATURE_HOVER = 0xffd98a;
 const FEATURE_HOVER_LINE = 0xf2a93b;
+const SKETCH_SELECTED_LINE = 0x0b74dc;
 
 export interface ViewBody {
   mesh: BodyMesh;
@@ -187,7 +191,7 @@ export type StdView = 'iso' | 'front' | 'top' | 'right' | 'back' | 'left' | 'bot
 
 import { SectionView } from './sectionView';
 import type { SectionSpec } from './section';
-import { buildMeasureMarks, type MeasureMark } from './measureMarks';
+import { buildMeasureMarks, disposeMarks, type MeasureMark } from './measureMarks';
 import { underlayPlacement, type UnderlayShape } from './underlay';
 
 export class Viewport {
@@ -214,7 +218,9 @@ export class Viewport {
   private hull: THREE.Mesh | null = null;
   /** Per-body appearance and visibility (see setBodyView) and the meshes of the transparent bodies, drawn back to front after the opaque ones. */
   private bodyView: BodyViewSpec = { bodies: [], looks: {}, hidden: [] };
-  private glass: Array<{ mesh: THREE.Mesh; key: string; opacity: number; centre: THREE.Vector3 }> = [];
+  private glass: Array<{ mesh: THREE.Mesh; key: string; opacity: number; centre: THREE.Vector3; tris: Float32Array; index: Uint32Array; start: number }> = [];
+  /** camera pose the glass triangles were last sorted for (position and look direction); null: sort at the next frame */
+  private glassSortedFor: number[] | null = null;
   private glassFaces = new Set<string>();
   /** the bodies with a texture or clear coat: a mesh and a material of their own over their range of the shared buffer (see separateBodies) */
   private own: Array<{ mesh: THREE.Mesh; key: string }> = [];
@@ -293,6 +299,7 @@ export class Viewport {
   private gridBase = 0;
   private gridVisible = true;
   private sketchRefreshPending = false;
+  private sketchRefreshRaf = 0;
   private viewCube: ViewCube | null = null;
   /** A running camera animation (a view change by the cube or the arrow ring): from the camera's pose at the start to `to`, over `ms`. */
   private anim: { t0: number; ms: number; q0: THREE.Quaternion; q1: THREE.Quaternion; to: ViewPose; from: THREE.Vector3; target: THREE.Vector3; dist: number } | null = null;
@@ -328,17 +335,17 @@ export class Viewport {
     this.camera.position.set(60, 50, 60);
 
     // before the orbit controls, so a handle gets the press first (see HandleLayer)
-    this.handleLayer = new HandleLayer(this.dom, host, this.camera, () => { this.dirty = true; });
-    this.triball = new TriBallLayer(this.dom, host, this.camera, () => { this.dirty = true; });
+    this.handleLayer = new HandleLayer(this.dom, host, this.camera, () => { this.requestRender(); });
+    this.triball = new TriBallLayer(this.dom, host, this.camera, () => { this.requestRender(); });
     this.controls = new OrbitControls(this.camera, this.dom);
     this.rig = new OrbitRig(this.camera, this.controls, this.dom, {
-      pickPoint: (x, y) => this.hit(x, y)?.point.clone() ?? null,
+      pickPoint: (x, y) => this.orbitPoint(x, y),
       selectionCentre: () => { const b = namesBox(this.grouped, this.edges, [...this.selectedNames]); return b ? new THREE.Vector3((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2) : null; },
     });
-    this.offHdri = onHdriProviderChanged(() => { for (const [k, v] of [...this.hdris]) if (v === null) this.hdris.delete(k); this.setLighting(this.lightPreset); this.dirty = true; });
+    this.offHdri = onHdriProviderChanged(() => { for (const [k, v] of [...this.hdris]) if (v === null) this.hdris.delete(k); this.setLighting(this.lightPreset); this.requestRender(); });
     this.controls.addEventListener('start', () => { this.anim = null; });   // a drag or a wheel turn takes the camera over from a running view animation
-    this.offTextures = onTexturesChanged(() => { this.applyMeshLook(); this.dirty = true; });   // an image texture finished loading
-    this.controls.addEventListener('change', () => { if (this.ortho) this.updateClip(); this.dirty = true; this.scheduleSketchRefresh(); this.reportSketchZoom(); });
+    this.offTextures = onTexturesChanged(() => { this.applyMeshLook(); this.requestRender(); });   // an image texture finished loading
+    this.controls.addEventListener('change', () => { if (this.ortho) this.updateClip(); this.requestRender(); this.scheduleSketchRefresh(); this.reportSketchZoom(); });
 
     this.scene.add(this.hemi);
     this.sun.position.set(1, 2, 1.5);
@@ -351,7 +358,7 @@ export class Viewport {
     this.viewCube = new ViewCube(host, {
       snapTo: (dir) => this.snapView(dir),
       orbit: (dx, dy) => this.orbitBy(dx, dy),
-      onChange: () => { this.dirty = true; },
+      onChange: () => { this.requestRender(); },
     });
     for (const t of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'] as const) window.addEventListener(t, this.onPenGuard, true);   // before everything else: a palm beside the pen is dropped here
     this.dom.addEventListener('pointerdown', this.onTouchDown, true);   // first: a second finger must cancel what the other listeners are about to start
@@ -379,7 +386,7 @@ export class Viewport {
     this.dom.addEventListener('contextmenu', this.onContext);
     this.dom.addEventListener('pointerdown', this.onRightDown);
     this.resize();
-    this.loop();
+    this.requestRender();
   }
 
   /** Re-read the page's background colour (after a theme change). */
@@ -458,7 +465,7 @@ export class Viewport {
     this.updateClip();
     this.controls.update();
     this.reportSketchZoom();
-    this.dirty = true;
+    this.requestRender();
   }
 
   /** In a sketch the wheel (and a trackpad pinch) zooms about the point of the sketch plane under the pointer, so that point stays put: smooth, with
@@ -474,7 +481,7 @@ export class Viewport {
     this.controls.target.copy(z.target);
     this.updateClip();
     this.controls.update();
-    this.dirty = true;
+    this.requestRender();
   };
 
   /** Dolly towards (dy < 0, a drag up) or away from the target by a screen drag of dy pixels. */
@@ -483,7 +490,7 @@ export class Viewport {
     const len = zoomedDistance(off.length(), dy, this.controls.minDistance || 1e-3, this.controls.maxDistance || Infinity);
     this.camera.position.copy(this.controls.target).add(off.setLength(len));
     this.controls.update();
-    this.dirty = true;
+    this.requestRender();
   }
 
   /** The touch pointers that are down: a second one is a pinch or a two-finger pan, which must never select, drag a sketch point or draw a band. */
@@ -615,7 +622,7 @@ export class Viewport {
     this.camera.updateProjectionMatrix();
     this.updateClip();
     this.controls.update();
-    this.dirty = true;
+    this.requestRender();
   }
   triBallScreen() { return this.triball.screen(); }
   triBallDragging(): boolean { return this.triball.dragging; }
@@ -650,7 +657,7 @@ export class Viewport {
     }
     if (!v) {
       this.applyMeshLook();   // the fade is gone: back to the style's own opacity
-      this.dirty = true;
+      this.requestRender();
       this.opts.onSketchZoom?.(null);
       return;
     }
@@ -695,19 +702,19 @@ export class Viewport {
     this.sketchOverlay = group;
     this.rebuildSketchDef();
     this.rebuildSketchGrid();
-    this.dirty = true;
+    this.requestRender();
   }
 
   /** A picture on the sketch plane to trace, drawn under the sketch's lines and never picked. Null removes it. */
   setSketchUnderlay(s: UnderlayShape | null): void {
     if (!s || !(s.w > 0)) {
-      if (this.underlay) { this.scene.remove(this.underlay.mesh); this.underlay.mesh.geometry.dispose(); (this.underlay.mesh.material as THREE.MeshBasicMaterial).map?.dispose(); (this.underlay.mesh.material as THREE.Material).dispose(); this.underlay = null; this.dirty = true; }
+      if (this.underlay) { this.scene.remove(this.underlay.mesh); this.underlay.mesh.geometry.dispose(); (this.underlay.mesh.material as THREE.MeshBasicMaterial).map?.dispose(); (this.underlay.mesh.material as THREE.Material).dispose(); this.underlay = null; this.requestRender(); }
       return;
     }
     const p = underlayPlacement(s);
     if (!this.underlay || this.underlay.url !== s.url) {
       this.setSketchUnderlay(null);
-      const tex = new THREE.TextureLoader().load(s.url, () => { this.dirty = true; });
+      const tex = new THREE.TextureLoader().load(s.url, () => { this.requestRender(); });
       tex.colorSpace = THREE.SRGBColorSpace;
       const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
@@ -722,7 +729,7 @@ export class Viewport {
     // the unit plane is stretched to the picture and put on the sketch plane's frame, turned by `rot`
     m.matrix.makeBasis(new THREE.Vector3(...p.right).multiplyScalar(p.width), new THREE.Vector3(...p.up).multiplyScalar(p.height), new THREE.Vector3(...p.normal)).setPosition(p.centre[0], p.centre[1], p.centre[2]);
     m.matrixWorldNeedsUpdate = true;
-    this.dirty = true;
+    this.requestRender();
   }
 
   /** Colour the sketch's geometry by how defined it is: dark when fully defined, red when over-constrained (blue stays for under-defined). Null clears. */
@@ -747,7 +754,7 @@ export class Viewport {
     for (const l of this.sketchDefLines) { l.parent?.remove(l); l.geometry.dispose(); const m = l.material as THREE.Material; this.fatMaterials = this.fatMaterials.filter((x) => x !== (m as unknown)); m.dispose(); }
     this.sketchDefLines = [];
     const v = this.sketchEdit, group = this.sketchOverlay, map = this.sketchDef, bad = this.sketchConflict, free = this.sketchFree;
-    this.dirty = true;
+    this.requestRender();
     if (!v || !group || (!map && !bad && !free)) return;
     const bg = getComputedStyle(this.host).getPropertyValue('--vp-bottom').trim() || '#e6eaf0';
     const c = new THREE.Color(bg);
@@ -823,7 +830,7 @@ export class Viewport {
     this.sketchPreviewGroup = null;
     const v = this.sketchEdit;
     const shapes = this.sketchPreviewShapes;
-    if (!v || !shapes.length) { this.dirty = true; return; }
+    if (!v || !shapes.length) { this.requestRender(); return; }
     const frame = v.frame as never;
     const upp = this.sketchUnitsPerPixel();
     const solid: number[] = [];
@@ -895,7 +902,7 @@ export class Viewport {
     }
     this.scene.add(group);
     this.sketchPreviewGroup = group;
-    this.dirty = true;
+    this.requestRender();
   }
 
   /** The grid for the current zoom: minor spacing 8 to 80 px apart (see gridSpacing.ts), from the user's base spacing or automatic. */
@@ -907,7 +914,7 @@ export class Viewport {
     if (opts.base !== undefined) this.gridBase = opts.base;
     if (opts.visible !== undefined) this.gridVisible = opts.visible;
     this.rebuildSketchGrid();
-    this.dirty = true;
+    this.requestRender();
   }
   /** Current sketch view numbers for the status bar: plane units per pixel and the grid's minor spacing. */
   sketchViewInfo(): { upp: number; grid: number; majorEvery: number } | null {
@@ -922,11 +929,11 @@ export class Viewport {
     this.disposeGroup(this.sketchGridGroup);
     this.sketchGridGroup = null;
     const v = this.sketchEdit;
-    if (!v) { this.dirty = true; return; }
+    if (!v) { this.requestRender(); return; }
     const frame = v.frame as never;
     const r = this.dom.getBoundingClientRect();
     const corners = [[r.left, r.top], [r.right, r.top], [r.right, r.bottom], [r.left, r.bottom]].map(([x, y]) => this.planeAt(x, y));
-    if (corners.some((c) => c === null)) { this.dirty = true; return; }
+    if (corners.some((c) => c === null)) { this.requestRender(); return; }
     const us = corners.map((c) => c![0]);
     const vs = corners.map((c) => c![1]);
     const spec = this.gridSpec();
@@ -936,7 +943,7 @@ export class Viewport {
     const u1 = Math.ceil((Math.max(...us) + pad) / step);
     const v0 = Math.floor((Math.min(...vs) - pad) / step);
     const v1 = Math.ceil((Math.max(...vs) + pad) / step);
-    if ((u1 - u0) * 1 > 400 || (v1 - v0) > 400) { this.dirty = true; return; }
+    if ((u1 - u0) * 1 > 400 || (v1 - v0) > 400) { this.requestRender(); return; }
     const css = getComputedStyle(this.host);
     const colour = (name: string, fallback: string) => new THREE.Color(css.getPropertyValue(name).trim() || fallback);
     const minor: number[] = [];
@@ -976,15 +983,15 @@ export class Viewport {
     layer(ring, colour('--text-2', '#7a8591'), 1, 4);
     this.scene.add(group);
     this.sketchGridGroup = group;
-    this.dirty = true;
+    this.requestRender();
   }
 
   /** Camera moved: rebuild what depends on the zoom (grid step, marker sizes), at most once per frame. */
   private scheduleSketchRefresh(): void {
     if (!this.sketchEdit || this.sketchRefreshPending) return;
     this.sketchRefreshPending = true;
-    requestAnimationFrame(() => {
-      this.sketchRefreshPending = false;
+    this.sketchRefreshRaf = requestAnimationFrame(() => {
+      this.sketchRefreshPending = false; this.sketchRefreshRaf = 0;
       if (!this.sketchEdit) return;
       this.rebuildSketchGrid();
       this.rebuildSketchPreview();
@@ -1040,7 +1047,7 @@ export class Viewport {
     if (this.previewFade === opacity) return;
     this.previewFade = opacity;
     this.applyMeshLook();
-    this.dirty = true;
+    this.requestRender();
   }
 
   private regionPick: { frame: ViewFrame; move(u: number, v: number | null): void; tap(u: number, v: number): boolean } | null = null;
@@ -1197,7 +1204,7 @@ export class Viewport {
     this.camera.lookAt(c);
     this.controls.update();
     this.rebuildSketchGrid();
-    this.dirty = true;
+    this.requestRender();
   }
 
   private clearSketchOverlay(): void {
@@ -1225,20 +1232,22 @@ export class Viewport {
     if (layer === 'dimensions' && this.dimGroup) this.dimGroup.visible = on;
     if (layer === 'threads' && this.threadGroup) this.threadGroup.visible = on;
     if (layer === 'issues') for (const m of this.issueMeshes) m.visible = on;
-    this.dirty = true;
+    this.requestRender();
   }
 
   private layerOn(layer: string): boolean { return this.layers[layer] !== false; }
 
   /** A ground grid under the part (at the part's lowest y), in the 3D view: fine lines, stronger every fifth, the step a
    *  round number that gives about twenty cells across the part. */
+  private disposeGroundGrid(): void {
+    if (!this.groundGrid) return;
+    this.scene.remove(this.groundGrid);
+    this.groundGrid.geometry.dispose();
+    (this.groundGrid.material as THREE.Material).dispose();
+    this.groundGrid = null;
+  }
   private buildGroundGrid(box: { min: number[]; max: number[] } | null): void {
-    if (this.groundGrid) {
-      this.scene.remove(this.groundGrid);
-      this.groundGrid.geometry.dispose();
-      (this.groundGrid.material as THREE.Material).dispose();
-      this.groundGrid = null;
-    }
+    this.disposeGroundGrid();
     const gp = groundPlane(this.upAxis, box);
     const cx = gp.ca, cz = gp.cb, y = gp.level, size = gp.size;
     const half = size * 1.6;
@@ -1345,7 +1354,7 @@ export class Viewport {
   private buildActivePlane(): void {
     this.disposeActivePlane();
     const q = this.activePlaneId ? this.planeQuads.find((p) => p.id === this.activePlaneId) : undefined;
-    this.dirty = true;
+    this.requestRender();
     if (!q || q.quad.length < 4) return;
     const v = q.quad.slice(0, 4).map(([x, y, z]) => new THREE.Vector3(x, y, z));
     const fill = new THREE.BufferGeometry().setFromPoints([v[0], v[1], v[2], v[0], v[2], v[3]]);
@@ -1384,7 +1393,7 @@ export class Viewport {
   /** Show a body, or clear the scene when body is null (empty or failed document). */
   /** Show the document's reference meshes (an imported STL): shaded, placed by a matrix, optionally translucent or with edges. They are not part of the body: no picking, no section. */
   setMeshes(list: readonly MeshView[]): void {
-    if (this.refMeshes.set(list)) this.dirty = true;
+    if (this.refMeshes.set(list)) this.requestRender();
     const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
     for (const m of list) if (m.box) for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], m.box.min[i]); hi[i] = Math.max(hi[i], m.box.max[i]); }
     this.meshFrame = list.some((m) => m.box) ? { min: lo, max: hi } : null;
@@ -1401,7 +1410,7 @@ export class Viewport {
   setBody(body: ViewBody | null): void {
     this.lastBody = body;
     this.clearBody();
-    if (!body) { this.buildGroundGrid(null); this.applySection(); this.analysis.clearLegend(); this.dirty = true; return; }
+    if (!body) { this.buildGroundGrid(null); this.applySection(); this.analysis.clearLegend(); this.requestRender(); return; }
     this.buildGroundGrid(body.box ?? null);
     this.buildThreads();
     if (body.box && body.mesh.triFace.length > 0) {
@@ -1451,7 +1460,7 @@ export class Viewport {
       const anyHidden = hid.faces.size > 0 || this.hiddenIds.size > 0;
       this.box = (anyHidden && positionsBox(merged.mesh.positions)) || mergedBox(body.box, body.mesh.triFace.length > 0, body.surfaces ?? []);
     }
-    if (merged.mesh.triFace.length === 0) { this.setFeatureHover(this.featureHoverIds, this.featureHoverSolid); this.dirty = true; return; }
+    if (merged.mesh.triFace.length === 0) { this.setFeatureHover(this.featureHoverIds, this.featureHoverSolid); this.setSelectedSketch(this.selectedSketchId); this.requestRender(); return; }
     const g = groupByFace(merged.mesh, tb.keys.length ? (n) => tb.rank.get(n) ?? 0 : undefined);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
@@ -1503,6 +1512,7 @@ export class Viewport {
     this.combLines = [...merged.edges.map((e) => e.pts), ...(body.sketches?.length ? sketchPolylines(shown(body.sketches) as never).flatMap((x) => x.polylines) : [])];
     this.buildIssueMeshes();
     this.setFeatureHover(this.featureHoverIds, this.featureHoverSolid);
+    this.setSelectedSketch(this.selectedSketchId);
     this.applyMeshLook();
     this.applySection();
     // the camera is framed once per document (load, new part, first body); edits, drags, previews and undo keep the user's view
@@ -1528,7 +1538,7 @@ export class Viewport {
     const bare = (v: BodyViewSpec): string => JSON.stringify({ ...v, knurls: undefined });   // cosmetic knurls are uniforms: a change of them alone rebuilds nothing
     const same = bare(spec) === bare(this.bodyView);
     this.bodyView = { bodies: spec.bodies.map((b) => ({ ...b })), looks: { ...spec.looks }, hidden: [...spec.hidden], ...(spec.faces ? { faces: { ...spec.faces } } : {}), ...(spec.knurls?.length ? { knurls: spec.knurls } : {}) };
-    if (this.knurls.set(spec.knurls ?? [])) this.dirty = true;   // the shader reads them from uniforms: no rebuild
+    if (this.knurls.set(spec.knurls ?? [])) this.requestRender();   // the shader reads them from uniforms: no rebuild
     this.faceLookMap = new Map();
     for (const b of spec.bodies) {
       const l = spec.looks[b.key];
@@ -1547,7 +1557,7 @@ export class Viewport {
 
   /** Transparent bodies: one mesh each over its contiguous range of the shared vertex buffer. Returns the geometry the silhouette hull uses. */
   private buildGlass(geo: THREE.BufferGeometry, g: Grouped, tb: { keys: string[]; own: number; rank: Map<string, number> }): THREE.BufferGeometry {
-    this.glass = []; this.own = [];
+    this.glass = []; this.own = []; this.glassSortedFor = null;
     this.glassFaces = new Set([...tb.rank].filter(([, r]) => r > tb.own).map(([f]) => f));
     this.ownEnd = this.opaqueEnd = g.positions.length / 3;
     if (!tb.keys.length) return geo;
@@ -1555,6 +1565,8 @@ export class Viewport {
       const x = new THREE.BufferGeometry();
       x.setAttribute('position', geo.getAttribute('position')); x.setAttribute('normal', geo.getAttribute('normal'));
       x.setDrawRange(start, count);
+      const sp = rangeSphere(g.positions, start, count);   // the sphere of this range, not of the whole buffer: the body is culled on its own
+      x.boundingSphere = new THREE.Sphere(new THREE.Vector3(...sp.centre), sp.radius);
       return x;
     };
     const ext = tb.keys.map(() => ({ start: Infinity, end: 0 }));
@@ -1582,12 +1594,19 @@ export class Viewport {
       const look = this.bodyView.looks[key];
       const op = lookOpacity(look), gl = lookMaterial(look), glassFp = finishParams('glass'), fp = { roughness: gl.roughness ?? glassFp.roughness, metalness: gl.metalness ?? glassFp.metalness };
       const mat = new THREE.MeshStandardMaterial({ color: look?.color ?? '#9fb4c4', roughness: fp.roughness, metalness: fp.metalness * this.metalScale, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
-      const mesh = new THREE.Mesh(share(ext[k].start, ext[k].end - ext[k].start), mat);
+      const count = ext[k].end - ext[k].start;
+      const gg = share(ext[k].start, count);
+      // an index of its own, re-sorted back to front when the camera moves: depth writes are off, so the order of the triangles is the order of the blend
+      const index = new Uint32Array(Math.floor(count / 3) * 3);
+      for (let i = 0; i < index.length; i++) index[i] = ext[k].start + i;
+      gg.setIndex(new THREE.BufferAttribute(index, 1));
+      gg.setDrawRange(0, Infinity);
+      const mesh = new THREE.Mesh(gg, mat);
       mesh.userData.bodyOpacity = op;
       mesh.userData.bodyKey = key;
       this.scene.add(mesh);
       const c = rangeCentre(g.positions, ext[k].start, ext[k].end - ext[k].start);
-      this.glass.push({ mesh, key, opacity: op, centre: new THREE.Vector3(c[0], c[1], c[2]) });
+      this.glass.push({ mesh, key, opacity: op, centre: new THREE.Vector3(c[0], c[1], c[2]), tris: triangleCentroids(g.positions, ext[k].start, count), index, start: ext[k].start });
     });
     this.applyGlassStyle();
     this.applyOwnBodies();
@@ -1620,6 +1639,7 @@ export class Viewport {
   /** The transparent bodies follow the display style: shaded and ghost draw them (ghost caps the opacity), hidden-line paints them white, wireframe not at all. */
   private applyGlassStyle(): void {
     const f = styleSpec(this.look.style).faces;
+    this.glassSortedFor = null;
     for (const gl of this.glass) {
       const m = gl.mesh.material as THREE.MeshStandardMaterial;
       gl.mesh.visible = f === 'shaded' || f === 'translucent' || f === 'white';
@@ -1630,13 +1650,29 @@ export class Viewport {
     }
   }
 
-  /** Draw order of the transparent bodies: farthest from the camera first (renderOrder; depth writes are off). */
+  /** Draw order of the transparent bodies: farthest from the camera first (renderOrder; depth writes are off), and inside each body its triangles
+   *  farthest first (an index re-sorted when the camera has moved), so a body that is not convex, or that holds another one, blends correctly. */
   private sortGlass(): void {
-    if (this.glass.length < 2) return;
+    if (!this.glass.length) return;
     const cam = this.camera.position;
-    const order = backToFront(this.glass.map((gl) => [gl.centre.x, gl.centre.y, gl.centre.z] as const), [cam.x, cam.y, cam.z]);
-    order.forEach((i, rank) => { this.glass[i].mesh.renderOrder = rank + 1; });
+    if (this.glass.length > 1) {
+      const order = backToFront(this.glass.map((gl) => [gl.centre.x, gl.centre.y, gl.centre.z] as const), [cam.x, cam.y, cam.z]);
+      order.forEach((i, rank) => { this.glass[i].mesh.renderOrder = rank + 1; });
+    }
+    const total = this.glass.reduce((n, gl) => n + gl.tris.length / 3, 0);
+    if (total > GLASS_SORT_MAX_TRIS) return;   // too many to sort per frame: the body order and the back/front passes stand
+    const d = this.camera.getWorldDirection(this.sortDir);
+    const pose = [cam.x, cam.y, cam.z, d.x, d.y, d.z];
+    const prev = this.glassSortedFor;
+    if (prev && pose.every((v, i) => Math.abs(v - prev[i]) < 1e-6 * (1 + Math.abs(v)))) return;
+    this.glassSortedFor = pose;
+    for (const gl of this.glass) {
+      if (!gl.mesh.visible) continue;
+      sortTrianglesBackToFront(gl.tris, [cam.x, cam.y, cam.z], this.ortho ? [d.x, d.y, d.z] : null, gl.start, gl.index);
+      (gl.mesh.geometry.getIndex() as THREE.BufferAttribute).needsUpdate = true;
+    }
   }
+  private readonly sortDir = new THREE.Vector3();
 
   /** Display style, ghost opacity and the body's appearance (colour and material). Cheap; safe to call any time. */
   setLook(look: BodyLook): void {
@@ -1670,7 +1706,7 @@ export class Viewport {
     this.applyAnalysis();
     this.applyOwnBodies();
     this.applyGlassStyle();
-    this.dirty = true;
+    this.requestRender();
   }
 
   /** Surface analysis (zebra, curvature maps, draft colours, curvature comb), viewer-only like the look. */
@@ -1678,7 +1714,7 @@ export class Viewport {
     this.analysisOpts = sanitizeAnalysis({ ...this.analysisOpts, ...o });
     this.applyAnalysis();
     this.applyOwnBodies();
-    this.dirty = true;
+    this.requestRender();
   }
   getAnalysis(): AnalysisOptions { return this.analysisOpts; }
   private applyAnalysis(): void {
@@ -1699,7 +1735,7 @@ export class Viewport {
         this.hdriPending.delete(id);
         if (this.disposed) { t?.dispose(); return; }
         this.hdris.set(id, t);
-        if (this.hdriId === id) { this.setLighting(this.lightPreset); this.dirty = true; }
+        if (this.hdriId === id) { this.setLighting(this.lightPreset); this.requestRender(); }
       });
     }
     return this.envTex;
@@ -1708,7 +1744,7 @@ export class Viewport {
   setEnvironment(id: string | null): void {
     if (id === this.hdriId) return;
     this.hdriId = id;
-    this.setLighting(this.lightPreset); this.dirty = true;
+    this.setLighting(this.lightPreset); this.requestRender();
   }
 
   /** Light preset (studio, flat, high contrast, technical), the intensity slider (0.3 to 2) and the reflections switch. */
@@ -1811,7 +1847,7 @@ export class Viewport {
         this.bgTexture = tex; this.scene.background = tex;
       } else this.scene.background = new THREE.Color(c.bottom);
     }
-    this.dirty = true;
+    this.requestRender();
   }
 
   /** Viewer-only hiding: the whole body, and sketches / curves / planes by id (never saved in the document). */
@@ -1852,7 +1888,7 @@ export class Viewport {
   private buildThreadFocus(): void {
     this.dropFat(this.threadFocusObj);
     this.threadFocusObj = null;
-    this.dirty = true;
+    this.requestRender();
     const th = this.threadFocusId ? this.threadItems.find((x) => x.id === this.threadFocusId) : undefined;
     if (!th || !th.start || !th.dir) return;
     const dir = new THREE.Vector3(...(th.dir as [number, number, number])).normalize();
@@ -1871,7 +1907,7 @@ export class Viewport {
     this.dropThreadGroup();
     this.threadMats = [];
     const items = this.threadItems.filter((th) => !th.modeled && th.start && th.dir);
-    if (!items.length) { this.dirty = true; return; }
+    if (!items.length) { this.requestRender(); return; }
     this.drawThreads(items);
   }
   private dropThreadGroup(): void {
@@ -1921,7 +1957,7 @@ export class Viewport {
     group.visible = this.layerOn('threads');
     this.scene.add(group);
     this.threadGroup = group;
-    this.dirty = true;
+    this.requestRender();
   }
   private threadMats: LineMaterial[] = [];
 
@@ -1931,7 +1967,7 @@ export class Viewport {
   highlightSketchEntities(sketchId: string | null, entityIds: string[]): void {
     this.dropFat(this.shapeHover);
     this.shapeHover = null;
-    this.dirty = true;
+    this.requestRender();
     if (!sketchId || !entityIds.length) return;
     const item = this.sketchItems.find((s) => s.id === sketchId);
     if (!item) return;
@@ -1946,7 +1982,7 @@ export class Viewport {
   highlightSketchGap(sketchId: string | null, a?: [number, number], b?: [number, number]): void {
     this.dropFat(this.gapMark);
     this.gapMark = null;
-    this.dirty = true;
+    this.requestRender();
     if (!sketchId || !a || !b) return;
     const item = this.sketchItems.find((s) => s.id === sketchId);
     if (!item) return;
@@ -1966,7 +2002,7 @@ export class Viewport {
       const m = (o as LineSegments2 | null)?.material as LineMaterial | undefined;
       if (m && 'linewidth' in m) m.linewidth = w;
     }
-    this.dirty = true;
+    this.requestRender();
   }
   private selectedNames = new Set<string>();
   private edgeHighlight: LineSegments2 | null = null;
@@ -2000,7 +2036,7 @@ export class Viewport {
   setHover(name: string | null, force = false): void {
     this.dropFat(this.hoverObj);
     this.hoverObj = null;
-    this.dirty = true;
+    this.requestRender();
     if (!name || (!force && this.selectedNames.has(name))) return;
     const vp = pointOfName(name);
     if (vp) { this.hoverObj = this.vertexDots([vp], 0xffa21f); return; }
@@ -2048,7 +2084,7 @@ export class Viewport {
     this.featureHoverIds = [...ids];
     this.featureHoverSolid = solidOnly;
     this.dropFeatureHover();
-    this.dirty = true;
+    this.requestRender();
     if (!ids.length) return;
     const want = new Set(ids);
     if (this.grouped) {
@@ -2081,6 +2117,20 @@ export class Viewport {
     }
   }
 
+  private selectedSketchId: string | null = null;
+  private selectedSketchObj: THREE.Object3D | null = null;
+  /** The sketch selected in the tree (not being edited): drawn thicker and blue, over the sketch layer, so it can be found in the view. null clears it. */
+  setSelectedSketch(id: string | null): void {
+    this.selectedSketchId = id;
+    this.dropFat(this.selectedSketchObj);
+    this.selectedSketchObj = null;
+    this.requestRender();
+    const polys = selectedSketchPolylines(this.lastBody?.sketches as never, id, this.hiddenIds);
+    if (!polys.length) return;
+    const l = this.addFatLines(polys, SKETCH_SELECTED_LINE, Math.max(this.hlWidth, 3.5), true);
+    if (l) { l.renderOrder = 7; l.userData.pickable = false; this.selectedSketchObj = l; }
+  }
+
   private issueFaces: Record<string, 'error' | 'warn' | 'info'> = {};
   private issueMeshes: THREE.Mesh[] = [];
   private issueHover: THREE.Object3D[] = [];
@@ -2097,7 +2147,7 @@ export class Viewport {
   }
   private buildIssueMeshes(): void {
     this.dropIssueMeshes();
-    this.dirty = true;
+    this.requestRender();
     if (!this.grouped) return;
     for (const sev of ['error', 'warn', 'info'] as const) {
       const names = Object.keys(this.issueFaces).filter((n) => this.issueFaces[n] === sev);
@@ -2126,7 +2176,7 @@ export class Viewport {
   /** Light several faces and edges at once (an issue under the pointer in the list), amber like a hovered face or edge. */
   setIssueHover(names: string[]): void {
     this.dropIssueHover();
-    this.dirty = true;
+    this.requestRender();
     if (!this.grouped || !names.length) return;
     const g = facesGeometry(this.grouped, names);
     if (g.positions.length) {
@@ -2162,7 +2212,7 @@ export class Viewport {
     this.camera.position.copy(c).add(dir);
     this.updateClip();
     this.controls.update();
-    this.dirty = true;
+    this.requestRender();
   }
 
   setHighlight(names: string[]): void {
@@ -2207,7 +2257,7 @@ export class Viewport {
         this.scene.add(this.highlight);
       }
     }
-    this.dirty = true;
+    this.requestRender();
   }
 
   /** Look at the target from this direction (an axis or a diagonal), keeping the distance. The up vector is Y, with a
@@ -2223,7 +2273,7 @@ export class Viewport {
     this.camera.lookAt(this.controls.target);
     this.controls.update();
     if (this.sketchEdit) this.rebuildSketchGrid();
-    this.dirty = true;
+    this.requestRender();
   }
 
   /** The pose the view is heading for: where a running animation ends, else the camera as it is (so quick repeated steps add up exactly). */
@@ -2257,7 +2307,7 @@ export class Viewport {
     this.camera.lookAt(t);
     this.controls.update();
     if (k >= 1) { this.anim = null; if (this.sketchEdit) this.rebuildSketchGrid(); }
-    this.dirty = true;
+    this.requestRender();
   }
 
   /** Snap to the view from a cube face, edge or corner (animated). The up axis stays up on screen. */
@@ -2284,7 +2334,7 @@ export class Viewport {
     this.anim = null;
     this.rig.orbitBy(dx, dy);
     this.camera.lookAt(this.controls.target);
-    this.dirty = true;
+    this.requestRender();
   }
 
   /** The camera conventions: which axis is up on screen, how a drag orbits and what it orbits around. Only the camera
@@ -2317,7 +2367,7 @@ export class Viewport {
       if (this.sketchEdit) this.rebuildSketchGrid();
     }
     this.rig.syncControls();
-    this.dirty = true;
+    this.requestRender();
   }
   getUpAxis(): UpAxis { return this.upAxis; }
 
@@ -2332,7 +2382,7 @@ export class Viewport {
     this.controls.target.add(move);
     this.camera.updateMatrixWorld();
     this.controls.update();
-    this.dirty = true;
+    this.requestRender();
   }
 
   setView(v: StdView, animate = false): void {
@@ -2346,7 +2396,7 @@ export class Viewport {
     this.camera.up.copy(pose.up);
     this.camera.lookAt(c);
     this.controls.update();
-    this.dirty = true;
+    this.requestRender();
   }
 
   fit(): void {
@@ -2366,7 +2416,7 @@ export class Viewport {
     this.camera.position.copy(c).add(dir);
     this.updateClip();
     this.controls.update();
-    this.dirty = true;
+    this.requestRender();
   }
 
   private lastPick: [number, number, number] | null = null;
@@ -2398,7 +2448,7 @@ export class Viewport {
     this.lastRefPlanes = [show, highlight, labels];
     if (!this.refPlanes.group.parent) this.scene.add(this.refPlanes.group);
     this.refPlanes.set(this.box ? this.radius() * 1.4 : 60, show, highlight, labels);
-    this.dirty = true;
+    this.requestRender();
   }
 
   /** Constant-size sprites are sized as a fraction of the screen times the projection's focal factor, so a narrow field of view
@@ -2427,21 +2477,21 @@ export class Viewport {
   private applySection(): void {
     this.sectionView.set(this.sectionSpec, this.mesh, this.edgeLines, this.box);
     this.applyMeshLook();   // the silhouette outline is not clipped, so it hides while a section shows
-    this.dirty = true;
+    this.requestRender();
   }
 
   /** Draw measurement leaders (null or empty removes them). */
   setMeasure(marks: MeasureMark[] | null): void {
     if (this.measureGroup) {
       this.scene.remove(this.measureGroup);
-      this.measureGroup.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh || (o as THREE.Line).isLine) m.geometry?.dispose(); });
+      disposeMarks(this.measureGroup);
       this.measureGroup = null;
     }
     const fb = this.framing();   // the body and the reference meshes: a part of meshes only still sizes its leaders
     const diag = fb ? Math.hypot(fb.max[0] - fb.min[0], fb.max[1] - fb.min[1], fb.max[2] - fb.min[2]) : 100;
     this.measureGroup = marks ? buildMeasureMarks(marks, diag) : null;
     if (this.measureGroup) this.scene.add(this.measureGroup);
-    this.dirty = true;
+    this.requestRender();
   }
 
   private ortho = false;
@@ -2459,7 +2509,7 @@ export class Viewport {
     this.camera.position.copy(this.controls.target).add(dir);
     this.updateClip();
     this.controls.update();
-    this.dirty = true;
+    this.requestRender();
   }
   isOrtho(): boolean { return this.ortho; }
 
@@ -2506,7 +2556,7 @@ export class Viewport {
     const w = Math.max(1, this.host.clientWidth), h = Math.max(1, this.host.clientHeight), s = this.shown;
     if (s.x === 0 && s.y === 0) { if (this.camera.view?.enabled) this.camera.clearViewOffset(); }
     else this.camera.setViewOffset(w, h, -s.x, -s.y, w, h);
-    this.dirty = true;
+    this.requestRender();
   }
 
   resize(): void {
@@ -2521,7 +2571,7 @@ export class Viewport {
     for (const m of this.fatMaterials) m.resolution.set(w, h);
     for (const m of this.edgeMats) m.resolution.set(w, h);
     this.hullSize();
-    this.dirty = true;
+    this.requestRender();
   }
 
   dispose(): void {
@@ -2531,7 +2581,9 @@ export class Viewport {
     this.hdris.clear();
     this.disposed = true;
     this.refMeshes.dispose();
-    cancelAnimationFrame(this.raf);
+    cancelAnimationFrame(this.raf); this.raf = 0;
+    if (this.tween !== null) { cancelAnimationFrame(this.tween); this.tween = null; }
+    cancelAnimationFrame(this.sketchRefreshRaf); this.sketchRefreshRaf = 0; this.sketchRefreshPending = false;
     for (const t of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'] as const) window.removeEventListener(t, this.onPenGuard, true);
     this.dom.removeEventListener('pointerdown', this.onTouchDown, true);
     window.removeEventListener('pointerup', this.onTouchEnd);
@@ -2566,6 +2618,12 @@ export class Viewport {
     this.sectionView.clear(); this.setMeasure(null);
     this.clearSketchOverlay();
     this.clearBody();
+    this.disposeGroundGrid();
+    this.setSketchUnderlay(null);   // the picture's texture, material and quad
+    this.refPlanes.dispose();
+    this.scene.background = null; this.scene.environment = null;
+    this.bgTexture?.dispose(); this.bgTexture = null;
+    this.envTex?.dispose(); this.envTex = null;
     this.renderer.dispose();
     this.dom.remove();
   }
@@ -2592,6 +2650,7 @@ export class Viewport {
     this.dropFat(this.threadFocusObj); this.threadFocusObj = null;
     this.dropFat(this.hoverObj); this.hoverObj = null;
     this.dropFeatureHover();
+    this.dropFat(this.selectedSketchObj); this.selectedSketchObj = null;
     this.dropFat(this.shapeHover); this.shapeHover = null;
     this.dropFat(this.edgeHighlight); this.edgeHighlight = null;
     this.dropIssueMeshes(); this.dropIssueHover();
@@ -2600,6 +2659,7 @@ export class Viewport {
     this.glass = [];
     for (const o of this.own) { this.scene.remove(o.mesh); o.mesh.geometry.dispose(); (o.mesh.material as THREE.Material).dispose(); }
     this.own = [];
+    const bodyGeo = this.mesh?.geometry;
     for (const o of [this.mesh, this.edgeLines, this.highlight]) {
       if (!o) continue;
       this.scene.remove(o);
@@ -2607,7 +2667,11 @@ export class Viewport {
       (o.material as THREE.Material).dispose();
     }
     this.mesh = this.edgeLines = this.highlight = null;
-    if (this.hull) { this.scene.remove(this.hull); (this.hull.material as THREE.Material).dispose(); this.hull = null; }
+    if (this.hull) {
+      this.scene.remove(this.hull);
+      if (this.hull.geometry !== bodyGeo) this.hull.geometry.dispose();   // the body's own geometry is freed above; buildGlass hands the hull a wrapper of its own when there are clear or textured bodies
+      (this.hull.material as THREE.Material).dispose(); this.hull = null;
+    }
     this.edgeMats = [];
     this.analysis.dispose();
     this.combLines = [];
@@ -2646,20 +2710,27 @@ export class Viewport {
   /** What a click or hover picks, and of which kind. In auto pick that is the nearest corner, else edge, else face. */
   private pickAt(x: number, y: number): { name: string | null; mode: PickMode } {
     if (this.auto && !this.pickIntercept) {
-      if (this.kinds.vertex) { const v = this.vertexAtScreen(x, y, 10); if (v) return { name: v, mode: 'vertex' }; }
-      if (this.kinds.edge) { const i = this.edgeAtScreen(x, y, 7); if (i !== null) return { name: this.edges[i].key ?? `edge#${i}`, mode: 'edge' }; }
+      if (this.kinds.vertex) { const v = this.vertexAtScreen(x, y, this.pickTol(10)); if (v) return { name: v, mode: 'vertex' }; }
+      if (this.kinds.edge) { const i = this.edgeAtScreen(x, y, this.pickTol(7)); if (i !== null) return { name: this.edges[i].key ?? `edge#${i}`, mode: 'edge' }; }
       const f = this.kinds.face || this.kinds.body ? this.nameAt(this.hit(x, y)) : null;
       if (f && !this.kinds.face) return { name: this.faceBody.get(f) ?? f, mode: 'body' };
       return { name: f, mode: 'face' };
     }
     const m = this.mode;
-    if (m === 'vertex') return { name: this.vertexAtScreen(x, y, 12), mode: m };
+    if (m === 'vertex') return { name: this.vertexAtScreen(x, y, this.pickTol(12)), mode: m };
     if (m === 'edge') {
-      const i = this.edgeAtScreen(x, y, 8);
+      const i = this.edgeAtScreen(x, y, this.pickTol(8));
       return { name: i === null ? null : this.edges[i].key ?? `edge#${i}`, mode: m };
     }
     const f = this.nameAt(this.hit(x, y));
     return { name: m === 'body' && f ? this.faceBody.get(f) ?? f : f, mode: m };
+  }
+
+  /** A pixel pick tolerance scaled to how big the body looks on screen (see scaledPickTol). */
+  private pickTol(basePx: number): number {
+    const h = this.dom.clientHeight;
+    if (!h) return basePx;
+    return scaledPickTol(basePx, bodyScreenPx(this.radius(), this.camera.position.distanceTo(this.controls.target), this.camera.fov, h));
   }
 
   /** The corner (end of an edge) within a few pixels of the pointer, not hidden behind the body. */
@@ -2690,6 +2761,21 @@ export class Viewport {
     return vertexName(best.p);
   }
 
+  /** Where the last successful edgeAtScreen found its edge. */
+  private edgeHitPt: THREE.Vector3 | null = null;
+
+  /** The point an orbit about the cursor turns around: a model edge close to the pointer (the point on the edge), else the face under it, else in a
+   *  sketch the sketch plane under it (so a sketch line, which is no mesh, can be orbited about too). */
+  private orbitPoint(x: number, y: number): THREE.Vector3 | null {
+    if (this.sketchEdit) {
+      const uv = this.planeAt(x, y);
+      return uv ? new THREE.Vector3(...planeToWorld(this.sketchEdit.frame as never, uv[0], uv[1])) : null;
+    }
+    this.edgeHitPt = null;
+    if (this.edgeAtScreen(x, y, this.pickTol(7)) !== null && this.edgeHitPt) return (this.edgeHitPt as THREE.Vector3).clone();
+    return this.hit(x, y)?.point.clone() ?? null;
+  }
+
   private edgeAtScreen(x: number, y: number, tolPx: number): number | null {
     if (!this.edges.length) return null;
     const r = this.dom.getBoundingClientRect();
@@ -2709,16 +2795,17 @@ export class Viewport {
       }
     }
     if (!best) return null;
+    const ep0 = this.edges[best.i].pts[best.j], ep1 = this.edges[best.i].pts[best.j + 1];
+    const w0 = new THREE.Vector3(ep0[0] + (ep1[0] - ep0[0]) * best.t, ep0[1] + (ep1[1] - ep0[1]) * best.t, ep0[2] + (ep1[2] - ep0[2]) * best.t);
     // hidden behind the body? compare the edge point's distance with the first surface the ray meets there
     if (this.mesh) {
-      const pts = this.edges[best.i].pts, p0 = pts[best.j], p1 = pts[best.j + 1];
-      const w = new THREE.Vector3(p0[0] + (p1[0] - p0[0]) * best.t, p0[1] + (p1[1] - p0[1]) * best.t, p0[2] + (p1[2] - p0[2]) * best.t);
-      const dir = w.clone().sub(this.camera.position);
+      const dir = w0.clone().sub(this.camera.position);
       const dist = dir.length();
       this.raycaster.set(this.camera.position, dir.normalize());
       const h = this.raycaster.intersectObject(this.mesh, false)[0];
       if (h && h.distance < dist - Math.max(this.radius() * 0.004, 1e-4)) return null;
     }
+    this.edgeHitPt = w0;
     return best.i;
   }
 
@@ -2751,10 +2838,10 @@ export class Viewport {
     return rayPlane([o.x, o.y, o.z], [d.x, d.y, d.z], v.frame as never);
   }
 
-  private rightDown: { x: number; y: number } | null = null;
+  private rightDown: { x: number; y: number; slop: number } | null = null;
   private rightHeld = false;
   private ctxPending: { x: number; y: number } | null = null;
-  private onRightDown = (e: PointerEvent): void => { this.rightDown = e.button === 2 ? { x: e.clientX, y: e.clientY } : null; this.rightHeld = e.button === 2; this.ctxPending = null; };
+  private onRightDown = (e: PointerEvent): void => { this.rightDown = e.button === 2 ? { x: e.clientX, y: e.clientY, slop: rightClickSlop(e.pointerType) } : null; this.rightHeld = e.button === 2; this.ctxPending = null; };
   /** A right-button release: the context menu opens only if the button did not travel (a right drag pans, it never opens the menu). */
   private onRightUp = (e: PointerEvent): void => {
     if (e.button !== 2) return;
@@ -2762,7 +2849,7 @@ export class Viewport {
     const pend = this.ctxPending, d = this.rightDown;
     this.ctxPending = null;
     if (pend) this.rightDown = null;
-    if (pend && d && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.showContext(pend.x, pend.y);
+    if (pend && d && isRightClick(d, { x: e.clientX, y: e.clientY }, d.slop)) this.showContext(pend.x, pend.y);
   };
   private showContext(x: number, y: number): void {
     if (!this.opts.onContextMenu) return;
@@ -2777,7 +2864,7 @@ export class Viewport {
     if (this.rightHeld) { this.ctxPending = { x: e.clientX, y: e.clientY }; return; }
     const d = this.rightDown;
     this.rightDown = null;
-    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return;
+    if (d && !isRightClick(d, { x: e.clientX, y: e.clientY }, d.slop)) return;
     this.showContext(e.clientX, e.clientY);
   };
 
@@ -2794,7 +2881,7 @@ export class Viewport {
     cam.position.add(move);
     target.add(move);
     this.controls.update();
-    this.dirty = true;
+    this.requestRender();
   }
 
   private onDown = (e: PointerEvent): void => {
@@ -2965,11 +3052,22 @@ export class Viewport {
       return;
     }
     this.hoverPending = { x: e.clientX, y: e.clientY };
+    this.wake();
   };
 
-  private loop = (): void => {
+  /** The one entry point for "something changed, draw it": marks the frame dirty and (re)starts the loop, which stops itself when idle. */
+  private requestRender(): void {
+    this.dirty = true;
+    this.wake();
+  }
+  private wake(): void {
+    if (this.raf === 0 && !this.disposed) this.raf = requestAnimationFrame(this.loop);
+  }
+
+  private readonly loop = (): void => this.frame();
+  private frame(): void {
+    this.raf = 0;
     if (this.disposed) return;
-    this.raf = requestAnimationFrame(this.loop);
     if (this.anim) this.stepAnim(performance.now());
     if (this.hoverPending && !this.down && !this.sketchEdit) {
       const p = this.hoverPending;
@@ -2996,12 +3094,14 @@ export class Viewport {
       // a capture asked for is read in this very task, while the drawing buffer still holds the frame
       if (this.captures.length) { const q = this.captures.splice(0); this.dom.toBlob((b) => { for (const r of q) r(b); }, 'image/png'); }
     }
-  };
+    // idle: stop scheduling frames; everything that changes the picture goes through requestRender()
+    if (this.dirty || this.anim || (this.hoverPending && !this.sketchEdit)) this.wake();
+  }
 
   private captures: Array<(b: Blob | null) => void> = [];
   /** The view as it is drawn now (a fresh frame, the canvas' own size) as a PNG; null when the browser cannot read the canvas. Used by the clip export. */
   captureFrame(): Promise<Blob | null> {
-    return new Promise((resolve) => { this.captures.push(resolve); this.dirty = true; });
+    return new Promise((resolve) => { this.captures.push(resolve); this.requestRender(); });
   }
   /** A live stream of the canvas for a MediaRecorder (null where the browser has no captureStream). */
   recordStream(fps: number): MediaStream | null {

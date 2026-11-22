@@ -63,6 +63,11 @@ describe('applySnapConstraints: the richer snaps', () => {
     const round = applySnapConstraints(b, addPoint(b, { x: 33, y: 34 }).draft, { kind: 'oncurve', at: { x: 33, y: 34 }, entityId: 'e2' });
     expect(round.constraints.map((c) => c.type)).toEqual(['pointOnCircle']);
   });
+  it('extension puts the point on the line it extends', () => {
+    const b = circ();
+    const out = applySnapConstraints(b, addPoint(b, { x: 40, y: 0 }).draft, { kind: 'extension', at: { x: 40, y: 0 }, entityId: 'e1' });
+    expect(out.constraints.map((c) => [c.type, c.refs])).toEqual([['pointOnLine', ['p3', 'e1']]]);
+  });
   it('intersection puts the point on both curves', () => {
     const b = circ();
     const out = applySnapConstraints(b, addPoint(b, { x: 5, y: 0 }).draft, { kind: 'intersection', at: { x: 5, y: 0 }, entityId: 'e1', entityIds: ['e1', 'e2'] });

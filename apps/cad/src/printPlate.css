@@ -1,0 +1,213 @@
+/* Print Plate & Send to Slicer dialog */
+.print-plate-dlg {
+  width: min(760px, 94vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.print-plate-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.print-plate-head b {
+  flex: 1;
+}
+
+.print-plate-body {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.15fr) minmax(240px, 1fr);
+  gap: 14px;
+  padding: 12px 14px;
+  overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+  .print-plate-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.print-plate-preview-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.print-plate-svg-wrap {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.print-plate-svg {
+  width: 100%;
+  max-height: 300px;
+  display: block;
+}
+
+.print-plate-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.print-plate-overflow {
+  font-size: 12px;
+  padding: 6px 9px;
+  border-radius: 5px;
+  background: rgba(220, 68, 55, 0.14);
+  border: 1px solid rgba(220, 68, 55, 0.45);
+  color: var(--err);
+}
+
+.print-plate-controls-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.print-plate-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.print-plate-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+}
+
+.print-plate-field.full {
+  grid-column: 1 / -1;
+}
+
+.print-plate-field input[type="number"],
+.print-plate-field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: inherit;
+  font-size: 12px;
+}
+
+.print-plate-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.print-plate-bodies-title {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.print-plate-bodies {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 210px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.print-plate-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  font-size: 12px;
+}
+
+.print-plate-row.is-overflow {
+  border-color: rgba(220, 68, 55, 0.55);
+}
+
+.print-plate-row.is-excluded {
+  opacity: 0.55;
+}
+
+.print-plate-row-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.print-plate-row-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.print-plate-row-dims {
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.print-plate-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 9px;
+  background: rgba(56, 161, 105, 0.16);
+  color: var(--ok);
+  white-space: nowrap;
+}
+
+.print-plate-badge.overflow {
+  background: rgba(220, 68, 55, 0.16);
+  color: var(--err);
+}
+
+.print-plate-badge.excluded {
+  background: rgba(140, 150, 165, 0.16);
+  color: var(--text-2);
+}
+
+.print-plate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.print-plate-slicer-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+}
+
+.print-plate-slicer-group select {
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: inherit;
+  font-size: 12px;
+}

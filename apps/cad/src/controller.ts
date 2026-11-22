@@ -25,9 +25,11 @@ import type { DrawingQuery } from './drawing/layout';
 import type { KernelMeasure } from './inspect/measure';
 import type { MassRaw } from './inspect/mass';
 import { t } from './i18n';
-import { clampDepthOps, clampToTip, editsDraft, limitsOf, mayHaveTip, tipErrors, type Tip } from './taperLimit';
+import { Profiler, lastProfile, profileLine, PROFILE_NOTE_MS, startProgress } from './regenProfile';
+import { clampDepthOps, clampToTip, editsDraft, limitsOf, mayHaveTip, tipErrors, type Tip } from '@kit/viewdata';
 import { refLabel, syncNameOps } from './featureCreators';
 import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert } from './treeActions';
+import { detachDeleteOps, isValidFrame } from './frozenPose';
 import { listPick } from './listPick';
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, toViewSurfaces, withSurfaces } from './surfaceView';
 import { markSmoothEdges } from './smoothEdges';
@@ -39,7 +41,7 @@ import { cosmeticOnly, LABEL_BUSY_MS } from './cosmeticOps';
 import { isSheetFeature, type SheetEntry } from './sheet/model';
 import './sheet/register';
 import './pressPullType';
-import { watchComponents, partMassProps, type AsmComponent, type AsmExtra } from './assembly/kernel';
+import { watchComponents, partMassProps, urdfKernelData, type AsmComponent, type AsmExtra, type UrdfKernelData } from './assembly/kernel';
 import type { ViewData } from './files/viewCache';
 import { DocFontPool, type FontProblem, type FontResult } from './docFonts';
 import { pinOf, readDocFonts, textFontsUsed, type DocFont, type FontSource } from './fonts';
@@ -238,17 +240,20 @@ export class Controller {
         return;   // the caller gets the part on screen; `settled()` is the real one
       }
       this.cachedDoc = null; this.store.cached.value = false;
-      this.session = await this.kernel.open(forKernel as PartDoc);
-      this.snap = null;
-      // a kernel instance starts with no fonts: the document's go in before anything is built (a kernel the pool has not seen: all again)
-      this.noteKernel();
-      this.reportFontProblems(await this.fontPool.loadAll(readDocFonts(docFonts)));
-      this.asmComponents = []; this.asmExtra = { report: null, errors: new Map() };
-      watchComponents(this.session, (c, x) => { this.asmComponents = c; this.asmExtra = x; });
-      this.session.forgetReplies?.();   // the warm-up regen of open() predates the watch: ask again so its components are seen
-      reset();
-      await this.hideReplacedOriginal(doc);
-      await this.refresh();
+      const own = this.beginJob('load', doc.features.length);
+      try {
+        this.session = await this.ph('kernel', () => this.kernel.open(forKernel as PartDoc));
+        this.snap = null;
+        // a kernel instance starts with no fonts: the document's go in before anything is built (a kernel the pool has not seen: all again)
+        this.noteKernel();
+        this.reportFontProblems(await this.ph('fonts', () => this.fontPool.loadAll(readDocFonts(docFonts))));
+        this.asmComponents = []; this.asmExtra = { report: null, errors: new Map() };
+        watchComponents(this.session, (c, x) => { this.asmComponents = c; this.asmExtra = x; });
+        this.session.forgetReplies?.();   // the warm-up regen of open() predates the watch: ask again so its components are seen
+        reset();
+        await this.hideReplacedOriginal(doc);
+        await this.refresh();
+      } finally { this.endJob(own); }
     } finally {
       this.store.busy.value = false;
     }
@@ -279,6 +284,8 @@ export class Controller {
       this.lastIds = doc.features.map((f) => f.id);
       this.revision++;
       this.shown = body;
+      this.lastFrames.clear();
+      this.recordFrames(body);
       this.lastView = body ? withSmoothEdges(mergedView(body)) : null;
       this.importedOnScreen = false; bumpViewportContent();
       this.asmComponents = (v.components ?? []) as AsmComponent[]; this.asmExtra = { report: null, errors: new Map() };
@@ -310,8 +317,9 @@ export class Controller {
   }
 
   private async openReal(doc: PartDoc, forKernel: PartDoc, docFonts: unknown, mine: number): Promise<void> {
+    const own = this.beginJob('load', doc.features.length);
     try {
-      const s = await this.kernel.open(forKernel);
+      const s = await this.ph('kernel', () => this.kernel.open(forKernel));
       this.session = s;
       this.cachedDoc = null;
       this.snap = null;
@@ -328,7 +336,30 @@ export class Controller {
       this.store.cached.value = false;
       this.store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error');
       throw e;
-    }
+    } finally { this.endJob(own); }
+  }
+
+  // ---- profiling: where the time of a load or a regeneration goes (see regenProfile.ts) ----
+  private job: { prof: Profiler; prog: ReturnType<typeof startProgress> } | null = null;
+  /** Starts a profiled job unless one is already running (an edit's refresh belongs to the edit); true when this call owns it. */
+  private beginJob(kind: 'load' | 'edit' | 'rebuild', features: number): boolean {
+    if (this.job) return false;
+    this.job = { prof: new Profiler(kind, features), prog: startProgress(features, 'kernel') };
+    return true;
+  }
+  private endJob(own: boolean): void {
+    if (!own || !this.job) return;
+    const p = this.job.prof.finish();
+    this.job.prog.end(); this.job = null;
+    lastProfile.value = p;
+    if (p.totalMs >= PROFILE_NOTE_MS) this.store.notify(profileLine(t, p), 'info', undefined, { ttl: 8000 });
+  }
+  /** Times `f` as a phase of the running job (and shows it on the progress line); runs it plain when no job is running. */
+  private ph<T>(phase: string, f: () => Promise<T>): Promise<T> {
+    const j = this.job;
+    if (!j) return f();
+    j.prog.phase(phase);
+    return j.prof.time(phase, f);
   }
 
   /** What the viewer shows now, for the snapshot a save keeps; null unless it is exactly the built state of the document
@@ -661,14 +692,15 @@ export class Controller {
     ops = withRollbackInsert(ops, at);
     ops = syncNameOps(this.sdoc().features as unknown as Array<Record<string, unknown>>, ops, applyOpsLocal as never);
     const idle = this.busyFor(cosmeticOnly(this.sdoc().features as never, ops));
+    const own = this.beginJob('edit', this.sdoc().features.length);
     try {
-      await this.ensureFontsFor(featuresOf(ops));
+      await this.ph('fonts', () => this.ensureFontsFor(featuresOf(ops)));
       let result: EditResult;
       // Block rules compare against the part as it is now: the last check of this state, or one made first.
       const before = blocking ? await this.baselineFor(blocking) : null;
       try {
         result = await Promise.race([
-          s.edit(ops, reason, { lean: true }),
+          this.ph('kernel', () => s.edit(ops, reason, { lean: true })),
           new Promise<never>((_, reject) => {
             this.pendingCancel = () => reject(new Error('cancelled'));
           }),
@@ -736,6 +768,7 @@ export class Controller {
       return result;
     } finally {
       idle();
+      this.endJob(own);
     }
   }
 
@@ -1435,6 +1468,15 @@ export class Controller {
     return s ? partMassProps(s, part) : { volume: null, error: 'no document loaded' };
   }
 
+  /** Per-component B-rep mass properties and mate face geometry for URDF export. */
+  async urdfData(): Promise<UrdfKernelData> {
+    if (this.realLoad) await this.whenReal();
+    const s = this.session;
+    const d = this.document();
+    if (!s || !d) return { componentMass: new Map(), faceGeo: new Map() };
+    return urdfKernelData(s, d as unknown as { features?: Array<Record<string, unknown>> });
+  }
+
   /** Set the part's material (its name, e.g. "Mild steel"). One undo step, in order with the session's edits; the session has no
    *  document-level op, so the name lives here and is applied to `document()` (so Save, autosave and Inspect see it).
    *  Returns false when the name is empty or already the material. */
@@ -1474,6 +1516,25 @@ export class Controller {
     try { await this.refresh(); } finally { this.store.busy.value = false; }
   }
 
+  private lastFrames = new Map<string, ViewFrame>();
+
+  /** Remember the last live placement frames of sketches and reference planes so they can survive if an upstream
+   *  reference is deleted or suppressed. */
+  private recordFrames(body: ShownBody | null): void {
+    if (!body) return;
+    for (const s of body.sketches ?? []) {
+      if (isValidFrame(s.frame)) this.lastFrames.set(s.id, s.frame);
+    }
+    for (const p of body.planes ?? []) {
+      if (isValidFrame(p.frame)) this.lastFrames.set(p.id, p.frame);
+    }
+  }
+
+  /** Last known placement frame of a sketch or reference plane, or null. */
+  lastFrameOf(id: string): ViewFrame | null {
+    return this.lastFrames.get(id) ?? null;
+  }
+
   /** Delete these features (those that depend on one of them go too only when they are selected as well; otherwise the
    *  session refuses and says what still uses it). */
   async deleteFeatures(ids: string[]): Promise<EditResult | null> {
@@ -1484,12 +1545,22 @@ export class Controller {
     return ops.length ? this.edit(ops, `delete ${ids.join(', ')}`) : null;
   }
 
+  /** Delete these features while keeping directly dependent sketches/planes alive at their last known frozen pose. */
+  async deleteAndDetach(ids: string[]): Promise<EditResult | null> {
+    if (this.realLoad) await this.whenReal();
+    const s = this.session;
+    if (!s || !ids.length) return null;
+    const ops = detachDeleteOps(this.sdoc().features as unknown as Array<{ id: string }>, ids, (id) => this.lastFrameOf(id));
+    return ops.length ? this.edit(ops, `detach and delete ${ids.join(', ')}`) : null;
+  }
+
   /** Build everything again from the document. (The kernel keeps no regen cache, so every build is already a full one.) */
   async rebuild(): Promise<void> {
     if (this.realLoad) await this.whenReal();
     if (!this.session) return;
     this.store.busy.value = true;
-    try { await this.refresh(); } finally { this.store.busy.value = false; }
+    const own = this.beginJob('rebuild', this.sdoc().features.length);
+    try { await this.refresh(); } finally { this.endJob(own); this.store.busy.value = false; }
   }
 
   /** Names of every face, edge or corner on screen, for Select all. */
@@ -2040,9 +2111,10 @@ export class Controller {
     this.rollbackAnchor = repairAnchor(this.rollbackAnchor, this.lastIds, ids);
     this.lastIds = ids;
     this.reconcileSketchSession(ids);
-    const body = await this.bodyNow(s);
+    const body = await this.ph('view', () => this.bodyNow(s));
     this.revision++;
     this.shown = body; bumpViewportContent();
+    this.recordFrames(body);
     this.previewView = null;
     this.lastView = body ? withSmoothEdges(mergedView(body)) : null;   // solid and sheets as one mesh: what picking lists, measure and section read
     this.show(body);
@@ -2057,19 +2129,19 @@ export class Controller {
     this.store.dropMissing(existing);
     // errors, repair hints, markers and warnings of the regen the session already holds (no validate / check: the design
     // check runs on its own schedule)
-    const rr = typeof s.regenReport === 'function' ? await s.regenReport() : null;
-    const report = rr ? { regen: { errors: rr.errors, threads: rr.threads, warnings: rr.warnings }, hints: rr.hints } : await s.verify();
-    this.committedExtras = await this.regenExtras(s, this.sdoc(), this.previewTagOf(s), report.regen as unknown as { threads?: unknown[]; warnings?: unknown[] });
+    const rr = typeof s.regenReport === 'function' ? await this.ph('report', () => s.regenReport()) : null;
+    const report = rr ? { regen: { errors: rr.errors, threads: rr.threads, warnings: rr.warnings }, hints: rr.hints } : await this.ph('report', () => s.verify());
+    this.committedExtras = await this.ph('report', () => this.regenExtras(s, this.sdoc(), this.previewTagOf(s), report.regen as unknown as { threads?: unknown[]; warnings?: unknown[] }));
     this.applyExtras(this.committedExtras);
     this.lastErrors = report.regen.errors as never;
-    this.limits = await this.askLimits();
+    this.limits = await this.ph('report', () => this.askLimits());
     this.committedDiag = this.diagnoseErrors(report.regen.errors, report.hints, this.sdoc().features);
     // an error code with no repair text gets the plain advice instead of the raw "error code {params}" line (see featureStatuses)
     this.store.featureStatus.value = featureStatuses(this.sdoc().features, report.regen.errors, report.hints, this.committedDiag);
     this.lastGood = this.sdoc();
     this.lastGoodHistory = typeof s.history === 'function' ? s.history().length : 0;
     // a font too big to embed whole travels as the glyphs of the document's text: ask for those after every change of the text
-    await this.fontPool.syncEmbeds(this.sdoc()).catch(() => {});
+    await this.ph('fonts', () => this.fontPool.syncEmbeds(this.sdoc()).catch(() => {}));
   }
   private lastGoodHistory = 0;
 }

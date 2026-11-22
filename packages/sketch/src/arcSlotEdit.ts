@@ -11,7 +11,7 @@
  * new value; a horizontal or vertical constraint of the start inference is dropped when the angles change, because it would
  * hold the old direction.
  */
-import type { DraftConstraint, DraftEntity, SketchDraft } from './index';
+import type { DraftConstraint, DraftEntity, SketchDraft } from './types';
 import { geometry, MAX_SWEEP, problem } from './tools/arcSlot';
 import { angleOf, dist } from './tools/builders-arcs';
 import type { Pt } from './tools/types';

@@ -1,0 +1,37 @@
+{
+  "packages/sketch/src": [],
+  "packages/script/src": [
+    "packages/script/src/cosmeticKnurl.ts",
+    "packages/script/src/features/bearing.ts",
+    "packages/script/src/features/edits.ts",
+    "packages/script/src/features/enclosure.ts",
+    "packages/script/src/features/fasteners.ts",
+    "packages/script/src/features/h.ts",
+    "packages/script/src/features/holes.ts",
+    "packages/script/src/features/index.ts",
+    "packages/script/src/features/knurl.ts",
+    "packages/script/src/features/knurlFaceted.ts",
+    "packages/script/src/features/knurlOnFace.ts",
+    "packages/script/src/features/misc.ts",
+    "packages/script/src/features/procedural.ts",
+    "packages/script/src/features/screw.ts",
+    "packages/script/src/features/shapes.ts",
+    "packages/script/src/features/sheet.ts",
+    "packages/script/src/features/sketchCurves.ts",
+    "packages/script/src/features/sketchOffset.ts",
+    "packages/script/src/features/sketchPattern.ts",
+    "packages/script/src/features/spring.ts",
+    "packages/script/src/features/tray.ts",
+    "packages/script/src/features/washer.ts",
+    "packages/script/src/recorder.ts"
+  ],
+  "apps/cad/src": [
+    "apps/cad/src/FeatureOptions.tsx",
+    "apps/cad/src/handles/move.ts",
+    "apps/cad/src/handles/sizeBox.ts",
+    "apps/cad/src/sheet/FlangeShapeOptions.tsx",
+    "apps/cad/src/sheet/SheetOptions.tsx",
+    "apps/cad/src/washer.ts",
+    "apps/cad/src/washerHole.ts"
+  ]
+}

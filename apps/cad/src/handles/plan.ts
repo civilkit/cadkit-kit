@@ -25,7 +25,7 @@ import { placementSession, type Placement } from './placement';
 import { threadLengthSession, type ThreadHandleCtx } from './threadHandle';
 import { depthArrowSession, type DepthArrowCtx } from './depthArrow';
 import { thinOf } from '../thinRules';
-import { clampToTip } from '../taperLimit';
+import { clampToTip } from '@kit/viewdata';
 
 type Feat = { id: string; type: string; [k: string]: unknown };
 

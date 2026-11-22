@@ -61,9 +61,21 @@ export interface KernelBackend extends KernelTransport {
   cancel?(): void;
 }
 
+export interface EmbeddedKernel { readonly url: string; readonly token: string }
+
+/** Read an embedded desktop native kernel config injected by Tauri's init script, if present and valid. */
+export function readEmbeddedKernel(win: unknown = typeof globalThis !== 'undefined' ? globalThis : undefined): EmbeddedKernel | null {
+  const k = (win as { __CK_NATIVE__?: unknown } | undefined)?.__CK_NATIVE__;
+  if (!k || typeof k !== 'object') return null;
+  const { url, token } = k as { url?: unknown; token?: unknown };
+  return typeof url === 'string' && url.length > 0 && typeof token === 'string' && token.length > 0 ? { url, token } : null;
+}
+
 export interface RouterDeps {
   kv: KV | null;
   makeBuiltin(): Promise<KernelBackend>;
+  /** an embedded native kernel (desktop shell): used instead of booting wasm when mode is `'builtin'` */
+  embedded?: EmbeddedKernel | null;
   /** the handshake; defaults to NativeKernel.connect (tests inject their own) */
   connect?(o: NativeOptions): Promise<NativeKernel>;
   /** a notice for the user (already translated) */
@@ -98,8 +110,12 @@ const kindOf = (k: string): FailKind => (['unreachable', 'unauthorized', 'expire
 export function createKernelRouter(d: RouterDeps): KernelRouter {
   const wrap = d.wrap ?? (<K extends KernelBackend>(k: K) => k);
   const connect = d.connect ?? ((o: NativeOptions) => NativeKernel.connect(o));
+  const targetFor = (p: KernelPrefs): { url: string; token: string; checkBuild: boolean } | null =>
+    p.mode === 'local' ? { url: p.url, token: p.token, checkBuild: true }
+      : d.embedded ? { url: d.embedded.url, token: d.embedded.token, checkBuild: false }
+      : null;
   const prefs = signal<KernelPrefs>(loadKernelPrefs(d.kv));
-  const status = signal<KernelStatus>(prefs.value.mode === 'local' ? { state: 'connecting' } : { state: 'builtin' });
+  const status = signal<KernelStatus>(targetFor(prefs.value) ? { state: 'connecting' } : { state: 'builtin' });
   const active = signal<KernelMode>('builtin');
 
   let builtinP: Promise<KernelBackend> | null = null;
@@ -111,15 +127,16 @@ export function createKernelRouter(d: RouterDeps): KernelRouter {
   let fellBack = false;
   let epoch = 0;
 
-  const nativeOptions = (p: KernelPrefs, build: string, onFailure: (f: NativeFailure) => void): NativeOptions =>
-    ({ url: p.url, token: p.token, expect: { protocol: KERNEL_PROTOCOL, ...(build ? { build } : {}) }, onFailure });
+  const nativeOptions = (t: { url: string; token: string }, build: string, onFailure: (f: NativeFailure) => void): NativeOptions =>
+    ({ url: t.url, token: t.token, expect: { protocol: KERNEL_PROTOCOL, ...(build ? { build } : {}) }, onFailure });
 
   async function create(): Promise<KernelBackend> {
     const p = prefs.value;
     const my = epoch;
-    if (p.mode !== 'local' || fellBack) {
+    const target = targetFor(p);
+    if (!target || fellBack) {
       active.value = 'builtin';
-      if (p.mode !== 'local') status.value = { state: 'builtin' };
+      if (!target) status.value = { state: 'builtin' };
       return builtin();
     }
     status.value = { state: 'connecting' };
@@ -131,12 +148,14 @@ export function createKernelRouter(d: RouterDeps): KernelRouter {
       d.notify(t('kernel.notice.refused', { reason: failText(kind, detail) }), 'warn');
       return builtin();
     };
-    if (!p.token) return fallback('unauthorized', '');
-    try { normalizeServiceUrl(p.url); } catch (e) { return fallback('invalid', (e as Error).message); }
+    if (!target.token) return fallback('unauthorized', '');
+    try { normalizeServiceUrl(target.url); } catch (e) { return fallback('invalid', (e as Error).message); }
     let build = '';
-    try { build = (await builtin()).commit; } catch { /* the service may still be usable; the build is then not compared */ }
+    if (target.checkBuild) {
+      try { build = (await builtin()).commit; } catch { /* the service may still be usable; the build is then not compared */ }
+    }
     const failure = (f: NativeFailure) => onNativeFailure(my, f);
-    const opts = nativeOptions(p, build, failure);
+    const opts = nativeOptions(target, build, failure);
     try {
       const k = await connect(opts);
       if (my !== epoch) { void k.close(); return builtin(); }
@@ -200,8 +219,8 @@ export function createKernelRouter(d: RouterDeps): KernelRouter {
       if (!changed) return;
       fellBack = false;
       reset();
-      if (next.mode === 'builtin') { const old = builtinP; builtinP = null; void old?.then((k) => k.close()); }   // a clean built-in kernel for the document
-      status.value = next.mode === 'local' ? { state: 'connecting' } : { state: 'builtin' };
+      if (next.mode === 'builtin') { const old = builtinP; builtinP = null; void old?.then((k) => k.close()); }   // a clean built-in / embedded kernel for the document
+      status.value = targetFor(next) ? { state: 'connecting' } : { state: 'builtin' };
       active.value = 'builtin';
       d.reopen();
     },
@@ -215,7 +234,7 @@ export function createKernelRouter(d: RouterDeps): KernelRouter {
     },
     dispose() { const old = native; native = null; void old?.k.close(); },
     retry() {
-      if (prefs.value.mode !== 'local') return;
+      if (!targetFor(prefs.value)) return;
       fellBack = false;
       reset();
       status.value = { state: 'connecting' };
