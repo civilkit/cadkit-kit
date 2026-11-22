@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bomCsv, bomItems, bomTotal, componentOfName, componentRows, copyTurner, deleteComponentOps, explodeOffsets, instanceOfName, insertFeature, insertIds, placementOps, readExplode, suffixIds,
+  bomCsv, bomItems, bomTotal, componentOfName, componentRows, copyTurner, deleteComponentOps, explodeOffsets, instanceOfName, insertFeature, insertIds, placementOps, readExplode, refreshOps, suffixIds,
 } from './model';
 
 const part = (name: string, material = 'steel') => ({ format: 'ck-part', version: 1, name, material, features: [{ type: 'sketch', id: 'F1' }] });
@@ -108,4 +108,21 @@ describe('copyTurner', () => {
     near(t('F30@F35.1', [0, 10, 1]), [10, 0, 1]);
     near(t('F30@F99.1', [0, 10, 1]), [0, 10, 1]);
   });
+});
+
+describe('refreshOps', () => {
+  const doc = { features: [{ id: 'F1', type: 'insertPart', dx: 3, part: { name: 'P', material: 'brass', features: [{ id: 'F1', type: 'sketch' }] } }] };
+  it('replaces only the part, and keeps the material when the new part names none', () => {
+    const r = refreshOps(doc as never, 'F1', { name: 'P', features: [{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude' }] });
+    expect(r.changed).toBe(true);
+    expect(r.ops).toEqual([{ op: 'set', id: 'F1', path: 'part', value: { name: 'P', material: 'brass', features: [{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude' }] } }]);
+  });
+  it('takes the new material when the new part has one', () => {
+    const r = refreshOps(doc as never, 'F1', { name: 'P', material: 'steel', features: [{ id: 'F1', type: 'sketch' }] });
+    expect((r.ops[0] as { value: { material: string } }).value.material).toBe('steel');
+  });
+  it('is a no-op for an equal part whatever the key order', () => {
+    expect(refreshOps(doc as never, 'F1', { features: [{ type: 'sketch', id: 'F1' }], name: 'P' })).toEqual({ ops: [], changed: false });
+  });
+  it('is a no-op for an unknown component', () => { expect(refreshOps(doc as never, 'F9', {})).toEqual({ ops: [], changed: false }); });
 });

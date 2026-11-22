@@ -11,7 +11,7 @@ export interface ShowBody {
   [k: string]: unknown;
 }
 
-export interface DisplayOpts { inserts: ReadonlySet<string>; hidden: ReadonlySet<string>; explode: ExplodeState; /** a motion pose: each moved component's rigid motion from its assembled placement (display only) */ pose?: ReadonlyMap<string, Rigid> | null; /** the document, so a pattern's copies turn a component's drag offset with them */ doc?: DocLike | null }
+export interface DisplayOpts { inserts: ReadonlySet<string>; hidden: ReadonlySet<string>; explode: ExplodeState; /** a motion pose: each moved component's rigid motion from its assembled placement (display only) */ pose?: ReadonlyMap<string, Rigid> | null; /** optional per-face rigid poses (e.g. plugin-declared hinge/slide joints on generated bodies) */ facePose?: ReadonlyMap<string, Rigid> | null; /** optional per-edge rigid poses matching `facePose` */ edgePose?: ReadonlyMap<string, Rigid> | null; /** the document, so a pattern's copies turn a component's drag offset with them */ doc?: DocLike | null }
 
 /** Centre of each component instance's bounding box (a pattern copy is an instance of its own, keyed `F6@F12.1`), and the centre of the box around all of them. Components with no triangles are absent. */
 export function componentCentres(body: ShowBody, inserts: ReadonlySet<string>): { centres: Map<string, V3>; middle: V3 } {
@@ -42,12 +42,13 @@ export function componentCentres(body: ShowBody, inserts: ReadonlySet<string>): 
 export function displayBody<B extends ShowBody>(body: B, o: DisplayOpts): B {
   const moving = isExploded(o.explode);
   const posed = !!o.pose && o.pose.size > 0;
-  if (!o.hidden.size && !moving && !posed) return body;
-  if (!o.inserts.size) return body;
-  const { centres, middle } = componentCentres(body, o.inserts);
-  const off = moving ? explodeOffsets(centres, middle, o.explode, o.doc ? copyTurner(o.doc.features) : undefined) : new Map<string, V3>();
+  const facePosed = !!o.facePose && o.facePose.size > 0;
+  if (!o.hidden.size && !moving && !posed && !facePosed) return body;
+  if (!o.inserts.size && !facePosed) return body;
+  const { centres, middle } = o.inserts.size ? componentCentres(body, o.inserts) : { centres: new Map<string, V3>(), middle: [0, 0, 0] as V3 };
+  const off = moving && o.inserts.size ? explodeOffsets(centres, middle, o.explode, o.doc ? copyTurner(o.doc.features) : undefined) : new Map<string, V3>();
   const { positions, normals, triFace, faceIds } = body.mesh;
-  const inst = faceIds.map((n) => instanceOfName(n, o.inserts));
+  const inst = o.inserts.size ? faceIds.map((n) => instanceOfName(n, o.inserts)) : faceIds.map(() => null);
   const owner = inst.map((i) => i?.key ?? null);
   const keepTri: number[] = [];
   for (let t = 0; t < triFace.length; t++) { const c = inst[triFace[t]]?.comp; if (!c || !o.hidden.has(c)) keepTri.push(t); }
@@ -57,7 +58,7 @@ export function displayBody<B extends ShowBody>(body: B, o: DisplayOpts): B {
   const rigOf = (i: { comp: string; key: string } | null | undefined): Rigid | undefined => (posed && i && i.key === i.comp ? o.pose!.get(i.comp) : undefined);
   keepTri.forEach((t, i) => {
     const d = off.get(owner[triFace[t]] ?? '') ?? [0, 0, 0];
-    const rig = rigOf(inst[triFace[t]]);
+    const rig = rigOf(inst[triFace[t]]) ?? (facePosed ? o.facePose!.get(faceIds[triFace[t]]) : undefined);
     for (let v = 0; v < 3; v++) {
       const k = t * 9 + v * 3, q = i * 9 + v * 3;
       const p = rig ? movePoint(rig, [positions[k], positions[k + 1], positions[k + 2]]) : [positions[k], positions[k + 1], positions[k + 2]];
@@ -68,9 +69,9 @@ export function displayBody<B extends ShowBody>(body: B, o: DisplayOpts): B {
   });
   const edges: ViewEdge[] = [];
   for (let e of body.edges) {
-    const i = e.key ? instanceOfName(e.key, o.inserts) : null;
+    const i = e.key && o.inserts.size ? instanceOfName(e.key, o.inserts) : null;
     if (i && o.hidden.has(i.comp)) continue;
-    const rig = rigOf(i);
+    const rig = rigOf(i) ?? (e.key && o.edgePose ? o.edgePose.get(e.key) : undefined);
     if (rig) e = { ...e, pts: e.pts.map((p) => movePoint(rig, p)), ...(e.mid ? { mid: movePoint(rig, e.mid) } : {}) };
     const d = i ? off.get(i.key) : undefined;
     edges.push(d ? { ...e, pts: e.pts.map((p) => [p[0] + d[0], p[1] + d[1], p[2] + d[2]]), ...(e.mid ? { mid: [e.mid[0] + d[0], e.mid[1] + d[1], e.mid[2] + d[2]] } : {}) } : e);

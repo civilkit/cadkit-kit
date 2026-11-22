@@ -198,6 +198,38 @@ describe('agent tools on the real kernel', () => {
     }
   });
 
+  it('export writes obj, 3mf, urdf, usdz and html through the shared CLI exporters', async () => {
+    const dir = join(process.cwd(), 'node_modules', '.cache', 'agent-tools-test');
+    await call('run_script', { code: PLATE, mode: 'new' });
+    const magic: Record<string, (b: Buffer) => boolean> = {
+      obj: (b) => /\nv |^v /m.test(b.toString('utf8')),
+      '3mf': (b) => b.subarray(0, 2).toString() === 'PK',
+      urdf: (b) => b.subarray(0, 2).toString() === 'PK',
+      usdz: (b) => b.subarray(0, 2).toString() === 'PK',
+      html: (b) => /<html/i.test(b.toString('utf8')),
+    };
+    for (const fmt of ['obj', '3mf', 'urdf', 'usdz', 'html']) {
+      const path = join(dir, `new-${fmt}.out`);
+      const { json, r } = await call('export', { format: fmt, path });
+      expect(r.isError, JSON.stringify(json)).toBeFalsy();
+      expect(json.format).toBe(fmt);
+      expect(json.triangles).toBeGreaterThan(10);
+      expect(magic[fmt](readFileSync(path)), fmt).toBe(true);
+      rmSync(path);
+    }
+    // quality applies to the new mesh formats and reports the chord used
+    const coarse = (await call('export', { format: 'obj', path: join(dir, 'c.obj'), quality: 'coarse' })).json;
+    const fine = (await call('export', { format: 'obj', path: join(dir, 'f.obj'), quality: 'fine' })).json;
+    expect(coarse.triangles).toBeLessThan(fine.triangles);
+    expect(coarse.chord_mm).toBeGreaterThan(0);
+    rmSync(join(dir, 'c.obj')); rmSync(join(dir, 'f.obj'));
+    // a non-mesh format still refuses quality; chord_mm 0 is refused naming the option
+    expect((await call('export', { format: 'ckpart', quality: 'fine' })).r.isError).toBe(true);
+    const bad = await call('export', { format: '3mf', path: join(dir, 'x.3mf'), chord_mm: 0 });
+    expect(bad.r.isError).toBe(true);
+    expect(JSON.stringify(bad.json)).toMatch(/chord_mm/);
+  }, 120_000);
+
   it('export stl takes a quality preset and an absolute chord height', async () => {
     const dir = join(process.cwd(), 'node_modules', '.cache', 'agent-tools-test');
     await call('run_script', { code: PLATE, mode: 'new' });

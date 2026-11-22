@@ -7,7 +7,7 @@ import { checkParams, defaultsOf, formModel, type FormField, type ParamDef, type
 import { PluginManage } from './PluginManage';
 import { t } from './i18n';
 import type { PluginSel } from './pluginRun';
-import { addPick, profileItem, sketchItem, type DocSketch } from './pluginPicks';
+import { addPick, profileItem, removePickAt, sketchItem, type DocSketch } from './pluginPicks';
 
 export interface PluginPanelProps {
   registry: PluginRegistry;
@@ -15,6 +15,8 @@ export interface PluginPanelProps {
   manager?: PluginManager;
   /** the manager changed what is registered */
   onInstalled?(): void;
+  /** Open the Community Package Hub dialog to browse community plugins and libraries. */
+  onOpenHub?(): void;
   sel: PluginSel | null;
   onPick(pluginId: string, generatorId: string): void;
   onChange(values: Values): void;
@@ -94,7 +96,7 @@ const pickName = (it: SelItem): string => {
   return String(it.name ?? it.type ?? '');
 };
 
-const KIND_LABEL: Record<string, string> = { body: 'plugin.pickBody', face: 'plugin.pickFace', edge: 'plugin.pickEdge', sketch: 'plugin.pickSketch', profile: 'plugin.pickProfile' };
+const KIND_LABEL: Record<string, string> = { body: 'plugin.pickBody', face: 'plugin.pickFace', edge: 'plugin.pickEdge', sketch: 'plugin.pickSketch', profile: 'plugin.pickProfile', sketch_point: 'plugin.pickSketchPoint', sketch_curve: 'plugin.pickSketchCurve' };
 
 function Field(p: { f: FormField; values: Values; set(name: string, v: string | number | boolean | SelItem[] | undefined): void; pickField?: string | null; onPickField?(name: string | null): void; sketches?: DocSketch[] }): JSX.Element | null {
   const { def: d, value, error, auto, visible } = p.f;
@@ -132,7 +134,15 @@ function Field(p: { f: FormField; values: Values; set(name: string, v: string | 
           {active ? <div class="thread-hint">{t('plugin.pickHint', { what })}</div> : null}
           {adder('sketch')}{adder('profile')}
           {picks.length
-            ? <ul class="plugin-pick-list">{picks.map((it, i) => <li key={i}>{pickName(it)}</li>)}</ul>
+            ? <ul class="plugin-pick-list">{picks.map((it, i) => {
+                const name = pickName(it);
+                return (
+                  <li key={i}>
+                    <span>{name}</span>
+                    <button type="button" class="row-act" aria-label={t('plugin.pickRemove', { name })} title={t('plugin.pickRemove', { name })} data-testid={`plugin-pick-remove-${d.name}-${i}`} onClick={() => p.set(d.name, removePickAt(picks, i))}><Icon name="close" size={12} /></button>
+                  </li>
+                );
+              })}</ul>
             : <div class="thread-hint">{t('plugin.pickNone')}</div>}
         </div>
         {err}
@@ -222,7 +232,7 @@ export function PluginPanel(p: PluginPanelProps): JSX.Element {
               ))}
             </div>
           ))}
-          {p.manager ? <PluginManage manager={p.manager} onChanged={() => p.onInstalled?.()} /> : null}
+          {p.manager ? <PluginManage manager={p.manager} onChanged={() => p.onInstalled?.()} onOpenHub={p.onOpenHub} /> : null}
         </div>
       </div>
     );

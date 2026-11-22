@@ -193,7 +193,7 @@ export const shapeFeatures = {
   },
 
   /**
-   * Involute spur or helical gear (profile, body extrude, bore) from module and teeth.
+   * Involute spur or helical gear (profile, body, bore) from module and teeth.
    *
    * Adds the app's gear generator output: a profile sketch with true involute teeth, the body extrude and a through bore. The gear is centred on `center` on the 'front' plane (axis +Z) unless plane says otherwise. Pitch diameter = module * teeth; outside diameter = module * (teeth + 2). Use it as the first feature of a part (it makes the body), or on its own plane for a second gear.
    * @domain features

@@ -27,7 +27,7 @@ Other buttons in the Script tab:
 
 A run that fails shows a red banner above the code box with the message and the line number ("Line N: message"). The banner stays until the next **Run**, the failing line is tinted in the box, and clicking the message selects that line. Opening the **Script** tab puts the cursor in the box, and the cursor returns there after a run, so what you type never reaches the viewport's single-key shortcuts. A clean run shows a green line with the number of features built, and under it one row per `expect...` check: a tick and what was checked, or a cross and the failure (which is also in the banner). Clicking a row selects its line. If the script cannot start at all (a syntax error, a name clash such as `const plane = ...`), nothing is replaced and the part that was open stays as it was.
 
-Some names belong to the script itself and cannot be used for your own variables: `at`, `bearing`, `edges`, `expr`, `face`, `faces`, `group`, `part`, `plane`, `screw`, `through` and `variables`. Declaring one (`const plane = ...`) stops the run with a message that names the line and suggests a new name.
+Some names belong to the script itself and cannot be used for your own variables: `at`, `autoFuse`, `bearing`, `edges`, `expr`, `face`, `faces`, `fuseIntersecting`, `group`, `part`, `plane`, `screw`, `through` and `variables`. Declaring one (`const plane = ...`) stops the run with a message that names the line and suggests a new name.
 
 ![The Script tab in the left panel with the bracket example in the code box and the Run button, and the resulting plate with two holes and rounded edges in the viewport.](../img/script-tab.png)
 
@@ -127,6 +127,7 @@ A sketch on a face has its normal pointing out of the body.
 | `.draft(faces, angle, {neutral})`, `.moveFace(faces, {distance})`, `.pressPull(faces, {distance, taper})` | Taper walls about a neutral plane; push or pull faces; continue a flat face straight with an optional draft or scale taper. |
 | `.lip(rim, edges, {width, height})`, `.groove(...)` | A raised band on a rim, and the groove it fits. |
 | `.scale(factor, {about})`, `.moveBody(bodies, {translate, rotate, copy, mirror})` | Scale bodies; move, rotate or copy them, also as a mirror image. |
+| `.autoFuse(true \| false \| fn)`, `.fuseIntersecting({tolerance})` | Opt-in implicit boolean fusion: automatically unite intersecting bodies (including after `moveBody` copies and `scale`) while keeping non-intersecting bodies separate. Also available via `part('Name', { autoFuse: true })` and as free functions `autoFuse(...)` / `fuseIntersecting()`. |
 | `.split(plane, {names})`, `.split(target, tools)`, `.deleteBody(bodies)`, `.deleteFace(faces)` | Split a body at a plane (a face, a standard plane or an offset plane) into two named bodies, or by tool bodies; remove bodies, or remove faces (the solid becomes a sheet; nothing is healed). |
 | `.lipJoint(plane, {height, width, clearance, tongue, names})` | Split a shelled body at a plane and give the cut a centred tongue on one half and a matching groove, wider and deeper by `clearance`, on the other. See [Cases and moulds](../modelling/cases-and-moulds.md). |
 | `.sphere(radius, {centre, op})`, `.helix({radius, pitch, revolutions})`, `.axis(...)` | A ball, a helix curve, and a reference axis. |

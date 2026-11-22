@@ -17,6 +17,7 @@ All lengths are millimetres inside the app. Formats that carry other units are c
 | glTF binary | `.glb` | Open, drop, More file actions | A reference mesh saved with the part, with its colours (metres and Y up converted) | Textures, animation, vertex colours; compressed or multi-file glTF is refused |
 | 3MF | `.3mf` | Open, drop, More file actions | A reference mesh saved with the part, with its colours and unit | Textures, colour gradients, print supports; build items are joined into one mesh |
 | FreeCAD | `.FCStd` | Open, drop | An editable part for the features that map | Features that do not map; the rest of the document |
+| Fusion 360 | `.f3d`, `.f3z` | Open, drop, More file actions | Editable part with mapped timeline features and user parameters (cm converted to mm), or embedded ACIS SAT / STEP B-rep bodies; `.f3z` unpacks nested `.f3d` designs | Proprietary binary-only `.smb` B-reps without SAT/STEP or timeline metadata; unsupported feature types are listed as warnings |
 | SolidCraft | `.solidcraft` | Open, drop | An editable part for the features that map | Features that do not map are kept as suppressed placeholders |
 | DXF | `.dxf` | Home > Sketch group, or drop | Sketch geometry (lines, arcs, circles, splines, points) | Text, hatches, dimensions, blocks, 3D entities |
 | SVG | `.svg` | Home > Sketch group, or drop | Sketch geometry (paths, rectangles, circles, ellipses, lines, polygons) | Text, images, fills, strokes, gradients, clip paths |

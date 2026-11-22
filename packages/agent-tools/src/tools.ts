@@ -7,6 +7,8 @@ import type { AgentSession } from './agent-session';
 import { ToolError } from './errors';
 import { listBodies } from './bodies';
 import { meshToGlb } from './exporters';
+// Shared with `cadkit export` (one implementation of the mesh-format encoders). cli imports @kit/mcp, so reach the leaf module by path, not via @kit/cli.
+import { ExportModelError, exportMeshFormat, type MeshExportFormat } from '../../cli/src/exportModel';
 import { viewCacheField } from './viewCache';
 import { repairHint } from './hints';
 import { sheetTools } from './sheetTools';
@@ -26,6 +28,8 @@ export interface ToolDef {
   inputSchema: Schema & { type: 'object' };
   handler(input: Record<string, unknown>, a: AgentSession): Promise<ToolOutput>;
 }
+
+const MESH_FORMATS = ['stl', 'obj', '3mf', 'glb', 'urdf', 'usdz', 'html'];
 
 /** The sheets @kit/snapshot renders (a test keeps this in step with its SHEET_NAMES). */
 export const SHEET_NAMES = ['single', 'orthos', 'drawing-third-angle', 'drawing-first-angle', 'ab', 'section'] as const;
@@ -405,14 +409,14 @@ export function createTools(): ToolDef[] {
     },
     {
       name: 'export',
-      description: "Write the model to a file: step | stl | glb | ckpart (the document JSON). `path` defaults to ./<part name>.<ext> in the server's working directory. Returns the path and size. `cache: true` (ckpart only) also writes the built view as the file's `viewCache` field, as the app's \"Save geometry in file\" does: the app then shows the part at once on open and rebuilds behind it. It is used only if the recipe and the kernel build match, else ignored. Refused (nothing written, code view_unavailable) for documents it cannot reproduce exactly: a curated or embedded font (text in the built-in fonts is fine), a rolled-back document, a kernel whose wasm cannot be hashed. For the flat pattern of a sheet metal part (DXF, bend table) use sheet_export. Mesh formats (stl, glb) take `quality` (coarse | normal | fine, default normal: the viewer's mesh) and/or `chord_mm`, an absolute chord height in mm (the most a facet may sit off the true surface; it replaces the preset's chord; smaller means more triangles); the reply says the chord used and the triangle count.",
-      inputSchema: obj({ format: { type: 'string', enum: ['step', 'stl', 'glb', 'ckpart'] }, path: { type: 'string', maxLength: 500 }, cache: { type: 'boolean' }, quality: { type: 'string', enum: ['coarse', 'normal', 'fine'] }, chord_mm: { type: 'number', minimum: 0, maximum: 1000000 } }, ['format']),
+      description: "Write the model to a file: step | stl | obj | 3mf | glb | urdf | usdz | html | ckpart (the document JSON). obj, 3mf, glb (per body, coloured), usdz and html (a self-contained 3D viewer page) write one mesh per body; urdf writes a robot zip (links from the bodies, joints from the mates, masses from the kernel). `path` defaults to ./<part name>.<ext> in the server's working directory (urdf: ./<part name>-urdf.zip). Returns the path and size. `cache: true` (ckpart only) also writes the built view as the file's `viewCache` field, as the app's \"Save geometry in file\" does: the app then shows the part at once on open and rebuilds behind it. It is used only if the recipe and the kernel build match, else ignored. Refused (nothing written, code view_unavailable) for documents it cannot reproduce exactly: a curated or embedded font (text in the built-in fonts is fine), a rolled-back document, a kernel whose wasm cannot be hashed. For the flat pattern of a sheet metal part (DXF, bend table) use sheet_export. Mesh formats (stl, obj, 3mf, glb, urdf, usdz, html) take `quality` (coarse | normal | fine, default normal: the viewer's mesh) and/or `chord_mm`, an absolute chord height in mm (the most a facet may sit off the true surface; it replaces the preset's chord; smaller means more triangles); the reply says the chord used and the triangle count.",
+      inputSchema: obj({ format: { type: 'string', enum: ['step', 'stl', 'obj', '3mf', 'glb', 'urdf', 'usdz', 'html', 'ckpart'] }, path: { type: 'string', maxLength: 500 }, cache: { type: 'boolean' }, quality: { type: 'string', enum: ['coarse', 'normal', 'fine'] }, chord_mm: { type: 'number', minimum: 0, maximum: 1000000 } }, ['format']),
       async handler(i, a) {
         const fmt = String(i.format);
         if (i.cache === true && fmt !== 'ckpart') throw new ToolError('bad_input', 'cache applies to the ckpart format only', 'drop cache, or use format ckpart');
-        if ((i.quality !== undefined || i.chord_mm !== undefined) && fmt !== 'stl' && fmt !== 'glb') throw new ToolError('bad_input', 'quality and chord_mm apply to the mesh formats stl and glb only', 'drop them, or use format stl or glb');
+        if ((i.quality !== undefined || i.chord_mm !== undefined) && !MESH_FORMATS.includes(fmt)) throw new ToolError('bad_input', 'quality and chord_mm apply to the mesh formats (stl, obj, 3mf, glb, urdf, usdz, html) only', 'drop them, or use a mesh format');
         const stem = (a.doc.name || 'part').replace(/[^\w\- ]+/g, '_').trim() || 'part';
-        const path = resolvePath(typeof i.path === 'string' && i.path ? i.path : `${stem}.${fmt === 'ckpart' ? 'ckpart' : fmt}`);
+        const path = resolvePath(typeof i.path === 'string' && i.path ? i.path : fmt === 'urdf' ? `${stem}-urdf.zip` : `${stem}.${fmt}`);
         let bytes: Uint8Array | string;
         let extra: Record<string, unknown> = {};
         if (fmt === 'ckpart') {
@@ -424,6 +428,26 @@ export function createTools(): ToolDef[] {
           } else bytes = JSON.stringify(doc, null, 1);
         }
         else if (fmt === 'step') bytes = await a.session.step(stem);
+        else if (fmt === 'obj' || fmt === '3mf' || fmt === 'urdf' || fmt === 'usdz' || fmt === 'html') {
+          try {
+            const r = await exportMeshFormat(a.session as never, a.doc, fmt as MeshExportFormat, {
+              ...(i.quality !== undefined ? { quality: i.quality as 'coarse' | 'normal' | 'fine' } : {}),
+              ...(i.chord_mm !== undefined ? { chordMm: Number(i.chord_mm) } : {}),
+            });
+            bytes = r.data;
+            extra = {
+              ...(r.chord !== undefined ? { chord_mm: r.chord } : {}),
+              ...(r.chordRaised ? { chordRaised: true } : {}),
+              ...(r.unmeshedFaces?.length ? { unmeshedFaces: r.unmeshedFaces } : {}),
+              triangles: r.triangles,
+              bodies: r.bodies,
+            };
+          } catch (e) {
+            if (e instanceof ExportModelError) throw new ToolError(e.code === 'no_body' ? 'no_body' : 'export_failed', e.message, e.code === 'no_body' ? 'run_script first' : 'check that the document builds (facts)');
+            if (i.quality !== undefined || i.chord_mm !== undefined) throw new ToolError('bad_input', (e as Error).message, 'quality is coarse, normal or fine; chord_mm is a positive number of millimetres');
+            throw e;
+          }
+        }
         else {
           const v = await a.session.bodyForView();
           if (!v || !v.mesh.positions.length) throw new ToolError('no_body', 'the document has no solid to export', 'run_script first');

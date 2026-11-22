@@ -35,4 +35,6 @@ export const motionStrings: Record<string, string> = {
   'motion.study.needKeys': 'Key at least one moment first: put the sliders where you want them and press Key.', 'motion.study.pickKey': 'Tap a key mark to pick it', 'motion.study.deleteKey': 'Delete key',
   'motion.study.more': 'More',
   'motion.noKernel': 'The kernel could not solve this pose.',
+  'motion.plugin.title': 'Plugin joints',
+  'motion.plugin.reset': 'Reset plugin joints',
 };

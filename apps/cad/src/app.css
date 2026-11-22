@@ -2186,3 +2186,15 @@ label.set-row:has(> input[type="checkbox"]:first-child) { justify-content: flex-
 .hist-play { display: flex; align-items: center; gap: 2px; flex: none; }
 .hist-speed { height: 22px; border: 0; border-radius: 5px; background: none; color: var(--text-2); font-size: 11px; cursor: pointer; padding: 0 2px; }
 .hist-speed:hover { background: var(--chip); color: var(--text); }
+.kbd-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.kbd-tools select, .kbd-tools button { font: inherit; }
+.kbd-unbound { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.kbd-unbound input { width: auto; padding: 0; border: 0; }
+.kbd-clash { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 14px; font-size: 12px; background: var(--accent-soft); }
+.kbd-clash span { flex: 1; }
+.kbd-btn { font: inherit; background: transparent; border: 0; padding: 2px; cursor: pointer; color: inherit; }
+.kbd-btn:hover kbd, .kbd-btn:focus-visible kbd { border-color: var(--accent); }
+.kbd-btn.rec { color: var(--accent); }
+.kbd-btn kbd.none { opacity: .55; }
+.kbd-x { font: inherit; font-size: 12px; background: transparent; border: 0; color: var(--text-2); cursor: pointer; padding: 0 4px; opacity: 0; }
+.pal .it:hover .kbd-x, .kbd-x:focus-visible { opacity: 1; }

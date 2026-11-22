@@ -1,6 +1,6 @@
 import { dropKind, type DropKind } from './names';
 
-export type DropPlan = { action: 'none' } | { action: 'multiple' } | { action: 'open'; kind: DropKind; name: string; /** an OBJ dropped together with its .mtl: the material file's name */ mtl?: string };
+export type DropPlan = { action: 'none' } | { action: 'multiple' } | { action: 'open'; kind: DropKind; name: string; /** an OBJ dropped together with its .mtl: the material file's name */ mtl?: string; /** a .gltf dropped together with its .bin files: their names */ bins?: string[] };
 
 /** What to do with the files of a drop: one file at a time (an OBJ may come with its .mtl); its kind decides the path. */
 export function planDrop(names: string[]): DropPlan {
@@ -9,6 +9,8 @@ export function planDrop(names: string[]): DropPlan {
     const obj = names.find((n) => /\.obj$/i.test(n)), mtl = names.find((n) => /\.mtl$/i.test(n));
     if (obj && mtl) return { action: 'open', kind: 'obj', name: obj, mtl };
   }
+  const gltf = names.filter((n) => /\.gltf$/i.test(n)), bins = names.filter((n) => /\.bin$/i.test(n));
+  if (gltf.length === 1 && bins.length === names.length - 1) return { action: 'open', kind: 'glb', name: gltf[0], bins };
   if (names.length > 1) return { action: 'multiple' };
   return { action: 'open', kind: dropKind(names[0]), name: names[0] };
 }

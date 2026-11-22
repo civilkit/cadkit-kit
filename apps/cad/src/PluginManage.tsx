@@ -6,7 +6,7 @@ import { fetchGithubPackage, fetchZipUrl, filesFromZip, parseGithubSpec, type Pl
 import { t } from './i18n';
 import { setThirdPartyEnabled, thirdPartyEnabled } from './pluginStore';
 
-export interface PluginManageProps { manager: PluginManager; onChanged(): void }
+export interface PluginManageProps { manager: PluginManager; onChanged(): void; onOpenHub?(): void }
 
 export function PluginManage(p: PluginManageProps): JSX.Element {
   const [on, setOn] = useState(thirdPartyEnabled());
@@ -57,6 +57,11 @@ export function PluginManage(p: PluginManageProps): JSX.Element {
   return (
     <div data-testid="plugin-manage" style="margin-top:14px;border-top:1px solid var(--border,#8884);padding-top:10px">
       <div class="fedit-fld-label" style="font-weight:600;margin-bottom:6px">{t('plugin.installed')}</div>
+      {p.onOpenHub ? (
+        <div style="margin-bottom:8px">
+          <button type="button" class="fedit-card-btn" data-testid="plugin-open-hub" onClick={p.onOpenHub}>{t('hub.browseBtn')}</button>
+        </div>
+      ) : null}
       <label class="fedit-fld" style="display:flex;gap:8px;align-items:flex-start">
         <input type="checkbox" checked={on} data-testid="plugin-thirdparty" onChange={(e) => { const v = (e.currentTarget as HTMLInputElement).checked; setThirdPartyEnabled(v); setOn(v); void p.manager.load().then(refresh); }} />
         <span>{t('plugin.thirdParty')}<span class="thread-hint" style="display:block">{t('plugin.thirdPartyTip')}</span></span>

@@ -1,12 +1,14 @@
 {
   "name": "civilkit-cad-desktop",
   "private": true,
-  "version": "0.8.7",
+  "version": "0.8.8",
   "description": "Tauri shell for CivilKit CAD",
   "scripts": {
     "sync-version": "node scripts/sync-version.mjs",
     "tauri": "tauri",
-    "build:mac": "npm run sync-version && tauri build --bundles app,dmg --target aarch64-apple-darwin && tauri build --bundles app,dmg --target x86_64-apple-darwin"
+    "build:mac": "npm run sync-version && tauri build --bundles app,dmg --target aarch64-apple-darwin && tauri build --bundles app,dmg --target x86_64-apple-darwin",
+    "build:win": "npm run sync-version && tauri build --bundles msi,nsis",
+    "build:linux": "npm run sync-version && tauri build --bundles deb,appimage"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0"

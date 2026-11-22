@@ -255,3 +255,21 @@ export function boardColour(name: string): string | undefined {
   const k = name.trim().toLowerCase();
   return appearanceOfMaterial(k in BOARD_ALIASES ? BOARD_ALIASES[k] : name)?.color;   // the same colour the part's own material would show
 }
+/** Full appearance look (colour, finish, metalness, roughness, opacity) from the material library for a plugin-named material, or undefined when unknown. */
+export function boardLook(name: string): { colour: string; finish?: 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'; metalness?: number; roughness?: number; opacity?: number } | undefined {
+  const k = name.trim().toLowerCase();
+  const app = appearanceOfMaterial(k in BOARD_ALIASES ? BOARD_ALIASES[k] : name);
+  if (!app) return undefined;
+  const mp = materialParams(app.material);
+  const finish = app.material === 'default' ? 'brushed' : app.material;
+  const roughness = app.pbr?.roughness ?? mp.roughness;
+  const metalness = app.pbr?.metalness ?? mp.metalness;
+  const opacity = app.pbr?.opacity ?? mp.opacity;
+  return {
+    colour: app.color,
+    finish,
+    metalness,
+    roughness,
+    ...(opacity < 1 ? { opacity } : {}),
+  };
+}

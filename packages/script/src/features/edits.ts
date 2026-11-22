@@ -173,7 +173,7 @@ export const editFeatures = {
   },
 
   /**
-   * Scale bodies uniformly or per axis (print shrink compensation, stretched variants).
+   * Scale bodies uniformly or per axis (print shrink compensation).
    *
    * factor is one number (uniform) or [sx, sy, sz] along the world axes; each must be above 0 (use mirror for a flip). The fixed point is `at` [x, y, z], else `about` 'centroid' (default, the centre of mass of the selection) or 'origin'. bodies limits it to named bodies (made with newBody), default all bodies. Bodies change in place and every face keeps its name. Exact for planes, for cylinders and cones stretched along their axis, B-spline faces and for spheres and tori under a uniform factor; a round face stretched across its axis, a sphere under a non-uniform factor, and revolution or extrusion surfaces are refused with invalidValue and the body is left as it was.
    * @domain features
@@ -191,7 +191,7 @@ export const editFeatures = {
     if (factor === undefined) throw new H.SelectorError('scale(factor): give a number or [sx, sy, sz]', line);
     if (o.about !== undefined && o.about !== 'origin' && o.about !== 'centroid') throw new H.SelectorError("scale(): about is 'origin' or 'centroid'", line);
     const at = o.at === undefined ? undefined : vec3(o.at, 'scale(): at', line);
-    this.steps.push({ line, label: 'scale', run: (ctx) => {
+    this.steps.push({ line, label: 'scale', mayOverlap: true, run: (ctx) => {
       const id = ctx.nextId(); ctx.lastFeature = id;
       const f: Record<string, unknown> = { type: 'scale', id, factor: Array.isArray(factor) ? factor.map((v) => H.ref(v)) : H.ref(factor) };
       if (at) f.at = at; else if (o.about) f.about = o.about;
@@ -306,7 +306,7 @@ export const editFeatures = {
   },
 
   /**
-   * A reference axis: a world axis, a straight edge, a cylinder or the line where two planes meet.
+   * A reference axis: world axis, straight edge, cylinder or two-plane intersection.
    *
    * Adds the axis feature other features take as { kind: 'feature', id } (a plane turned about it, a revolve or pattern axis). One argument: 'x' | 'y' | 'z' (a world axis through the origin), edges(sel) matching one straight edge, or face(sel) of a cylindrical face (its axis; faceNotCylindrical otherwise). Two arguments: two planes ('front' | 'top' | 'right', face(sel), a plane handle, at(plane, offset)): the line where they meet (planesParallel if they do not). Take part.handle() after it to refer to it.
    * @domain features
@@ -398,7 +398,7 @@ export const editFeatures = {
       if (Array.isArray(rot.axis)) vec3(rot.axis, 'moveBody(): rotate.axis', line);
       if (rot.origin !== undefined) vec3(rot.origin, 'moveBody(): rotate.origin', line);
     }
-    this.steps.push({ line, label: 'moveBody', run: (ctx) => {
+    this.steps.push({ line, label: 'moveBody', ...(opts.body === undefined ? { mayOverlap: true } : {}), run: (ctx) => {
       const pre: EditOp[] = [];
       const id = ctx.nextId(); ctx.lastFeature = id;
       const f: Record<string, unknown> = { type: 'moveBody', id };

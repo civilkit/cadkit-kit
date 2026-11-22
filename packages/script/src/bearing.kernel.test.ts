@@ -213,3 +213,24 @@ describe('bearing(): flanged F625', () => {
     near(outer.volume, revolved(outerRingProfile(m, 2000)), 0.002);
   });
 });
+
+describe('bearing(): snap-ring groove', () => {
+  it('6204 with a groove: valid, the outer ring volume matches the grooved profile and is smaller than the plain ring by the groove', async () => {
+    const plain = await build(`part('B').bearing({ designation: '6204', seal: '2Z' });`);
+    const { run, bodies } = await build(`part('B').bearing({ designation: '6204', seal: '2Z', snapRing: true });`);
+    expect(run.ok, JSON.stringify(run.errors)).toBe(true);
+    expect(bodies.length).toBe(2);
+    const outer = bodies.find((b) => /outer/.test(b.name))!, outerPlain = plain.bodies.find((b) => /outer/.test(b.name))!;
+    const m = bearingModel(spec({ bore: 20, od: 47, width: 14, seal: '2Z', snapRing: true }));
+    near(outer.volume, revolved(outerRingProfile(m, 2000)), 0.002);
+    expect(outer.volume).toBeLessThan(outerPlain.volume);
+    const g = m.snapRing!;
+    const ring = Math.PI * (23.5 ** 2 - (23.5 - g.depth) ** 2) * g.width;
+    near(outerPlain.volume - outer.volume, ring, 0.01);
+  });
+  it('a flanged F625 with a groove (from the second face) is valid too', async () => {
+    const { run, bodies } = await build(`part('B').bearing({ designation: 'F625', seal: '2Z', snapRing: { width: 0.6, depth: 0.3, offset: 0.7 } });`);
+    expect(run.ok, JSON.stringify(run.errors)).toBe(true);
+    expect(bodies.length).toBe(2);
+  });
+});

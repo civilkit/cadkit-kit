@@ -46,6 +46,8 @@ export interface LibraryDialogProps {
   canInsert?: boolean;
   /** Open the wizard that makes a kind of part (the filter bar's "Make one with a wizard" link; omitted: no link). The app closes this dialog. */
   onWizard?(id: WizardId): void;
+  /** Open the Community Package Hub dialog. */
+  onOpenHub?(): void;
 }
 
 /** Filterable Library picker: the Recent row, then the parts of every library that is switched on, grouped by library; "Manage libraries"
@@ -138,6 +140,7 @@ export function LibraryDialog(p: LibraryDialogProps) {
       <div class="dlg" role="dialog" aria-label={t('libraryPicker.label')}>
         <div class="dlg-head">
           <b>{managing ? t('libraryPicker.manage') : t('libraryPicker.label')}</b>
+          {p.onOpenHub ? <button class="rb-btn" data-testid="lib-open-hub" onClick={p.onOpenHub}>{t('hub.openBtn')}</button> : null}
           {reg ? <button class="rb-btn" data-testid="lib-manage-toggle" aria-pressed={managing} onClick={() => { setManaging(!managing); setAdding(false); }}>{managing ? t('libraryPicker.back') : t('libraryPicker.manage')}</button> : null}
           <button class="rb-btn" onClick={p.onClose}>{t('ui.close')}</button>
         </div>

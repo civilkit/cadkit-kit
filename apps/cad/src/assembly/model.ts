@@ -44,6 +44,8 @@ export const namer = (doc: DocLike | null): ((n: string) => string | null) => { 
 
 export interface ComponentRow {
   id: string; name: string; partName: string; suppressed: boolean; fixed: boolean;
+  /** where the part came from (a sample id or a file name), '' when unknown */
+  source: string;
   dx: number; dy: number; dz: number; axis: 'x' | 'y' | 'z' | null; angle: number;
   /** the kernel's remaining degrees of freedom (null before a rebuild reported it) */
   dof: number | null;
@@ -55,7 +57,7 @@ const num = (v: unknown, d = 0): number => (typeof v === 'number' && Number.isFi
 export function componentRows(doc: DocLike | null, dof: ReadonlyMap<string, number> = new Map()): ComponentRow[] {
   if (!doc) return [];
   return doc.features.filter((f) => f.type === 'insertPart').map((f) => ({
-    id: f.id, name: f.name ?? f.id, partName: String((f.part as { name?: string } | undefined)?.name ?? ''), suppressed: f.suppressed === true, fixed: f.fixed === true,
+    id: f.id, name: f.name ?? f.id, partName: String((f.part as { name?: string } | undefined)?.name ?? ''), suppressed: f.suppressed === true, fixed: f.fixed === true, source: typeof f.source === 'string' ? f.source : '',
     dx: num(f.dx), dy: num(f.dy), dz: num(f.dz), axis: axisOf(f.axis), angle: num(f.angle, 0), dof: dof.get(f.id) ?? null,
   }));
 }
@@ -71,6 +73,28 @@ export function insertFeature(part: Record<string, unknown>, p: Placement, o: { 
   if (p.axis && p.angle) { f.axis = { kind: 'axis', axis: p.axis }; f.angle = p.angle; }
   if (o.fixed) f.fixed = true;
   return f;
+}
+
+/**
+ * The operations that bring component `id` up to date with `fresh`, the part as it is stored now. The component's placement, name, fixed
+ * and suppressed flags stay (only `part` is replaced), and so does its material when the new part names none (a refreshed part does not
+ * lose the look the assembly showed). Empty `ops` when nothing differs.
+ */
+export function refreshOps(doc: DocLike, id: string, fresh: Record<string, unknown>): { ops: EditOp[]; changed: boolean } {
+  const f = doc.features.find((x) => x.id === id && x.type === 'insertPart');
+  const old = f?.part as Record<string, unknown> | undefined;
+  if (!f || !old) return { ops: [], changed: false };
+  const next: Record<string, unknown> = { ...fresh };
+  if ((next.material === undefined || next.material === '') && typeof old.material === 'string' && old.material) next.material = old.material;
+  if (JSON.stringify(canon(old)) === JSON.stringify(canon(next))) return { ops: [], changed: false };
+  return { ops: [{ op: 'set', id, path: 'part', value: next }], changed: true };
+}
+
+/** Key order must not make two equal parts differ. */
+function canon(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canon);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, x]) => [k, canon(x)]));
+  return v;
 }
 
 /** Operations that set the placement of an inserted part (only what differs from `old`). */

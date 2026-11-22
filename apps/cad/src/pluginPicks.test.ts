@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { checkDefs, checkValue, type ParamDef } from '@kit/plugin';
-import { addPick, clearPicks, designChanged, docSketches, mergeViewPicks, pickPlan, profileItem, sketchItem } from './pluginPicks';
+import { addPick, clearPicks, designChanged, docSketches, mergeViewPicks, pickHighlightKeys, pickPlan, profileItem, removePickAt, sketchItem, toggleViewPicks } from './pluginPicks';
 import { pluginDocContext, selectionItems } from './pluginDoc';
 import type { BodyRow } from './bodies';
 
@@ -84,5 +84,36 @@ describe('picks are cleared when the design changes', () => {
   it('every selection field is emptied and the other values kept; nothing picked: nothing to do', () => {
     expect(clearPicks(params, { edges: [{ type: 'edge', body: 'A', index: 0 }], sk: [sketchItem({ id: 'F1', name: 'A' })], size: 7 })).toEqual({ edges: [], sk: [], size: 7 });
     expect(clearPicks(params, { edges: [], size: 7 })).toBeNull();
+  });
+});
+
+describe('direct 3D viewport mouse picking helpers', () => {
+  const b1 = { type: 'body', name: 'Rail' };
+  const b2 = { type: 'body', name: 'Stile' };
+  const sk = sketchItem({ id: 'F1', name: 'Outline' });
+
+  it('toggleViewPicks adds without Shift, toggles off on second click, ignores empty space, and enforces maxItems', () => {
+    expect(toggleViewPicks({}, [], [b1])).toEqual([b1]);
+    expect(toggleViewPicks({}, [b1], [b2])).toEqual([b1, b2]);
+    expect(toggleViewPicks({}, [b1, b2], [b1])).toEqual([b2]);
+    expect(toggleViewPicks({}, [b1, b2], [])).toEqual([b1, b2]);
+    expect(toggleViewPicks({}, [b1], [b1, b2], true)).toEqual([b1, b2]); // box-select addOnly never removes
+    expect(toggleViewPicks({ maxItems: 1 }, [b1], [b2])).toEqual([b2]);
+    expect(toggleViewPicks({}, [sk], [b1])).toEqual([sk, b1]);
+  });
+
+  it('removePickAt removes one item by index; pickHighlightKeys maps picks back to viewport keys', () => {
+    expect(removePickAt([b1, b2], 0)).toEqual([b2]);
+    const rows = [{ key: '@body:F1.S1', name: 'Body 1', docName: 'Rail', faces: ['F1.S1', 'F1.S2'], edges: ['F1.E1', 'F1.E2'] }];
+    expect(pickHighlightKeys([b1, { type: 'face', body: 'Rail', index: 1 }, { type: 'edge', body: 'Rail', index: 0 }], rows)).toEqual(['@body:F1.S1', 'F1.S2', 'F1.E1']);
+    expect(pickHighlightKeys(['Rail'], rows)).toEqual(['@body:F1.S1']);
+  });
+
+  it('selectionItems resolves a clicked face to its owning body when the field accepts bodies only', () => {
+    const mesh = { positions: [0, 0, 0, 1, 0, 0, 0, 1, 0], normals: [0, 0, 1, 0, 0, 1, 0, 0, 1], triFace: [0], faceIds: ['F1.S1'] };
+    const rows = [{ key: '@body:F1.S1', name: 'Body 1', docName: 'Rail', faces: ['F1.S1'], edges: [], volume: 1 }] as unknown as BodyRow[];
+    const sel = pluginDocContext(rows, mesh, ['F1.S1']).selection;
+    expect(selectionItems(sel, { accept: ['body'] })).toEqual([{ type: 'body', name: 'Rail' }]);
+    expect(selectionItems(sel, { accept: ['body'], asNames: true })).toEqual(['Rail']);
   });
 });

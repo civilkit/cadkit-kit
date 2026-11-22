@@ -383,3 +383,48 @@ describe('flanged F6xx bearings', () => {
     expect(bearingProblem({ bore: 5, od: 16, width: 5, flange: { diameter: 18, thickness: 5 } })).toMatch(/flange thickness/);
   });
 });
+
+describe('snap-ring groove', () => {
+  const base = { bore: 20, od: 47, width: 14, seal: '2Z' as const };
+  it('is off by default and the default groove follows the size', () => {
+    expect(bearingModel(base).snapRing).toBeNull();
+    const g = bearingModel({ ...base, snapRing: true }).snapRing!;
+    expect(g.width).toBeCloseTo(1.4, 9);
+    expect(g.depth).toBeCloseTo(1.65, 9);
+    expect(g.offset).toBeCloseTo(2.8, 9);
+    expect(g.fromSecond).toBe(false);
+  });
+  it('cuts a rectangle out of the outer diameter of the outer ring only, and the inner ring is unchanged', () => {
+    for (const seal of ['open', '2Z', '2RS'] as const) {
+      const plain = bearingModel({ ...base, seal }), grooved = bearingModel({ ...base, seal, snapRing: { width: 1.5, depth: 1.5, offset: 3 } });
+      const a = area(outerRingProfile(plain)), b = area(outerRingProfile(grooved));
+      expect(a - b, seal).toBeCloseTo(1.5 * 1.5, 6);
+      const pts = outerRingProfile(grooved);
+      expect(pts.some((q) => Math.abs(q[0] - (23.5 - 1.5)) < 1e-9 && Math.abs(q[1] - 3) < 1e-9), seal).toBe(true);
+      expect(pts.some((q) => Math.abs(q[0] - 22) < 1e-9 && Math.abs(q[1] - 4.5) < 1e-9), seal).toBe(true);
+      expect(selfIntersects(pts), seal).toBe(false);
+      expect(area(innerRingProfile(grooved))).toBeCloseTo(area(innerRingProfile(plain)), 9);
+    }
+  });
+  it('is measured from the second face when the ring has a flange', () => {
+    const p = bearingPreset('F626')!.preset;
+    const m = bearingModel({ bore: p.bore, od: p.od, width: p.width, seal: '2Z', flange: p.flange, snapRing: { width: 0.6, depth: 0.4, offset: 0.8 } });
+    expect(m.snapRing!.fromSecond).toBe(true);
+    const pts = outerRingProfile(m);
+    const ys = pts.filter((q) => Math.abs(q[0] - (m.R - 0.4)) < 1e-9).map((q) => q[1]);
+    expect(Math.min(...ys)).toBeCloseTo(6 - 0.8 - 0.6, 9);
+    expect(Math.max(...ys)).toBeCloseTo(6 - 0.8, 9);
+    expect(selfIntersects(pts)).toBe(false);
+  });
+  it('says why a groove cannot be made', () => {
+    expect(bearingProblem({ ...base, snapRing: { offset: 0.05 } })).toMatch(/too close to the face/);
+    expect(bearingProblem({ ...base, snapRing: { offset: 12 } })).toMatch(/does not fit in the width/);
+    expect(bearingProblem({ ...base, snapRing: { depth: 5 } })).toMatch(/too deep/);
+    expect(bearingProblem({ ...base, snapRing: { width: -1 } })).toMatch(/positive/);
+  });
+  it('the default groove is valid on every preset in every seal type', () => {
+    for (const p of BEARING_PRESETS) for (const seal of ['open', '2Z', '2RS'] as const) {
+      expect(bearingProblem({ bore: p.bore, od: p.od, width: p.width, seal, flange: p.flange, snapRing: true }), `${p.designation} ${seal}`).toBeNull();
+    }
+  });
+});

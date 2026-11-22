@@ -90,3 +90,48 @@ describe('MeshImportDialog for a GLB', () => {
     expect(onImport).toHaveBeenCalledWith('m', false, 1);
   });
 });
+
+describe('MeshImportDialog asks for a missing .mtl', () => {
+  const obj = enc.encode('mtllib a.mtl\nv 0 0 0\nv 1 0 0\nv 0 1 0\nv 0 0 1\nusemtl red\nf 1 3 2\nf 1 2 4\nf 2 3 4\nf 1 4 3\n');
+  it('the button shows only while the OBJ lacks its .mtl, and calls back', async () => {
+    const pr = await probeMesh('obj', obj);
+    if (!pr.ok) throw new Error(pr.code);
+    const onPickMtl = vi.fn();
+    const r = render(<MeshImportDialog name="a.obj" kind="obj" probe={pr.probe} unit="mm" onImport={() => {}} onCancel={() => {}} onPickMtl={onPickMtl} />);
+    fireEvent.click(r.getByTestId('mesh-import-pick-mtl'));
+    expect(onPickMtl).toHaveBeenCalledOnce();
+    cleanup();
+    const again = await probeMesh('obj', obj, { mtl: 'newmtl red\nKd 1 0 0\n' });
+    if (!again.ok) throw new Error(again.code);
+    expect(again.probe.colours).toBe(1);
+    const r2 = render(<MeshImportDialog name="a.obj" kind="obj" probe={again.probe} unit="mm" onImport={() => {}} onCancel={() => {}} onPickMtl={onPickMtl} />);
+    expect(r2.queryByTestId('mesh-import-pick-mtl')).toBeNull();
+  });
+});
+
+describe('.gltf text files', () => {
+  const tri = (uri: string) => enc.encode(JSON.stringify({
+    asset: { version: '2.0' }, scene: 0, scenes: [{ nodes: [0] }], nodes: [{ mesh: 0 }], meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+    accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: 'VEC3' }], bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: 36 }], buffers: [{ byteLength: 36, uri }],
+  }));
+  const bin = new Uint8Array(Float32Array.from([0, 0, 0, 1, 0, 0, 0, 1, 0]).buffer);
+  it('routes as a GLB, and a .gltf dropped with its .bin files is one import', () => {
+    expect(dropKind('a.gltf')).toBe('glb');
+    expect(meshKindOf('a.GLTF')).toBe('glb');
+    expect(meshNameOf('x/Chair.gltf')).toBe('Chair');
+    expect(OPEN_ACCEPT).toContain('.gltf');
+    expect(planDrop(['a.gltf', 'a.bin', 'b.bin'])).toEqual({ action: 'open', kind: 'glb', name: 'a.gltf', bins: ['a.bin', 'b.bin'] });
+    expect(planDrop(['a.bin', 'a.gltf'])).toMatchObject({ kind: 'glb', name: 'a.gltf', bins: ['a.bin'] });
+    expect(planDrop(['a.gltf', 'b.gltf'])).toEqual({ action: 'multiple' });
+    expect(planDrop(['a.glb', 'a.bin'])).toEqual({ action: 'multiple' });
+  });
+  it('probes and builds a record from data held in a .bin dropped with it; without the .bin it says what is missing', async () => {
+    const data = tri('part.bin');
+    expect(await probeMesh('glb', data)).toEqual({ ok: false, code: 'externalBuffer' });
+    const pr = await probeMesh('glb', data, { buffers: { 'part.bin': bin } });
+    if (!pr.ok) throw new Error(pr.code);
+    expect(pr.probe).toMatchObject({ triangles: 1, unitFixed: 'm' });
+    const { rec } = await buildMeshRecord('glb', data, 'part.gltf', 'mm', [], null, undefined, 1, { 'part.bin': bin });
+    expect(rec).toMatchObject({ name: 'part', tris: 1, unit: 'm' });
+  });
+});

@@ -100,6 +100,11 @@ export function BearingWizard(p: BearingWizardProps): JSX.Element {
         <Num name="width" label={t('bearing.width')} unit="mm" min={0.1} step={0.5} value={draft.width} onChange={(v) => size({ width: v })} />
         {sel('seal', t('bearing.seal'), BEARING_SEALS, (v) => t('bearing.seal.' + sealKey(v)), (v) => change({ seal: v as BearingParams['seal'], balls: null, ballDiameter: null }))}
         <Num name="chamfer" label={t('bearing.chamfer')} unit="mm" min={0} step={0.05} value={draft.chamfer ?? num?.chamfer ?? 0} hintText={t('bearing.chamferTip')} onChange={(v) => change({ chamfer: v })} />
+        <label class="fedit-fld bearing-snap-ring" data-path="snapRing" title={t('bearing.snapRingTip')}>
+          <span class="fedit-fld-label">{t('bearing.snapRing')}</span>
+          <input type="checkbox" checked={draft.snapRing} aria-label={t('bearing.snapRing')} onChange={(e) => change({ snapRing: (e.currentTarget as HTMLInputElement).checked })} />
+        </label>
+        {draft.snapRing && num?.snapRing ? <div class="thread-hint" data-testid="bearing-snap-ring">{t('bearing.snapRingReadout', { w: fmt(num.snapRing.width), d: fmt(num.snapRing.depth), o: fmt(num.snapRing.offset) })}</div> : null}
         {draft.seal === 'open' ? (
           <>
             <Num name="balls" label={t('bearing.balls')} min={3} step={1} value={draft.balls ?? num?.balls ?? 0} hintText={t('bearing.ballsTip')} onChange={(v) => change({ balls: Math.round(v) })} />

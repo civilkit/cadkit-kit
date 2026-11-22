@@ -57,7 +57,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
   Features: [
     // Plain buttons where there is room: the tab is wide and short. Only the long parts family (15 commands) stays a dropdown.
     { id: 'Reference', entries: ['add-plane', 'add-axis', 'add-helix', 'add-project-curve', 'add-edit-curve', 'add-offset-curve', 'add-composite-curve'] },
-    { id: 'Create', entries: [slot('gear'), 'add-plugin'] },
+    { id: 'Create', entries: [slot('gear'), 'add-plugin', 'community-hub'] },
     { id: 'Modify', entries: ['add-draft', 'add-rib', 'add-lip', 'add-dome', 'add-mirror', 'add-scale', 'add-split', 'add-split-face', 'add-combine', 'add-lip-joint', 'add-pipe-cut'] },
     { id: 'Bodies', entries: ['add-delete-body', 'add-delete-face'] },
   ],
@@ -111,7 +111,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
 export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
   { id: 'history', entries: ['undo', 'redo', 'repeat-last', slot('history')] },
   { id: 'sketch', entries: [slot('new-sketch', { fixed: true }), 'add-sketch3d'] },
-  { id: 'create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('primitives'), slot('solids'), slot('hole'), slot('gear'), 'add-plugin', slot('reference'), slot('catalog')] },
+  { id: 'create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('primitives'), slot('solids'), slot('hole'), slot('gear'), 'add-plugin', 'community-hub', slot('reference'), slot('catalog')] },
   { id: 'modify', entries: [slot('edge-round'), 'add-shell', 'add-press-pull', slot('draft'), 'add-mirror', 'add-scale', 'add-split', 'add-split-face', 'add-combine', 'add-lip-joint', 'triball', 'add-pipe-cut', slot('delete-geom')] },
   { id: 'frame', entries: ['add-frame', 'frame-cutlist'] },
   { id: 'sheet', entries: ['sheet-rules', 'add-base-flange', 'add-edge-flange', 'add-contour-flange', 'add-sheet-convert', 'add-hem', 'add-fold', 'add-sheet-cut', 'add-sheet-corner', 'sheet-unfold', 'sheet-refold', 'sheet-flat'] },

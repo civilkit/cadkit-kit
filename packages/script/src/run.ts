@@ -1,6 +1,7 @@
 // The runner: evaluates the script text in a restricted scope, then applies the recorded steps through a host (the app's Controller or a Session).
 import type { InertiaFact, TextMetricsFact } from './recorder';
 import { applyDecor, type PartBuilder, makeApi, setLineOffset, type Ctx, type EditOp, type FactNeed, type Facts, type ReadRuntime, type ScriptState, type Step } from './recorder';
+import { fuseIntersectingOps } from './autoFuse';
 import { faceInfos, SelectorError, type Geometry, type Vec } from './selectors';
 
 export interface EditResultLike { ok: boolean; errors?: Array<[string, { code?: string; message?: string; params?: Record<string, unknown> }] | { feature?: string; code?: string; message?: string; params?: Record<string, unknown> }>; schemaError?: string; added?: string[] }
@@ -55,6 +56,10 @@ export interface RunOptions {
    * `result.document.features` is the prefix followed by the script's features.
    */
   prefix?: { features: Array<Record<string, unknown>>; seq: number };
+  /** Opt-in implicit boolean fusion for the run (default false). Can be overridden per part/step with `part(..., { autoFuse })` or `part.autoFuse(...)`. */
+  autoFuse?: boolean;
+  /** Alias for `autoFuse`. */
+  implicitUnion?: boolean;
 }
 export interface RunStats { batched: boolean; steps: number; builds: number; viewBuilds: number; buildMs: number; loadMs: number; totalMs: number }
 export interface ScriptError { line: number; message: string; feature?: string }
@@ -239,7 +244,8 @@ export async function runScript(code: string, host: ScriptHost, base: Record<str
   const ops: EditOp[] = [];
   let n = 0;
   const autoFlip = new Set<string>();
-  const ctx: Ctx = { geo: host.geometry(), nextId: () => `F${++n}`, lastSketch: null, lastFeature: null, warn, autoFlip };
+  const defaultAutoFuse = Boolean(opts.autoFuse ?? opts.implicitUnion ?? false);
+  const ctx: Ctx = { geo: host.geometry(), nextId: () => `F${++n}`, lastSketch: null, lastFeature: null, warn, autoFlip, autoFuse: defaultAutoFuse };
   const stepsOf = part.steps;
   const checks: ScriptCheck[] = [];
   const rt: ReadRuntime = {
@@ -263,6 +269,7 @@ export async function runScript(code: string, host: ScriptHost, base: Record<str
     stepNo++;
     if (stepsOf.length > MAX_STEPS) { errors.push({ line: 1, message: `more than ${MAX_STEPS} steps` }); break; }
     ctx.geo = host.geometry();
+    ctx.autoFuse = step.autoFuse ?? defaultAutoFuse;
     if (step.read) {
       try { await step.read(rt); } catch (e) { errors.push({ ...toError(e), line: e instanceof SelectorError && e.line ? e.line : step.line }); break; }
       continue;
@@ -289,6 +296,20 @@ export async function runScript(code: string, host: ScriptHost, base: Record<str
     }
     // a feature that was kept but failed to regenerate is reported on its line, the run goes on
     for (const e of errorsOf(r)) errors.push({ line: step.line, feature: e.feature ?? fid, message: friendlyKernelMessage(e.message) });
+    if (ctx.autoFuse && step.mayOverlap) {
+      ctx.geo = host.geometry();
+      const fuseOps = fuseIntersectingOps(ctx);
+      if (fuseOps.length) {
+        const fr = await host.edit(fuseOps, 'autoFuse');
+        ops.push(...fuseOps);
+        const ffid = (fuseOps[fuseOps.length - 1].feature.id as string | undefined) ?? undefined;
+        if (!fr.ok) {
+          errors.push({ line: step.line, feature: ffid, message: friendlyKernelMessage(fr.schemaError ?? firstMessage(fr) ?? 'the kernel rejected this step') });
+          break;
+        }
+        for (const e of errorsOf(fr)) errors.push({ line: step.line, feature: e.feature ?? ffid, message: friendlyKernelMessage(e.message) });
+      }
+    }
   }
   (doc.features as unknown[]) = ops.map((o) => o.feature);
   doc.seq = n + 1;
@@ -335,8 +356,10 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
     get edges() { return current().edges; },
     get box() { return current().box; },
     get openEdges() { return current().openEdges; },
+    get faceLumps() { return current().faceLumps; },
   };
-  const ctx: Ctx = { geo: lazy, nextId: () => `F${++n}`, lastSketch: null, lastFeature: null, warn, autoFlip };
+  const defaultAutoFuse = Boolean(opts.autoFuse ?? opts.implicitUnion ?? false);
+  const ctx: Ctx = { geo: lazy, nextId: () => `F${++n}`, lastSketch: null, lastFeature: null, warn, autoFlip, autoFuse: defaultAutoFuse };
   const progress = (phase: Progress['phase']): void => opts.onProgress?.({ phase, done: built, total: steps.length, elapsedMs: performance.now() - t0 });
   const cancelled = (): boolean => opts.signal?.aborted === true;
   const cancelResult = (): ScriptResult => ({ ops: [], document: null, errors: [], cancelled: true, stats: { ...stats, totalMs: performance.now() - t0 } });
@@ -424,6 +447,7 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
       if (steps.length > MAX_STEPS) { errors.push({ line: 1, message: `more than ${MAX_STEPS} steps` }); failed = true; break; }
       curStep = done;
       const step = steps[done];
+      ctx.autoFuse = step.autoFuse ?? defaultAutoFuse;
       if (step.read) {
         try { await step.read(rt); } catch (e) {
           if (!(e instanceof ReadAborted)) errors.push({ ...toError(e), line: e instanceof SelectorError && e.line ? e.line : step.line });
@@ -454,6 +478,18 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
         if (o.index !== undefined && o.index < features.length) features.splice(o.index, 0, o.feature); else features.push(o.feature);
       }
       ops.push(...stepOps);
+      if (ctx.autoFuse && step.mayOverlap && stepOps.length) {
+        if (!(await flush(true, done + 1))) break;
+        const fuseOps = fuseIntersectingOps(ctx);
+        if (fuseOps.length) {
+          for (const o of fuseOps) {
+            stepOfFeature.set(o.feature.id as string, done);
+            featureOf.set(o.feature.id as string, o.feature);
+            features.push(o.feature);
+          }
+          ops.push(...fuseOps);
+        }
+      }
       if (done + 1 - built >= every) {
         if (!(await flush(false, done + 1))) break;
         await yieldToUi();

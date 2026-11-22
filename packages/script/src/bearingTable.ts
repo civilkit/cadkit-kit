@@ -102,6 +102,11 @@ export interface BearingSpec {
   chamfer?: number;
   /** a flange on the outer ring at the first face: outer diameter and thickness, mm (the F6xx presets carry one) */
   flange?: BearingFlange;
+  /**
+   * A snap-ring groove in the outer diameter of the outer ring (the "N" groove): true for the default, or width, depth and the distance of its near edge from
+   * the first face (from the second face when the ring has a flange there). Rules of thumb by size, not the ISO 464 table.
+   */
+  snapRing?: boolean | { width?: number; depth?: number; offset?: number };
   /** ball count for an open bearing (default by rule) */
   balls?: number;
   /** ball diameter for an open bearing (default from the race gap) */
@@ -128,6 +133,8 @@ export interface BearingModel {
   /** shield or seal: recess of its outer face from the ring face, thickness, inner radius (a small clearance outside the inner ring) */
   recess: number; shieldThickness: number; shieldTip: number;
   /** outer-ring inside corner chamfer when a shield sits there */ innerCornerChamfer: number;
+  /** the snap-ring groove in the outer ring's outer diameter: `offset` is the distance of its near edge from the reference face (the first face, or the second when `fromSecond`), or null */
+  snapRing: { width: number; depth: number; offset: number; fromSecond: boolean } | null;
   /** balls (open bearings; 0 otherwise) */ balls: number; ballDiameter: number; pitchRadius: number;
   /**
    * The ball groove, or null for a plain race (a ring too thin under the groove, a bearing too narrow for it, or balls much smaller than the gap).
@@ -167,6 +174,14 @@ export function bearingProblem(s: BearingSpec): string | null {
     if (!(ft < width)) return `the flange thickness (${ft}) must be less than the width (${width})`;
   }
   const m = bearingModelUnchecked(s);
+  if (m.snapRing) {
+    const g = m.snapRing;
+    if (![g.width, g.depth, g.offset].every((v) => Number.isFinite(v) && v > 0)) return 'the snap-ring groove needs a positive width, depth and offset';
+    if (g.offset < m.chamfer + 0.1 - 1e-9) return `the snap-ring groove is too close to the face (its edge is ${+g.offset.toFixed(3)} from it, the chamfer is ${+m.chamfer.toFixed(3)})`;
+    if (g.offset + g.width > width - m.chamfer - 0.1 + 1e-9) return `the snap-ring groove (${+g.width.toFixed(3)} wide, ${+g.offset.toFixed(3)} from the face) does not fit in the width (${width})`;
+    if (m.flange && g.offset + g.width > width - m.flange.thickness - 0.1 + 1e-9) return 'the snap-ring groove runs into the flange';
+    if (g.depth > 0.6 * (m.R - m.r3s) + 1e-9) return `the snap-ring groove is too deep (${+g.depth.toFixed(3)}) for the ring wall: at most ${+(0.6 * (m.R - m.r3s)).toFixed(3)}`;
+  }
   if (!(2 * m.chamfer < m.ring) && m.chamfer > 0) return `the chamfer (${m.chamfer}) must be less than half the ring thickness (${+m.ring.toFixed(3)})`;
   if (!(2 * m.chamfer < width)) return `the chamfer (${m.chamfer}) must be less than half the width (${width})`;
   if (m.seal !== 'open' && !(width - 2 * (m.recess + m.shieldThickness) > 0.1)) return `the width (${width}) is too small for a ${m.seal} shield or seal; use an open bearing`;
@@ -208,7 +223,14 @@ function bearingModelUnchecked(s: BearingSpec): BearingModel {
   const r2s = grooved ? shoulder : r2, r3s = grooved ? 2 * pitchRadius - shoulder : r3;
   const clearance = seal === '2RS' ? 0.03 : Math.max(0.05, Math.min(0.2, 0.08 * gap));
   const flange = s.flange ? { radius: s.flange.diameter / 2, thickness: s.flange.thickness } : null;
-  return { seal, bore, od, width, r1, r2, r3, R, ring, gap, chamfer, flange, recess, shieldThickness, shieldTip: r2s + clearance, innerCornerChamfer: Math.min(chamfer, 0.8 * recess), balls, ballDiameter, pitchRadius, groove, grooveBall, r2s, r3s };
+  const sr = s.snapRing === true ? {} : s.snapRing || null;
+  const snapRing = sr ? {
+    width: sr.width ?? Math.max(0.5, Math.round(0.1 * width * 100) / 100),
+    depth: sr.depth ?? Math.min(Math.max(0.3, Math.round(0.035 * od * 100) / 100), 0.5 * (R - r3s)),
+    offset: sr.offset ?? Math.max(chamfer + 0.2, Math.round(0.2 * width * 100) / 100),
+    fromSecond: flange !== null,
+  } : null;
+  return { seal, bore, od, width, r1, r2, r3, R, ring, gap, chamfer, flange, recess, shieldThickness, snapRing, shieldTip: r2s + clearance, innerCornerChamfer: Math.min(chamfer, 0.8 * recess), balls, ballDiameter, pitchRadius, groove, grooveBall, r2s, r3s };
 }
 
 /** The model of a bearing. Throws an Error with the reason when `bearingProblem` finds one. */
@@ -255,6 +277,14 @@ export function innerRingPath(m: BearingModel): PathNode[] {
   return dedupe([node(r1 + c, 0), node(r2 - c, 0), node(r2, c), ...side, node(r2, B - c), node(r2 - c, B), node(r1 + c, B), node(r1, B - c), node(r1, c)]);
 }
 
+/** The nodes of the snap-ring groove along the outer diameter, in the order of travel (`up`: from the first face towards the second). */
+function snapRingNodes(m: BearingModel, up: boolean): PathNode[] {
+  const g = m.snapRing;
+  if (!g) return [];
+  const ya = g.fromSecond ? m.width - g.offset - g.width : g.offset, yb = ya + g.width, r = m.R - g.depth;
+  return up ? [node(m.R, ya), node(r, ya), node(r, yb), node(m.R, yb)] : [node(m.R, yb), node(r, yb), node(r, ya), node(m.R, ya)];
+}
+
 /**
  * The section of the outer ring as a path. For a shielded or sealed bearing the cover is part of it (the shield is pressed into the outer ring):
  * a flat disc 2Z, or a thicker seal 2RS with a sloping lip, at both faces, recessed from the face and ending a little outside the inner ring.
@@ -268,7 +298,7 @@ export function outerRingPath(m: BearingModel): PathNode[] {
     const head: PathNode[] = m.flange
       ? [node(r3 + c, 0), node(m.flange.radius - cf, 0), node(m.flange.radius, cf), node(m.flange.radius, m.flange.thickness), node(R, m.flange.thickness)]
       : [node(r3 + c, 0), node(R - c, 0), node(R, c)];
-    return dedupe([...head, node(R, B - c), node(R - c, B), node(r3 + c, B), node(r3, B - c), ...side, node(r3, c)]);
+    return dedupe([...head, ...snapRingNodes(m, true), node(R, B - c), node(R - c, B), node(r3 + c, B), node(r3, B - c), ...side, node(r3, c)]);
   }
   const { recess: e, shieldThickness: ts, shieldTip: rt, innerCornerChamfer: cc } = m;
   // one cover, from the face at y = 0 up; the one at the other face is its mirror image (y -> B - y)
@@ -284,7 +314,8 @@ export function outerRingPath(m: BearingModel): PathNode[] {
   const nodes = (pts: Pt[]): PathNode[] => pts.map((q) => node(q[0], q[1]));
   // between the covers the inner wall runs up past the groove (the larger radius, counter-clockwise about the ball centre)
   const mid: PathNode[] = g ? [node(r3, B / 2 - g.halfWidth, { c: g.centre, ccw: true }), node(r3, B / 2 + g.halfWidth)] : [];
-  const tail: PathNode[] = m.flange ? [node(R, B - c), node(R, m.flange.thickness), node(m.flange.radius, m.flange.thickness), node(m.flange.radius, cf)] : [node(R, B - c), node(R, c)];
+  const od = snapRingNodes(m, false);
+  const tail: PathNode[] = m.flange ? [node(R, B - c), ...od, node(R, m.flange.thickness), node(m.flange.radius, m.flange.thickness), node(m.flange.radius, cf)] : [node(R, B - c), ...od, node(R, c)];
   return dedupe([...nodes(low), ...mid, ...nodes(high), ...tail]);
 }
 

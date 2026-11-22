@@ -2061,7 +2061,11 @@ export class Controller {
       body = r.body;
       if (r.surfaces !== undefined) surfaces = hasSurfaceFeatures(this.sdoc().features as never) ? toViewSurfaces(r.surfaces) : [];
     }
-    return withSurfaces(body, surfaces ?? (await this.surfacesFor(s, this.sdoc(), n)));
+    const sheets = surfaces ?? (await this.surfacesFor(s, this.sdoc(), n));
+    // a part that is only surfaces (an imported file with no valid solid) has no solid, sketch, curve or plane: the session reports null,
+    // but the sheets are still to be drawn, so give them an empty body to hang on (withSurfaces sizes the box from the sheets)
+    const base = body ?? (sheets.length ? ({ mesh: { positions: new Float32Array(0), normals: new Float32Array(0), triFace: new Int32Array(0), faceIds: [] }, edges: [], box: { min: [0, 0, 0], max: [0, 0, 0] }, sketches: [], curves: [], planes: [], markers: [] } as unknown as NonNullable<typeof body>) : null);
+    return withSurfaces(base, sheets);
   }
 
   /**

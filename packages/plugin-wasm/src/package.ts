@@ -2,7 +2,7 @@
 // recorded command list as a script (the app's own dialect); from there it is an ordinary attach-mode run like every other plugin.
 import type { GenerateContext, GenerateFn, InstalledPlugin, ReadFn } from '@kit/plugin';
 import { runPlugin, type Loaded } from './host';
-import { Interpreter, type Scratch } from './interpreter';
+import { Interpreter, type MaterialLook, type Scratch } from './interpreter';
 import { friendlyPluginError } from './errors';
 import { checkSaved } from './sandbox';
 
@@ -38,8 +38,8 @@ export type EntryRunner = (p: InstalledPlugin, entry: string, params: unknown, h
 
 export interface WasmDeps {
   runner?: EntryRunner;
-  /** the app's colour for a board material (its material library); a name it does not know falls back to the plugin's own colour */
-  look?: (material: string) => string | undefined;
+  /** the app's colour or PBR look for a board material (its material library); a name it does not know falls back to the plugin's own look */
+  look?: (material: string) => string | Partial<MaterialLook> | undefined;
   loader?: ComponentLoader;
   /** the kernel's scratch build, for reads (`inspect.measure`); absent: a plugin that reads fails with a clear message */
   scratch?: () => Scratch;
@@ -69,9 +69,13 @@ export function wasmGenerators(p: InstalledPlugin, deps: WasmDeps = {}): Record<
     else await runPlugin(await loaded!, g.entry!, own, (c, a) => I.run(c, a), { allow, deadlineMs: w.limits?.deadlineMs ?? 30000, maxCommands: w.limits?.maxCommands ?? 256, sync: (c, a) => I.runSync(c, a) });
     } catch (e) { throw new Error(friendlyPluginError((e as Error).message)); }
     if (!I.order.length && !I.assigned.size) throw new Error('the plugin made no geometry');   // Material only gives bodies a board material
+    const offset = [Number(place_x), Number(place_y), Number(place_z)];
     const stored = I.componentMetadata();
-    if (Object.keys(stored).length) ctx.remember?.({ components: stored });
-    return I.script({ part: g.title, ...(ctx.up ? { up: ctx.up } : {}), offset: [Number(place_x), Number(place_y), Number(place_z)], ...(deps.look ? { look: deps.look } : {}) });
+    const joints = I.jointHints({ ...(ctx.up ? { up: ctx.up } : {}), offset });
+    if (Object.keys(stored).length || joints.length) {
+      ctx.remember?.({ ...(Object.keys(stored).length ? { components: stored } : {}), ...(joints.length ? { joints } : {}) });
+    }
+    return I.script({ part: g.title, ...(ctx.up ? { up: ctx.up } : {}), offset, ...(deps.look ? { look: deps.look } : {}) });
   }]));
 }
 

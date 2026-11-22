@@ -3,6 +3,8 @@
 import type { Command } from '@kit/ui';
 import { selectCommands, type SelectActions } from './select/selectCommands';
 import { t } from './i18n';
+import { matchCombo } from './keymap';
+import { applyKeymap, registerDefaults } from './keymapStore';
 import type { DisplayLayer, SelectionMode } from '@kit/store';
 import { featureCommands, type FeatureActions } from './featureCommands';
 import { lookCommands, type LookActions } from './lookCommands';
@@ -85,6 +87,8 @@ export interface Actions {
   caseBox?(): void;
   /** Open the Plugins panel: the generators plugins add, each with a generated form (see PluginPanel.tsx). */
   plugins?(): void;
+  /** Open the Community Package Hub dialog (see hub/HubDialog.tsx). */
+  communityHub?(): void;
   /** the generators of installed (not built-in) plugins: each becomes a command of its own in the Gear menu, next to the app's wizards */
   pluginGenerators?: Array<{ id: string; label: string; tip?: string; /** the palette group: Create, or File / Help for an entry that asked for that menu */ group?: string; run(): void }>;
   /** Open the Tray wizard (see TrayWizard.tsx). */
@@ -164,23 +168,14 @@ export const SHORTCUTS: Record<string, string> = {
 
 /** The command a key press runs, or undefined. A spec is `Key`, `Shift+Key`, `Ctrl+Key` or `Ctrl+Shift+Key` (Ctrl means Ctrl or Cmd). */
 export function matchShortcut(cmds: Command[], e: { key: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; altKey: boolean; code?: string }): Command | undefined {
-  const ctrl = e.ctrlKey || e.metaKey;
-  // with Alt the key is often another character (macOS: Alt+H is a dead key), so read the physical key
-  const code = e.code?.match(/^(?:Key|Digit)(.)$/);
-  const key = e.altKey && code ? code[1].toLowerCase() : e.key.toLowerCase();
-  return cmds.find((c) => {
-    if (!c.keys) return false;
-    const parts = c.keys.toLowerCase().split('+');
-    const k = parts[parts.length - 1];
-    return k === key && parts.includes('shift') === e.shiftKey && parts.includes('ctrl') === ctrl && parts.includes('alt') === e.altKey;
-  });
+  return cmds.find((c) => !!c.keys && matchCombo(c.keys, e));
 }
 
 /** The id of the command most recently run (Repeat last command runs it again). Module-level because the table is rebuilt on render. */
 let lastCommandId: string | null = null;
 /** Forget the remembered command (tests). */
 export function resetLastCommand(): void { lastCommandId = null; }
-const NOT_REPEATABLE = new Set(['palette', 'repeat-last']);
+const NOT_REPEATABLE = new Set(['palette', 'repeat-last', 'community-hub']);
 
 const LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations', 'dimensions', 'threads'];
 
@@ -242,6 +237,7 @@ export function buildCommands(a: Actions): Command[] {
   if (a.insert) cmds.push({ id: 'add-insert', label: t('cmd.add-insert'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.insert });
   if (a.tray) cmds.push({ id: 'add-tray', label: t('cmd.add-tray'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.tray });
   if (a.plugins) cmds.push({ id: 'add-plugin', label: t('cmd.add-plugin'), tip: t('tip.add-plugin'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.plugins });
+  if (a.communityHub) cmds.push({ id: 'community-hub', label: t('cmd.community-hub'), tip: t('tip.community-hub'), tab: 'Features', group: 'Create', keywords: 'community hub packages plugins libraries catalog registry', run: a.communityHub });
   for (const g of Array.isArray(a.pluginGenerators) ? a.pluginGenerators : []) cmds.push({ id: g.id, label: g.label, ...(g.tip ? { tip: g.tip } : {}), icon: 'add-plugin', tab: 'Features', group: g.group ?? 'Create', enabled: a.hasDocument, run: g.run });
   if (a.caseBox) cmds.push({ id: 'add-case', label: t('cmd.add-case'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.caseBox });
   if (a.bearing) cmds.push({ id: 'add-bearing', label: t('cmd.add-bearing'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.bearing });
@@ -264,6 +260,8 @@ export function buildCommands(a: Actions): Command[] {
   for (const layer of LAYERS) {
     cmds.push({ id: `layer-${layer}`, label: `${a.layer(layer) ? '✓ ' : ''}${t('layer.' + layer)}`, tab: 'View', group: 'Show', pressed: () => a.layer(layer), run: () => a.toggleLayer(layer) });
   }
+  registerDefaults(cmds);
+  applyKeymap(cmds);   // the user's keys (or a preset's) replace the shipped ones; matchShortcut, tooltips and the cheat sheet all read `keys`
   for (const c of cmds) {
     if (NOT_REPEATABLE.has(c.id)) continue;
     const run = c.run;

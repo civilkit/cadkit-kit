@@ -15,17 +15,44 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg"],
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.png"],
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/64x64.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
     "category": "GraphicsAndDesign",
     "shortDescription": "Parametric CAD",
     "copyright": "CivilKit",
     "fileAssociations": [
-      { "ext": ["ckpart"], "name": "CivilKit part", "description": "CivilKit part file", "mimeType": "application/x-civilkit-part", "role": "Editor" }
+      {
+        "ext": ["ckpart", "ckpart.gz"],
+        "name": "CivilKit part",
+        "description": "CivilKit part file",
+        "mimeType": "application/x-civilkit-part",
+        "role": "Editor"
+      }
     ],
     "macOS": {
       "minimumSystemVersion": "11.0",
       "signingIdentity": "-"
+    },
+    "windows": {
+      "wix": {
+        "language": "en-US"
+      },
+      "nsis": {
+        "installMode": "both"
+      }
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      }
     }
   }
 }

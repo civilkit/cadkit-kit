@@ -197,7 +197,7 @@ export const enclosureFeatures = {
     return this.moveBody(hl, { translate: [0, 1, 2].map((k) => r6(-off * fr.x[k] + g.baseHeight * fr.normal[k]) + 0) as [number, number, number] });
   },
   /**
-   * Lip joint of a two-part case: split a shelled body at a plane, tongue on one half, groove on the other.
+   * Two-part case lip joint: split a shelled body, tongue on one half, groove on the other.
    *
    * Does split() and then makes, along the outer boundary of the seam (the walls of a shelled box), a centred tongue standing height mm out of one half and a matching channel in the other, wider by clearance on each side and deeper by clearance, so the halves fit with that clearance all round. The tongue is width mm wide (or widthRatio of the wall thickness, default 0.5) and sits inset mm from the outer wall (default: centred in the wall). The wall thickness is measured on the seam; a solid body has none, so give width and inset in mm. tongue: 'below' (default) puts the tongue on the lower half. Needs a flat seam and a closed outline. Errors say what does not fit the wall (invalidValue, field and detail).
    * @domain features

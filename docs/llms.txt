@@ -149,11 +149,11 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 
 ### sketch
 
-* `at(base, offset?, opts?)`: A workplane for a sketch: an offset plane, a face, a plane feature, a point and normal, or a tilt.
+* `at(base, offset?, opts?)`: A sketch workplane: offset plane, face, plane feature, point and normal, or tilt.
 * `.sketch(plane, build, name?)`: Start a sketch on a plane or a face; the next extrude, cut or revolve uses it.
 * `.sketchFeature(on, json)`: Append a raw sketch (points, entities, constraints) on a plane.
 * `.workplane(base, offset?, opts?)`: /** Add a reference plane (workplane) feature without a sketch.
-* `plane(name)`: The frame of a standard sketch plane: which world axes its sketch x, y and normal are.
+* `plane(name)`: The frame of a standard sketch plane: its sketch x, y and normal as world axes.
 * `s.arc(centre, start, end)`: Counter-clockwise arc about a centre from a start point to an end point.
 * `s.arc3(a, m, b)`: Arc from a to b passing through the middle point m (either direction).
 * `s.axis()`: Construction line along the sketch Y axis (the default revolve axis).
@@ -161,7 +161,7 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `s.circle(r, at?)`: Circle given its RADIUS (not diameter).
 * `s.curve(f, o?)`: Curve from a JavaScript function t -> [x, y], sampled into a fitted spline.
 * `s.cvspline(pts, o?)`: Control-vertex spline: the points are the control polygon, not on the curve.
-* `s.equation(o)`: Curve from formulas x(t), y(t): the kernel fits a spline with the fewest points within the tolerance.
+* `s.equation(o)`: Curve from formulas x(t), y(t), fitted as a spline within the tolerance.
 * `s.grid(origin, pitch, count)`: Points on a rectangular grid.
 * `s.line(a, b)`: One line segment between two points.
 * `s.offset(distance, o?)`: Offset the chain drawn last.
@@ -175,20 +175,21 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `s.rect(w, h, at?)`: Rectangle of width x height centred on a point.
 * `s.rrect(w, h, r, at?)`: Rounded rectangle: width x height with corner radius r.
 * `s.spline(pts, o?)`: Interpolating spline: a smooth curve through the points.
-* `s.text(string, at, opts?)`: Lettering: the outlines of a string as closed regions (engrave it with cut, emboss it with extrude).
+* `s.text(string, at, opts?)`: Lettering: string outlines as closed regions (cut to engrave, extrude to emboss).
 
 ### features
 
-* `bearing(o)`: A ball bearing as separate bodies (rings, balls when open), placed by an origin and an axis.
+* `bearing(o)`: A ball bearing as separate bodies (rings, balls if open), placed by origin and axis.
 * `caseBox(o)`: A closed two-part case (Base and Lid with a lip joint) in one call.
 * `extensionSpring(o)`: An extension spring as its own body.
+* `fuseIntersecting(o?)`: Fuse the part's intersecting or touching bodies; disjoint ones stay apart.
 * `gridBaseplate(o)`: A Gridfinity baseplate: a plate of pockets a tray's foot seats in.
 * `gridTray(o)`: A tray or bin on a grid (Gridfinity-style sizes) as its own body.
 * `heatSetInsert(o)`: A heat-set insert as its own body, optionally with its hole.
 * `nut(o)`: A hexagon nut as its own body.
-* `.axis(a, b?)`: A reference axis: a world axis, a straight edge, a cylinder or the line where two planes meet.
+* `.axis(a, b?)`: A reference axis: world axis, straight edge, cylinder or two-plane intersection.
 * `.baseFlange(o?)`: Sheet base plate from the last closed sketch.
-* `.bearing(o)`: A ball bearing as separate bodies: two rings (with shields or seals) and, when open, the balls.
+* `.bearing(o)`: A ball bearing as separate bodies: two rings (shields or seals) and, if open, balls.
 * `.caseBox(o)`: A closed two-part case (base and lid with a lip joint) from outside sizes.
 * `.chamfer(on, distance)`: Bevel edges: equal distance, two distances, or distance and angle.
 * `.combine(op, target, tools, o?)`: Boolean between whole bodies: union, cut, intersect or split.
@@ -200,29 +201,30 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `.edgeFlange(edges, o)`: Bent flange on edges of the base plate.
 * `.extensionSpring(o)`: An extension spring as its own body.
 * `.extrude(depth, o?)`: Extrude the last sketch into a solid (adds material).
-* `.feature(json)`: Append any kernel feature as raw JSON (escape hatch for features without a helper).
+* `.feature(json)`: Append any kernel feature as raw JSON (escape hatch).
 * `.fillet(on, radius)`: Round edges: one radius, a radius per edge, or a variable radius.
 * `.fold(o)`: Fold the base along a line.
-* `.gear(o)`: Involute spur or helical gear (profile, body extrude, bore) from module and teeth.
+* `.fuseIntersecting(o?)`: Fuse intersecting or touching bodies into union solids; disjoint ones stay apart.
+* `.gear(o)`: Involute spur or helical gear (profile, body, bore) from module and teeth.
 * `.gridBaseplate(o)`: A Gridfinity baseplate: a plate of pockets the foot of a tray or bin seats in.
-* `.gridTray(o)`: A tray or bin on a grid (Gridfinity-style units) as its own body, scooped along its length.
+* `.gridTray(o)`: A tray or bin on a grid (Gridfinity-style units) as its own body, scooped lengthwise.
 * `.groove(rim, edges, o?)`: Groove along rim edges (the mating half of a lip).
 * `.heatSetInsert(o)`: A heat-set threaded insert as its own body, optionally with its hole.
 * `.helix(o)`: A helix curve (adds no body): the path of a sweep, or a reference.
 * `.hem(edges, o)`: 180 degree hem on an edge.
 * `.knurl(o)`: Knurl a cylinder: cut straight, diamond or pyramid grooves into it.
 * `.lip(rim, edges, o?)`: Raise a lip: a band along rim edges (a rabbet for a lid).
-* `.lipJoint(plane, o)`: Lip joint of a two-part case: split a shelled body at a plane, tongue on one half, groove on the other.
+* `.lipJoint(plane, o)`: Two-part case lip joint: split a shelled body, tongue on one half, groove on the other.
 * `.loft(sections, o?)`: Loft a solid through two or more section sketches, optionally ending in a point.
 * `.moveBody(bodies, o?)`: Move, rotate or copy whole bodies (also a mirrored copy).
 * `.moveFace(faces, o)`: Push or pull faces; their neighbours follow (direct modelling).
 * `.nut(o)`: A hexagon nut (ISO 4032, 4035, 4033) as its own body.
 * `.pressPull(faces, o)`: Press Pull: continue a flat face straight out of the part, or into it.
 * `.refold()`: Refold an unfolded sheet.
-* `.revolve(angle?, o?)`: Revolve the last sketch about an axis (lathe parts: pulleys, bushings, flanges).
+* `.revolve(angle?, o?)`: Revolve the last sketch about an axis (lathe parts, pulleys, flanges).
 * `.rib(thickness, o?)`: Rib: a web of a given thickness from an open sketch line, grown to the body.
-* `.scale(factor, o?)`: Scale bodies uniformly or per axis (print shrink compensation, stretched variants).
-* `.screw(o)`: A screw or bolt as its own body: head, drive and shank, placed by an origin and an axis.
+* `.scale(factor, o?)`: Scale bodies uniformly or per axis (print shrink compensation).
+* `.screw(o)`: A screw or bolt as its own body: head, drive and shank, placed by origin and axis.
 * `.sheetConvert(o?)`: Turn a bent-plate solid into a sheet metal part.
 * `.sheetCorner(corners, o?)`: Round or chamfer free convex corners of the sheet.
 * `.sheetCut(o?)`: Cut closed sketch regions out of the sheet, across bends too.
@@ -238,7 +240,7 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `.torsionSpring(o)`: A torsion spring as its own body.
 * `.unfold()`: Unfold the sheet to its flat body.
 * `.washer(o)`: A flat or split spring washer as its own body, placed by an origin and an axis.
-* `screw(o)`: A screw or bolt as its own body (head, drive, shank), placed by an origin and an axis.
+* `screw(o)`: A screw or bolt as its own body (head, drive, shank), placed by origin and axis.
 * `spring(o)`: A compression spring as its own body.
 * `standoff(o)`: A standoff as its own body.
 * `through()`: End condition for cut(): through all material.
@@ -247,9 +249,9 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 
 ### selectors
 
-* `edges(sel)`: Select edges of the current body by direction, extreme plane, or a rule object.
-* `face(sel, opts?)`: Select ONE face of the current body: by direction, by persistent name, by feature, or by a rule.
-* `faces(sel, opts?)`: Select SEVERAL faces (a set) of the current body, or choose one of them by order, size or position.
+* `edges(sel)`: Select edges of the current body by direction, extreme plane or rule object.
+* `face(sel, opts?)`: Select ONE face of the current body: by direction, name, feature or rule.
+* `faces(sel, opts?)`: Select several faces of the current body, or one by order, size or position.
 
 ### holes
 
@@ -286,27 +288,29 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 
 ### utilities
 
+* `autoFuse(enabled?)`: Toggle opt-in implicit boolean fusion on the current part (or in a callback).
 * `expr(text)`: A parameter written as an expression over the variables.
 * `group(name, build)`: Put the features recorded inside `build` in a named folder of the feature tree.
-* `part(name?)`: Start a new part: the part the script builds; returns the fluent builder.
-* `.appearance(o)`: Colour, opacity and finish of the bodies a feature made (view only, no geometry change).
+* `part(name?, opts?)`: Start a new part: the part the script builds; returns the fluent builder.
+* `.appearance(o)`: Colour, opacity and finish of the bodies a feature made (view only).
 * `.area()`: Read the total surface area (mm2) of the part built so far.
+* `.autoFuse(enabled?)`: Toggle opt-in implicit boolean fusion for later steps (or inside a callback).
 * `.bbox()`: Read the bounding box of the part built so far.
-* `.bodyName(target, name)`: Name the bodies a feature made (shown in the Bodies list; the default is Body 1, 2, ...).
+* `.bodyName(target, name)`: Name the bodies a feature made (shown in the Bodies list).
 * `.centreOfMass()`: Read the centre of mass of the part built so far.
 * `.checkIntersection(faces?)`: Proof check of face intersection curves.
 * `.edgeCount()`: Read the number of edges of the part built so far.
-* `.edges()`: Read the edges of the part built so far: key, midpoint, length, adjacent faces.
+* `.edges()`: Read the part's edges: key, midpoint, length, adjacent faces.
 * `.expectBBox(box, o?)`: Check the bounding box of the part built so far.
 * `.expectFaceCount(n)`: Check the number of faces of the part built so far.
 * `.expectMinFaceArea(a, o?)`: Check that no face of the part is smaller than a given area (no slivers).
 * `.expectValid()`: Check that the part built so far passes the kernel's validity check.
-* `.expectVolume(v, o?)`: Check the volume of the part built so far; a mismatch is reported as an error with this line.
+* `.expectVolume(v, o?)`: Check the part's volume so far; a mismatch is reported as an error.
 * `.faceCount()`: Read the number of faces of the part built so far.
-* `.faces()`: Read the faces of the part built so far: persistent name, kind, area, normal, centre, radius, feature.
+* `.faces()`: Read the part's faces: name, kind, area, normal, centre, radius, feature.
 * `.group(name, build)`: Put the features recorded inside `build` in a named folder of the feature tree.
 * `.handle(label?)`: A handle on the feature recorded last, for face({ of }) and patterns.
-* `.inertia(density?)`: Read the mass, first moments, inertia tensor and principal axes of the part built so far.
+* `.inertia(density?)`: Read mass, first moments, inertia tensor and principal axes so far.
 * `.issues()`: Read the validator's issues for the part built so far.
 * `.isValid()`: Read whether the part built so far passes the kernel's validity check.
 * `.textMetrics(string, opts?)`: Measure a string before drawing it: width, ink box and per-letter advances.

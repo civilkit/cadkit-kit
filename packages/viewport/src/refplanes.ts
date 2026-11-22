@@ -1,6 +1,7 @@
 // The three reference planes and the origin, drawn for an empty part and when a plane is chosen in the tree.
 // Front is XY, Top is XZ, Right is ZY (the kernel's standard planes); each is a faint quad with an outline and a label.
 import * as THREE from 'three';
+import { niceStep } from './gridSpacing';
 
 export type RefPlaneId = 'front' | 'top' | 'right' | 'xz' | 'yz';
 export const REF_PLANES: RefPlaneId[] = ['front', 'top', 'right', 'xz', 'yz'];
@@ -62,7 +63,15 @@ export function nearestSheet(sheets: readonly ScreenSheet[], x: number, y: numbe
   return best;
 }
 
-interface Entry { id: RefPlaneId; group: THREE.Group; fill: THREE.Mesh; line: THREE.LineLoop; label: THREE.Sprite; labelText: string }
+/** Grid line segments (x0,y0,x1,y1 per line) across a square sheet of side `size` centred on the origin, about 20 lines a side, on whole 1/2/5 steps so the origin axes lie on a line. */
+export function sheetGrid(size: number): number[] {
+  const h = size / 2, step = niceStep(size / 400), out: number[] = [];
+  const n = Math.floor(h / step + 1e-9);
+  for (let i = -n; i <= n; i++) out.push(i * step, -h, i * step, h, -h, i * step, h, i * step);
+  return out;
+}
+
+interface Entry { id: RefPlaneId; group: THREE.Group; fill: THREE.Mesh; line: THREE.LineLoop; grid: THREE.LineSegments; label: THREE.Sprite; labelText: string }
 
 export class RefPlanes {
   readonly group = new THREE.Group();
@@ -94,12 +103,18 @@ export class RefPlanes {
       const pts = [new THREE.Vector3(-h, -h, 0), new THREE.Vector3(h, -h, 0), new THREE.Vector3(h, h, 0), new THREE.Vector3(-h, h, 0)];
       const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: BASE, transparent: true, opacity: 0.6 }));
       line.userData.pickable = false;
+      const gp: THREE.Vector3[] = [];
+      const gl = sheetGrid(size);
+      for (let k = 0; k < gl.length; k += 4) gp.push(new THREE.Vector3(gl[k], gl[k + 1], 0), new THREE.Vector3(gl[k + 2], gl[k + 3], 0));
+      const grid = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(gp), new THREE.LineBasicMaterial({ color: HOT, transparent: true, opacity: 0.35, depthWrite: false }));
+      grid.userData.pickable = false;
+      grid.visible = false;
       const label = labelSprite(labels[id] ?? '', '#b45f06');
       label.position.set(h, h, 0);
       label.visible = false;
-      g.add(fill, line, label);
+      g.add(fill, line, label, grid);
       this.group.add(g);
-      this.entries.push({ id, group: g, fill, line, label, labelText: labels[id] ?? '' });
+      this.entries.push({ id, group: g, fill, line, grid, label, labelText: labels[id] ?? '' });
     }
     // the origin: three short axes and a dot
     const len = size * 0.18;
@@ -126,6 +141,7 @@ export class RefPlanes {
       (e.fill.material as THREE.MeshBasicMaterial).opacity = hot ? (this.emphasis ? 0.32 : 0.22) : this.emphasis ? 0.14 : 0.07;
       (e.line.material as THREE.LineBasicMaterial).color.setHex(hot ? HOT : BASE);
       (e.line.material as THREE.LineBasicMaterial).opacity = hot || this.emphasis ? 0.95 : 0.6;
+      e.grid.visible = hot && this.emphasis;   // choosing a plane to sketch on: the one under the pointer shows its grid
       e.label.visible = hot || (show.includes(e.id) && highlight === null);
     }
     this.origin.visible = any;

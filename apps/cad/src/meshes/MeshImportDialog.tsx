@@ -9,7 +9,7 @@ import './mesh.css';
 
 const fmt = (v: number): string => (Math.abs(v) >= 100 ? String(Math.round(v)) : String(Math.round(v * 100) / 100));
 
-export function MeshImportDialog(p: { name: string; kind?: MeshKind; probe: MeshProbe; unit: StlUnit; onImport(unit: StlUnit, ground: boolean, scale: number): void; onCancel(): void }) {
+export function MeshImportDialog(p: { name: string; kind?: MeshKind; probe: MeshProbe; unit: StlUnit; onImport(unit: StlUnit, ground: boolean, scale: number): void; onCancel(): void; /** OBJ whose .mtl was not opened: ask for it (the file picker), so the colours can be read */ onPickMtl?(): void }) {
   const [unit, setUnit] = useState<StlUnit>(p.unit);
   const [ground, setGround] = useState(false);
   const [axis, setAxis] = useState<ScaleAxis>('long');
@@ -56,6 +56,7 @@ export function MeshImportDialog(p: { name: string; kind?: MeshKind; probe: Mesh
             {p.probe.warnings.includes('trailingBytes') ? <li class="warn">{t('mesh.import.trailing')}</li> : null}
             {p.probe.colours ? <li class="ok">{t('mesh.import.colours', { n: p.probe.colours })}</li> : null}
             {notes.map((n) => <li key={n} class="warn" data-testid="mesh-import-note">{n}</li>)}
+            {p.onPickMtl && (p.probe.notes ?? []).some((n) => n.code === 'mtlMissing') ? <li><button class="rb-btn" data-testid="mesh-import-pick-mtl" onClick={p.onPickMtl}>{t('mesh.import.pickMtl')}</button></li> : null}
             {p.probe.triangles > 300_000 ? <li>{t('mesh.import.big')}</li> : null}
           </ul>
           <label class="mesh-import-check">

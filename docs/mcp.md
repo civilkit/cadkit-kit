@@ -68,7 +68,7 @@ All inputs are validated (small JSON-schema subset, unknown fields refused) befo
 | `list_methods` / `docs` | `query?` / `names[]` | the script API registry (generated from the JSDoc of `packages/script/src/recorder.ts`, the same source as the Script tab: every method `run_script` accepts is there, with parameters, notes and an example); recipes by id; `docs {names:['guide']}` returns the guide |
 | `undo` / `redo` | none | document history (50 states) |
 | `ask_user` | `question`, `options?` | `{needsUserInput: true, ...}`: there is no UI in MCP, ask in your reply |
-| `export` | `format: 'step'\|'stl'\|'glb'\|'ckpart'`, `path?`, `cache?` | writes the file (default `./<part name>.<ext>` in the server's cwd). `cache: true` (ckpart only) also writes the built view as the file's `viewCache` field, the one the app's Save geometry in file writes (see `docs/files.md`); the result carries `viewCache {build, key, base64Bytes}` |
+| `export` | `format: 'step'\|'stl'\|'obj'\|'3mf'\|'glb'\|'urdf'\|'usdz'\|'html'\|'ckpart'`, `path?`, `cache?`, `quality?`, `chord_mm?` | writes the file (default `./<part name>.<ext>` in the server's cwd; urdf: `./<part name>-urdf.zip`). `obj`, `3mf`, `urdf`, `usdz` and `html` (a self-contained 3D viewer page) are the same encoders as `cadkit export` (shared module `packages/cli/src/exportModel.ts`), one mesh per body; `quality` (coarse \| normal \| fine) and `chord_mm` apply to every mesh format and the result reports the chord used and the triangle count. `cache: true` (ckpart only) also writes the built view as the file's `viewCache` field, the one the app's Save geometry in file writes (see `docs/files.md`); the result carries `viewCache {build, key, base64Bytes}` |
 
 Resources: `ck://docs/guide` (units, plane frames, bodies and appearance, workflow, common errors), `ck://llms.txt` (the guide plus a one-line index of every method, kept in the repo as `docs/llms.txt`), `ck://docs/methods`, `ck://recipes/<id>` (the Script tab's examples), `ck://document`, `ck://notes`.
 
@@ -137,6 +137,14 @@ The first point is in the bore (outside the material, 10 mm from the wall), the 
 
 Nothing changed; fix line 4 and run again. `undo` and `restore {"name": "v1"}` are there for the other cases.
 
+### Warnings you may see
+
+A run can succeed and still carry warnings (`run_script` returns them in `warnings` as `[featureId, {code, params}]`). Read them before trusting the result:
+
+* `blendRanOffFace {detail, faces}`: a round or chamfer larger than the face it rolls onto was built as if the face continued, and what the blend takes beyond the face was cut from the body. `faces` lists the face ids it ran off. Check the result looks as intended; use a smaller size if it does not. When both contacts run off their faces the feature is refused with `blendOverflow` instead.
+* `booleanPerturbed {detail, distance, rotation, axis, attempt}`: a boolean that failed (a tool grazing or tangent to a curved face) succeeded after a bounded nudge of the tool, at most 1e-4 mm and 2e-6 rad. It only happens when the boolean feature sets `retryPerturb: true`; without it the boolean fails as before. The solid is valid, but treat the geometry near that feature as approximate at that scale.
+* `importStepParts {detail, solids, surfaces, refused, parts}`: an imported STEP or SolidWorks file held parts that are not valid solids. The valid solids are the body; the other parts are kept as surface bodies (`<feature id>.P<k>`, k is the part's place in the file) and the import feature shows the "needs repair" mark. A file that is all surfaces has no solid at all, so `volume` is 0 and `export` has no solid to write.
+
 ## Limits and notes
 
 * Atomic runs: a script that fails halfway does not leave its good prefix behind (the error says where). A partial result mode could be added if agents want to see it.
@@ -145,7 +153,7 @@ Nothing changed; fix line 4 and run again. `undo` and `restore {"name": "v1"}` a
 * Checkpoints and history are in memory (bounded: 20 and 50) and die with the daemon.
 * The launcher uses vite-node, so a start costs about 1.5 s; the daemon removes that cost for later sessions. A bundled `dist` build (esbuild) is the packaging step still to do.
 * `export ckpart` with `cache: true` builds the view from the Session's regen reply of the exact document written (shared code in `@kit/viewdata`, also used by the app controller), keyed by the SHA-256 of the canonical recipe and the kernel build id, the SHA-256 of the wasm file the server runs (`CK_WASM` / `wasmPath`; the app hashes the wasm it loads, so the two agree when they run the same build). It writes nothing and returns `view_unavailable` when the view could not be reproduced exactly: a document with a curated or embedded font (the app loads those through its font pool; built-in fonts are fine), a rolled-back document, a non-`ck-part` format, or a kernel that is not a local wasm file (no hash).
-* `export glb` writes flat-shaded triangles from the display mesh; `stl` uses `@kit/io`.
+* `export glb` writes flat-shaded triangles from the display mesh (one mesh, no per-body colour; `cadkit export -f glb` writes per-body coloured meshes); `stl` uses `@kit/io`.
 * `snapshot` and a generated registry depend on two parallel branches (below).
 
 ### Dependencies on the parallel branches

@@ -72,6 +72,8 @@ import { sketchSectionPlane, sectionChipShown } from './inspect/sectionEdit';
 import { addsMaterial, junctionFilletOps } from './junction';
 import { QuickMeasure, useQuickMeasure } from './inspect/QuickMeasure';
 import { LibraryDialog, type SampleEntry } from './LibraryDialog';
+import { HubDialog } from './hub/HubDialog';
+import { HubRegistryStore } from './hub/registry';
 import { partItem } from './library/entries';
 import { DiscardDialog } from './DiscardDialog';
 import { KnurlExportAsk, KnurlExportFailed } from './KnurlExportDialog';
@@ -109,6 +111,7 @@ import { claudeCodeProvider } from './chat/claudeCode';
 import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, OPEN_ACCEPT, IMPORT_ACCEPT, type DropKind } from './files/names';
 import { importFcstd, resolveReferences, fcstdResolvers } from '@kit/fcstd';
+import { importF3d } from '@kit/f3d';
 import { importSolidcraft, kernelResolvers, kernelStepTools, type ScPart } from '@kit/solidcraft';
 import type { RecentEntry } from './files/recent';
 import { DisplayMenu } from './DisplayMenu';
@@ -118,7 +121,7 @@ import { createLookStore, effectiveAppearance, componentAppearances, componentKe
 import { VariablesPanel } from './VariablesPanel';
 import { BodiesPanel } from './BodiesPanel';
 import { folderBodyRefs, moveGroupOps, combineBodyOps, copyBodyOps, freeBodyName, removeBodyOps, renameBodyOps, usedBodyNames, type BodyTarget, type CombineOp } from './bodyOps';
-import { bodyShapes, faceMoments, faceVolumes, hideOthers, matchLumps, listBodies, readBodyFields, resolveFaceLooks, rowOfName, setHidden, solo, showAll, splitBodies, viewSpec, withLook, withLooks, withName, type BodyLookSpec, type BodyRow, visibleMesh } from './bodies';
+import { bodyShapes, faceMoments, faceVolumes, hideOthers, soloAll, matchLumps, listBodies, readBodyFields, resolveFaceLooks, rowOfName, setHidden, showAll, splitBodies, viewSpec, withLook, withLooks, withName, type BodyLookSpec, type BodyRow, visibleMesh } from './bodies';
 import { ScriptPanel } from './ScriptPanel';
 import { isTextEntry, scriptOwnsKey, viewKeysActive } from './keyGuard';
 import { runsInPlace } from './scriptTarget';
@@ -126,7 +129,7 @@ import { shouldWarnOnUnload } from './urlFlags';
 import { evaluate as evaluateScript, runScript } from '@kit/script';
 import { scopeOf } from './variables';
 import { MaterialEditor, type MaterialChoice } from './MaterialEditor';
-import { findMaterial, loadUseColour, appearanceOfMaterial, boardColour } from './materials';
+import { findMaterial, loadUseColour, appearanceOfMaterial, boardLook } from './materials';
 import { HoleEditor } from './HoleEditor';
 import { CornerHolesPanel, plateFromOutline, type PlateInfo } from './CornerHolesPanel';
 import { KnurlWizard } from './KnurlWizard';
@@ -161,6 +164,8 @@ import { fastenOps, type FastenTarget } from './fasten';
 import { BearingWizard } from './BearingWizard';
 import { HelpButton, HelpHost } from './HelpButton';
 import { ShortcutSheet } from './ShortcutSheet';
+import { matchCombo } from './keymap';
+import { applyKeymap, getBindings, keyOf, subscribeKeymap } from './keymapStore';
 import { currentTopic } from './helpMap';
 import { FramePanel } from './frame/FramePanel';
 import { adoptFrameLibraries, loadStoredLibrary } from './frame/frameUserLib';
@@ -221,7 +226,8 @@ import { tooltipText } from './freedomText';
 import { ToolRail } from './ToolRail';
 import { selectionKind } from './menuModel';
 import { pluginDocContext, selectionItems } from './pluginDoc';
-import { addPick, clearPicks, designChanged, docSketches, mergeViewPicks, pickPlan, profileItem, sketchItem, type DesignRev } from './pluginPicks';
+import { addPick, clearPicks, designChanged, docSketches, mergeViewPicks, pickHighlightKeys, pickPlan, profileItem, sketchItem, toggleViewPicks, type DesignRev } from './pluginPicks';
+import { pluginPoseMaps, readPluginJoints } from './pluginMotion';
 import { useSheet } from './sheet/useSheet';
 import { applyCornerPick, cornerSelectionKeep } from './sheet/options';
 import { flangeActions, setSpanPicked } from './sheet/flangeActions';
@@ -332,12 +338,12 @@ import { defaultThickness } from './thinRules';
 loadStoredLibrary();   // the user's own frame stock and fittings, from this browser
 /** The compact vertical rail at the left edge: history, then the feature tools. Views are not here (they are on the cube and the
  *  View tab); a button only appears if its command exists. */
-const VIEW_KEYS: Record<string, 'top' | 'front' | 'right' | 'back' | 'left' | 'bottom' | 'iso'> = { '1': 'top', '2': 'front', '3': 'right', '4': 'back', '5': 'left', '6': 'bottom', '7': 'iso' };
 /** Sketch tools whose clicks pick a curve of the sketch. */
 const OBJECT_SNAPS_OFF: SketchPrefs['snaps'] = Object.fromEntries(Object.keys(DEFAULT_SKETCH_PREFS.snaps).map((k) => [k, k === 'grid'])) as SketchPrefs['snaps'];
 /** The model snaps that attach the new point to the body (a fixed reference point there) on a plain click: the centre of an edge's circle or arc, the middle of an edge. */
 const ATTACH_MODEL_TAGS: ReadonlySet<string> = new Set(['modelCenter', 'modelMidpoint']);
-const SKETCH_TOOL_KEYS = new Map(sketchTools().flatMap((x) => (x.key ? [[x.key, x.id] as const] : [])));
+/** Commands that run from their key while a sketch is open and no sketch tool or field has taken the press. */
+const SKETCH_LIVE_IDS = (id: string): boolean => id === 'palette' || id === 'drawer' || id === 'toggle-left-panel' || id.startsWith('view-') || id === 'sel-face' || id === 'sel-edge' || id === 'fit';
 const savedLocale = read('cad.locale');
 const savedTheme = asTheme(read('cad.theme'));
 applyTheme(savedTheme);
@@ -376,6 +382,7 @@ let session: Session | null = null;
 let viewport: Viewport | null = null;
 const asmState = createAssemblyState();
 const motionState = createMotionStore();
+const pluginJointValues = signal<Record<string, number>>({});
 const analysisStore = createAnalysisStore();
 let lastBody: ViewBody | null = null;
 /** The colours and body names of the plugin run being previewed (its `extras`), drawn over the preview and dropped with it; never saved until Add. `ops` is the last previewed ops, to skip a rebuild when only a colour changed. */
@@ -434,7 +441,12 @@ const shownBody = (b: ViewBody | null): ViewBody | null => {   // TYPE: the help
   const d = controller.document();
   // a Convert mesh to solid preview is drawn beside the part as a tinted body (meshes/useMeshSolid.ts); it is never part of the document
   if (!b || !d) return meshSolidBody(withSketch3d(b, d) as never) as ViewBody | null;
-  return meshSolidBody(withSketch3d(displayBody(b as never, { inserts: insertIds(d as never), hidden: new Set(asmState.hidden.value), explode: asmState.explode.value, pose: motionState.pose.value, doc: d as never }), d) as never) as ViewBody | null;
+  const pjEntries = readPluginJoints((d as unknown as { pluginRuns?: Record<string, { meta?: Record<string, unknown> }> }).pluginRuns);
+  const pjVals = pluginJointValues.value;
+  const pjMaps = pjEntries.length && Object.values(pjVals).some((v) => Math.abs(v) > 1e-12)
+    ? pluginPoseMaps(pjEntries, pjVals, bodyRowsFor(false))
+    : null;
+  return meshSolidBody(withSketch3d(displayBody(b as never, { inserts: insertIds(d as never), hidden: new Set(asmState.hidden.value), explode: asmState.explode.value, pose: motionState.pose.value, ...(pjMaps ? { facePose: pjMaps.facePose, edgePose: pjMaps.edgePose } : {}), doc: d as never }), d) as never) as ViewBody | null;
 };
 /** The mesh the Mesh panel is previewing (shown in place of the saved record of that id, never saved until Done) and the one it has open. */
 let meshPreview: MeshRec | null = null;
@@ -595,7 +607,8 @@ const textEditRef: { current: (patch: TextPatch) => void } = { current: () => {}
 /** The agent link: off at every start; the user turns it on in Settings, Agent link (docs/agent-bridge.md). */
 startOnlineTextures();   // the viewport's textures come through the online library (the cache first; the network only when the setting is on)
 /** Built-in plugins plus the ones the user installed (IndexedDB). Installed ones load at start (see the App's effect). */
-const pluginManager = new PluginManager({ registry: builtinRegistry(), store: idbPluginStore(), appVersion: PLUGIN_API_VERSION, convert: async (f) => (isRelease(f) ? convertRelease(f) : null), wasm: (rec) => wasmGenerators(rec, { runner: (p, e, params, h, o) => runSandboxed(p, e, params, h, o), look: boardColour }), wasmRead: (rec) => wasmReaders(rec, { runner: (p, e, params, h, o) => runSandboxed(p, e, params, h, o) }), denied: () => (thirdPartyEnabled() ? null : 'switch on "Allow plugins from other people" in the Plugins panel') });
+const pluginManager = new PluginManager({ registry: builtinRegistry(), store: idbPluginStore(), appVersion: PLUGIN_API_VERSION, convert: async (f) => (isRelease(f) ? convertRelease(f) : null), wasm: (rec) => wasmGenerators(rec, { runner: (p, e, params, h, o) => runSandboxed(p, e, params, h, o), look: boardLook }), wasmRead: (rec) => wasmReaders(rec, { runner: (p, e, params, h, o) => runSandboxed(p, e, params, h, o) }), denied: () => (thirdPartyEnabled() ? null : 'switch on "Allow plugins from other people" in the Plugins panel') });
+const hubStore = new HubRegistryStore({ fetch: (u, init) => fetch(u, init), kv: typeof localStorage !== 'undefined' ? localStorage : null });
 const agentLink = createAgentLink({ controller, store: store as never, plugins: pluginManager.registry, bodies: () => bodyRowsFor(true).map((r) => ({ name: r.name, key: r.key, faces: r.faces, volume: r.volume })) });
 const chatSession = createChatSession({
   provider: claudeCodeProvider({ endpoint: () => agentLink.endpoint() }),
@@ -695,6 +708,7 @@ function App() {
   const pluginTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // the plugin manager lives at module level (below), because the agent link needs its registry too
   const pluginRegistry = pluginManager.registry;
+  const [hubOpen, setHubOpen] = useState(false);
   const [, setPluginTick] = useState(0);   // the manager registered or removed generators
   useEffect(() => { void pluginManager.load().then(() => setPluginTick((n) => n + 1)); }, [pluginManager]);   // installed plugins are there from the start, so their menu entries are too
   const [trayWiz, setTrayWiz] = useState<{ params: TrayParams } | null>(null);   // the Tray wizard: a tray or bin on a grid over the gridTray() helper
@@ -716,7 +730,7 @@ function App() {
   useEffect(() => { if (pluginWiz && (caseWiz || trayWiz || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { pluginSeq.current++; pluginLook = null; pluginDocBase = null; setPluginPick(null); void controller.cancelPreview(); setPluginWiz(null); } }, [caseWiz, trayWiz, propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   useEffect(() => { if (trayWiz && (caseWiz || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setTrayWiz(null); } }, [caseWiz, propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   const [meshWiz, setMeshWiz] = useState<string | null>(null);   // the Mesh panel: the id of the reference mesh it is open on
-  const [meshDlg, setMeshDlg] = useState<{ name: string; kind: MeshKind; bytes: Uint8Array; mtl?: string; probe: MeshProbe; unit: StlUnit } | null>(null);   // the reference mesh import dialog (STL, OBJ, GLB, 3MF)
+  const [meshDlg, setMeshDlg] = useState<{ name: string; kind: MeshKind; bytes: Uint8Array; mtl?: string; buffers?: Record<string, Uint8Array>; probe: MeshProbe; unit: StlUnit } | null>(null);   // the reference mesh import dialog (STL, OBJ, GLB, 3MF)
   const [meshPick, setMeshPick] = useState<null | { stage: 'aim' } | { stage: 'plane'; pos: P3d; normal: P3d }>(null);   // starting a sketch by clicking the mesh surface
   useEffect(() => { if (meshWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) closeMeshPanel(); }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);
   useEffect(() => { if (sk3dWiz && meshWiz) closeMeshPanel(); }, [sk3dWiz]);
@@ -759,6 +773,7 @@ function App() {
   draftRef.current = draft;
   /** Set while an edge or face list field of the open editor is active: the viewport's picks go to it (see listPick.ts). */
   const listPickRef = useRef<((names: string[], addOnly: boolean) => void) | null>(null);
+  const pluginPickRef = useRef<((names: string[], addOnly: boolean) => void) | null>(null);
   const cornerPickRef = useRef(false);   // a sheet corner's corners field is picking: a click or tap on a vertex adds it or takes it out, no modifier key
   const listSelRef = useRef<{ path: string | null; sel: string[] }>({ path: null, sel: [] });
   const cornerSelRef = useRef<string[]>([]);   // the vertices selected while a sheet corner's corners field is picking
@@ -877,6 +892,7 @@ function App() {
   const [dimEdit, setDimEdit] = useState<{ id: string; x: number; y: number; value: number; expr?: string } | null>(null);
   const dimTabRef = useRef<1 | -1 | 0>(0);   // Tab / Shift+Tab pressed in the dimension box: the next box opens once the value is applied
   const [, viewTick] = useState(0);
+  useEffect(() => subscribeKeymap(() => viewTick((n) => n + 1)), []);   // a key was rebound: rebuild the command tables
   // Select mode, several entities: Ctrl or Shift click toggles, a rubber band replaces (or adds with Shift/Ctrl). The transform tools act on these.
   const multiSelRef = useRef<string[]>([]);
   const toolEntitiesRef = useRef<string[]>([]);
@@ -922,7 +938,7 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [drawingOpen, setDrawingOpen] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { progress.value; importing.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; busyNote.value; store.cached.value; store.notices.value; store.alerts.history.value; store.alerts.unread.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; motionState.playing.value; motionState.drivers.value; motionState.motion.value; motionState.studyId.value; rejections.value; viewportContentRev.value; startDismissed.value; localeSignal.value; layout.value; layoutPref.value; viewportInfo.value; narrowTablet.value; safeArea.value; });
+  useSignals(() => { progress.value; importing.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; busyNote.value; store.cached.value; store.notices.value; store.alerts.history.value; store.alerts.unread.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; motionState.playing.value; motionState.drivers.value; motionState.motion.value; motionState.studyId.value; pluginJointValues.value; rejections.value; viewportContentRev.value; startDismissed.value; localeSignal.value; layout.value; layoutPref.value; viewportInfo.value; narrowTablet.value; safeArea.value; });
   const stored = store.workspace.value;   // what Settings edits and what is saved; the layout draws a variant of it
   const phone = layout.value === 'phone';
   // on a phone the Motion timeline lives in the bottom sheet (it would sit under the tool tray as an overlay): the Motion tab opens it, another tab closes it
@@ -939,6 +955,8 @@ function App() {
         if (autoPickRef.current && mode !== store.mode.value) { store.mode.value = mode; viewport?.setPickMode(mode); additive = false; }
         // an active edge or face list field: a click or tap adds to it or takes out, with or without a modifier key; empty space changes nothing
         if (listPickRef.current) { listPickRef.current(names, false); return; }
+        // an active plugin x-solidcraft-selection field: a click toggles the picked body/face/edge directly into the field
+        if (pluginPickRef.current) { pluginPickRef.current(names, false); return; }
         if (cornerPickRef.current) {
           const sel = store.selection.value, hit = names.filter((n) => n.startsWith('v:'));
           if (hit.length) store.select([...sel.filter((n) => !hit.includes(n)), ...hit.filter((n) => !sel.includes(n))]);
@@ -969,13 +987,14 @@ function App() {
         if (autoPickRef.current && mode !== store.mode.value) { store.mode.value = mode; viewport?.setPickMode(mode); additive = false; }
         if (!store.filters.value[MODE_FILTER[store.mode.value]]) return;
         if (listPickRef.current) { listPickRef.current(names, true); return; }   // a box adds to an active list field, never takes out
+        if (pluginPickRef.current) { pluginPickRef.current(names, true); return; }
         store.select(names, additive);
       },
-      onPlaneFeaturePick: (id) => { if (listPickRef.current) return; if (planePickRef.current) { startOnFeatureRef.current(id); return; } if (!store.filters.value.planes) return; setRefSel(null); store.select([]); setSelectedId(id); },
+      onPlaneFeaturePick: (id) => { if (listPickRef.current || pluginPickRef.current) return; if (planePickRef.current) { startOnFeatureRef.current(id); return; } if (!store.filters.value.planes) return; setRefSel(null); store.select([]); setSelectedId(id); },
       // hovering lights a plane up; a plain click on it starts the sketch (while something else is being edited or measured, it only selects)
       onRefPlaneHover: (id) => setRefHover(id),
       onRefPlanePick: (id) => {
-        if (!store.filters.value.planes || listPickRef.current) return;   // an empty-space tap while edges are being picked must not clear them
+        if (!store.filters.value.planes || listPickRef.current || pluginPickRef.current) return;   // an empty-space tap while edges are being picked must not clear them
         if (redefinePlaneRef.current !== null) { startSketchRef.current(id); return; }
         if (!editingIdRef.current && !measureRef.current) { setSelectedId(null); store.select([]); startSketchRef.current(id); return; }
         setRefSel(id); setSelectedId(null); store.select([]);
@@ -1135,6 +1154,7 @@ function App() {
     let first = true;
     return effect(() => {
       motionState.pose.value;
+      pluginJointValues.value;
       if (first) { first = false; return; }
       if (!viewport || !lastBody) return;
       viewport.setHoldView(true);
@@ -2005,6 +2025,48 @@ function App() {
     if (r.warnings.length) store.notify(t('files.fcstd.done', { name: file, features: r.steps.length, total, warnings: r.warnings.length, first: `${r.warnings[0].object}: ${r.warnings[0].message}` }), 'warn');
     else store.notify(t('files.fcstd.clean', { name: file, total }));
   });
+  /** A Fusion 360 (.f3d / .f3z) archive becomes a new part with any mapped timeline history & variables, or an editable imported body from its embedded SAT/STEP B-rep (see packages/f3d). */
+  const importF3dBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
+    const r = await importF3d(bytes, file);
+    if (r.error) { store.notify(t('files.f3d.failed', { name: file, message: r.error }), 'error'); return; }
+    if (r.part.features.length > 0) {
+      await load(JSON.stringify(r.part), { file: null });
+      viewport?.fit();
+      const total = r.steps.length + r.skipped.length;
+      if (r.warnings.length) store.notify(t('files.f3d.done', { name: file, features: r.steps.length, total, warnings: r.warnings.length, first: `${r.warnings[0].object}: ${r.warnings[0].message}` }), 'warn');
+      else store.notify(t('files.f3d.clean', { name: file, total }));
+      return;
+    }
+    if (r.satBodies.length > 0) {
+      const transport = await kernelRouter.transport();
+      const blobs: Record<string, string> = {};
+      const features: Array<Record<string, unknown>> = [];
+      let seq = 1;
+      for (const body of r.satBodies) {
+        const tag = `f3d-sat-${seq}`;
+        const imp = await transport.request({ type: 'importSat', tag, name: body.name, data: body.sat });
+        if (!imp.ok || imp.trap) continue;
+        const exp = await transport.request({ type: 'step', tag, name: body.name });
+        const stepText = exp.ok && !exp.trap && typeof (exp.result as { step?: unknown } | undefined)?.step === 'string'
+          ? (exp.result as { step: string }).step
+          : '';
+        if (!stepText) continue;
+        const single = await partOfStep(stepText, r.name, body.design ? `${body.design} - ${body.name}` : body.name);
+        const singleBlobs = (single as { blobs?: Record<string, string> }).blobs ?? {};
+        Object.assign(blobs, singleBlobs);
+        const f = (single.features as Array<Record<string, unknown>>)[0];
+        if (f) features.push({ ...f, id: `F${seq++}` });
+      }
+      if (features.length > 0) {
+        const doc = { ...r.part, features, blobs, seq };
+        await load(JSON.stringify(doc), { file: null });
+        viewport?.fit();
+        store.notify(t('files.f3d.sat', { name: file, bodies: features.length }), r.warnings.length ? 'warn' : 'info');
+        return;
+      }
+    }
+    store.notify(t('files.f3d.failed', { name: file, message: r.warnings[0]?.message ?? 'no readable geometry or features found' }), 'error');
+  });
   /** The kernel's answers for the importer (which edge, face or rim is at a position): the part built so far is regenerated on a scratch tag of its own, so the open part is untouched. */
   const scResolvers = kernelResolvers((partBefore) => importSession(partBefore));
   /** The kernel's answers about the original solid of a converted file: its STEP read to the right body, and the volume the operations of the file have to rebuild. */
@@ -2077,9 +2139,10 @@ function App() {
     else store.notify(t('files.solidcraft.clean', { name: file, total }));
     if (r.summary.notes) store.notify(t('files.solidcraft.notes', { name: file, count: r.summary.notes }), 'warn');
   });
-  /** Open a file by what it is: a part, STEP, DXF, SVG, FreeCAD or SolidCraft; anything else gets a notice. `bytes` reads binary files. */
-  const openByKind = (name: string, read: () => Promise<string>, kind: DropKind, bytes?: () => Promise<Uint8Array>, mtl?: () => Promise<string>) => {
+  /** Open a file by what it is: a part, STEP, DXF, SVG, FreeCAD, Fusion 360 or SolidCraft; anything else gets a notice. `bytes` reads binary files. */
+  const openByKind = (name: string, read: () => Promise<string>, kind: DropKind, bytes?: () => Promise<Uint8Array>, mtl?: () => Promise<string>, buffers?: () => Promise<Record<string, Uint8Array>>) => {
     if (kind === 'fcstd') { if (bytes) void bytes().then((b) => importFcstdBytes(b, name)); return; }
+    if (kind === 'f3d') { if (bytes) void bytes().then((b) => importF3dBytes(b, name)); return; }
     if (kind === 'solidcraft') { if (bytes) void bytes().then((b) => importSolidcraftBytes(b, name)); return; }
     if (kind === 'skp') { if (bytes) void bytes().then((b) => setKindDlg({ kind: 'skp', name, bytes: b, hidden: false })); return; }
     if (kind === 'sldprt') { if (bytes) void bytes().then((b) => importSldprtBytes(b, name)); return; }
@@ -2087,7 +2150,7 @@ function App() {
     else if (kind === 'step') void read().then((text) => setKindDlg({ kind: 'step', name, text, hidden: false }));
     else if (kind === 'dxf') void read().then((text) => { if (controller.sketchDraft()) void importDxfIntoSketch(controller, text).then((r) => { showNotices(r.notices); viewTick((n) => n + 1); if (r.ok) viewport?.fit(); }); else sketchFromDxfText(text); });
     else if (kind === 'svg') void read().then((text) => { if (controller.sketchDraft()) void importSvgIntoSketch(controller, text).then((r) => { showNotices(r.notices); viewTick((n) => n + 1); if (r.ok) viewport?.fit(); }); else sketchFromSvgText(text); });
-    else if (kind === 'stl' || kind === 'obj' || kind === 'glb' || kind === '3mf') { if (bytes) void bytes().then((b) => importStlBytes(b, name, kind, mtl)); }
+    else if (kind === 'stl' || kind === 'obj' || kind === 'glb' || kind === '3mf') { if (bytes) void bytes().then((b) => importStlBytes(b, name, kind, mtl, buffers)); }
     else store.notify(t('files.drop.unknown', { name }), 'error');
   };
   // A file the agent asked to open (app_open_asset): the same importers as a drop, awaited. A part, STEP or SolidCraft file opens in a new tab
@@ -2117,7 +2180,8 @@ function App() {
     if (plan.action === 'multiple') { store.notify(t('files.drop.one'), 'warn'); return; }
     const main = list.find((f) => f.name === plan.name) ?? list[0];
     const mtlFile = plan.mtl ? list.find((f) => f.name === plan.mtl) : undefined;
-    openByKind(plan.name, () => fileText(main), plan.kind, async () => new Uint8Array(await main.arrayBuffer()), mtlFile ? () => fileText(mtlFile) : undefined);
+    const bins = plan.bins?.length ? async () => Object.fromEntries(await Promise.all(list.filter((f) => plan.bins?.includes(f.name)).map(async (f) => [f.name, new Uint8Array(await f.arrayBuffer())] as const))) : undefined;
+    openByKind(plan.name, () => fileText(main), plan.kind, async () => new Uint8Array(await main.arrayBuffer()), mtlFile ? () => fileText(mtlFile) : undefined, bins);
   };
   const openRecent = (e: RecentEntry) => {
     setSamples(null);
@@ -2186,6 +2250,7 @@ function App() {
     spring: () => openSpring(),
     caseBox: () => openCase(),
     plugins: () => openPlugins(),
+    communityHub: () => setHubOpen(true),
     pluginGenerators: pluginRegistry.generators().filter((g) => !g.plugin.builtin).map((g) => ({ id: pluginCommandId(g.plugin.manifest.id, g.decl.id), label: g.decl.title, ...(g.decl.description ? { tip: g.decl.description } : {}), group: slotGroup(g.decl.slots), run: () => { openPlugins(); onPluginPick(g.plugin.manifest.id, g.decl.id); } })),
     tray: () => openTray(),
     nut: () => openFastener('nut'),
@@ -2319,7 +2384,7 @@ function App() {
       if (isTextEntry(t)) { if (t?.closest?.('.sketch-fields')) seedBufRef.current = ''; return; }   // a field or editor has the keys: nothing is waiting to be put into it
       // Script tab showing and focus not in the viewport (lost after a tab switch, Fit or a cancelled prompt): typed characters belong to the script box, never to the single-key shortcuts
       if (!sketchingRef.current && !e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1 && scriptOwnsKey(scriptTabRef.current && !!document.querySelector('.script-panel')?.getClientRects().length, t, lastPressOnCanvas.current)) { document.querySelector<HTMLTextAreaElement>('.script-panel textarea')?.focus({ preventScroll: true }); return; }
-      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); setShortcutSheet(true); return; }   // the cheat sheet (not typed into a field: that returned above)
+      const sheetKey = keyOf('sheet'); if (sheetKey && matchCombo(sheetKey, e)) { e.preventDefault(); setShortcutSheet(true); return; }   // the cheat sheet (not typed into a field: that returned above)
       const onCanvas = !t || t === document.body || !!t.closest?.('#vp');
       if (treeKeyRef.current(e, onCanvas)) { e.preventDefault(); return; }
       if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey && sketchingRef.current && sketchUndoRef.current) { e.preventDefault(); sketchUndoRef.current(); return; }
@@ -2332,15 +2397,10 @@ function App() {
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && (e.key === 'a' || e.key === 'A') && sketchingRef.current && sketchKeyRef.current?.(e)) return;   // select all in a sketch
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (sketchKeyRef.current?.(e)) return;
-      if (e.key === 'f' || e.key === 'F') { e.preventDefault(); setPalette(true); }
-      else if (e.key === '\\') { e.preventDefault(); toggleDrawer(); }
-      else if (e.key === '[') { e.preventDefault(); toggleLeftPanel(); }
-      else if (VIEW_KEYS[e.key] && !viewKeysActive(!!editingIdRef.current)) { e.preventDefault(); }   // a feature panel is open: the digit is not a view change
-      else if (VIEW_KEYS[e.key]) { e.preventDefault(); viewport?.setView(VIEW_KEYS[e.key]); }
-      else if (e.key === 'q' || e.key === 'Q') setMode('face');
-      else if (e.key === 'e' || e.key === 'E') setMode('edge');
-      else if (e.key === 'z' || e.key === 'Z') viewport?.fit();
-      else if (e.key === 'Enter' && sketchConfirmRef.current) { e.preventDefault(); void sketchConfirmRef.current(); }
+      // the commands that also work while a sketch is open (the sketch tools took their letters above), by whatever keys they are bound to now
+      const live = matchShortcut(commandsRef.current.filter((c) => SKETCH_LIVE_IDS(c.id)), e);
+      if (live) { e.preventDefault(); if (live.id.startsWith('view-') && !viewKeysActive(!!editingIdRef.current)) return; live.run(); return; }   // a feature panel is open: a view key is not a view change
+      if (e.key === 'Enter' && sketchConfirmRef.current) { e.preventDefault(); void sketchConfirmRef.current(); }
       // Enter with nothing in progress (no sketch, no feature being edited, no measuring, no dialog) runs the last command again
       else if (e.key === 'Enter' && onCanvas && !sketchingRef.current && !editingIdRef.current && !measureRef.current && !document.querySelector('dialog[open], [role="dialog"]')) {
         const again = commandsRef.current.find((c) => c.id === 'repeat-last');
@@ -3529,9 +3589,10 @@ function App() {
     if (e.key === 'Escape' && sketchToolRef.current) { e.preventDefault(); selectTool(null); return true; }
     // Enter with a tool active and nothing in progress goes to the tool (which ignores it unless it has something to confirm); it must not fall through and finish the sketch
     if (e.key === 'Enter' && sketchToolRef.current) { e.preventDefault(); runTool({ type: 'key', key: 'Enter' }); return true; }
-    if ((e.key === 'n' || e.key === 'N') && !e.shiftKey) { e.preventDefault(); lookNormal(); return true; }   // Look normal
-    const hit = SKETCH_TOOL_KEYS.get(e.key.toLowerCase());
-    if (hit && e.key.length === 1) { e.preventDefault(); selectTool(hit); return true; }
+    const kb = getBindings();
+    if (kb['sketch-look-normal'] && matchCombo(kb['sketch-look-normal'], e)) { e.preventDefault(); lookNormal(); return true; }   // Look normal
+    const hit = sketchTools().find((x) => { const k = kb['sketch-tool-' + x.id]; return !!k && matchCombo(k, e); });
+    if (hit) { e.preventDefault(); selectTool(hit.id); return true; }
     return false;
   };
   sketchUndoRef.current = () => {
@@ -3976,6 +4037,15 @@ function App() {
     editPart: editComponent,
     setExplode: (patch) => asmState.setExplode(patch),
     motion: motionState,
+    pluginJoints: (() => {
+      const entries = readPluginJoints((doc as unknown as { pluginRuns?: Record<string, { meta?: Record<string, unknown> }> } | null)?.pluginRuns);
+      return entries.length ? {
+        entries,
+        values: pluginJointValues.value,
+        onChange: (id: string, value: number) => { pluginJointValues.value = { ...pluginJointValues.value, [id]: Number.isFinite(value) ? value : 0 }; },
+        onReset: () => { pluginJointValues.value = {}; },
+      } : undefined;
+    })(),
     interference: { data: inspect.props.interference, stale: inspect.props.interferenceStale, busy: inspect.props.interferenceBusy, run: inspect.props.onInterference },
   };
   motionState.attach({
@@ -4442,10 +4512,36 @@ function App() {
   // sketch whose closed regions a profile field picks by clicking them.
   const pluginPickDef = pluginPick && pluginWiz?.sel ? pluginRegistry.find(pluginWiz.sel.pluginId, pluginWiz.sel.generatorId)?.decl.params.find((x) => x.name === pluginPick) ?? null : null;
   const pluginPlan = pickPlan(pluginPickDef?.accept);
+  // Direct 3D viewport mouse picking: clicking a body/face/edge toggles it directly in the active selection field without needing Shift; empty space changes nothing.
+  pluginPickRef.current = pluginPickDef && pluginWiz?.sel && pluginDocBase && pluginPlan.view ? (names, addOnly) => {
+    const sel = pluginDocContext(pluginDocBase!.rows, pluginDocBase!.mesh, names, [], {}, { edges: true }).selection;
+    const picked = selectionItems(sel, pluginPickDef);
+    if (!picked.length) return;
+    const cur = pluginWiz.sel!.values[pluginPickDef.name];
+    const items = toggleViewPicks(pluginPickDef, Array.isArray(cur) ? cur : [], picked, addOnly);
+    if (JSON.stringify(items) !== JSON.stringify(cur ?? [])) {
+      onPluginChange({ ...pluginWiz.sel!.values, [pluginPickDef.name]: items });
+    }
+  } : null;
   useEffect(() => {
     const m = pluginPlan.mode;
-    if (m && store.mode.value !== m && store.filters.value[MODE_FILTER[m]]) { store.mode.value = m; viewport?.setPickMode(m); }
+    if (!m) return;
+    const prevMode = store.mode.value;
+    if (store.mode.value !== m) { store.mode.value = m; viewport?.setPickMode(m); }
+    viewport?.setAutoPick(false);
+    return () => {
+      viewport?.setAutoPick(autoPickRef.current);
+      if (store.mode.value !== prevMode) { store.mode.value = prevMode; viewport?.setPickMode(prevMode); }
+    };
   }, [pluginPick, pluginPlan.mode]);
+  // Highlight the currently picked bodies/faces/edges of the active plugin selection field in the 3D viewport.
+  const pluginPickVal = pluginPickDef && pluginWiz?.sel ? pluginWiz.sel.values[pluginPickDef.name] : undefined;
+  useEffect(() => {
+    if (!pluginPickDef || !pluginDocBase || !pluginPlan.view) return;
+    const keys = pickHighlightKeys(Array.isArray(pluginPickVal) ? pluginPickVal : [], pluginDocBase.rows);
+    viewport?.setHighlight([...new Set([...hlNames(), ...keys])]);
+    return () => { viewport?.setHighlight(hlNames()); };
+  }, [pluginPick, pluginPickVal]);
   const pluginSketchOf = (id: string | null) => { const f = id ? doc?.features.find((x) => x.id === id) : null; return f && f.type === 'sketch' ? { id: f.id, name: (f as { name?: string }).name ?? f.id, f } : null; };
   useEffect(() => {
     const sk = pluginSketchOf(selectedId);
@@ -4794,17 +4890,29 @@ function App() {
     applyMeshes();
   };
   /** An STL, OBJ, GLB or 3MF file arrived (drop, Open, Import): read it, and ask for the unit (when the file has none) with what it holds. `mtl`: an OBJ's material file, when it was dropped with it. */
-  const importStlBytes = (bytes: Uint8Array, file: string, kind: MeshKind = 'stl', mtl?: () => Promise<string>) => {
+  const importStlBytes = (bytes: Uint8Array, file: string, kind: MeshKind = 'stl', mtl?: () => Promise<string>, buffers?: () => Promise<Record<string, Uint8Array>>) => {
     if (!controller.document()) { store.notify(t('mesh.noDoc'), 'warn'); return; }
     // reading a big file takes a moment: let the page paint the notice first
     store.notify(t('mesh.import.reading', { name: file }));
     setTimeout(() => void (async () => {
       const mtlText = mtl ? await mtl() : undefined;
-      const r = await probeMesh(kind, bytes, { mtl: mtlText }).catch((e: Error) => ({ ok: false as const, code: 'failed', message: e.message }));
+      const bufs = buffers ? await buffers() : undefined;
+      const r = await probeMesh(kind, bytes, { mtl: mtlText, buffers: bufs }).catch((e: Error) => ({ ok: false as const, code: 'failed', message: e.message }));
       if (!r.ok) { store.notify(t('mesh.failed', { name: file, reason: 'message' in r ? r.message : t('mesh.err.' + r.code) }), 'error'); return; }
-      setMeshDlg({ name: file, kind, bytes, ...(mtlText !== undefined ? { mtl: mtlText } : {}), probe: r.probe, unit: r.probe.unitFixed ?? guessUnit(r.probe.size) });
+      setMeshDlg({ name: file, kind, bytes, ...(mtlText !== undefined ? { mtl: mtlText } : {}), ...(bufs ? { buffers: bufs } : {}), probe: r.probe, unit: r.probe.unitFixed ?? guessUnit(r.probe.size) });
     })(), 30);
   };
+  /** The dialog of an OBJ that named a .mtl nobody opened: pick it with the file picker and read the OBJ again with its colours. */
+  const pickMtlForDialog = () => void (async () => {
+    const dlg = meshDlg;
+    if (!dlg) return;
+    const f = await platform.openFile({ accept: ['.mtl'] });
+    if (!f) return;
+    const r = await probeMesh(dlg.kind, dlg.bytes, { mtl: f.text }).catch(() => null);
+    if (!r || !r.ok) return;
+    if (!r.probe.colours) { store.notify(t('mesh.import.mtlNone', { name: f.name }), 'warn'); return; }
+    setMeshDlg({ ...dlg, mtl: f.text, probe: r.probe });
+  })();
   const commitMeshImport = (unit: StlUnit, ground: boolean, scale = 1) => {
     const dlg = meshDlg;
     if (!dlg) return;
@@ -4812,7 +4920,7 @@ function App() {
     setTimeout(() => void (async () => {
       try {
         const have = meshesOf(controller.document());
-        const { rec } = await buildMeshRecord(dlg.kind, dlg.bytes, dlg.name, unit, have, ground ? viewport?.getUpAxis() ?? 'y' : null, dlg.mtl, scale);
+        const { rec } = await buildMeshRecord(dlg.kind, dlg.bytes, dlg.name, unit, have, ground ? viewport?.getUpAxis() ?? 'y' : null, dlg.mtl, scale, dlg.buffers);
         controller.setUndoableExtra(MESH_KEY, [...have, rec]);
         refreshMeshes(true);
           redraw((n) => n + 1);
@@ -4972,7 +5080,7 @@ function App() {
     <CaseWizard key="case" params={caseWiz.params} hasOthers={doc.features.length > 0} onDraft={onCaseDraft} onApply={onCaseApply} onCancel={onCaseCancel} hint={previewHint} />
   ) : null;
   const pluginEditor = pluginWiz && doc ? (
-    <PluginPanel key="plugins" registry={pluginRegistry} manager={pluginManager} onInstalled={() => setPluginTick((n) => n + 1)} sel={pluginWiz.sel} onPick={onPluginPick} onChange={onPluginChange} onApply={onPluginApply} onRun={onPluginRun} readResult={pluginRead} readBusy={pluginReadBusy} pickField={pluginPick} onPickField={setPluginPick} onBack={onPluginBack} onCancel={onPluginCancel} hint={previewHint} note={pluginNote} busy={pluginBusy} sketches={pluginWiz.sel && pluginRegistry.find(pluginWiz.sel.pluginId, pluginWiz.sel.generatorId)?.decl.params.some((x) => x.accept?.includes('sketch') || x.accept?.includes('profile')) ? docSketches(doc?.features ?? [], sketchShapes as never) : undefined} />
+    <PluginPanel key="plugins" registry={pluginRegistry} manager={pluginManager} onInstalled={() => setPluginTick((n) => n + 1)} onOpenHub={() => setHubOpen(true)} sel={pluginWiz.sel} onPick={onPluginPick} onChange={onPluginChange} onApply={onPluginApply} onRun={onPluginRun} readResult={pluginRead} readBusy={pluginReadBusy} pickField={pluginPick} onPickField={setPluginPick} onBack={onPluginBack} onCancel={onPluginCancel} hint={previewHint} note={pluginNote} busy={pluginBusy} sketches={pluginWiz.sel && pluginRegistry.find(pluginWiz.sel.pluginId, pluginWiz.sel.generatorId)?.decl.params.some((x) => x.accept?.includes('sketch') || x.accept?.includes('profile')) ? docSketches(doc?.features ?? [], sketchShapes as never) : undefined} />
   ) : null;
   const trayEditor = trayWiz && doc ? (
     <TrayWizard key="tray" params={trayWiz.params} hasOthers={doc.features.length > 0} onDraft={onTrayDraft} onApply={onTrayApply} onCancel={onTrayCancel} hint={previewHint} />
@@ -5210,8 +5318,14 @@ function App() {
     selected={[...new Set(store.selection.value.map((n) => rowOfName(bodyRows, n)?.key).filter((k): k is string => !!k))]}
     onSelect={(key, add) => store.select([key], add)}
     onToggleHidden={(key) => setHiddenBodies(setHidden(bodyFields, key, !bodyRows.find((r) => r.key === key)?.hidden, bodyRows))}
-    onSolo={(key) => setHiddenBodies(solo(bodyRows, key))}
-    onShowAll={() => setHiddenBodies(showAll())}
+    onSolo={(key) => {   // isolate also hides the other components, in the same click; Show All brings both back
+      const d = controller.document();
+      const ins = d ? insertIds(d as never) : new Set<string>();
+      const r = soloAll(bodyRows, key, [...ins], (row) => componentOfName(row.faces[0] ?? '', ins), asmState.hidden.value);
+      asmState.hidden.value = r.components;
+      setHiddenBodies(r.bodies);
+    }}
+    onShowAll={() => { asmState.hidden.value = []; setHiddenBodies(showAll()); }}
     onHideOthers={() => setHiddenBodies(hideOthers(bodyRows, store.selection.value.map((n) => rowOfName(bodyRows, n)?.key).filter((k): k is string => !!k)))}
     onRename={(key, name) => {
       const row = bodyRows.find((r) => r.key === key);
@@ -5489,6 +5603,7 @@ function App() {
     { id: 'sketch-select', label: t('app.sketch.select'), tab: 'Sketch', group: 'Sketch', run: () => selectTool(null) },
     ...sketchTools().map((x) => ({ id: 'sketch-tool-' + x.id, label: t('app.sketch.tool.' + x.id), ...(x.key ? { keys: x.key.toUpperCase() } : {}), tab: 'Sketch', group: t('app.sketch.group.' + x.group), run: () => selectTool(x.id) })),
   ] : [];
+  applyKeymap(sketchCommands);
   sketchCommandsRef.current = sketchCommands;
   const drawerEl = () => (   // a function: the tabs are built only when the drawer or its sheet is open
     <Drawer active={drawerTab} onTab={setDrawerTab} onClose={toggleDrawer}
@@ -5796,8 +5911,9 @@ function App() {
       {sketching && reportOpen && phoneOrTablet && sketchDraftNow ? <SketchReportSheet report={sketchReport(sketchDraftNow, stNow)} onSelect={selectConstraintTargets} onClose={() => setReportOpen(false)} snap={reportSnap} onSnap={setReportSnap} bottom={phone ? navH : 0} /> : null}
       {shortcutSheet ? <ShortcutSheet commands={commands} onClose={() => setShortcutSheet(false)} /> : null}
       {palette ? <CommandPalette commands={sketchCommands.length ? [...commands, ...sketchCommands] : commands} pinned={['view-iso', 'fit', 'undo', 'redo', 'samples', 'settings']} onClose={() => setPalette(false)} /> : null}
-      {samples ? <LibraryDialog samples={samples} thumbBase={base} registry={libraryRegistry()} onOpenPart={(data, lib) => { setSamples(null); libraryActions.openNew(data, lib); }} canInsert={!!doc} onInsertPart={(e) => { setSamples(null); catalog.onItemKey(partItem(e)); }} onWizard={(id) => { setSamples(null); if (id === 'screw') openScrew(); else openBearing(); }} onClose={() => setSamples(null)} recent={files.recent()} recentThumbs={files.recentThumbs()} onPickRecent={openRecent}
+      {samples ? <LibraryDialog samples={samples} thumbBase={base} registry={libraryRegistry()} onOpenPart={(data, lib) => { setSamples(null); libraryActions.openNew(data, lib); }} canInsert={!!doc} onInsertPart={(e) => { setSamples(null); catalog.onItemKey(partItem(e)); }} onWizard={(id) => { setSamples(null); if (id === 'screw') openScrew(); else openBearing(); }} onOpenHub={() => { setSamples(null); setHubOpen(true); }} onClose={() => setSamples(null)} recent={files.recent()} recentThumbs={files.recentThumbs()} onPickRecent={openRecent}
         onPick={(s) => { setSamples(null); guarded(async () => { const r = await fetch(s.url); await load(await r.text(), { file: null }); files.noteSample(s.id, s.title, s.url); }); }} /> : null}
+      {hubOpen ? <HubDialog store={hubStore} libraryRegistry={libraryRegistry()} pluginManager={pluginManager} onPluginInstalled={() => setPluginTick((n) => n + 1)} onClose={() => setHubOpen(false)} /> : null}
       {moveDlg ? <MoveGroupDialog name={moveDlg.name} count={moveDlg.refs.length} onChange={(v) => { if (v.every((x) => x === 0)) void controller.cancelPreview(); else void controller.preview(moveDelta(moveDlg.refs, v), 250).then(onPreviewResult); }} onCancel={() => { void controller.cancelPreview(); setMoveDlg(null); }} onMove={async (v) => { const d = moveDlg; await controller.cancelPreview(); const c = await timed(() => controller.commit(moveDelta(d.refs, v), 'move folder')); setMoveDlg(null); if (!c.ok) store.notify(c.hints?.map((h) => h.hint).join('; ') || 'move failed'); redraw((n) => n + 1); }} /> : null}
       {teardrop ? <TeardropDialog hole={teardrop.hole} others={teardrop.others} up={docUpAxis(doc as never) ?? loadNavPrefs().upAxis} onAdd={(c) => void addTeardrop(c)} onClose={() => setTeardrop(null)} /> : null}
       {printPlateDlg ? (
@@ -5829,7 +5945,7 @@ function App() {
       ) : null}
       {recogOpen ? <RecogniseDialog name={lastStep.current?.name ?? ''} run={runRecognise} onOpen={openRecognised} onCopy={(code) => { void navigator.clipboard?.writeText(code); store.notify(t('recog.copied')); }} onClose={() => setRecogOpen(false)} /> : null}
       {kindDlg ? <ImportKindDialog kind={kindDlg.kind} name={kindDlg.name} initial={readChoice(kindDlg.kind)} hidden={kindDlg.hidden} onCancel={() => setKindDlg(null)} onImport={(choice, hidden) => { const d = kindDlg; setKindDlg(null); if (d.kind === 'skp') { if (choice === 'saved') void importSkpMesh(d.bytes!, d.name, hidden); else importSkpBytes(d.bytes!, d.name, hidden); } else if (choice === 'saved') importStepFeature(d.text!, d.name); else importStepText(d.text!, d.name); }} /> : null}
-      {meshDlg ? <MeshImportDialog name={meshDlg.name} kind={meshDlg.kind} probe={meshDlg.probe} unit={meshDlg.unit} onImport={commitMeshImport} onCancel={() => setMeshDlg(null)} /> : null}
+      {meshDlg ? <MeshImportDialog name={meshDlg.name} kind={meshDlg.kind} probe={meshDlg.probe} unit={meshDlg.unit} onImport={commitMeshImport} onCancel={() => setMeshDlg(null)} onPickMtl={meshDlg.kind === 'obj' ? pickMtlForDialog : undefined} /> : null}
       {meshPick ? (
         <div class="mesh-pick-chip" data-testid="mesh-pick" role="group" aria-label={t('mesh.pick.hint')}>
           <span class="mesh-pick-text">{meshPick.stage === 'aim' ? t('mesh.pick.hint') : t('mesh.pick.plane')}</span>

@@ -115,11 +115,37 @@ describe('readGlb by hand', () => {
     const code = (f: () => unknown) => { try { f(); } catch (e) { return (e as MeshReadError).code; } return 'none'; };
     expect(code(() => readGlb(makeGlb(tri({ extensionsRequired: ['KHR_draco_mesh_compression'] }), triBin)))).toBe('draco');
     expect(code(() => readGlb(makeGlb(tri({ extensionsRequired: ['EXT_meshopt_compression'] }), triBin)))).toBe('meshopt');
-    expect(code(() => readGlb(makeGlb(tri({ buffers: [{ byteLength: 36, uri: 'data:application/octet-stream;base64,AAAA' }] }), null)))).toBe('externalBuffer');
+    expect(code(() => readGlb(makeGlb(tri({ buffers: [{ byteLength: 36, uri: 'part.bin' }] }), null)))).toBe('externalBuffer');
     expect(code(() => readGlb(makeGlb(tri({ accessors: [{ componentType: 5126, count: 3, type: 'VEC3', sparse: { count: 1 } }] }), triBin)))).toBe('sparse');
     expect(code(() => readGlb(makeGlb(tri(), triBin).subarray(0, 60)))).toBe('glbTruncated');
-    expect(code(() => readGlb(new TextEncoder().encode('{"asset":{"version":"2.0"}}')))).toBe('notGlb');
+    expect(code(() => readGlb(new TextEncoder().encode('{"asset":{"version":"2.0"}}')))).toBe('noTriangles');
+    expect(code(() => readGlb(new TextEncoder().encode('{"x":1}')))).toBe('notGlb');
+    expect(code(() => readGlb(new TextEncoder().encode('{"asset":{"version":"1.0"}}')))).toBe('glbVersion');
     expect(code(() => readGlb(new Uint8Array(0)))).toBe('empty');
     expect(code(() => readGlb(makeGlb(tri({ accessors: [{ bufferView: 0, componentType: 5126, count: 30, type: 'VEC3' }] }), triBin)))).toBe('badAccessor');
+  });
+});
+
+describe('readGlb on a .gltf text file', () => {
+  const text = (o: object) => new TextEncoder().encode(JSON.stringify(o));
+  const b64 = (u: Uint8Array) => btoa(String.fromCharCode(...u));
+  it('reads a buffer held as a base64 data URI', () => {
+    const g = tri({ buffers: [{ byteLength: 36, uri: 'data:application/octet-stream;base64,' + b64(triBin) }] });
+    const r = readGlb(text(g));
+    expect(r.triangles).toBe(1);
+    expect(r.bbox.max[0]).toBeCloseTo(1000, 3);   // 1 m in mm
+    expect(r.unit).toBe('m');
+  });
+  it('reads a buffer from a .bin handed in, by the name in the uri (percent-decoded)', () => {
+    const g = tri({ buffers: [{ byteLength: 36, uri: 'my%20part.bin' }] });
+    const r = readGlb(text(g), { buffers: { 'my part.bin': triBin } });
+    expect(r.triangles).toBe(1);
+    expect(() => readGlb(text(g))).toThrowError(/not supplied/);
+  });
+  it('gives the same mesh as the same data in a GLB', () => {
+    const a = readGlb(makeGlb(tri(), triBin));
+    const b = readGlb(text(tri({ buffers: [{ byteLength: 36, uri: 'data:application/octet-stream;base64,' + b64(triBin) }] })));
+    expect(Array.from(b.mesh.vertices)).toEqual(Array.from(a.mesh.vertices));
+    expect(Array.from(b.mesh.indices)).toEqual(Array.from(a.mesh.indices));
   });
 });

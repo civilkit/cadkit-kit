@@ -1,0 +1,9 @@
+{
+  "name": "@kit/cli",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "bin": {
+    "cadkit": "bin/cadkit.mjs"
+  }
+}

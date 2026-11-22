@@ -184,3 +184,16 @@ describe('flanged presets in the wizard', () => {
     expect(bearingOpts(back)).not.toHaveProperty('flange');
   });
 });
+
+describe('bearing wizard snap-ring groove', () => {
+  it('is off by default, goes to the helper and the model when on, and shows its numbers', () => {
+    expect(bearingOpts(P())).not.toHaveProperty('snapRing');
+    expect(bearingOpts(P({ snapRing: true }))).toMatchObject({ snapRing: true });
+    expect(bearingNumbers(P())!.snapRing).toBeNull();
+    expect(bearingNumbers(P({ snapRing: true }))!.snapRing).toMatchObject({ fromSecond: false });
+    expect(bearingOps({ features: [] }, P({ snapRing: true })).length).toBeGreaterThanOrEqual(4);
+  });
+  it('every preset stays valid with the groove on', () => {
+    for (const p of BEARING_PRESETS) expect(bearingIssue(withPreset(P({ snapRing: true }), p)), p.designation).toBeNull();
+  });
+});

@@ -1,6 +1,7 @@
 import { sketchTools, type ToolEntry, type ToolGroup } from '@kit/sketch';
 import { Icon, Slot, Tip, type SlotItem, type RibbonGroup } from '@kit/ui';
 import { t } from './i18n';
+import { keyOf } from './keymapStore';
 import { HelpButton } from './HelpButton';
 import { SketchConstruction, SketchFinish, SketchStatus, type SketchControls } from './SketchBar';
 
@@ -41,7 +42,7 @@ export function slotsFor(group: ToolGroup, tools: ToolEntry[]): PaletteSlot[] {
 }
 
 const toItem = (x: ToolEntry, active: string | null, onPick: (id: string | null) => void): SlotItem => ({
-  id: x.id, label: t('app.sketch.tool.' + x.id), keys: x.key?.toUpperCase(), pressed: () => active === x.id, run: () => onPick(x.id),
+  id: x.id, label: t('app.sketch.tool.' + x.id), keys: keyOf('sketch-tool-' + x.id), pressed: () => active === x.id, run: () => onPick(x.id),
 });
 
 /** The sketch tools as a palette on the right edge: sections (Draw, Dimension, Constrain, Edit) of slots. A slot shows the tool
@@ -122,7 +123,7 @@ export function SketchToolStrip(p: { active: string | null; onPick(id: string | 
         return (
           <div class="sgroup" key={g} role="group" aria-label={t('app.sketch.group.' + g)}>
             {iconsOnly ? null : <span class="sgroup-name">{t('app.sketch.group.' + g)}</span>}
-            {inGroup.map((x) => button(x.id, t('app.sketch.tool.' + x.id), p.active === x.id, () => p.onPick(x.id), x.key?.toUpperCase()))}
+            {inGroup.map((x) => button(x.id, t('app.sketch.tool.' + x.id), p.active === x.id, () => p.onPick(x.id), keyOf('sketch-tool-' + x.id)))}
           </div>
         );
       })}

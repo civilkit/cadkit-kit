@@ -5,13 +5,22 @@ import { useEffect } from 'preact/hooks';
 import { numberAttrs } from '@kit/ui';
 import { poseProblem, rangeOf } from '@kit/motion';
 import { t } from '../i18n';
+import type { PluginJointEntry } from '../pluginMotion';
 import type { MotionStore } from './store';
 import { useSig } from './useStore';
 
 const fmt = (x: number, d = 4): string => String(+x.toPrecision(d));
 export const problemText = (code: string): string => (code === 'noKernel' ? t('motion.noKernel') : poseProblem(code));
 
-export function MotionPanel({ store }: { store: MotionStore }): JSX.Element {
+export interface MotionPanelProps {
+  store: MotionStore;
+  pluginJoints?: readonly PluginJointEntry[];
+  pluginJointValues?: Readonly<Record<string, number>>;
+  onPluginJointChange?(id: string, value: number): void;
+  onPluginJointReset?(): void;
+}
+
+export function MotionPanel({ store, pluginJoints, pluginJointValues, onPluginJointChange, onPluginJointReset }: MotionPanelProps): JSX.Element {
   useEffect(() => store.use(), [store]);
   const s = useSig(() => ({
     drivers: store.drivers.value, values: store.values.value, motion: store.motion.value, found: store.found.value, finding: store.finding.value, clearance: store.clearance.value,
@@ -69,6 +78,26 @@ export function MotionPanel({ store }: { store: MotionStore }): JSX.Element {
         <div class="asm-note">{t('motion.note')}</div>
         <div class="asm-note">{t('motion.timelineHint')}</div>
       </section>
+      {pluginJoints && pluginJoints.length > 0 ? (
+        <section class="asm-card" aria-label={t('motion.plugin.title')} data-testid="plugin-joints-card">
+          <h4>{t('motion.plugin.title')}</h4>
+          {pluginJoints.map((entry) => {
+            const { joint } = entry;
+            const v = pluginJointValues?.[entry.id] ?? 0;
+            const u = joint.kind === 'revolute' ? '°' : ' mm';
+            return (
+              <div class="asm-f wide" key={entry.id} data-plugin-joint={entry.id}>
+                <span>{entry.group} · {joint.name} ({fmt(v)}{u})</span>
+                <input type="range" min={joint.min} max={joint.max} step={joint.kind === 'revolute' ? 1 : 0.5} value={v} aria-label={`${entry.group} ${joint.name}`} onInput={(ev) => onPluginJointChange?.(entry.id, parseFloat((ev.target as HTMLInputElement).value))} />
+                <input {...numberAttrs('signed')} type="number" step="any" value={v} aria-label={t('motion.value')} onInput={(ev) => onPluginJointChange?.(entry.id, parseFloat((ev.target as HTMLInputElement).value))} />
+              </div>
+            );
+          })}
+          <div class="asm-bar">
+            <button class="btn" disabled={!Object.values(pluginJointValues ?? {}).some((v) => Math.abs(v) > 1e-9)} onClick={() => onPluginJointReset?.()}>{t('motion.plugin.reset')}</button>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

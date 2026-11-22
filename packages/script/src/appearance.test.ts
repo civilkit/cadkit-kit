@@ -58,6 +58,19 @@ p.bodyName(lens, 'Tach lens'); p.bodyName('F4', 'Cap');`);
     expect(r.errors[0]?.message).toContain(msg);
     expect(r.errors[0]?.line).toBeGreaterThan(0);
   });
+  it('records PBR properties (metallic/metalness, roughness, clearcoat) and rejects out-of-range values', async () => {
+    const { r } = await run(BASE + `p.appearance({ feature: lens, colour: '#c9d0d8', metalness: 0.9, roughness: 0.28, clearcoat: 0.2 });
+p.appearance({ body: cap, metallic: 0.1, roughness: 0.75 });`);
+    expect(r.errors).toEqual([]);
+    expect((r.document as { appearance: unknown }).appearance).toEqual({
+      F2: { color: '#c9d0d8', metallic: 0.9, roughness: 0.28, clearcoat: 0.2 },
+      F4: { metallic: 0.1, roughness: 0.75 },
+    });
+    const bad = await run(BASE + `p.appearance({ feature: lens, metalness: 1.5 });`);
+    expect(bad.r.errors[0]?.message).toContain('metallic must be between 0 and 1');
+    const badR = await run(BASE + `p.appearance({ feature: lens, roughness: -0.1 });`);
+    expect(badR.r.errors[0]?.message).toContain('roughness must be between 0 and 1');
+  });
   it('a look on a pattern also styles the seed body (a look given to the seed itself wins)', async () => {
     const { r } = await run(`const p = part('x');
 p.sketch('front', (s) => s.circle(5, [0, 0])).extrude(3);

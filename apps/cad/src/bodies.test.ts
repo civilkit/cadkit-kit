@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SelModel } from './select/model';
 import { box, meshOf } from './select/fixtures';
 import { kernelBodies } from './controller';
-import { cleanLook, nameKeyOf, faceVolumes, hideOthers, keyOf, listBodies, lookFor, originOf, readBodyFields, rowOfName, setHidden, solo, toggleHidden, viewSpec, withLook, withLooks, withName, visibleMesh, splitBodies } from './bodies';
+import { cleanLook, nameKeyOf, faceVolumes, hideOthers, keyOf, listBodies, lookFor, originOf, readBodyFields, rowOfName, setHidden, solo, soloAll, toggleHidden, viewSpec, withLook, withLooks, withName, visibleMesh, splitBodies } from './bodies';
 import { exportStl } from './exportFiles';
 
 // two separate boxes: F1 (10 x 10 x 10 at the origin) and F5 (20 x 5 x 5 apart from it)
@@ -101,6 +101,16 @@ describe('visibility', () => {
     const only = listBodies(model().bodies(), { view: { hiddenBodies: [rows[1].key] } }, {});
     expect(solo(only, rows[0].key)).toEqual([]);
     expect(hideOthers(rows, [rows[1].key])).toEqual([rows[0].key]);
+  });
+  it('soloAll also hides the other components; isolating the only visible body shows everything; a root body hides every component', () => {
+    const comp = (r: { key: string }): string | null => (r.key === rows[1].key ? 'F6' : null);
+    expect(soloAll(rows, rows[0].key, ['F6', 'F7'], comp, [])).toEqual({ bodies: [rows[1].key], components: ['F6', 'F7'] });
+    expect(soloAll(rows, rows[1].key, ['F6', 'F7'], comp, [])).toEqual({ bodies: [rows[0].key], components: ['F7'] });
+    const only = listBodies(model().bodies(), { view: { hiddenBodies: [rows[1].key] } }, {});
+    expect(soloAll(only, rows[0].key, ['F6', 'F7'], comp, [])).toEqual({ bodies: [], components: [] });
+    // a body whose component is hidden is not visible, so isolating the other body is a fresh isolate
+    expect(soloAll(rows, rows[0].key, ['F6'], comp, ['F6'])).toEqual({ bodies: [], components: [] });
+    expect(soloAll(rows, rows[1].key, ['F6'], comp, ['F6'])).toEqual({ bodies: [rows[0].key], components: [] });
   });
   it('gives the viewport the bodies, the looks that exist and the hidden keys', () => {
     const r = listBodies(model().bodies(), { appearance: { F5: { opacity: 0.2 } }, view: { hiddenBodies: ['@body:F1.+x'] } }, {});

@@ -40,7 +40,7 @@
    "kind": "function",
    "domain": "sketch",
    "signature": "at(base: PlaneBase, offset: Num = 0, opts: PlaneOpts = {}): OffsetPlane",
-   "summary": "A workplane for a sketch: an offset plane, a face, a plane feature, a point and normal, or a tilt.",
+   "summary": "A sketch workplane: offset plane, face, plane feature, point and normal, or tilt.",
    "description": "at(base, offset, opts) returns a plane reference for sketch(). base is 'front' (moves along +Z), 'top' (+Y), 'right' (+X); a face(...) (the plane of that planar face, offset along its outward normal); a plane feature handle from part.workplane(...) + part.handle(); or { origin: [x,y,z], normal: [x,y,z], xdir? } for any plane (axis-aligned normals use a standard plane, others add three helper points and a three-point plane). opts.rotate = { axis: 'x'|'y'|'z' | edges(...), angle } tilts the plane about that line (the plane passes through the axis; an offset is applied before the rotation). A reference plane feature is added to the part.",
    "parameters": [
     {
@@ -200,7 +200,7 @@
    "kind": "function",
    "domain": "sketch",
    "signature": "plane(name: Plane): PlaneInfo",
-   "summary": "The frame of a standard sketch plane: which world axes its sketch x, y and normal are.",
+   "summary": "The frame of a standard sketch plane: its sketch x, y and normal as world axes.",
    "description": "plane(name) returns { origin, x, y, normal, toWorld }. front: sketch x = world X, y = world Y, normal +Z. top: x = X, y = -Z (sketch y points to world -Z, so +sketch y is towards the back), normal +Y. right: x = -Z, y = Y, normal +X. Y is up. These come from the kernel's sketch frames; use toWorld([u, v], offset) to place a sketch point in the world, e.g. to aim a face selector or an expectBBox.",
    "parameters": [
     {
@@ -476,7 +476,7 @@
    "kind": "method",
    "domain": "sketch",
    "signature": "s.equation(o: { x: string; y: string; t: [Num | string, Num | string]; tol?: number; name?: string }): this",
-   "summary": "Curve from formulas x(t), y(t): the kernel fits a spline with the fewest points within the tolerance.",
+   "summary": "Curve from formulas x(t), y(t), fitted as a spline within the tolerance.",
    "description": "Adds a spline entity that stores the formulas; the kernel evaluates them on every rebuild, so a curve written with variables follows them. Formulas use the expression syntax of dimensions: + - * / ^, sqrt sin cos tan abs, min max pow mod hypot atan2 round floor ceil exp ln log10 asin acos atan, pi; TRIGONOMETRY IS IN DEGREES (a full turn is t from 0 to 360); any name other than t must be a declared variable. `t` is [start, end] (numbers, expr(), or formula strings); `tol` is the largest distance in mm from the formulas (default 0.01). A curve that ends where it starts is closed (a region of its own); an open one needs lines to close it, starting and ending exactly at the curve's end points (compute them from the formulas). Errors name the formula (equationFormula, equationNotFinite, equationRange, equationTolerance, equationDegenerate); a curve that crosses itself warns equationSelfIntersects. `name` sets the entity id; its points are <name>_start, <name>_p1.., <name>_end.",
    "parameters": [
     {
@@ -996,7 +996,7 @@
    "kind": "method",
    "domain": "sketch",
    "signature": "s.text(string: string, at: Pt | { x: number; y: number }, opts: TextOpts = {}): this",
-   "summary": "Lettering: the outlines of a string as closed regions (engrave it with cut, emboss it with extrude).",
+   "summary": "Lettering: string outlines as closed regions (cut to engrave, extrude to emboss).",
    "description": "Adds a `text` entity: the letters of a built-in font become closed loops that extrude and cut like any sketch profile, so ENGRAVE = sketch on the face + cut(0.3), EMBOSS = sketch + extrude(0.3). `at` is the anchor [x, y] (or {x, y}); `height` is the CAP height in mm (the height of an H, default 5); fonts: 'gauge' (condensed sans, default) and 'engrave' (serif), or the id of a library font ('barlow', 'source-sans-3', 'barlow-condensed', 'bebas-neue', 'pt-serif', 'special-elite', 'ibm-plex-mono', 'great-vibes', 'satisfy', 'anton': the app loads it, nothing else to do; no kerning or ligatures; overlapping strokes of a font may fail to engrave); anchor is [horizontal, vertical] = 'left'|'center'|'right' x 'baseline'|'middle'|'top' (or one string 'center middle'), default left baseline, measured on the ink box; angle in degrees counter-clockwise about the anchor; spacing scales the letter pitch (default 1); mirror flips the text (for the back of a clear part); arc: { centre: [x, y], radius, angleCentre (deg, default 90), side: 'outside' (tops away from the centre, reads clockwise) | 'inside' (tops toward the centre, reads counter-clockwise) } lays the letters along a circle (radius is the baseline). KEEP LETTERING IN A SKETCH OF ITS OWN (its loops are not intersected with other curves of the sketch); several text() calls in one sketch are fine (dial numerals). Text under 0.8 mm cap height warns textTooSmall; characters outside Latin-1 are skipped (textMissingGlyph). `name` sets the entity id (letters, digits, - and _), which shows in the sketch's inspect `texts`. Use await part.textMetrics(string, opts) to size a plate or centre by the real width.",
    "parameters": [
     {
@@ -1089,7 +1089,7 @@
    "kind": "function",
    "domain": "features",
    "signature": "bearing(o: BearingOpts): PartBuilder",
-   "summary": "A ball bearing as separate bodies (rings, balls when open), placed by an origin and an axis.",
+   "summary": "A ball bearing as separate bodies (rings, balls if open), placed by origin and axis.",
    "description": "The free-function form of the bearing method: bearing({ designation: '608', seal: '2RS' }) adds a bearing to the current part (a new one when there is none) and returns it. Give a preset designation ('608', '6204', 'MR63', 'R2') or bore, od and width in mm. seal is '2Z' (default), '2RS' or 'open' (visible balls). origin is the centre of the first face and axis the way the bearing extends from it (default [0, 0, 1]). Each ring and ball is its own body.",
    "parameters": [
     {
@@ -1145,6 +1145,29 @@
    "example": "extensionSpring({ outer: 12, wire: 1, coils: 15 });",
    "related": [
     "part.extensionSpring"
+   ]
+  },
+  {
+   "id": "fuseIntersecting",
+   "kind": "function",
+   "domain": "features",
+   "signature": "fuseIntersecting(o: FuseIntersectingOpts = {}): PartBuilder",
+   "summary": "Fuse the part's intersecting or touching bodies; disjoint ones stay apart.",
+   "description": "The free-function form of `part.fuseIntersecting`: merges overlapping bodies on the part started last with `part()`.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "FuseIntersectingOpts",
+     "optional": true,
+     "default": "{}",
+     "description": "optional `{ tolerance?: number }` bounding-box overlap tolerance in mm (default 1e-4)"
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "const p = part('Blocks')\n  .sketch('front', (s) => s.rect(20, 20)).extrude(10, { newBody: 'A' })\n  .sketch('front', (s) => s.rect(20, 20, [10, 0])).extrude(10, { newBody: 'B' });\nfuseIntersecting();",
+   "related": [
+    "part.fuseIntersecting",
+    "autoFuse"
    ]
   },
   {
@@ -1236,7 +1259,7 @@
    "kind": "method",
    "domain": "features",
    "signature": ".axis(a: 'x' | 'y' | 'z' | EdgeSel | FaceSel | PlaneArg, b?: PlaneArg)",
-   "summary": "A reference axis: a world axis, a straight edge, a cylinder or the line where two planes meet.",
+   "summary": "A reference axis: world axis, straight edge, cylinder or two-plane intersection.",
    "description": "Adds the axis feature other features take as { kind: 'feature', id } (a plane turned about it, a revolve or pattern axis). One argument: 'x' | 'y' | 'z' (a world axis through the origin), edges(sel) matching one straight edge, or face(sel) of a cylindrical face (its axis; faceNotCylindrical otherwise). Two arguments: two planes ('front' | 'top' | 'right', face(sel), a plane handle, at(plane, offset)): the line where they meet (planesParallel if they do not). Take part.handle() after it to refer to it.",
    "parameters": [
     {
@@ -1307,7 +1330,7 @@
    "kind": "method",
    "domain": "features",
    "signature": ".bearing(o: BearingOpts)",
-   "summary": "A ball bearing as separate bodies: two rings (with shields or seals) and, when open, the balls.",
+   "summary": "A ball bearing as separate bodies: two rings (shields or seals) and, if open, balls.",
    "description": "Give a preset designation ('608', '6204', 'MR63', 'R2' for a 1/8 inch bore) or bore, od and width in mm; the presets are the nominal ISO 15 sizes of the miniature 6xx, MR, 60xx, 62xx and 63xx series and some inch sizes. seal: '2Z' (default) is a flat shield disc on both faces, '2RS' a thicker seal with a sloping lip, 'open' shows the balls (count and diameter from the race gap, or balls and ballDiameter). All four corners of each ring are chamfered (chamfer, default by size). Each race has a ball groove (an arc about the ball centre circle, radius 0.52 ball diameters, 0.27 deep; a plain race when the bearing is too small for one), no cage, so this is for assemblies, fit checks and looks, not for load ratings. origin is the centre of the first face and axis the way the bearing extends from it (default [0, 0, 1]). Each ring and ball is its own body and does not merge with what it touches. onFace: 'F2.C1' builds the bearing from that face instead of from absolute numbers (the origin must lie on the face and the axis point into the part along x, y or z), so a later edit that moves the face moves the bearing and its pocket with it. seat: true first cuts a pocket for the outer ring into the bodies that exist (diameter with an H7 housing allowance, depth the width), seat: { fit: 'press' | 'h7' | 'print', allowance } picks another fit.",
    "parameters": [
     {
@@ -1909,7 +1932,7 @@
    "kind": "method",
    "domain": "features",
    "signature": ".feature(json: Record<string, unknown>)",
-   "summary": "Append any kernel feature as raw JSON (escape hatch for features without a helper).",
+   "summary": "Append any kernel feature as raw JSON (escape hatch).",
    "description": "Validates json.type against the kernel's feature list, assigns the id and adds the feature after the previous step. face(sel) inside the JSON becomes the persistent face name (or a { kind: 'face', id } reference under plane / neutral / axis), edges(sel) becomes the edge references (spliced into arrays), at(plane, offset) becomes a reference plane feature, and the strings '$last' and '$sketch' stand for the id of the previous feature / sketch. Use it for a type without a helper (surface features such as a single-patch fill, trimSurface, extend, pipeCut, frame; projectCurve, offsetCurve, compositeCurve, sweepSurface, blendSurface and fillNSided have typed methods); draft, moveFace, pressPull, lip, scale, split, deleteBody, deleteFace, helix, axis, sphere and moveBody have typed methods, so prefer those. dome is not built in the kernel. Field names are the kernel's (docs/spec-agent-interface.md).",
    "parameters": [
     {
@@ -2029,11 +2052,34 @@
    ]
   },
   {
+   "id": "part.fuseIntersecting",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".fuseIntersecting(o: FuseIntersectingOpts = {}): this",
+   "summary": "Fuse intersecting or touching bodies into union solids; disjoint ones stay apart.",
+   "description": "Inspects the bounding boxes of every lump in the part, groups lumps whose boxes overlap or touch within `tolerance` (default 1e-4 mm), and adds one `combine` (`op: 'union'`) feature per overlapping group. Disjoint solids are left untouched, and if fewer than two bodies overlap no feature is added. Also available as the free function `fuseIntersecting()`.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "FuseIntersectingOpts",
+     "optional": true,
+     "default": "{}",
+     "description": "optional `{ tolerance?: number }` bounding-box overlap tolerance in mm, default 1e-4"
+    }
+   ],
+   "returns": "this",
+   "example": "part('Fused')\n  .sketch('front', (s) => s.rect(20, 20)).extrude(10, { newBody: 'A' })\n  .sketch('front', (s) => s.rect(20, 20, [10, 0])).extrude(10, { newBody: 'B' })\n  .sketch('front', (s) => s.rect(10, 10, [60, 0])).extrude(10, { newBody: 'C' })\n  .fuseIntersecting();",
+   "related": [
+    "part.autoFuse",
+    "part.combine"
+   ]
+  },
+  {
    "id": "part.gear",
    "kind": "method",
    "domain": "features",
    "signature": ".gear(o: { module: number; teeth: number; thickness: number; bore?: number; pressureAngle?: number; type?: 'spur' | 'helical' | 'internal'; helixAngle?: number; plane?: Plane; center?: [number, number] })",
-   "summary": "Involute spur or helical gear (profile, body extrude, bore) from module and teeth.",
+   "summary": "Involute spur or helical gear (profile, body, bore) from module and teeth.",
    "description": "Adds the app's gear generator output: a profile sketch with true involute teeth, the body extrude and a through bore. The gear is centred on `center` on the 'front' plane (axis +Z) unless plane says otherwise. Pitch diameter = module * teeth; outside diameter = module * (teeth + 2). Use it as the first feature of a part (it makes the body), or on its own plane for a second gear.",
    "parameters": [
     {
@@ -2131,7 +2177,7 @@
    "kind": "method",
    "domain": "features",
    "signature": ".gridTray(o: GridTrayOpts)",
-   "summary": "A tray or bin on a grid (Gridfinity-style units) as its own body, scooped along its length.",
+   "summary": "A tray or bin on a grid (Gridfinity-style units) as its own body, scooped lengthwise.",
    "description": "Outside widthUnits x lengthUnits grid units (42 mm, 0.5 mm under) and heightUnits x 7 mm tall, standing on origin along +z. The cavity has a scoop of scoopRadius (default 8) on its lower edges and runs the whole length: open at both ends, or closed by endWalls ('front', 'back', 'both' = a bin). foot: true adds the Gridfinity foot (4.75 mm, inside the height) under every cell so it seats in a baseplate. magnets cuts 6 x 2 mm holes underneath. Not included: stacking flange, dividers, labels.",
    "parameters": [
     {
@@ -2454,7 +2500,7 @@
    "kind": "method",
    "domain": "features",
    "signature": ".lipJoint(plane: PlaneArg, o: { height: Num; width?: Num; widthRatio?: Num; inset?: Num; clearance?: Num; tongue?: 'below' | 'above'; names?: [string, string]; target?: string; flip?: boolean })",
-   "summary": "Lip joint of a two-part case: split a shelled body at a plane, tongue on one half, groove on the other.",
+   "summary": "Two-part case lip joint: split a shelled body, tongue on one half, groove on the other.",
    "description": "Does split() and then makes, along the outer boundary of the seam (the walls of a shelled box), a centred tongue standing height mm out of one half and a matching channel in the other, wider by clearance on each side and deeper by clearance, so the halves fit with that clearance all round. The tongue is width mm wide (or widthRatio of the wall thickness, default 0.5) and sits inset mm from the outer wall (default: centred in the wall). The wall thickness is measured on the seam; a solid body has none, so give width and inset in mm. tongue: 'below' (default) puts the tongue on the lower half. Needs a flat seam and a closed outline. Errors say what does not fit the wall (invalidValue, field and detail).",
    "parameters": [
     {
@@ -2773,7 +2819,7 @@
    "kind": "method",
    "domain": "features",
    "signature": ".revolve(angle: Num = 360, o: { name?: string; op?: 'add' | 'cut'; thin?: ThinOpt; axis?: { from: Pt; to: Pt }; newBody?: boolean | string; from?: string | string[] } = {}): this",
-   "summary": "Revolve the last sketch about an axis (lathe parts: pulleys, bushings, flanges).",
+   "summary": "Revolve the last sketch about an axis (lathe parts, pulleys, flanges).",
    "description": "Revolves the last sketch `angle` degrees (default 360). The axis is the sketch Y axis unless axis: { from, to } gives a line in the sketch plane. Profile x is the radius, y the height along the axis, so draw a half cross-section on one side of the axis. op: 'cut' removes the revolved volume instead. thin makes a revolved shell.",
    "parameters": [
     {
@@ -2903,7 +2949,7 @@
    "kind": "method",
    "domain": "features",
    "signature": ".scale(factor: Num | [Num, Num, Num], o: { about?: 'origin' | 'centroid'; at?: Vec; bodies?: string | FeatureHandle | Array<string | FeatureHandle> } = {})",
-   "summary": "Scale bodies uniformly or per axis (print shrink compensation, stretched variants).",
+   "summary": "Scale bodies uniformly or per axis (print shrink compensation).",
    "description": "factor is one number (uniform) or [sx, sy, sz] along the world axes; each must be above 0 (use mirror for a flip). The fixed point is `at` [x, y, z], else `about` 'centroid' (default, the centre of mass of the selection) or 'origin'. bodies limits it to named bodies (made with newBody), default all bodies. Bodies change in place and every face keeps its name. Exact for planes, for cylinders and cones stretched along their axis, B-spline faces and for spheres and tori under a uniform factor; a round face stretched across its axis, a sphere under a non-uniform factor, and revolution or extrusion surfaces are refused with invalidValue and the body is left as it was.",
    "parameters": [
     {
@@ -2951,7 +2997,7 @@
    "kind": "method",
    "domain": "features",
    "signature": ".screw(o: ScrewOpts)",
-   "summary": "A screw or bolt as its own body: head, drive and shank, placed by an origin and an axis.",
+   "summary": "A screw or bolt as its own body: head, drive and shank, placed by origin and axis.",
    "description": "Give the metric size (M2 to M16; M12 and M16 have button, countersunk and hex heads only, as the standards stop there) and the shank length; head and drive sizes come from an ISO table and can be overridden. head: 'pan' (default), 'button', 'countersunk', 'cheese' or 'hex'. drive: 'slotted', 'hex' (socket), 'cross', 'torx' or 'none'. Cross is an approximation (two tapered wings with a small flat tip) and so is torx: fine for looks, fit checks and mass. origin is the centre of the bearing face and axis is the way the shank points (default [0, 0, -1]). The screw is its own body and does not merge with what it touches. thread: true is refused for now.",
    "parameters": [
     {
@@ -3584,7 +3630,7 @@
    "kind": "function",
    "domain": "features",
    "signature": "screw(o: ScrewOpts): PartBuilder",
-   "summary": "A screw or bolt as its own body (head, drive, shank), placed by an origin and an axis.",
+   "summary": "A screw or bolt as its own body (head, drive, shank), placed by origin and axis.",
    "description": "The free-function form of part.screw: screw({ size: 'M3', length: 6, head: 'button', drive: 'hex' }) adds a screw to the current model and returns it. Sizes M2 to M16 fill in the head and drive; heads pan, button, countersunk, cheese, hex; drives slotted, hex, cross, torx, none. Cross and Torx are approximations. origin is the centre of the bearing face and axis the way the shank points (default [0, 0, -1]); thread: true is refused for now.",
    "parameters": [
     {
@@ -3703,7 +3749,7 @@
    "kind": "function",
    "domain": "selectors",
    "signature": "edges(sel: string | EdgeRule): EdgesSel",
-   "summary": "Select edges of the current body by direction, extreme plane, or a rule object.",
+   "summary": "Select edges of the current body by direction, extreme plane or rule object.",
    "description": "edges(sel) is resolved against the body just before the step that uses it. Strings: 'all'; '|X' '|Y' '|Z' straight edges parallel to that axis; '>X' ... '<Z' edges lying in the extreme plane along that axis. A rule object ANDs its keys: parallel ('X'|'Y'|'Z'), outside / inside (box [[x0,y0,z0],[x1,y1,z1]] tested on the edge midpoint), not (another edges()), onFace (a face() or faces()), createdBy (edges that bound a face a feature created: a handle or id), lengthGreater, lengthLess, near + within (radius), and union / intersect / difference (arrays of edges()). It fails with a line number when nothing matches. Choose by POSITION, not by generated names: .sortBy(key) orders the edges by midpoint along key ('>Z' highest first, '<Z' or 'Z' lowest first, likewise X and Y, a direction [x, y, z], or { along: edges(...) } for the distance along a rail edge from its start, the rail being one edge), then .nth(i) (0 first, -1 last), .first(n) and .last(n) take edges in that order: edges({ parallel: 'Y' }).sortBy({ along: edges('|X') }).nth(2) is the third rung along the rail. .groupBy(key, { tol }) gathers the edges at the same position (tol default 0.001 mm) and .nth(i) / .first() / .last() / .at(position) choose a group: edges({ parallel: 'X' }).groupBy('>Z').first() is the edges of the top height, edges('all').groupBy('Z').at(12) those at height 12. Ties are broken by x, y, z, so the choice does not depend on the order the kernel lists edges in, and it is made again when the model is rebuilt. Rule keys sortBy, group and pick do the same in an object. Picking without sortBy or groupBy is refused.",
    "parameters": [
     {
@@ -3728,7 +3774,7 @@
    "kind": "function",
    "domain": "selectors",
    "signature": "face(sel: string | FaceRule, opts: { of?: FeatureRefLike } = {}): FaceSel",
-   "summary": "Select ONE face of the current body: by direction, by persistent name, by feature, or by a rule.",
+   "summary": "Select ONE face of the current body: by direction, name, feature or rule.",
    "description": "face(sel, opts) is resolved when the script runs, against the body as it is just before the step that uses it. A direction '>X' '<X' '>Y' '<Y' '>Z' '<Z' ('#top' '#bottom') is the planar face whose outward normal is that axis and which lies furthest along it (ties: the biggest). AFTER A BOSS OR POCKET '>Z' means the boss top, and the plate top facing the same way is a different face: when other faces face the same way but belong to another feature, the run result carries a warning naming the face it resolved to; pick on purpose with face('>Z', { of: handle }) (only faces created by that feature: a handle from part.handle(), or an id like 'F2'). A persistent face name such as 'F3.C1' (cap 1 of F3) selects exactly that face; 'F3.*' is a prefix. A rule object ANDs its keys: dir, normal [x,y,z] (planar faces facing that way), planar, at [x,y,z] (planar: the point lies on its plane), kind ('plane'|'cylinder'|'sphere'|'other'), radius, createdBy / of (feature), areaGreater, areaLess, near [x,y,z] (+ within), not / union / intersect / difference (arrays of face() or faces()). It must match exactly one face (faces(rule).nth(i), .largest(), .smallest(), .near(p) choose among several); it fails with a line number otherwise. Pass it to sketch(), at(), hole(), holes.*, shell().",
    "parameters": [
     {
@@ -3770,7 +3816,7 @@
    "kind": "function",
    "domain": "selectors",
    "signature": "faces(sel: string | FaceRule, opts: { of?: FeatureRefLike } = {}): FacesSel",
-   "summary": "Select SEVERAL faces (a set) of the current body, or choose one of them by order, size or position.",
+   "summary": "Select several faces of the current body, or one by order, size or position.",
    "description": "faces(sel, opts) takes the same specs as face() but returns every match: faces({ kind: 'cylinder', radius: 5 }) is every R5 cylindrical face, faces({ createdBy: h }) every face a feature created, faces('>Z') every face facing +Z. Use it where several faces are wanted (shell(faces(...), t) opens them all, edges({ onFace: faces(...) })), or chain one pick: .nth(i) (position in the body's face list), .largest(), .smallest(), .first(), .last(), .near([x, y, z]) (centroid nearest the point); each returns a face() you can pass to sketch() or hole(). To choose by POSITION instead of by the body's face order (which changes when the model is rebuilt): .sortBy(key) orders the faces by centroid along key ('>Z' highest first, '<Z' or 'Z' lowest first, likewise X and Y, a direction [x, y, z], or { along: edges(...) } for the distance along a rail edge), then .nth(i) / .first() / .last() count in that order: faces({ normal: [0, 0, 1] }).sortBy('Z').nth(1) is the second face facing up from the bottom. .groupBy(key, { tol }) gathers the faces at the same position (default tol 0.001 mm) and .nth(i) / .first() / .last() / .at(position) choose a group, returned as faces(): faces({ normal: [0, 0, 1] }).groupBy('Z').at(18) is every upward face at height 18. Rule keys sortBy and group do the same in an object.",
    "parameters": [
     {
@@ -5200,6 +5246,29 @@
    "notes": "- Faces are of different components: mating two faces of one body is mateSameBody. The unfixed component moves; mateConflict / mateFixed when two fixed components or contradicting mates meet.\n- A coincident mate puts the faces together with outward normals opposed; flip: true aligns them instead."
   },
   {
+   "id": "autoFuse",
+   "kind": "function",
+   "domain": "utilities",
+   "signature": "autoFuse(enabled: boolean | (() => void) = true): PartBuilder",
+   "summary": "Toggle opt-in implicit boolean fusion on the current part (or in a callback).",
+   "description": "The free-function form of `part.autoFuse`: `autoFuse(true)` enables implicit boolean fusion for subsequent steps on the part started last with `part()`, and `autoFuse(() => { ... })` enables it only for the steps inside the callback.",
+   "parameters": [
+    {
+     "name": "enabled",
+     "type": "boolean | (() => void)",
+     "optional": true,
+     "default": "true",
+     "description": "true (default) or false, or a callback whose steps run with autoFuse enabled"
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "const p = part('Block');\nautoFuse(true);\np.sketch('front', (s) => s.rect(20, 20)).extrude(10, { newBody: 'A' })\n  .moveBody('A', { translate: [10, 0, 0], copy: true });",
+   "related": [
+    "part.autoFuse",
+    "fuseIntersecting"
+   ]
+  },
+  {
    "id": "expr",
    "kind": "function",
    "domain": "utilities",
@@ -5251,9 +5320,9 @@
    "id": "part",
    "kind": "function",
    "domain": "utilities",
-   "signature": "part(name: string = 'Script part'): PartBuilder",
+   "signature": "part(name: string = 'Script part', opts?: PartOpts): PartBuilder",
    "summary": "Start a new part: the part the script builds; returns the fluent builder.",
-   "description": "Every script builds one part (the last wins); call part() to start a new part. Chain sketch, extrude, cut, holes, fillet, ... on the result. The name appears as the document name.",
+   "description": "Every script builds one part (the last wins); call part() to start a new part. Chain sketch, extrude, cut, holes, fillet, ... on the result. The name appears as the document name. Pass `{ autoFuse: true }` (or `{ implicitUnion: true }`) to opt into implicit boolean fusion for intersecting bodies.",
    "parameters": [
     {
      "name": "name",
@@ -5261,12 +5330,33 @@
      "optional": true,
      "default": "'Script part'",
      "description": "part name, default \"Script part\""
+    },
+    {
+     "name": "opts",
+     "type": "PartOpts",
+     "optional": true,
+     "description": "optional `{ autoFuse?: boolean, implicitUnion?: boolean }`",
+     "properties": [
+      {
+       "name": "autoFuse",
+       "type": "boolean",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "implicitUnion",
+       "type": "boolean",
+       "optional": true,
+       "description": ""
+      }
+     ]
     }
    ],
    "returns": "PartBuilder",
    "example": "part('Bracket').sketch('front', (s) => s.rect(60, 40)).extrude(12);",
    "related": [
     "part.sketch",
+    "part.autoFuse",
     "variables"
    ]
   },
@@ -5275,7 +5365,7 @@
    "kind": "method",
    "domain": "utilities",
    "signature": ".appearance(o: AppearanceTarget): this",
-   "summary": "Colour, opacity and finish of the bodies a feature made (view only, no geometry change).",
+   "summary": "Colour, opacity and finish of the bodies a feature made (view only).",
    "description": "appearance({ feature: handle, colour: '#1a1a1a', opacity: 0.18, finish: 'glass' }) styles the body (lump) the feature created; when the feature made several bodies (a pattern) all of them, and for a pattern the seed's own body too. feature is a handle from part.handle() or an id like 'F12' (body is the same). colour (or color) is '#rrggbb' or '#rgb'; opacity is 0.05 to 1 (below 1 the body is drawn as glass in the transparent pass; a click passes through a body below 0.35); finish is 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'. { face: 'F3.C1' } or { face: 'F3.*' } (a persistent face name or prefix) or { face: handle } (all the faces a feature created) sets colour and finish of single faces; the opacity of a face is ignored. Stored in the document (appearance, faceAppearance), so the app, the snapshot renderer and a saved file show it. The part's own material is the default for bodies without an appearance.",
    "parameters": [
     {
@@ -5308,6 +5398,29 @@
    ]
   },
   {
+   "id": "part.autoFuse",
+   "kind": "method",
+   "domain": "utilities",
+   "signature": ".autoFuse(enabled: boolean | (() => void) = true): this",
+   "summary": "Toggle opt-in implicit boolean fusion for later steps (or inside a callback).",
+   "description": "When enabled, additive features (`extrude`, `revolve`, `sweep`, `loft`, `sphere`, and raw additive features) that do not explicitly specify `newBody` or a `body` name unite with intersecting solids while keeping disjoint solids separate, and body transforms (`moveBody` without an explicit `body` name, `scale`) automatically fuse any newly overlapping bodies. Off (`false`) by default so existing scripts keep their exact behaviour. Pass a callback `autoFuse(() => { ... })` to enable it only for the steps inside. Also available as the free function `autoFuse(...)` and as `part('Name', { autoFuse: true })`.",
+   "parameters": [
+    {
+     "name": "enabled",
+     "type": "boolean | (() => void)",
+     "optional": true,
+     "default": "true",
+     "description": "true (default) or false, or a callback whose steps run with autoFuse enabled"
+    }
+   ],
+   "returns": "this",
+   "example": "part('Assembly')\n  .autoFuse(true)\n  .sketch('front', (s) => s.rect(20, 20)).extrude(10, { newBody: 'A' })\n  .moveBody('A', { translate: [10, 0, 0], copy: true });",
+   "related": [
+    "part.fuseIntersecting",
+    "part.combine"
+   ]
+  },
+  {
    "id": "part.bbox",
    "kind": "method",
    "domain": "utilities",
@@ -5327,7 +5440,7 @@
    "kind": "method",
    "domain": "utilities",
    "signature": ".bodyName(target: string | FeatureHandle, name: string): this",
-   "summary": "Name the bodies a feature made (shown in the Bodies list; the default is Body 1, 2, ...).",
+   "summary": "Name the bodies a feature made (shown in the Bodies list).",
    "description": "bodyName(handle, 'Tach lens') names the body the feature created; when it made several they are numbered 'Tach lens 1', 'Tach lens 2'. The target is a handle from part.handle() or an id like 'F12'.",
    "parameters": [
     {
@@ -5404,7 +5517,7 @@
    "kind": "method",
    "domain": "utilities",
    "signature": ".edges(): Promise<Array<{ key: string; mid: Vec; length: number; faces: string[] }>>",
-   "summary": "Read the edges of the part built so far: key, midpoint, length, adjacent faces.",
+   "summary": "Read the part's edges: key, midpoint, length, adjacent faces.",
    "description": "Returns { key, mid, length, faces } per edge. The key (like 'F2.C0|F2.S.l1#0') is what the object form of fillet({ radius: { [key]: r } }) takes. Needs await.",
    "parameters": [],
    "returns": "Promise<Array<{ key: string; mid: Vec; length: number; faces: string[] }>>",
@@ -5563,7 +5676,7 @@
    "kind": "method",
    "domain": "utilities",
    "signature": ".expectVolume(v: number, o: { tolerance?: number; tol?: number; abs?: number; body?: string } = {}): this",
-   "summary": "Check the volume of the part built so far; a mismatch is reported as an error with this line.",
+   "summary": "Check the part's volume so far; a mismatch is reported as an error.",
    "description": "expectVolume(v, { tolerance }) compares the kernel's exact volume (mm3, all bodies together) with v: |got - v| <= v * tolerance, a RELATIVE tolerance, default 1e-3 (0.1 %). { abs } gives an absolute tolerance in mm3 instead; { body: 'Name' } measures one body made with newBody (an unknown name is an error that lists the bodies). tol is a short name for tolerance. No await needed: it is a step, checked when the runner reaches it (a build of what is recorded so far, cached with other reads). A failure is listed in the run errors, as 'Line N: expected volume 48000, got 47961.37 (tolerance 1e-6 relative)', so the run reports an error; later checks still run and are listed too. Analytic references (boxes, cylinders) match to 1e-6; a lofted or swept body only to the tolerance you can justify (0.5 % is typical).",
    "parameters": [
     {
@@ -5636,7 +5749,7 @@
    "kind": "method",
    "domain": "utilities",
    "signature": ".faces(): Promise<FaceFact[]>",
-   "summary": "Read the faces of the part built so far: persistent name, kind, area, normal, centre, radius, feature.",
+   "summary": "Read the part's faces: name, kind, area, normal, centre, radius, feature.",
    "description": "Returns a list of { name, kind ('plane' | 'cylinder' | 'sphere' | 'other'), area, normal (planar faces), center, radius (round faces), feature }. The name works in face('F3.C1'). Use it to find the face you mean before selecting it; the surface kind and radius are fitted from the display mesh. Forces a view build of what is recorded so far, cached until the next feature. Needs await.",
    "parameters": [],
    "returns": "Promise<FaceFact[]>",
@@ -5705,7 +5818,7 @@
    "kind": "method",
    "domain": "utilities",
    "signature": ".inertia(density: number = 1): Promise<{ mass: number; centreOfMass: Vec; firstMoment: Vec; tensor: number[][]; tensorOrigin: number[][]; principal: Vec; axes: Vec[] }>",
-   "summary": "Read the mass, first moments, inertia tensor and principal axes of the part built so far.",
+   "summary": "Read mass, first moments, inertia tensor and principal axes so far.",
    "description": "Returns { mass (g), centreOfMass (mm), firstMoment (mass x centre about the origin, g mm), tensor (3x3 rows about the centre of mass, world axes, g mm2), tensorOrigin (the same about the origin), principal (the three principal moments, smallest first, g mm2), axes (the unit principal axes in the same order) }. Exact for the kernel's analytic faces. A hole removes mass and never changes the signs: the diagonal stays positive and the products of inertia are minus the integral of x*y. Forces a build and a mass-properties query, cached until the next feature. Needs await.",
    "parameters": [
     {

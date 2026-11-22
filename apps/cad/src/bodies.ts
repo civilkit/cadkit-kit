@@ -282,6 +282,15 @@ export function solo(rows: readonly BodyRow[], key: string): string[] {
   if (visible.length === 1 && visible[0].key === key) return [];
   return rows.filter((r) => r.key !== key).map((r) => r.key);
 }
+/** Isolate a body across the whole assembly in one step: the bodies to hide (as `solo`) and the components to hide (every component but the one the body belongs to; all of them for a body of the root part).
+ *  `compOf` names the component of a body row (null: the root part). Isolating the only visible body shows everything again: no hidden body, no hidden component. */
+export function soloAll(rows: readonly BodyRow[], key: string, comps: readonly string[], compOf: (r: BodyRow) => string | null, hiddenComps: readonly string[]): { bodies: string[]; components: string[] } {
+  const row = rows.find((r) => r.key === key);
+  const mine = row ? compOf(row) : null;
+  const visible = rows.filter((r) => !r.hidden && !hiddenComps.includes(compOf(r) ?? ''));
+  if (visible.length === 1 && visible[0].key === key) return { bodies: [], components: [] };
+  return { bodies: rows.filter((r) => r.key !== key).map((r) => r.key), components: comps.filter((c) => c !== mine) };
+}
 export const hideOthers = (rows: readonly BodyRow[], keys: readonly string[]): string[] => rows.filter((r) => !keys.includes(r.key)).map((r) => r.key);
 export const showAll = (): string[] => [];
 /** The appearance map with `patch` merged into the BODY entry of `key` (fields set to undefined are removed; an empty entry is dropped). */

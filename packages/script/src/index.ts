@@ -1,6 +1,7 @@
 export * from './selectors';
 export * from './recorder';
 export * from './run';
+export * from './autoFuse';
 export * from './progress';
 export { formatScript } from './format';
 export { EXAMPLES, type Example } from './examples';

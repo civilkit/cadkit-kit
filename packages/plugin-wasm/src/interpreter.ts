@@ -37,15 +37,108 @@ interface Move { kind: 'move'; name: string; bodies: string[]; translate?: numbe
 interface Hole { name: string; pos: number[]; dir: number[]; d: number; depth: number; targets: string[]; hole: true }
 export interface Param { name: string; expression: string; value: number; comment?: string }
 
-/** The colour a board material shows: the plugin's own `color`, else a wood tone chosen from the library name it asked for (we have no texture library for these). */
-export function lookOf(name: string, look?: string): { colour: string } {
-  if (look && /^#[0-9a-f]{6}$/i.test(look)) return { colour: look };
-  const n = `${name} ${look ?? ''}`.toLowerCase();
-  if (n.includes('birch')) return { colour: '#e3c995' };
-  if (n.includes('oak')) return { colour: '#b78a56' };
-  if (n.includes('walnut')) return { colour: '#6b4a32' };
-  if (n.includes('melamine') || n.includes('white')) return { colour: '#f1f1ec' };
-  return { colour: '#c9a87a' };
+/** Supported body finishes for plugin materials (matches CadKit's BodyFinish). */
+export type MaterialFinish = 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed';
+const MATERIAL_FINISHES = new Set<MaterialFinish>(['matte', 'plastic', 'chrome', 'glass', 'brushed']);
+
+/** Rich appearance properties resolved for a plugin material. */
+export interface MaterialLook {
+  colour: string;
+  finish?: MaterialFinish;
+  metalness?: number;
+  roughness?: number;
+  opacity?: number;
+  clearcoat?: number;
+}
+export interface MaterialDef {
+  density?: number;
+  look?: string;
+  colour?: string;
+  finish?: MaterialFinish;
+  metalness?: number;
+  roughness?: number;
+  opacity?: number;
+  clearcoat?: number;
+}
+
+/** Normalized joint/motion metadata declared by a plugin (hinges, slides, rigid links) in document coordinates. */
+export interface PluginJointHint {
+  name: string;
+  kind: 'revolute' | 'prismatic' | 'rigid';
+  bodies: string[];
+  origin: [number, number, number];
+  axis: [number, number, number];
+  min: number;
+  max: number;
+  rest?: number;
+  component?: string;
+}
+
+const vecLen = (v: number[]): number => Math.hypot(v[0] ?? 0, v[1] ?? 0, v[2] ?? 0);
+const unitVec = (v: number[]): [number, number, number] => { const l = vecLen(v); return l > 1e-12 ? [v[0] / l, v[1] / l, v[2] / l] : [0, 0, 1]; };
+const orthoX = (n: [number, number, number]): [number, number, number] => {
+  const ref: [number, number, number] = Math.abs(n[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+  return unitVec([n[1] * ref[2] - n[2] * ref[1], n[2] * ref[0] - n[0] * ref[2], n[0] * ref[1] - n[1] * ref[0]]);
+};
+const roundNum = (n: number): number => Math.round(n * 1e9) / 1e9 + 0;
+const clampUnit = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : undefined);
+const clampOpacity = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0.05, v)) : undefined);
+const parseFinish = (v: unknown): MaterialFinish | undefined => (typeof v === 'string' && MATERIAL_FINISHES.has(v.toLowerCase() as MaterialFinish) ? (v.toLowerCase() as MaterialFinish) : undefined);
+
+function parseColor(v: unknown): string | undefined {
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (/^#[0-9a-f]{6}$/i.test(s)) return s.toLowerCase();
+    if (/^#[0-9a-f]{3}$/i.test(s)) return '#' + s.slice(1).split('').map((c) => c + c).join('').toLowerCase();
+    return undefined;
+  }
+  if (Array.isArray(v) && v.length >= 3 && v.slice(0, 3).every((x) => typeof x === 'number' && Number.isFinite(x))) {
+    const rgb = v.slice(0, 3) as number[];
+    const scale = rgb.every((x) => x >= 0 && x <= 1) ? 255 : 1;
+    return '#' + rgb.map((x) => Math.min(255, Math.max(0, Math.round(x * scale))).toString(16).padStart(2, '0')).join('');
+  }
+  return undefined;
+}
+
+/** Named material preset lookup (colour + PBR finish/metalness/roughness/opacity). Explicit colour or PBR overrides win over the preset. */
+export function lookOf(name: string, look?: string | Partial<MaterialDef>): MaterialLook {
+  const hint = typeof look === 'string' ? look : look?.look;
+  const explicitColor = typeof look === 'string' ? parseColor(look) : (parseColor(look?.colour) ?? parseColor(look?.look));
+  const n = `${name} ${hint ?? ''}`.toLowerCase();
+  let base: MaterialLook = { colour: '#c9a87a', finish: 'matte', metalness: 0, roughness: 0.72 };
+  if (n.includes('birch')) base = { colour: '#e3c995', finish: 'matte', metalness: 0, roughness: 0.7 };
+  else if (n.includes('oak')) base = { colour: '#b78a56', finish: 'matte', metalness: 0, roughness: 0.72 };
+  else if (n.includes('walnut')) base = { colour: '#6b4a32', finish: 'matte', metalness: 0, roughness: 0.68 };
+  else if (n.includes('maple')) base = { colour: '#e6cfa6', finish: 'matte', metalness: 0, roughness: 0.65 };
+  else if (n.includes('cherry')) base = { colour: '#b5683f', finish: 'matte', metalness: 0, roughness: 0.65 };
+  else if (n.includes('pine')) base = { colour: '#d8b27a', finish: 'matte', metalness: 0, roughness: 0.74 };
+  else if (n.includes('cedar')) base = { colour: '#b5764e', finish: 'matte', metalness: 0, roughness: 0.75 };
+  else if (n.includes('teak')) base = { colour: '#a9753f', finish: 'matte', metalness: 0, roughness: 0.62 };
+  else if (n.includes('mdf')) base = { colour: '#b79a76', finish: 'matte', metalness: 0, roughness: 0.85 };
+  else if (n.includes('plywood')) base = { colour: '#e3c79a', finish: 'matte', metalness: 0, roughness: 0.72 };
+  else if (n.includes('melamine') || n.includes('white')) base = { colour: '#f1f1ec', finish: 'plastic', metalness: 0, roughness: 0.45 };
+  else if (n.includes('chrome')) base = { colour: '#d8dde3', finish: 'chrome', metalness: 1, roughness: 0.08 };
+  else if (n.includes('stainless') || n.includes('steel')) base = { colour: '#b8c0c8', finish: 'brushed', metalness: 0.9, roughness: 0.32 };
+  else if (n.includes('alumin')) base = { colour: '#c9d0d8', finish: 'brushed', metalness: 0.88, roughness: 0.28 };
+  else if (n.includes('brass')) base = { colour: '#d3b04c', finish: 'brushed', metalness: 0.92, roughness: 0.26 };
+  else if (n.includes('copper')) base = { colour: '#c8774a', finish: 'brushed', metalness: 0.92, roughness: 0.28 };
+  else if (n.includes('bronze')) base = { colour: '#a8742f', finish: 'brushed', metalness: 0.88, roughness: 0.34 };
+  else if (n.includes('titanium')) base = { colour: '#a7adb5', finish: 'brushed', metalness: 0.85, roughness: 0.35 };
+  else if (n.includes('iron')) base = { colour: '#5f656c', finish: 'brushed', metalness: 0.8, roughness: 0.48 };
+  else if (n.includes('glass')) base = { colour: '#bfe3ea', finish: 'glass', metalness: 0, roughness: 0.06, opacity: 0.35 };
+  else if (n.includes('acrylic') || n.includes('polycarbonate')) base = { colour: '#d4e8f0', finish: 'glass', metalness: 0, roughness: 0.1, opacity: 0.45 };
+  else if (n.includes('rubber')) base = { colour: '#2f3236', finish: 'matte', metalness: 0, roughness: 0.9 };
+  else if (n.includes('plastic') || n.includes('abs') || n.includes('pla') || n.includes('nylon')) base = { colour: '#e6e0cf', finish: 'plastic', metalness: 0, roughness: 0.42 };
+  const over = typeof look === 'object' && look ? look : undefined;
+  return {
+    ...base,
+    ...(explicitColor ? { colour: explicitColor } : {}),
+    ...(over?.finish ? { finish: over.finish } : {}),
+    ...(over?.metalness !== undefined ? { metalness: over.metalness } : {}),
+    ...(over?.roughness !== undefined ? { roughness: over.roughness } : {}),
+    ...(over?.opacity !== undefined ? { opacity: over.opacity } : {}),
+    ...(over?.clearcoat !== undefined ? { clearcoat: over.clearcoat } : {}),
+  };
 }
 
 export class Unsupported extends Error {}
@@ -58,7 +151,7 @@ export class Interpreter {
   order: Array<Box | Hole | Round | Combine | Move | Chamfer | Label> = [];
   /** names of pattern features: groupable, but they only repeat holes that are already emitted */
   patterns = new Set<string>();
-  materials = new Map<string, { density?: number; look?: string }>();
+  materials = new Map<string, MaterialDef>();
   assigned = new Map<string, string>();
   groups: Array<{ name: string; features: string[] }> = [];
   calls: string[] = [];
@@ -176,7 +269,7 @@ export class Interpreter {
         const cone = command === 'solid.cone';
         const op = (['cut', 'join', 'intersect'] as const).find((o) => o === args.operation) ?? 'new';
         const axis = (args.axis as unknown[]).map((c) => Number(c));
-        if (axis.filter((v) => v !== 0).length !== 1) throw new Error(`${command}: only an axis along x, y or z is supported (got [${axis}])`);
+        if (axis.length !== 3 || axis.some((v) => !Number.isFinite(v)) || !(vecLen(axis) > 1e-12)) throw new Error(`${command}: axis must be a non-zero 3D vector (got [${axis}])`);
         const r: Round = { kind: 'round', name: String(args.name ?? args.body_name ?? (cone ? 'Cone' : 'Cylinder')), base: (args.base as unknown[]).map((c) => this.num(c)), axis, d: this.num(args.diameter), height: this.num(args.height), op, body: args.body_name, targets: args.targets ?? [], ...(cone ? { top: this.num(args.top_diameter ?? 0) } : {}) };
         if (!(r.d > 0) || !(r.height > 0) || (cone && !(r.top! >= 0))) throw new Error(`${command} needs a positive diameter and height`);
         if (op !== 'new' && !r.targets.length) throw new Error(`a ${op} needs targets`);
@@ -207,7 +300,27 @@ export class Interpreter {
         this.order.push(m);
         return { moved: bodies };
       }
-      case 'material.create': { this.materials.set(String(args.name), { density: args.density_g_cm3, look: args.appearance ?? args.color }); return { name: args.name }; }
+      case 'material.create': {
+        const appObj = args.appearance && typeof args.appearance === 'object' && !Array.isArray(args.appearance) ? (args.appearance as Record<string, unknown>) : undefined;
+        const look = typeof args.appearance === 'string' ? args.appearance : (typeof appObj?.preset === 'string' ? appObj.preset : (typeof appObj?.name === 'string' ? appObj.name : undefined));
+        const colour = parseColor(args.color ?? args.colour ?? appObj?.color ?? appObj?.colour ?? (typeof args.appearance === 'string' ? args.appearance : undefined));
+        const metalness = clampUnit(args.metalness ?? args.metallic ?? appObj?.metalness ?? appObj?.metallic);
+        const roughness = clampUnit(args.roughness ?? appObj?.roughness);
+        const opacity = clampOpacity(args.opacity ?? appObj?.opacity);
+        const finish = parseFinish(args.finish ?? appObj?.finish);
+        const clearcoat = clampUnit(args.clearcoat ?? appObj?.clearcoat);
+        this.materials.set(String(args.name), {
+          ...(args.density_g_cm3 !== undefined ? { density: Number(args.density_g_cm3) } : {}),
+          ...(look !== undefined ? { look } : {}),
+          ...(colour !== undefined ? { colour } : {}),
+          ...(metalness !== undefined ? { metalness } : {}),
+          ...(roughness !== undefined ? { roughness } : {}),
+          ...(opacity !== undefined ? { opacity } : {}),
+          ...(finish !== undefined ? { finish } : {}),
+          ...(clearcoat !== undefined ? { clearcoat } : {}),
+        });
+        return { name: args.name };
+      }
       case 'material.assign': {
         if (!this.materials.has(String(args.material))) throw new Error(`no material named "${args.material}"`);
         for (const b of (args.bodies as string[])) this.assigned.set(b, String(args.material));
@@ -224,8 +337,17 @@ export class Interpreter {
         return { feature: args.name ?? null, body };
       }
       case 'construct.axis.two_planes': { this.axes.add(String(args.name)); return { axis: args.name }; }
-      case 'joint.create': { this.joints.push({ ...args }); return { joint: args.name }; }
-      case 'joint.edit': case 'joint.list': return { joints: this.joints };
+      case 'joint.create': {
+        this.joints.push({ ...args });
+        return { joint: args.name };
+      }
+      case 'joint.edit': {
+        const key = String(args.joint ?? args.name ?? '');
+        const idx = this.joints.findIndex((j) => String(j.name ?? j.joint ?? '') === key);
+        if (idx >= 0) this.joints[idx] = { ...this.joints[idx], ...args };
+        return { joints: this.joints };
+      }
+      case 'joint.list': return { joints: this.joints };
       case 'component.metadata.set': { const n = String(args.component); this.metadata.set(n, { ...(this.metadata.get(n) ?? {}), ...((args.values as Record<string, unknown>) ?? {}) }); return { component: n }; }
       case 'component.metadata': { const n = String(args.component), m = this.metadata.get(n) ?? this.opts.doc?.components?.[n] ?? {}; return { component: n, metadata: m, values: m }; }
       case 'component.list': {
@@ -269,7 +391,23 @@ export class Interpreter {
       }
       case 'component.create': { const n = String(args.name); this.components.set(n, { from: this.order.length, to: Infinity }); this.openComponent = n; this.activeName = n; return { occurrence: `${n}:1`, parent: 'Root', stub: true }; }
       case 'component.activate': { this.activeName = String(args.component ?? 'Root'); if (this.openComponent) { const c = this.components.get(this.openComponent); if (c && c.to === Infinity) c.to = this.order.length; this.openComponent = null; } return { active: args.component, stub: true }; }
-      case 'joint.as_built': case 'joint.limits': return { stub: true, name: args.name ?? args.joint };
+      case 'joint.as_built': {
+        this.joints.push({ ...args, as_built: true });
+        return { stub: true, name: args.name ?? args.joint, joint: args.name ?? args.joint };
+      }
+      case 'joint.limits': {
+        const key = String(args.joint ?? args.name ?? '');
+        const idx = this.joints.findIndex((j) => String(j.name ?? j.joint ?? '') === key);
+        const patch: Record<string, unknown> = {
+          ...(args.min !== undefined ? { min: args.min } : {}),
+          ...(args.max !== undefined ? { max: args.max } : {}),
+          ...(args.rest !== undefined ? { rest: args.rest } : {}),
+          ...(args.limits && typeof args.limits === 'object' ? { limits: args.limits } : {}),
+        };
+        if (idx >= 0) this.joints[idx] = { ...this.joints[idx], ...patch };
+        else if (key) this.joints.push({ name: key, ...patch });
+        return { stub: true, name: args.name ?? args.joint, joint: args.joint ?? args.name };
+      }
       case 'occurrence.move': {
         // a plugin placing a generated component: turn it (about its own origin, which is the document's origin here), then translate it, in world space
         const c = this.components.get(String(args.occurrence).replace(/:\d+$/, ''));
@@ -295,7 +433,47 @@ export class Interpreter {
   private pt(p: number[]): number[] { const q = this.frame.up === 'y' ? [p[0], p[2], -p[1]] : p; return q.map((v, i) => v + this.frame.offset[i]); }
   private dirOf(d: number[]): number[] { return this.frame.up === 'y' ? [d[0], d[2], -d[1]] : d; }
 
-  script(o: { part?: string; up?: 'y' | 'z'; offset?: number[]; /** the app's own colour for a board material name (its material library), or undefined to use the plugin's colour */ look?: (material: string) => string | undefined } = {}): string {
+  /** Normalized joint/motion metadata declared by this plugin run, transformed into document coordinates. */
+  jointHints(o: { up?: 'y' | 'z'; offset?: number[] } = {}): PluginJointHint[] {
+    if (!this.joints.length) return [];
+    const prev = this.frame;
+    this.frame = { up: o.up ?? 'z', offset: o.offset ?? [0, 0, 0] };
+    const createdBodies = this.order.flatMap((f) => ('hole' in f ? [] : 'kind' in f ? (f.kind === 'round' && f.op === 'new' ? [f.body ?? f.name] : []) : (!f.cut && !f.join && !f.inter ? [f.body ?? f.name] : [])));
+    const bodiesOfComponent = (occ: string): string[] => {
+      const compName = occ.replace(/:\d+$/, '');
+      const c = this.components.get(compName);
+      if (c) return this.order.slice(c.from, c.to).flatMap((f) => ('hole' in f ? [] : 'kind' in f ? (f.kind === 'round' && f.op === 'new' ? [f.body ?? f.name] : []) : (!f.cut && !f.join && !f.inter ? [f.body ?? f.name] : [])));
+      return createdBodies.filter((b) => b === compName || b.startsWith(`${compName} `));
+    };
+    const out: PluginJointHint[] = [];
+    for (let i = 0; i < this.joints.length; i++) {
+      const j = this.joints[i];
+      const name = String(j.name ?? j.joint ?? `Joint ${i + 1}`);
+      const rawKind = String(j.type ?? j.kind ?? j.motion_type ?? 'rigid').toLowerCase();
+      const kind: PluginJointHint['kind'] = rawKind === 'revolute' || rawKind === 'hinge' || rawKind === 'rotary' ? 'revolute'
+        : rawKind === 'slider' || rawKind === 'prismatic' || rawKind === 'linear' || rawKind === 'drawer' ? 'prismatic'
+        : 'rigid';
+      const comp = typeof j.component === 'string' ? j.component : typeof j.occurrence === 'string' ? j.occurrence : typeof j.occurrence1 === 'string' ? j.occurrence1 : undefined;
+      const explicitBodies = Array.isArray(j.bodies) ? (j.bodies as unknown[]).map(String).filter(Boolean)
+        : typeof j.body === 'string' && j.body ? [j.body] : [];
+      const bodies = explicitBodies.length ? explicitBodies : (comp ? bodiesOfComponent(comp) : []);
+      const rawOrigin = Array.isArray(j.origin) && j.origin.length >= 3 ? (j.origin as unknown[]).slice(0, 3).map((v) => this.num(v)) : [0, 0, 0];
+      const rawAxis = Array.isArray(j.axis) && j.axis.length >= 3 ? (j.axis as unknown[]).slice(0, 3).map(Number) : (kind === 'prismatic' ? [0, -1, 0] : [0, 0, 1]);
+      const origin = this.pt(rawOrigin).map(roundNum) as [number, number, number];
+      const axis = unitVec(this.dirOf(rawAxis)).map(roundNum) as [number, number, number];
+      const lim = j.limits && typeof j.limits === 'object' ? (j.limits as Record<string, unknown>) : undefined;
+      const minRaw = j.min ?? lim?.min;
+      const maxRaw = j.max ?? lim?.max;
+      const min = minRaw !== undefined ? this.num(minRaw) : 0;
+      const max = maxRaw !== undefined ? this.num(maxRaw) : (kind === 'revolute' ? 110 : kind === 'prismatic' ? 300 : 0);
+      const rest = j.rest !== undefined ? this.num(j.rest) : undefined;
+      out.push({ name, kind, bodies, origin, axis, min, max, ...(rest !== undefined ? { rest } : {}), ...(comp ? { component: comp.replace(/:\d+$/, '') } : {}) });
+    }
+    this.frame = prev;
+    return out;
+  }
+
+  script(o: { part?: string; up?: 'y' | 'z'; offset?: number[]; /** the app's own colour or PBR look for a board material name (its material library), or undefined to use the plugin's look */ look?: (material: string) => string | Partial<MaterialLook> | undefined } = {}): string {
     this.frame = { up: o.up ?? 'z', offset: o.offset ?? [0, 0, 0] };
     const L: string[] = [];
     const names = new Set(this.params.keys());
@@ -328,31 +506,78 @@ export class Interpreter {
       L.push(g ? `p.group(${JSON.stringify(g)}, () => {\n  ${body}\n});` : body);
       i = j;
     }
-    // board materials become each body's colour (view state; the part's own material stays the default for bodies without one)
+    // materials become each body's appearance (colour, finish, metallic, roughness, opacity, clearcoat)
+    const fmtAppearance = (target: string, look: MaterialLook, comment = ''): string => {
+      const fields = [`feature: ${target}`, `colour: ${JSON.stringify(look.colour)}`];
+      if (look.finish) fields.push(`finish: ${JSON.stringify(look.finish)}`);
+      if (look.metalness !== undefined) fields.push(`metallic: ${roundNum(look.metalness)}`);
+      if (look.roughness !== undefined) fields.push(`roughness: ${roundNum(look.roughness)}`);
+      if (look.opacity !== undefined && look.opacity < 1) fields.push(`opacity: ${roundNum(look.opacity)}`);
+      if (look.clearcoat !== undefined && look.clearcoat > 0) fields.push(`clearcoat: ${roundNum(look.clearcoat)}`);
+      return `p.appearance({ ${fields.join(', ')} });${comment}`;
+    };
     for (const [body, mat] of this.assigned) {
-      const look = { colour: o.look?.(mat) ?? lookOf(mat, this.materials.get(mat)?.look).colour };
-      if (this.order.some((o) => 'cut' in o && !o.cut && !o.join && !o.inter && (o.body ?? o.name) === body)) L.push(`p.appearance({ feature: H[${JSON.stringify(body)}], colour: ${JSON.stringify(look.colour)}, finish: 'matte' });`);
-      else if (this.docBody(body)?.feature) L.push(`p.appearance({ feature: ${JSON.stringify(this.docBody(body)!.feature)}, colour: ${JSON.stringify(look.colour)}, finish: 'matte' });   // a body of the open document`);
+      const def = this.materials.get(mat);
+      const preset = lookOf(mat, def);
+      const lib = o.look?.(mat);
+      const libLook: Partial<MaterialLook> = typeof lib === 'string' ? { colour: lib } : (lib ?? {});
+      const look: MaterialLook = {
+        ...preset,
+        ...libLook,
+        ...(def?.colour ? { colour: def.colour } : {}),
+        ...(def?.finish ? { finish: def.finish } : {}),
+        ...(def?.metalness !== undefined ? { metalness: def.metalness } : {}),
+        ...(def?.roughness !== undefined ? { roughness: def.roughness } : {}),
+        ...(def?.opacity !== undefined ? { opacity: def.opacity } : {}),
+        ...(def?.clearcoat !== undefined ? { clearcoat: def.clearcoat } : {}),
+      };
+      const madeHere = this.order.some((it) => ('cut' in it && !it.cut && !it.join && !it.inter && (it.body ?? it.name) === body) || ('kind' in it && it.kind === 'round' && it.op === 'new' && (it.body ?? it.name) === body));
+      if (madeHere) L.push(fmtAppearance(`H[${JSON.stringify(body)}]`, look));
+      else if (this.docBody(body)?.feature) L.push(fmtAppearance(JSON.stringify(this.docBody(body)!.feature), look, '   // a body of the open document'));
     }
     return L.join('\n');
   }
 
-  /** The frame of a round solid: the sketch plane perpendicular to the axis (document frame) and the u, v of a point on it. Same planes as a hole. */
+  /** The frame of an axis-aligned round solid: the sketch plane perpendicular to the axis (document frame) and the u, v of a point on it. */
   private roundFrame(base: number[], axis: number[]): { plane: string; off: number; uv: number[]; sign: number } {
-    const [x, y, z] = this.pt(base), dir3 = this.dirOf(axis), a = dir3.findIndex((v) => v !== 0), sign = Math.sign(dir3[a]);
+    const [x, y, z] = this.pt(base), dir3 = this.dirOf(axis), a = dir3.findIndex((v) => Math.abs(v) > 1e-12), sign = Math.sign(dir3[a]);
     return { plane: ['right', 'top', 'front'][a], off: [x, y, z][a], uv: [[-z, y], [x, -z], [x, y]][a], sign };
   }
-  /** A cylinder is a circle extruded along the axis; a cone is a loft between two circles. `new` makes a body, `join` unites it with the target, `cut` removes it from each target. */
+  /** A cylinder is a circle extruded along the axis; a cone is a loft between two circles. Supports both axis-aligned and arbitrary 3D axis vectors. */
   private emitRound(r: Round): string {
-    const f = this.roundFrame(r.base, r.axis), nm = JSON.stringify(r.name);
+    const dir3 = this.dirOf(r.axis);
+    const axisAligned = dir3.filter((v) => Math.abs(v) > 1e-12).length === 1;
+    const nm = JSON.stringify(r.name);
     const tmp = r.op === 'join' || r.op === 'intersect' ? `${r.name} (${r.op})` : r.body ?? r.name;
+    if (axisAligned) {
+      const f = this.roundFrame(r.base, r.axis);
+      const cutOf = (t: string): string => r.top === undefined
+        ? `p.sketch(at(${JSON.stringify(f.plane)}, ${f.off}), (s) => s.circle(${r.d / 2}, [${f.uv[0]}, ${f.uv[1]}])).cut(${r.height}, { name: ${JSON.stringify(`${r.name} @ ${t}`)}, from: [${JSON.stringify(t)}], direction: '${f.sign > 0 ? 'away' : 'into'}' });`
+        : `p.loft(${this.sections(r, f)}, { op: 'cut', name: ${JSON.stringify(`${r.name} @ ${t}`)}, from: [${JSON.stringify(t)}] });`;
+      if (r.op === 'cut') return r.targets.map(cutOf).join('\n  ');
+      const make = r.top === undefined
+        ? `p.sketch(at(${JSON.stringify(f.plane)}, ${f.off}), (s) => s.circle(${r.d / 2}, [${f.uv[0]}, ${f.uv[1]}])).extrude(${r.height}, { name: ${nm}, newBody: ${JSON.stringify(tmp)}${f.sign < 0 ? ', flip: true' : ''} });`
+        : `p.loft(${this.sections(r, f)}, { name: ${nm}, newBody: ${JSON.stringify(tmp)}, ends: { first: 'cap', last: ${r.top === 0 ? "'point'" : "'cap'"} } });`;
+      return r.op === 'join' || r.op === 'intersect' ? `${make}\n  p.combine('${r.op === 'join' ? 'union' : 'intersect'}', ${JSON.stringify(r.targets[0])}, [${JSON.stringify(tmp)}]);` : `${make} H[${JSON.stringify(tmp)}] = p.handle();`;
+    }
+    // Arbitrary 3D axis vector: build an explicit plane frame (origin, unit normal, orthogonal xdir)
+    const o = this.pt(r.base).map(roundNum);
+    const n = unitVec(dir3).map(roundNum) as [number, number, number];
+    const u = orthoX(n).map(roundNum) as [number, number, number];
+    const basePlane = `at({ origin: [${o}], normal: [${n}], xdir: [${u}] })`;
+    const arbSections = (): string => {
+      const o2 = [o[0] + n[0] * r.height, o[1] + n[1] * r.height, o[2] + n[2] * r.height].map(roundNum);
+      const topPlane = `at({ origin: [${o2}], normal: [${n}], xdir: [${u}] })`;
+      const topD = r.top === 0 ? r.d * 1e-3 : r.top!;
+      return `[{ on: ${basePlane}, draw: (s) => s.circle(${r.d / 2}, [0, 0]) }, { on: ${topPlane}, draw: (s) => s.circle(${topD / 2}, [0, 0]) }]`;
+    };
     const cutOf = (t: string): string => r.top === undefined
-      ? `p.sketch(at(${JSON.stringify(f.plane)}, ${f.off}), (s) => s.circle(${r.d / 2}, [${f.uv[0]}, ${f.uv[1]}])).cut(${r.height}, { name: ${JSON.stringify(`${r.name} @ ${t}`)}, from: [${JSON.stringify(t)}], direction: '${f.sign > 0 ? 'away' : 'into'}' });`
-      : `p.loft(${this.sections(r, f)}, { op: 'cut', name: ${JSON.stringify(`${r.name} @ ${t}`)}, from: [${JSON.stringify(t)}] });`;
+      ? `p.sketch(${basePlane}, (s) => s.circle(${r.d / 2}, [0, 0])).cut(${r.height}, { name: ${JSON.stringify(`${r.name} @ ${t}`)}, from: [${JSON.stringify(t)}], direction: 'away' });`
+      : `p.loft(${arbSections()}, { op: 'cut', name: ${JSON.stringify(`${r.name} @ ${t}`)}, from: [${JSON.stringify(t)}] });`;
     if (r.op === 'cut') return r.targets.map(cutOf).join('\n  ');
     const make = r.top === undefined
-      ? `p.sketch(at(${JSON.stringify(f.plane)}, ${f.off}), (s) => s.circle(${r.d / 2}, [${f.uv[0]}, ${f.uv[1]}])).extrude(${r.height}, { name: ${nm}, newBody: ${JSON.stringify(tmp)}${f.sign < 0 ? ', flip: true' : ''} });`
-      : `p.loft(${this.sections(r, f)}, { name: ${nm}, newBody: ${JSON.stringify(tmp)}, ends: { first: 'cap', last: ${r.top === 0 ? "'point'" : "'cap'"} } });`;
+      ? `p.sketch(${basePlane}, (s) => s.circle(${r.d / 2}, [0, 0])).extrude(${r.height}, { name: ${nm}, newBody: ${JSON.stringify(tmp)} });`
+      : `p.loft(${arbSections()}, { name: ${nm}, newBody: ${JSON.stringify(tmp)}, ends: { first: 'cap', last: ${r.top === 0 ? "'point'" : "'cap'"} } });`;
     return r.op === 'join' || r.op === 'intersect' ? `${make}\n  p.combine('${r.op === 'join' ? 'union' : 'intersect'}', ${JSON.stringify(r.targets[0])}, [${JSON.stringify(tmp)}]);` : `${make} H[${JSON.stringify(tmp)}] = p.handle();`;
   }
   private sections(r: Round, f: { plane: string; off: number; uv: number[]; sign: number }): string {
@@ -421,15 +646,23 @@ export class Interpreter {
   }
   private dirFromDoc(d: number[]): number[] { return (this.opts.up ?? this.opts.doc?.up) === 'y' ? [d[0], 0 - d[2], d[1]] : d; }
 
-  /** A hole is a circle sketched on the plane the drill enters from, cut `depth` along the drill direction, one cut per target body. */
+  /** A hole is a circle sketched on the plane the drill enters from, cut `depth` along the drill direction, one cut per target body. Supports arbitrary 3D drill directions. */
   private emitHole(h: Hole): string {
-    const [x, y, z] = this.pt(h.pos), dir3 = this.dirOf(h.dir), axis = dir3.findIndex((v) => v !== 0), sign = Math.sign(dir3[axis]);
-    // frames from docs/scripting.md: front (x,y | +Z), top (x,-z | +Y), right (-z,y | +X); a cut goes against the normal unless direction is 'away'
-    const plane = ['right', 'top', 'front'][axis];
-    const off = [x, y, z][axis];
-    const uv = [[-z, y], [x, -z], [x, y]][axis];
-    const dir = sign > 0 ? 'away' : 'into';
-    return h.targets.map((t) => `p.sketch(at(${JSON.stringify(plane)}, ${off}), (s) => s.circle(${h.d / 2}, [${uv[0]}, ${uv[1]}])).cut(${h.depth}, { name: ${JSON.stringify(`${h.name} @ ${t}`)}, from: [${JSON.stringify(t)}], direction: '${dir}' });`).join('\n  ');
+    const dir3 = this.dirOf(h.dir);
+    if (dir3.filter((v) => Math.abs(v) > 1e-12).length === 1) {
+      const [x, y, z] = this.pt(h.pos), axis = dir3.findIndex((v) => Math.abs(v) > 1e-12), sign = Math.sign(dir3[axis]);
+      // frames from docs/scripting.md: front (x,y | +Z), top (x,-z | +Y), right (-z,y | +X); a cut goes against the normal unless direction is 'away'
+      const plane = ['right', 'top', 'front'][axis];
+      const off = [x, y, z][axis];
+      const uv = [[-z, y], [x, -z], [x, y]][axis];
+      const dir = sign > 0 ? 'away' : 'into';
+      return h.targets.map((t) => `p.sketch(at(${JSON.stringify(plane)}, ${off}), (s) => s.circle(${h.d / 2}, [${uv[0]}, ${uv[1]}])).cut(${h.depth}, { name: ${JSON.stringify(`${h.name} @ ${t}`)}, from: [${JSON.stringify(t)}], direction: '${dir}' });`).join('\n  ');
+    }
+    const o = this.pt(h.pos).map(roundNum);
+    const n = unitVec(dir3).map(roundNum) as [number, number, number];
+    const u = orthoX(n).map(roundNum) as [number, number, number];
+    const plane = `at({ origin: [${o}], normal: [${n}], xdir: [${u}] })`;
+    return h.targets.map((t) => `p.sketch(${plane}, (s) => s.circle(${h.d / 2}, [0, 0])).cut(${h.depth}, { name: ${JSON.stringify(`${h.name} @ ${t}`)}, from: [${JSON.stringify(t)}], direction: 'away' });`).join('\n  ');
   }
 
   /** The only write to the open document: the recorded list as one script run (one undo step). */

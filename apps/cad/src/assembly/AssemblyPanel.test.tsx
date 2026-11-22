@@ -55,6 +55,22 @@ describe('AssemblyPanel parts', () => {
     await waitFor(() => expect(calls.edits.length).toBe(1));
     expect(calls.edits[0][0]).toMatchObject({ op: 'add', feature: { type: 'insertPart', name: 'Sample one', dx: 12, source: 's1' } });
   });
+  it('Refresh from source updates a changed sample component in one edit, keeping placement and material', async () => {
+    const doc = { name: 'Asm', features: [
+      { id: 'F1', type: 'insertPart', name: 'Mine', source: 's1', dx: 5, part: { ...part('Sample one', 'brass'), features: [] } },
+      { id: 'F2', type: 'insertPart', name: 'Same', source: 's1', part: part('Sample one') },
+      { id: 'F3', type: 'insertPart', name: 'Gone', source: 'nope', part: part('X') },
+    ] };
+    const noMat = () => { const p = part('Sample one') as Record<string, unknown>; delete p.material; return p; };
+    const { h, calls } = host({ doc: doc as never, readUrl: async (u) => JSON.stringify(u === '/s1.ckpart' ? { ...noMat(), features: [{ type: 'sketch', id: 'F1' }] } : part('Sample one')) });
+    const r = mount(h);
+    await waitFor(() => expect(r.container.querySelectorAll('option').length).toBeGreaterThan(1));
+    fireEvent.click(r.container.querySelector('[data-action="refresh-all"]') as HTMLElement);
+    await waitFor(() => expect(calls.edits.length).toBe(1));
+    // F1 changed (its features differ) and keeps its brass; F2 is already current (steel kept); F3's source is not in the list
+    expect(calls.edits[0]).toEqual([{ op: 'set', id: 'F1', path: 'part', value: expect.objectContaining({ material: 'brass', features: [{ type: 'sketch', id: 'F1' }] }) }]);
+    expect(calls.notes.at(-1)).toBe('1 updated, 1 already current, 1 source not available');
+  });
   it('a component row has an Edit part button that asks the app to open that component\'s own part', () => {
     const opened: string[] = [];
     const r = mount(host({ editPart: (id) => { opened.push(id); } }).h);

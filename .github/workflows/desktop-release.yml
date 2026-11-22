@@ -1,77 +1,202 @@
-# NOT YET USED. Drafted for the public repository, modelled on the VectorCraft release workflow (MIT OR Apache-2.0). The working repositories have no GitHub Actions.
-# Only runs by hand (workflow_dispatch). The macOS job is the one that matches what was built and tested locally; the Linux job is UNTESTED
-# (no Linux build of the Tauri shell has been run). Windows is not included. It creates or updates a DRAFT release; a maintainer publishes it in the GitHub UI.
-name: Desktop release (draft, unused)
+# Cross-platform desktop release workflow (macOS, Windows, Linux).
+# Builds the kernel WASM + static web app once, then compiles the embedded native kernel (ck-native)
+# and Tauri desktop installers on macos-latest, ubuntu-22.04, and windows-latest, and attaches
+# all bundles + SHA256SUMS to a draft GitHub release.
+name: Desktop release
+
 on:
   workflow_dispatch:
     inputs:
       version:
         description: "Version to label the release (default: version in package.json)"
         required: false
+      kernel_ref:
+        description: "Kernel git ref/tag/SHA to build from (default: main)"
+        required: false
+        default: "main"
+  push:
+    tags:
+      - "v*"
+
 permissions:
   contents: write
+
 jobs:
   web:
-    runs-on: ubuntu-24.04
+    name: Build kernel WASM & static web app
+    runs-on: ubuntu-22.04
+    outputs:
+      kernel_commit: ${{ steps.kernel-meta.outputs.commit }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout kit
+        uses: actions/checkout@v4
+        with:
+          path: kit
+
+      - name: Checkout kernel
+        uses: actions/checkout@v4
+        with:
+          repository: civilkit/cadkit-kernel
+          ref: ${{ inputs.kernel_ref || 'main' }}
+          path: rebuild
+
+      - name: Record kernel commit
+        id: kernel-meta
+        run: echo "commit=$(git -C rebuild rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
-      - run: npm ci
-      - run: sudo apt-get update && sudo apt-get install -y wabt
-      # TODO: the gated kernel wasm and the kernel checkout come from the kernel repository's release; fetch them here.
-      - name: Build the static web app
-        run: PAGES_OUT=dist-pages-civilkit/cad WASM_SRC="$RUNNER_TEMP/ck_wasm.wasm" CK_REBUILD="$RUNNER_TEMP/kernel" npm run build:pages
-      - uses: actions/upload-artifact@v4
-        with: { name: web, path: dist-pages-civilkit }
-  macos:
-    needs: web
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: desktop/package-lock.json }
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: kit/package-lock.json
+
       - uses: dtolnay/rust-toolchain@stable
-        with: { targets: 'aarch64-apple-darwin,x86_64-apple-darwin' }
-      - uses: actions/download-artifact@v4
-        with: { name: web, path: dist-pages-civilkit }
-      - name: Build (ad-hoc signed)
-        working-directory: desktop
-        run: |
-          npm ci
-          npm run build:mac
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wabt
+        run: sudo apt-get update && sudo apt-get install -y wabt
+
+      - name: Build kernel WASM
+        working-directory: rebuild
+        run: cargo build -p ck-wasm --target wasm32-unknown-unknown --profile fast
+
+      - name: Install web dependencies
+        working-directory: kit
+        run: npm ci --no-audit --no-fund
+
+      - name: Build static web app
+        working-directory: kit
+        env:
+          PAGES_OUT: dist-pages-civilkit/cad
+          WASM_SRC: ${{ github.workspace }}/rebuild/target/wasm32-unknown-unknown/fast/ck_wasm.wasm
+          CK_REBUILD: ${{ github.workspace }}/rebuild
+        run: npm run build:pages
+
       - uses: actions/upload-artifact@v4
-        with: { name: desktop-macos, path: 'desktop/src-tauri/target/*/release/bundle/dmg/*.dmg' }
-  linux:   # UNTESTED
+        with:
+          name: web
+          path: kit/dist-pages-civilkit
+
+  desktop:
+    name: Build desktop (${{ matrix.label }})
     needs: web
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS
+            os: macos-latest
+            rust_targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+            build_cmd: "npm run build:mac"
+            artifact_name: desktop-macos
+            artifact_path: |
+              kit/desktop/src-tauri/target/*/release/bundle/dmg/*.dmg
+          - label: Linux
+            os: ubuntu-22.04
+            rust_targets: ""
+            build_cmd: "npm run build:linux"
+            artifact_name: desktop-linux
+            artifact_path: |
+              kit/desktop/src-tauri/target/release/bundle/deb/*.deb
+              kit/desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+          - label: Windows
+            os: windows-latest
+            rust_targets: ""
+            build_cmd: "npm run build:win"
+            artifact_name: desktop-windows
+            artifact_path: |
+              kit/desktop/src-tauri/target/release/bundle/msi/*.msi
+              kit/desktop/src-tauri/target/release/bundle/nsis/*.exe
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout kit
+        uses: actions/checkout@v4
+        with:
+          path: kit
+
+      - name: Checkout kernel (embedded native kernel)
+        uses: actions/checkout@v4
+        with:
+          repository: civilkit/cadkit-kernel
+          ref: ${{ needs.web.outputs.kernel_commit }}
+          path: rebuild
+
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm, cache-dependency-path: desktop/package-lock.json }
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: kit/desktop/package-lock.json
+
       - uses: dtolnay/rust-toolchain@stable
-      - run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf
-      - uses: actions/download-artifact@v4
-        with: { name: web, path: dist-pages-civilkit }
-      - working-directory: desktop
+        with:
+          targets: ${{ matrix.rust_targets }}
+
+      - name: Install Linux Tauri system dependencies
+        if: runner.os == 'Linux'
         run: |
-          npm ci
-          npx tauri build --bundles deb,appimage
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            librsvg2-dev \
+            libayatana-appindicator3-dev \
+            patchelf \
+            fuse
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: kit/dist-pages-civilkit
+
+      - name: Install desktop dependencies & build Tauri bundle
+        working-directory: kit/desktop
+        env:
+          CK_COMMIT: ${{ needs.web.outputs.kernel_commit }}
+        run: |
+          npm ci --no-audit --no-fund
+          ${{ matrix.build_cmd }}
+
+      - name: Verify macOS ad-hoc signatures
+        if: runner.os == 'macOS'
+        working-directory: kit/desktop
+        run: |
+          for app in src-tauri/target/*/release/bundle/macos/*.app; do
+            codesign --verify --deep --strict --verbose=2 "$app"
+          done
+
       - uses: actions/upload-artifact@v4
-        with: { name: desktop-linux, path: 'desktop/src-tauri/target/release/bundle/*/*' }
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_path }}
+
   draft-release:
-    needs: [macos]   # add `linux` once it is tested
-    runs-on: ubuntu-24.04
+    name: Create draft release
+    needs: [desktop]
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
-        with: { pattern: desktop-*, path: out, merge-multiple: true }
-      - name: Checksums
+        with:
+          pattern: desktop-*
+          path: out
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS
         working-directory: out
         run: sha256sum * > SHA256SUMS
-      - name: Create or update the draft release
-        env: { GH_TOKEN: '${{ github.token }}' }
+
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          v="${{ inputs.version }}"; [ -n "$v" ] || v=$(node -p "require('./package.json').version")
-          gh release view "v$v" >/dev/null 2>&1 && gh release upload "v$v" out/* --clobber \
-            || gh release create "v$v" out/* --draft --title "CivilKit CAD v$v" --notes "Desktop build (macOS). Unsigned: see docs/desktop.md for how to open it."
+          v="${{ inputs.version }}"
+          if [ -z "$v" ]; then
+            v=$(node -p "require('./package.json').version")
+          fi
+          tag="v$v"
+          notes="Desktop builds for macOS (.dmg), Windows (.msi, .exe), and Linux (.AppImage, .deb). Unsigned: see docs/desktop.md for first-start instructions."
+          gh release view "$tag" >/dev/null 2>&1 \
+            && gh release upload "$tag" out/* --clobber \
+            || gh release create "$tag" out/* --draft --title "CivilKit CAD $tag" --notes "$notes"

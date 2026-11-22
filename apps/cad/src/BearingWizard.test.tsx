@@ -68,6 +68,13 @@ describe('BearingWizard', () => {
     fireEvent.change(m.select('seal'), { target: { value: '2Z' } });
     expect(m.drafts.at(-1)).toMatchObject({ seal: '2Z', balls: null });
   });
+  it('the snap-ring groove box previews the groove and shows its size', () => {
+    const m = mount();
+    expect(m.q('[data-testid="bearing-snap-ring"]')).toBeNull();
+    fireEvent.click(m.input('snapRing'));
+    expect(m.drafts.at(-1)?.snapRing).toBe(true);
+    expect(m.q('[data-testid="bearing-snap-ring"]').textContent).toMatch(/Groove: 0\.7 wide/);
+  });
   it('says the rings have a ball groove and no cage', () => {
     const m = mount();
     expect(m.q('[data-testid="bearing-approx"]').textContent).toMatch(/ball groove/);

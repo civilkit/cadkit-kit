@@ -38,10 +38,10 @@ export function probeStl(bytes: Uint8Array): ProbeResult {
 }
 
 /** Read an OBJ, GLB or 3MF (or STL) to report on it. `mtl`: the text of the OBJ's material file when it was opened with it. */
-export async function probeMesh(kind: MeshKind, bytes: Uint8Array, o: { mtl?: string } = {}): Promise<ProbeResult> {
+export async function probeMesh(kind: MeshKind, bytes: Uint8Array, o: { mtl?: string; buffers?: Record<string, Uint8Array> } = {}): Promise<ProbeResult> {
   if (kind === 'stl') return probeStl(bytes);
   try {
-    const r = await readMesh(kind, bytes, 'mm', o.mtl);
+    const r = await readMesh(kind, bytes, 'mm', o.mtl, o.buffers);
     return {
       ok: true, read: r,
       probe: {
@@ -56,9 +56,9 @@ export async function probeMesh(kind: MeshKind, bytes: Uint8Array, o: { mtl?: st
 }
 
 /** One of the three readers; an OBJ takes the unit the user chose (GLB and 3MF state theirs). */
-export async function readMesh(kind: Exclude<MeshKind, 'stl'>, bytes: Uint8Array, unit: StlUnit, mtl?: string): Promise<MeshFileRead> {
+export async function readMesh(kind: Exclude<MeshKind, 'stl'>, bytes: Uint8Array, unit: StlUnit, mtl?: string, buffers?: Record<string, Uint8Array>): Promise<MeshFileRead> {
   if (kind === 'obj') return readObj(bytes, { unit, mtl });
-  if (kind === 'glb') return readGlb(bytes);
+  if (kind === 'glb') return readGlb(bytes, { buffers });
   return readThreeMf(bytes);
 }
 
@@ -96,10 +96,10 @@ export function guessUnit(sizeAsMm: V3): StlUnit {
 }
 
 /** A file name without its extension, as the mesh's name. */
-export const meshNameOf = (file: string): string => file.replace(/^.*[\\/]/, '').replace(/\.(stl|obj|glb|3mf)$/i, '') || 'Mesh';
+export const meshNameOf = (file: string): string => file.replace(/^.*[\\/]/, '').replace(/\.(stl|obj|glb|gltf|3mf)$/i, '') || 'Mesh';
 
 /** The mesh format a file name says, or null. */
-export const meshKindOf = (file: string): MeshKind | null => { const e = /\.(stl|obj|glb|3mf)$/i.exec(file)?.[1].toLowerCase(); return (e as MeshKind | undefined) ?? null; };
+export const meshKindOf = (file: string): MeshKind | null => { const e = /\.(stl|obj|glb|gltf|3mf)$/i.exec(file)?.[1].toLowerCase(); return e === 'gltf' ? 'glb' : ((e as MeshKind | undefined) ?? null); };
 
 /** The record to add for a file read in `unit`. `up`: put it on the ground at the origin. */
 export function buildRecord(bytes: Uint8Array, file: string, unit: StlUnit, existing: MeshRec[], ground: 'y' | 'z' | null, scale = 1): { rec: MeshRec; read: StlRead } {
@@ -111,9 +111,9 @@ export function buildRecord(bytes: Uint8Array, file: string, unit: StlUnit, exis
 }
 
 /** The same for any mesh format: the record for a file read in `unit` (GLB and 3MF use their own). */
-export async function buildMeshRecord(kind: MeshKind, bytes: Uint8Array, file: string, unit: StlUnit, existing: MeshRec[], ground: 'y' | 'z' | null, mtl?: string, scale = 1): Promise<{ rec: MeshRec; read: StlRead | MeshFileRead }> {
+export async function buildMeshRecord(kind: MeshKind, bytes: Uint8Array, file: string, unit: StlUnit, existing: MeshRec[], ground: 'y' | 'z' | null, mtl?: string, scale = 1, buffers?: Record<string, Uint8Array>): Promise<{ rec: MeshRec; read: StlRead | MeshFileRead }> {
   if (kind === 'stl') return buildRecord(bytes, file, unit, existing, ground, scale);
-  const read = await readMesh(kind, bytes, unit, mtl);
+  const read = await readMesh(kind, bytes, unit, mtl, buffers);
   let rec = meshRecFromArrays({ vertices: read.mesh.vertices, indices: read.mesh.indices, ...(read.tm ? { tm: read.tm } : {}) }, { id: nextMeshId(existing), name: meshNameOf(file), unit: read.unit, watertight: read.check.watertight, ...(read.mats ? { mats: read.mats.map((m) => ({ c: m.c, o: m.o })) } : {}) });
   if (scale !== 1) rec = { ...rec, scale };
   if (ground) rec = onGround(rec, ground);

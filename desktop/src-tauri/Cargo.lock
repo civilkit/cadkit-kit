@@ -483,9 +483,10 @@ dependencies = [
 
 [[package]]
 name = "civilkit-cad"
-version = "0.8.7"
+version = "0.8.8"
 dependencies = [
  "ck-native",
+ "getrandom 0.4.3",
  "serde",
  "tauri",
  "tauri-build",

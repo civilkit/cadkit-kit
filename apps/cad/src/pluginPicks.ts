@@ -46,6 +46,55 @@ export function mergeViewPicks(cur: readonly SelItem[] | undefined, viewItems: r
   return [...(cur ?? []).filter((x) => !fromView(x)), ...viewItems];
 }
 
+/** Direct 3D viewport click/box pick into an active selection field: clicking toggles an item without needing Shift (empty space changes nothing);
+ *  box-select (`addOnly: true`) only adds. Respects `maxItems` by keeping the most recent picks. */
+export function toggleViewPicks(d: Pick<ParamDef, 'maxItems'>, cur: readonly SelItem[] | undefined, picked: readonly SelItem[], addOnly = false): SelItem[] {
+  const base = [...(cur ?? [])];
+  if (!picked.length) return base;
+  let out = base;
+  for (const item of picked) {
+    if (out.some((x) => same(x, item))) {
+      if (!addOnly) out = out.filter((x) => !same(x, item));
+    } else {
+      out = [...out, item];
+    }
+  }
+  return d.maxItems !== undefined && out.length > d.maxItems ? out.slice(out.length - d.maxItems) : out;
+}
+
+/** Remove one picked item at `index` from a selection field's list. */
+export function removePickAt(cur: readonly SelItem[], index: number): SelItem[] {
+  return cur.filter((_, i) => i !== index);
+}
+
+/** Viewport highlight keys (body keys, face ids, edge ids) for the items currently held in a selection field. */
+export function pickHighlightKeys(
+  picks: readonly SelItem[] | undefined,
+  rows: ReadonlyArray<{ key: string; name: string; docName?: string; faces: readonly string[]; edges?: readonly string[] }>,
+): string[] {
+  if (!picks?.length) return [];
+  const byName = new Map(rows.map((r) => [r.docName ?? r.name, r]));
+  const out: string[] = [];
+  for (const it of picks) {
+    if (typeof it === 'string') {
+      const r = byName.get(it);
+      if (r) out.push(r.key);
+      continue;
+    }
+    if (it.type === 'body' && typeof it.name === 'string') {
+      const r = byName.get(it.name);
+      if (r) out.push(r.key);
+    } else if (it.type === 'face' && typeof it.body === 'string' && typeof it.index === 'number') {
+      const f = byName.get(it.body)?.faces[it.index];
+      if (f) out.push(f);
+    } else if (it.type === 'edge' && typeof it.body === 'string' && typeof it.index === 'number') {
+      const e = byName.get(it.body)?.edges?.[it.index];
+      if (e) out.push(e);
+    }
+  }
+  return out;
+}
+
 /** What a pick depends on: the feature list (a new array after every edit, undo, redo and document switch) and the rollback marker. */
 export interface DesignRev { features: unknown; rollback: number | null }
 export const designChanged = (a: DesignRev | null, b: DesignRev | null): boolean => !a || !b ? a !== b : a.features !== b.features || a.rollback !== b.rollback;

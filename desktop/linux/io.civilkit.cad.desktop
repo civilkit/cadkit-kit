@@ -1,5 +1,4 @@
 [Desktop Entry]
-# UNTESTED: no Linux build of the Tauri shell has been run. Adapted from the VectorCraft packaging.
 Type=Application
 Name=CivilKit CAD
 GenericName=Parametric CAD

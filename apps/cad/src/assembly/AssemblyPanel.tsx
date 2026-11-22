@@ -7,7 +7,7 @@ import type { EditOp } from '@ck/session';
 import { InlineName, numberAttrs, textAttrs } from '@kit/ui';
 import { t } from '../i18n';
 import {
-  bomCsv, bomItems, bomText, bomTotal, componentOfName, componentRows, deleteComponentOps, insertFeature, insertIds, mateComponents, NO_PLACEMENT, placementOps,
+  bomCsv, bomItems, bomText, bomTotal, componentOfName, componentRows, deleteComponentOps, insertFeature, insertIds, mateComponents, NO_PLACEMENT, placementOps, refreshOps,
   type ComponentRow, type DocLike, type ExplodeDir, type ExplodeState, type Placement, type V3,
 } from './model';
 import { KIND_GROUPS, MATE_KINDS, draftOf, draftProblem, limitsAreAngles, mateChanges, mateDropsField, mateFeature, mateKind, newDraft, type MateDraft, type MateParam, type RefKey } from './mateKinds';
@@ -15,6 +15,7 @@ import type { AsmFeatureError, AsmReport } from './kernel';
 import { massText } from '../inspect/mass';
 import { MotionPanel } from '../motion/MotionPanel';
 import type { MotionStore } from '../motion/store';
+import type { PluginJointEntry } from '../pluginMotion';
 
 export type Section = 'parts' | 'mates' | 'interference' | 'bom' | 'explode' | 'motion';
 export const SECTIONS: Section[] = ['parts', 'mates', 'interference', 'bom', 'explode', 'motion'];
@@ -58,6 +59,8 @@ export interface AsmHost {
   interference: AsmInterference;
   /** Motion studies (the Motion section); absent where the app cannot drive a mechanism. */
   motion?: MotionStore;
+  /** Plugin-declared hinge/slide joints surfaced in the Motion section. */
+  pluginJoints?: { entries: readonly PluginJointEntry[]; values: Readonly<Record<string, number>>; onChange(id: string, value: number): void; onReset(): void };
 }
 
 export interface AsmProps { host: AsmHost; section: Section; onSection(s: Section): void }
@@ -77,7 +80,7 @@ export function AssemblyPanel(p: AsmProps): JSX.Element {
         : p.section === 'mates' ? <MatesSection host={host} />
         : p.section === 'interference' ? <InterferenceSection host={host} />
         : p.section === 'bom' ? <BomSection host={host} />
-        : p.section === 'motion' ? (host.motion ? <MotionPanel store={host.motion} /> : <div class="empty">{t('motion.none')}</div>)
+        : p.section === 'motion' ? (host.motion ? <MotionPanel store={host.motion} pluginJoints={host.pluginJoints?.entries} pluginJointValues={host.pluginJoints?.values} onPluginJointChange={host.pluginJoints?.onChange} onPluginJointReset={host.pluginJoints?.onReset} /> : <div class="empty">{t('motion.none')}</div>)
         : <ExplodeSection host={host} />}
     </div>
   );
@@ -153,6 +156,45 @@ function PartsSection({ host }: { host: AsmHost }): JSX.Element {
       if (await host.edit([{ op: 'add', feature: f }])) host.notify(t('asm.insert.inserted', { name: String(f.name) }));
     } finally { setBusy(false); }
   };
+  /** Parse a stored part, or null (with the notice) when it is not one. */
+  const parsePart = (text: string): Record<string, unknown> | null => {
+    try {
+      const d = JSON.parse(text) as Record<string, unknown>;
+      if (isPartFormat(d.format) && Array.isArray(d.features)) return d;
+    } catch { /* falls through */ }
+    return null;
+  };
+  /** Re-read the parts of components that came from the sample list (all of them, or just `only`) and update the ones that changed: one undo step. */
+  const refresh = async (only?: ComponentRow) => {
+    if (!host.doc) return;
+    setBusy(true);
+    try {
+      const list = samples ?? await host.samples().catch(() => []);
+      const ops: EditOp[] = [];
+      let same = 0, gone = 0, changedN = 0;
+      for (const r of only ? [only] : rows) {
+        const s = list.find((x) => x.id === r.source);
+        if (!s) { gone++; continue; }
+        let fresh: Record<string, unknown> | null = null;
+        try { fresh = parsePart(await host.readUrl(s.url)); } catch { /* counted below */ }
+        if (!fresh) { gone++; continue; }
+        const o = refreshOps(host.doc, r.id, fresh);
+        if (o.changed) { ops.push(...o.ops); changedN++; } else same++;
+      }
+      if (ops.length && !(await host.edit(ops))) return;
+      host.notify(t('asm.refresh.done', { changed: changedN, same, gone }), gone && !changedN ? 'warn' : 'info');
+    } finally { setBusy(false); }
+  };
+  /** Update one component from a part file the user points at (a file source cannot be re-read by name). */
+  const refreshFromFile = async (r: ComponentRow) => {
+    const f = await host.openFile({ accept: ['.ckpart', '.ckpart', '.json'] });
+    if (!f || !host.doc) return;
+    const fresh = parsePart(f.text);
+    if (!fresh) { host.notify(t('asm.insert.notPart'), 'error'); return; }
+    const o = refreshOps(host.doc, r.id, fresh);
+    if (!o.changed) { host.notify(t('asm.refresh.done', { changed: 0, same: 1, gone: 0 })); return; }
+    if (await host.edit(o.ops)) host.notify(t('asm.refresh.done', { changed: 1, same: 0, gone: 0 }));
+  };
   const del = async (r: ComponentRow) => {
     const ops = deleteComponentOps(host.doc!, r.id);
     if (await host.edit(ops)) host.notify(ops.length > 1 ? t('asm.part.deleted', { name: r.name, n: ops.length - 1 }) : t('asm.part.deletedOnly', { name: r.name }));
@@ -175,6 +217,7 @@ function PartsSection({ host }: { host: AsmHost }): JSX.Element {
         <div class="asm-bar"><button class="btn primary" disabled={!chosen || busy} onClick={() => void insert()}>{busy ? t('asm.insert.loading') : t('asm.insert.go')}</button></div>
       </section>
       <div class="grp">{t('asm.parts.list')}</div>
+      {rows.some((r) => r.source) ? <div class="asm-bar"><button class="btn" disabled={busy} title={t('asm.refresh.allTip')} data-action="refresh-all" onClick={() => void refresh()}>{t('asm.refresh.all')}</button></div> : null}
       {rows.length === 0 ? <div class="empty">{t('asm.parts.empty')}</div> : null}
       {rows.map((r) => {
         const hidden = host.hidden.includes(r.id);
@@ -189,6 +232,7 @@ function PartsSection({ host }: { host: AsmHost }): JSX.Element {
                 <button class="row-act on" aria-pressed={!hidden} title={hidden ? t('asm.part.show') : t('asm.part.hide')} aria-label={hidden ? t('asm.part.show') : t('asm.part.hide')} onClick={() => host.toggleHidden(r.id)}>{hidden ? '○' : '●'}</button>
                 <button class="row-act on" aria-pressed={r.suppressed} title={r.suppressed ? t('asm.part.unsuppress') : t('asm.part.suppress')} aria-label={r.suppressed ? t('asm.part.unsuppress') : t('asm.part.suppress')} onClick={() => void host.edit([{ op: 'set', id: r.id, path: 'suppressed', value: !r.suppressed }])}>S</button>
                 <button class="row-act on" aria-pressed={r.fixed} title={r.fixed ? t('asm.part.float') : t('asm.part.fix')} aria-label={r.fixed ? t('asm.part.float') : t('asm.part.fix')} onClick={() => void host.edit([{ op: 'set', id: r.id, path: 'fixed', value: !r.fixed }])}>{r.fixed ? '⚓' : '↔'}</button>
+                {r.source ? <button class="row-act on" title={t('asm.refresh.one')} aria-label={t('asm.refresh.one')} data-action="refresh-part" onClick={() => void (samples?.some((x) => x.id === r.source) ? refresh(r) : refreshFromFile(r))}>⟳</button> : null}
                 {host.editPart ? <button class="row-act on" title={t('asm.part.editPart')} aria-label={t('asm.part.editPart')} data-action="edit-part" onClick={() => host.editPart!(r.id)}>⚙</button> : null}
                 <button class="row-act on" title={t('asm.part.rename')} aria-label={t('asm.part.rename')} onClick={() => setRenaming(r.id)}>✎</button>
                 <button class="row-act on del" title={t('asm.part.delete')} aria-label={t('asm.part.delete')} onClick={() => void del(r)}>×</button>

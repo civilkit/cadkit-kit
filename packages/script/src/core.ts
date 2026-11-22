@@ -23,7 +23,7 @@ export interface PlaneRef { kind: 'planeRef'; ref: { id: string | null }; line: 
 /** A feature of the part, taken with part.handle() once it exists; its id is filled in when the script runs. */
 export class FeatureHandle { id: string | null = null; constructor(public label = 'feature') {} toString(): string { return this.id ?? ''; } }
 /**
- * A workplane for a sketch: an offset plane, a face, a plane feature, a point and normal, or a tilt.
+ * A sketch workplane: offset plane, face, plane feature, point and normal, or tilt.
  *
  * at(base, offset, opts) returns a plane reference for sketch(). base is 'front' (moves along +Z), 'top' (+Y), 'right' (+X); a face(...) (the plane of that planar face, offset along its outward normal); a plane feature handle from part.workplane(...) + part.handle(); or { origin: [x,y,z], normal: [x,y,z], xdir? } for any plane (axis-aligned normals use a standard plane, others add three helper points and a three-point plane). opts.rotate = { axis: 'x'|'y'|'z' | edges(...), angle } tilts the plane about that line (the plane passes through the axis; an offset is applied before the rotation). A reference plane feature is added to the part.
  * @domain sketch
@@ -52,7 +52,7 @@ const FRAMES: Record<Plane, { x: Vec; y: Vec; z: Vec }> = {
   right: { x: [0, 0, -1], y: [0, 1, 0], z: [1, 0, 0] },
 };
 /**
- * The frame of a standard sketch plane: which world axes its sketch x, y and normal are.
+ * The frame of a standard sketch plane: its sketch x, y and normal as world axes.
  *
  * plane(name) returns { origin, x, y, normal, toWorld }. front: sketch x = world X, y = world Y, normal +Z. top: x = X, y = -Z (sketch y points to world -Z, so +sketch y is towards the back), normal +Y. right: x = -Z, y = Y, normal +X. Y is up. These come from the kernel's sketch frames; use toWorld([u, v], offset) to place a sketch point in the world, e.g. to aim a face selector or an expectBBox.
  * @domain sketch
@@ -83,6 +83,8 @@ export interface Ctx {
   lastSketchPlane?: { axis: number; offset: number } | null;
   /** Cut features whose direction may be flipped once if the kernel finds nothing to cut (cut direction 'auto'). */
   autoFlip?: Set<string>;
+  /** Opt-in implicit boolean fusion: automatically unite intersecting solids while keeping disjoint solids separate. */
+  autoFuse?: boolean;
 }
 
 /** Hole options. diameter or an ISO size is required; the kind picks the head shape (counterbore, countersink) or the thread (tapped). */

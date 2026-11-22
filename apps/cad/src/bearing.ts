@@ -24,6 +24,8 @@ export interface BearingParams {
   chamfer: number | null;
   /** a flange on the outer ring (a flanged preset such as F625 sets it; a size typed by hand clears it) */
   flange: { diameter: number; thickness: number } | null;
+  /** a snap-ring groove in the outer ring's outer diameter, default size */
+  snapRing: boolean;
   /** open bearings: null is the rule for the count and the race gap for the diameter */
   balls: number | null;
   ballDiameter: number | null;
@@ -40,7 +42,7 @@ export interface BearingParams {
   placedAt: { origin: [number, number, number]; axis: (typeof BEARING_AXES)[number] } | null;
 }
 export const DEFAULT_BEARING: BearingParams = {
-  designation: '608', bore: 8, od: 22, width: 7, seal: '2Z', chamfer: null, flange: null, balls: null, ballDiameter: null,
+  designation: '608', bore: 8, od: 22, width: 7, seal: '2Z', chamfer: null, flange: null, snapRing: false, balls: null, ballDiameter: null,
   origin: [0, 0, 0], axis: 'pz', seatFit: 'h7', seat: false, placedOn: null, placedAt: null,
 };
 
@@ -55,6 +57,7 @@ export function bearingSpec(p: BearingParams): BearingSpec {
     bore: p.bore, od: p.od, width: p.width, seal: p.seal,
     ...(p.chamfer !== null ? { chamfer: p.chamfer } : {}),
     ...(p.flange ? { flange: p.flange } : {}),
+    ...(p.snapRing ? { snapRing: true } : {}),
     ...(p.seal === 'open' && p.balls !== null ? { balls: p.balls } : {}),
     ...(p.seal === 'open' && p.ballDiameter !== null ? { ballDiameter: p.ballDiameter } : {}),
   };
@@ -86,6 +89,7 @@ export function bearingOpts(p: BearingParams): BearingOpts {
     bore: s.bore, od: s.od, width: s.width, seal: p.seal,
     ...(s.chamfer !== undefined ? { chamfer: s.chamfer } : {}),
     ...(s.flange ? { flange: s.flange } : {}),
+    ...(s.snapRing ? { snapRing: s.snapRing } : {}),
     ...(s.balls !== undefined ? { balls: s.balls } : {}),
     ...(s.ballDiameter !== undefined ? { ballDiameter: s.ballDiameter } : {}),
     origin: p.origin, axis: AXIS_VEC[p.axis],

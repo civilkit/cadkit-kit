@@ -133,7 +133,7 @@ export class Pen {
 
 export const screwFeatures = {
   /**
-   * A screw or bolt as its own body: head, drive and shank, placed by an origin and an axis.
+   * A screw or bolt as its own body: head, drive and shank, placed by origin and axis.
    *
    * Give the metric size (M2 to M16; M12 and M16 have button, countersunk and hex heads only, as the standards stop there) and the shank length; head and drive sizes come from an ISO table and can be overridden. head: 'pan' (default), 'button', 'countersunk', 'cheese' or 'hex'. drive: 'slotted', 'hex' (socket), 'cross', 'torx' or 'none'. Cross is an approximation (two tapered wings with a small flat tip) and so is torx: fine for looks, fit checks and mass. origin is the centre of the bearing face and axis is the way the shank points (default [0, 0, -1]). The screw is its own body and does not merge with what it touches. thread: true is refused for now.
    *

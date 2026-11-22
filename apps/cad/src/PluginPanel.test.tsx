@@ -143,8 +143,10 @@ describe('PluginPanel', () => {
       fireEvent.click(on);
       expect(m.log.picks).toEqual(['faces', null]);
     });
-    it('Clear empties the field and reports the whole record', () => {
-      const m = mountSeat({ body: [{ type: 'body', name: 'Rail' }], faces: [{ type: 'face', body: 'Rail', index: 0 }], size: 5 }, null);
+    it('Clear empties the field and per-item remove deletes a single pick', () => {
+      const m = mountSeat({ body: [{ type: 'body', name: 'Rail' }], faces: [{ type: 'face', body: 'Rail', index: 0 }, { type: 'face', body: 'Rail', index: 1 }], size: 5 }, null);
+      fireEvent.click(m.q('[data-testid="plugin-pick-remove-faces-0"]')!);
+      expect(m.log.changes.at(-1)).toMatchObject({ faces: [{ type: 'face', body: 'Rail', index: 1 }], body: [{ type: 'body', name: 'Rail' }], size: 5 });
       fireEvent.click(m.q('[data-testid="plugin-pick-clear-faces"]')!);
       expect(m.log.changes.at(-1)).toMatchObject({ faces: [], body: [{ type: 'body', name: 'Rail' }], size: 5 });
       expect(m.q('[data-testid="plugin-pick-clear-body"]')).not.toBeNull();

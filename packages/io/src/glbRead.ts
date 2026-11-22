@@ -2,7 +2,7 @@
 // every vertex goes through (x, y, z) -> (x, -z, y) * 1000 and the file's unit counts as metres. The node tree is walked from the scene
 // (matrix or translation / rotation / scale per node), triangle-list primitives are read, base colour factors become colours.
 // Not read, and reported: other primitive modes, textures, vertex colours, animation, skins. Refused: Draco and meshopt compression,
-// buffers that are a separate file or a data URI (a .glb keeps its data in its own BIN chunk).
+// buffers that are a separate file nobody supplied. A .gltf text file is read too: its buffers may be data URIs (base64) or .bin files handed in with `buffers`.
 import { MatTable, MeshReadError, TriSink, finishRead, type MeshFileRead, type MeshNote } from './meshRead';
 
 type Json = Record<string, any>;   // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -40,18 +40,34 @@ const COMP: Record<number, { size: number; get(dv: DataView, o: number): number;
 };
 const NCOMP: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT2: 4, MAT3: 9, MAT4: 16 };
 
-/** Read a GLB's bytes. */
-export function readGlb(input: Uint8Array | ArrayBuffer, opts: { name?: string } = {}): MeshFileRead {
+export interface GlbReadOptions {
+  name?: string;
+  /** For a .gltf text file: the .bin files that came with it, by the file name the buffers' uri states. */
+  buffers?: Record<string, Uint8Array>;
+}
+
+const b64 = (s: string): Uint8Array | null => {
+  try { const bin = atob(s.replace(/\s+/g, '')); const o = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i); return o; } catch { return null; }
+};
+
+/** Read a GLB's bytes, or a .gltf text file's (its bytes are the JSON). */
+export function readGlb(input: Uint8Array | ArrayBuffer, opts: GlbReadOptions = {}): MeshFileRead {
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
   if (bytes.length === 0) throw new MeshReadError('empty', 'the file is empty');
-  if (bytes.length < 20) throw new MeshReadError('notGlb', 'the file is too short to be a GLB');
+  let json: Json | null = null;
+  let bin: Uint8Array | null = null;
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  if (dv.getUint32(0, true) !== 0x46546c67) throw new MeshReadError('notGlb', 'not a GLB file (bad header); a .gltf text file is not supported');
+  const isGltfText = bytes.length >= 2 && !(bytes.length >= 4 && dv.getUint32(0, true) === 0x46546c67) && /^\s*\{/.test(new TextDecoder().decode(bytes.subarray(0, 64)).replace(/^\uFEFF/, ''));
+  if (isGltfText) {
+    try { json = JSON.parse(new TextDecoder().decode(bytes).replace(/^\uFEFF/, '')); } catch { throw new MeshReadError('notGlb', 'the file is not valid JSON'); }
+    if (!json || typeof json !== 'object' || !json.asset) throw new MeshReadError('notGlb', 'not a glTF file (no asset block)');
+    if (!/^2\./.test(String(json.asset.version))) throw new MeshReadError('glbVersion', 'only glTF version 2 is supported');
+  } else {
+  if (bytes.length < 20) throw new MeshReadError('notGlb', 'the file is too short to be a GLB');
+  if (dv.getUint32(0, true) !== 0x46546c67) throw new MeshReadError('notGlb', 'not a GLB or glTF file (bad header)');
   if (dv.getUint32(4, true) !== 2) throw new MeshReadError('glbVersion', 'only glTF version 2 is supported');
   const total = dv.getUint32(8, true);
   if (total > bytes.length) throw new MeshReadError('glbTruncated', 'the file ends before the length its header states');
-  let json: Json | null = null;
-  let bin: Uint8Array | null = null;
   for (let p = 12; p + 8 <= Math.min(total, bytes.length);) {
     const cl = dv.getUint32(p, true), ct = dv.getUint32(p + 4, true);
     if (p + 8 + cl > bytes.length) throw new MeshReadError('glbTruncated', 'a chunk runs past the end of the file');
@@ -60,6 +76,7 @@ export function readGlb(input: Uint8Array | ArrayBuffer, opts: { name?: string }
     } else if (ct === 0x004e4942 && !bin) bin = bytes.subarray(p + 8, p + 8 + cl);
     p += 8 + cl;
   }
+  }
   if (!json) throw new MeshReadError('notGlb', 'no JSON chunk in the file');
   const g = json;
   const required: string[] = Array.isArray(g.extensionsRequired) ? g.extensionsRequired : [];
@@ -67,10 +84,22 @@ export function readGlb(input: Uint8Array | ArrayBuffer, opts: { name?: string }
   if (required.includes('EXT_meshopt_compression')) throw new MeshReadError('meshopt', 'this GLB uses meshopt compression, which is not supported: export it without compression');
 
   const accessors: Json[] = g.accessors ?? [], views: Json[] = g.bufferViews ?? [], buffers: Json[] = g.buffers ?? [];
+  const uriCache = new Map<number, Uint8Array>();
   const bufferBytes = (bi: number): Uint8Array => {
     const b = buffers[bi];
     if (!b) throw new MeshReadError('badAccessor', `buffer ${bi} is missing`);
-    if (b.uri !== undefined) throw new MeshReadError('externalBuffer', 'the file points to data outside itself (a buffer with a uri); only a GLB that holds its data inside is read');
+    if (b.uri !== undefined) {
+      const uri = String(b.uri);
+      const cached = uriCache.get(bi);
+      if (cached) return cached;
+      let data: Uint8Array | null | undefined;
+      const m = /^data:[^,]*;base64,(.*)$/s.exec(uri);
+      if (m) data = b64(m[1]);
+      else if (!/^data:/.test(uri)) { let key = uri; try { key = decodeURIComponent(uri); } catch { /* keep as written */ } data = opts.buffers?.[key] ?? opts.buffers?.[uri]; }
+      if (!data) throw new MeshReadError('externalBuffer', 'the file points to data outside itself (a buffer with a uri that was not supplied): open the .gltf together with its .bin file, or export a single .glb');
+      uriCache.set(bi, data);
+      return data;
+    }
     if (bi !== 0 || !bin) throw new MeshReadError('badAccessor', 'the BIN chunk is missing');
     return bin;
   };

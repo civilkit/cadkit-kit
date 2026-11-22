@@ -24,6 +24,8 @@ export interface BearingOpts {
   chamfer?: Num;
   /** a flange on the outer ring at the first face: { diameter, thickness } in mm; a preset such as 'F625' brings its own, false leaves it off */
   flange?: { diameter: Num; thickness: Num } | false;
+  /** a snap-ring groove in the outer diameter of the outer ring: true for the default size, or { width, depth, offset } in mm (offset: from the first face to the groove's near edge; from the second face when the ring has a flange) */
+  snapRing?: boolean | { width?: Num; depth?: Num; offset?: Num };
   /** open bearing only: number of balls (default: by the race gap) */
   balls?: Num;
   /** open bearing only: ball diameter, mm (default: just under the race gap) */
@@ -154,7 +156,7 @@ function bearingOnFace(part: PartBuilder, o: BearingOpts, m: BearingModel, name:
 
 export const bearingFeatures = {
   /**
-   * A ball bearing as separate bodies: two rings (with shields or seals) and, when open, the balls.
+   * A ball bearing as separate bodies: two rings (shields or seals) and, if open, balls.
    *
    * Give a preset designation ('608', '6204', 'MR63', 'R2' for a 1/8 inch bore) or bore, od and width in mm; the presets are the nominal ISO 15 sizes of the miniature 6xx, MR, 60xx, 62xx and 63xx series and some inch sizes. seal: '2Z' (default) is a flat shield disc on both faces, '2RS' a thicker seal with a sloping lip, 'open' shows the balls (count and diameter from the race gap, or balls and ballDiameter). All four corners of each ring are chamfered (chamfer, default by size). Each race has a ball groove (an arc about the ball centre circle, radius 0.52 ball diameters, 0.27 deep; a plain race when the bearing is too small for one), no cage, so this is for assemblies, fit checks and looks, not for load ratings. origin is the centre of the first face and axis the way the bearing extends from it (default [0, 0, 1]). Each ring and ball is its own body and does not merge with what it touches. onFace: 'F2.C1' builds the bearing from that face instead of from absolute numbers (the origin must lie on the face and the axis point into the part along x, y or z), so a later edit that moves the face moves the bearing and its pocket with it. seat: true first cuts a pocket for the outer ring into the bodies that exist (diameter with an H7 housing allowance, depth the width), seat: { fit: 'press' | 'h7' | 'print', allowance } picks another fit.
    *
@@ -166,6 +168,7 @@ export const bearingFeatures = {
    * @param o.width width in mm (overrides the preset)
    * @param o.seal 'open' | '2Z' (default) | '2RS'
    * @param o.chamfer ring corner chamfer in mm (default by size, 0 = sharp)
+   * @param o.snapRing true or { width, depth, offset } in mm: a snap-ring groove in the outer diameter of the outer ring (offset from the first face, or from the second when there is a flange)
    * @param o.balls ball count, open bearings only (default by rule)
    * @param o.ballDiameter ball diameter in mm, open bearings only (default from the race gap)
    * @param o.origin [x, y, z] of the centre of the first face, default [0, 0, 0]
@@ -195,6 +198,7 @@ export const bearingFeatures = {
       bore: pick(o.bore, found?.preset.bore, 'bore'), od: pick(o.od, found?.preset.od, 'od'), width: pick(o.width, found?.preset.width, 'width'), seal,
       ...(o.chamfer !== undefined ? { chamfer: H.num(o.chamfer) } : {}),
       ...(o.flange ? { flange: { diameter: H.num(o.flange.diameter), thickness: H.num(o.flange.thickness) } } : o.flange === undefined && found?.preset.flange ? { flange: found.preset.flange } : {}),
+      ...(o.snapRing ? { snapRing: o.snapRing === true ? true : { ...(o.snapRing.width !== undefined ? { width: H.num(o.snapRing.width) } : {}), ...(o.snapRing.depth !== undefined ? { depth: H.num(o.snapRing.depth) } : {}), ...(o.snapRing.offset !== undefined ? { offset: H.num(o.snapRing.offset) } : {}) } } : {}),
       ...(o.balls !== undefined ? { balls: H.num(o.balls) } : {}),
       ...(o.ballDiameter !== undefined ? { ballDiameter: H.num(o.ballDiameter) } : {}),
     };

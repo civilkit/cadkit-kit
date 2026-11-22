@@ -176,5 +176,6 @@
   "ref-origin": "model/origin",
   "ref-material": "model/material",
   "open-variables": "model/params",
-  "open-catalog": "model/library"
+  "open-catalog": "model/library",
+  "community-hub": "model/library"
 }

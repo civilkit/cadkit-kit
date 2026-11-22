@@ -1,4 +1,16 @@
 {
+  "0.8.9": [
+    {
+      "id": "rounds-past-face",
+      "title": "Rounds and chamfers larger than their face",
+      "blurb": "A round or chamfer bigger than the wall beside its edge now builds when one of its two contacts stays on its face, with a blendRanOffFace warning; if both contacts run off it is still refused, with its message."
+    },
+    {
+      "id": "keyboard-shortcuts",
+      "title": "Rebind the keyboard shortcuts",
+      "blurb": "The shortcuts sheet (?) is now an editor: choose a CadKit, SolidWorks, Fusion 360 or FreeCAD set, click a key and press the new one, with a prompt when it is already in use, then unbind, reset, export or import."
+    }
+  ],
   "0.8.8": [
     {
       "id": "print-plate",
@@ -19,6 +31,21 @@
       "id": "perp-snap",
       "title": "Perpendicular to a circle, and a snap to a line's extension",
       "blurb": "Perpendicular now takes a line and a circle, which puts the line through the centre; a new line snaps to the straight-on continuation of an existing one, with a dashed guide."
+    },
+    {
+      "id": "solidworks-open",
+      "title": "Open a SolidWorks part with its feature history",
+      "blurb": "Import a .SLDPRT file and it opens as a part: the feature history is rebuilt in the tree, you can turn it around, and Mass properties gives its volume, area and mass with Errors 0."
+    },
+    {
+      "id": "step-round-trip",
+      "title": "STEP out and back in, with the same volume",
+      "blurb": "Export STEP writes the Marine propeller; importing that file again gives a solid with the same volume, area and mass, and Errors 0 in the status bar."
+    },
+    {
+      "id": "shell-offset-rounds",
+      "title": "Shell and offset a part with rounded corners",
+      "blurb": "Shell hollows a block that has rounded corners and keeps the rounds; Press Pull then offsets a wall beside two of them and the rounds travel with it, valid at every step."
     }
   ],
   "0.8.7": [

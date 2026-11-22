@@ -82,9 +82,17 @@ export function scratchRows(mesh: SelMesh | null, faceLumps: Record<string, numb
  *  `{type:'face', body, index, normal?}`, `{type:'edge', body, index}`), or the bodies' names for a field that takes names. With a maximum, the last picks win. */
 export function selectionItems(sel: PluginDoc['selection'], d: { accept?: readonly string[]; asNames?: boolean; maxItems?: number }): SelItem[] {
   const out: SelItem[] = [];
+  const bodyOnlyFallback = !!d.accept?.includes('body') && !d.accept?.includes('face');
+  const seenBodies = new Set<string>();
+  const pushBody = (name: string) => {
+    if (seenBodies.has(name)) return;
+    seenBodies.add(name);
+    out.push(d.asNames ? name : { type: 'body', name });
+  };
   for (const s of sel) {
-    if (s.type === 'body' && s.name && d.accept?.includes('body')) out.push(d.asNames ? s.name : { type: 'body', name: s.name });
+    if (s.type === 'body' && s.name && d.accept?.includes('body')) pushBody(s.name);
     else if (s.type === 'face' && s.body && d.accept?.includes('face') && !d.asNames) out.push({ type: 'face', body: s.body, ...(s.index !== undefined && s.index >= 0 ? { index: s.index } : {}), ...(s.normal ? { normal: s.normal } : {}) });
+    else if (s.type === 'face' && s.body && bodyOnlyFallback) pushBody(s.body);
     else if (s.type === 'edge' && s.body && d.accept?.includes('edge') && !d.asNames) out.push({ type: 'edge', body: s.body, ...(s.index !== undefined && s.index >= 0 ? { index: s.index } : {}) });
   }
   return d.maxItems !== undefined && out.length > d.maxItems ? out.slice(out.length - d.maxItems) : out;

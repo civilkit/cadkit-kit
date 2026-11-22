@@ -1,0 +1,11 @@
+.git
+.gitignore
+node_modules
+dist
+dist-pages
+dist-mcp-npm
+desktop/src-tauri/target
+*.log
+.DS_Store
+coverage
+test-results

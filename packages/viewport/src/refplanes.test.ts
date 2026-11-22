@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { nearestSheet, RefPlanes, PLANE_PICK_TOL, type ScreenSheet } from './refplanes';
+import { nearestSheet, sheetGrid, RefPlanes, PLANE_PICK_TOL, type ScreenSheet } from './refplanes';
 
 const labels = { front: 'Front', top: 'Top', right: 'Right' };
 const sq = (x: number, y: number, w: number, h: number): Array<[number, number]> => [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
@@ -29,6 +29,28 @@ describe('nearestSheet (the generous fallback behind the ray test)', () => {
     expect(nearestSheet(edgeOn, 50, 70, PLANE_PICK_TOL.touch)).toBe('top');
   });
   it('no sheets, no pick', () => { expect(nearestSheet([], 0, 0, 100)).toBeNull(); });
+});
+
+describe('the grid preview on the plane under the pointer', () => {
+  const gridOf = (rp: RefPlanes, id: string) => { const g = rp.group.children.find((c) => c.children[0]?.userData.refPlane === id)!; return g.children.find((x) => x instanceof THREE.LineSegments)!; };
+  it('sheetGrid lines run edge to edge and include the axes', () => {
+    const l = sheetGrid(100);
+    expect(l.length % 4).toBe(0);
+    expect(l.length / 4).toBeGreaterThan(20);
+    expect(l.some((v, i) => i % 4 === 0 && v === 0 && l[i + 1] === -50 && l[i + 3] === 50)).toBe(true);
+  });
+  it('only the hovered sheet shows its grid, and only while picking', () => {
+    const rp = new RefPlanes();
+    rp.emphasis = true;
+    rp.set(100, ['front', 'top', 'right'], 'top', labels);
+    expect(gridOf(rp, 'top').visible).toBe(true);
+    expect(gridOf(rp, 'front').visible).toBe(false);
+    rp.set(100, ['front', 'top', 'right'], null, labels);
+    expect(gridOf(rp, 'top').visible).toBe(false);
+    rp.emphasis = false;
+    rp.set(100, ['front', 'top', 'right'], 'top', labels);
+    expect(gridOf(rp, 'top').visible).toBe(false);
+  });
 });
 
 describe('RefPlanes in plane-picking mode', () => {

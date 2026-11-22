@@ -191,7 +191,7 @@ function baseplatePockets(part: PartBuilder, g: ReturnType<typeof baseplateGeome
 
 export const trayFeatures = {
   /**
-   * A tray or bin on a grid (Gridfinity-style units) as its own body, scooped along its length.
+   * A tray or bin on a grid (Gridfinity-style units) as its own body, scooped lengthwise.
    *
    * Outside widthUnits x lengthUnits grid units (42 mm, 0.5 mm under) and heightUnits x 7 mm tall, standing on origin along +z. The cavity has a scoop of scoopRadius (default 8) on its lower edges and runs the whole length: open at both ends, or closed by endWalls ('front', 'back', 'both' = a bin). foot: true adds the Gridfinity foot (4.75 mm, inside the height) under every cell so it seats in a baseplate. magnets cuts 6 x 2 mm holes underneath. Not included: stacking flange, dividers, labels.
    * @domain features

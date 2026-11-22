@@ -1,14 +1,14 @@
 // CivilKit CAD desktop shell: one window that loads the bundled static build (tauri://localhost/cad/) and works offline.
 mod slicer;
 
-use std::io::Read;
+use std::ffi::OsStr;
 use std::net::TcpListener;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
@@ -101,6 +101,61 @@ fn flush_pending(app: &AppHandle) {
     }
 }
 
+/// Returns true if `path` has a supported CivilKit part extension (`.ckpart`, `.ckpart.gz`, `.ckpart`, `.ckpart.gz`).
+pub fn is_supported_part_path(path: &Path) -> bool {
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+    let lower = name.to_ascii_lowercase();
+    lower.ends_with(".ckpart")
+        || lower.ends_with(".ckpart.gz")
+        || lower.ends_with(".ckpart")
+        || lower.ends_with(".ckpart.gz")
+}
+
+/// Parse a single CLI argument into a part file path, accepting both filesystem paths and `file://` URIs.
+pub fn parse_cli_part_arg(arg: &OsStr) -> Option<PathBuf> {
+    let s = arg.to_str();
+    let candidate = if let Some(text) = s {
+        if text.starts_with("file://") {
+            Url::parse(text)
+                .ok()
+                .and_then(|u| if u.scheme() == "file" { u.to_file_path().ok() } else { None })?
+        } else {
+            PathBuf::from(arg)
+        }
+    } else {
+        PathBuf::from(arg)
+    };
+    is_supported_part_path(&candidate).then_some(candidate)
+}
+
+/// Extract supported part file paths from CLI arguments (used by Windows/Linux file associations and CLI launches).
+pub fn extract_cli_part_files<I, S>(args: I) -> Vec<PathBuf>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let mut out = Vec::new();
+    let mut after_double_dash = false;
+    for raw in args {
+        let arg = raw.as_ref();
+        if !after_double_dash {
+            if arg == "--" {
+                after_double_dash = true;
+                continue;
+            }
+            if arg.to_str().is_some_and(|s| s.starts_with('-')) {
+                continue;
+            }
+        }
+        if let Some(path) = parse_cli_part_arg(arg) {
+            out.push(path);
+        }
+    }
+    out
+}
+
 fn queue_file(app: &AppHandle, path: PathBuf) {
     PENDING.lock().unwrap().push(path);
     if let Some(w) = app.get_webview_window("main") {
@@ -109,6 +164,7 @@ fn queue_file(app: &AppHandle, path: PathBuf) {
     flush_pending(app);
 }
 
+#[cfg(target_os = "macos")]
 fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let app_menu = Submenu::with_items(
         app,
@@ -130,7 +186,11 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         app,
         "File",
         true,
-        &[&MenuItem::with_id(app, "open-part", "Open Part File...", true, None::<&str>)?, &PredefinedMenuItem::separator(app)?, &PredefinedMenuItem::close_window(app, None)?],
+        &[
+            &MenuItem::with_id(app, "open-part", "Open Part File...", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::close_window(app, None)?,
+        ],
     )?;
     let edit = Submenu::with_items(
         app,
@@ -160,15 +220,61 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     Menu::with_items(app, &[&app_menu, &file, &edit, &view, &window, &help])
 }
 
-fn start_embedded_kernel() -> Result<(String, String), String> {
+#[cfg(not(target_os = "macos"))]
+fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    let file = Submenu::with_items(
+        app,
+        "File",
+        true,
+        &[
+            &MenuItem::with_id(app, "open-part", "Open Part File...", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::close_window(app, None)?,
+            &PredefinedMenuItem::quit(app, None)?,
+        ],
+    )?;
+    let edit = Submenu::with_items(
+        app,
+        "Edit",
+        true,
+        &[
+            &PredefinedMenuItem::undo(app, None)?,
+            &PredefinedMenuItem::redo(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::cut(app, None)?,
+            &PredefinedMenuItem::copy(app, None)?,
+            &PredefinedMenuItem::paste(app, None)?,
+            &PredefinedMenuItem::select_all(app, None)?,
+        ],
+    )?;
+    let view = Submenu::with_items(app, "View", true, &[&PredefinedMenuItem::fullscreen(app, None)?])?;
+    let window = Submenu::with_items(app, "Window", true, &[&PredefinedMenuItem::minimize(app, None)?, &PredefinedMenuItem::maximize(app, None)?])?;
+    let help = Submenu::with_items(
+        app,
+        "Help",
+        true,
+        &[
+            &MenuItem::with_id(app, "help-docs", "CivilKit CAD Guide", true, None::<&str>)?,
+            &MenuItem::with_id(app, "help-new", "What's New", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::about(app, Some("About CivilKit CAD"), None)?,
+        ],
+    )?;
+    Menu::with_items(app, &[&file, &edit, &view, &window, &help])
+}
+
+fn generate_auth_token() -> Result<String, String> {
     let mut raw = [0u8; 32];
-    std::fs::File::open("/dev/urandom")
-        .and_then(|mut f| f.read_exact(&mut raw))
-        .map_err(|e| format!("random: {e}"))?;
+    getrandom::fill(&mut raw).map_err(|e| format!("random: {e}"))?;
     let mut token = String::with_capacity(64);
     for b in raw {
         token.push_str(&format!("{b:02x}"));
     }
+    Ok(token)
+}
+
+fn start_embedded_kernel() -> Result<(String, String), String> {
+    let token = generate_auth_token()?;
     let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| format!("bind: {e}"))?;
     let port = listener.local_addr().map_err(|e| format!("addr: {e}"))?.port();
     let mut cfg = ck_native::Config::default();
@@ -239,6 +345,12 @@ pub fn run() {
                     }
                 })
                 .build()?;
+            // Windows / Linux file associations (and CLI launches on all platforms) pass file paths via argv.
+            for path in extract_cli_part_files(std::env::args_os().skip(1)) {
+                if path.is_file() {
+                    queue_file(app.handle(), path);
+                }
+            }
             Ok(())
         })
         .on_menu_event(|app, event| match event.id().as_ref() {
@@ -270,15 +382,15 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
+    use std::io::{Read, Write};
     use std::net::TcpStream;
     use std::time::Duration;
 
-    fn http_get(addr: &str, auth: Option<&str>) -> String {
+    fn http_get(addr: &str, origin: &str, auth: Option<&str>) -> String {
         let mut s = TcpStream::connect(addr).expect("connect to embedded kernel");
         s.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
         let auth_hdr = auth.map(|t| format!("Authorization: Bearer {t}\r\n")).unwrap_or_default();
-        let req = format!("GET /version HTTP/1.1\r\nHost: {addr}\r\nOrigin: tauri://localhost\r\n{auth_hdr}Connection: close\r\n\r\n");
+        let req = format!("GET /version HTTP/1.1\r\nHost: {addr}\r\nOrigin: {origin}\r\n{auth_hdr}Connection: close\r\n\r\n");
         s.write_all(req.as_bytes()).unwrap();
         let mut resp = String::new();
         s.read_to_string(&mut resp).unwrap();
@@ -292,17 +404,76 @@ mod tests {
         assert_eq!(token.len(), 64);
         let addr = url.trim_start_matches("http://");
 
-        let ok = http_get(addr, Some(&token));
+        // macOS / Linux origin
+        let ok = http_get(addr, "tauri://localhost", Some(&token));
         assert!(ok.starts_with("HTTP/1.1 200 OK"), "{ok}");
         assert!(ok.contains("Access-Control-Allow-Origin: tauri://localhost"), "{ok}");
         assert!(ok.contains("\"protocol\":1"), "{ok}");
 
-        let unauth = http_get(addr, None);
+        // Windows WebView2 origin
+        let ok_win = http_get(addr, "http://tauri.localhost", Some(&token));
+        assert!(ok_win.starts_with("HTTP/1.1 200 OK"), "{ok_win}");
+        assert!(ok_win.contains("Access-Control-Allow-Origin: http://tauri.localhost"), "{ok_win}");
+
+        let unauth = http_get(addr, "tauri://localhost", None);
         assert!(unauth.starts_with("HTTP/1.1 401"), "{unauth}");
 
         let init = build_init_script(Some((&url, &token)));
         assert!(init.starts_with("window.__CK_NATIVE__ = Object.freeze("));
         assert!(init.contains(&url));
         assert!(init.contains(&token));
+    }
+
+    #[test]
+    fn generate_auth_token_produces_unique_64_hex_chars() {
+        let t1 = generate_auth_token().expect("token 1");
+        let t2 = generate_auth_token().expect("token 2");
+        assert_eq!(t1.len(), 64);
+        assert_eq!(t2.len(), 64);
+        assert!(t1.chars().all(|c| c.is_ascii_hexdigit()));
+        assert_ne!(t1, t2);
+    }
+
+    #[test]
+    fn is_supported_part_path_matches_ckpart_variants_case_insensitively() {
+        assert!(is_supported_part_path(Path::new("bracket.ckpart")));
+        assert!(is_supported_part_path(Path::new("/tmp/Bracket.CKPART.GZ")));
+        assert!(is_supported_part_path(Path::new("legacy.ckpart")));
+        assert!(is_supported_part_path(Path::new("legacy.ckpart.gz")));
+        assert!(!is_supported_part_path(Path::new("notes.txt")));
+        assert!(!is_supported_part_path(Path::new("archive.tar.gz")));
+        assert!(!is_supported_part_path(Path::new("")));
+    }
+
+    #[test]
+    fn extract_cli_part_files_handles_paths_flags_and_file_urls() {
+        let args = [
+            "-psn_0_12345",
+            "--verbose",
+            "part1.ckpart",
+            "ignore.stl",
+            "part2.ckpart.gz",
+            "file:///tmp/my%20part.ckpart",
+            "--",
+            "-weird.ckpart",
+        ];
+        let parsed = extract_cli_part_files(args);
+        assert_eq!(
+            parsed,
+            vec![
+                PathBuf::from("part1.ckpart"),
+                PathBuf::from("part2.ckpart.gz"),
+                PathBuf::from("/tmp/my part.ckpart"),
+                PathBuf::from("-weird.ckpart"),
+            ]
+        );
+    }
+
+    #[test]
+    fn serde_json_string_escapes_windows_backslashes_and_quotes() {
+        assert_eq!(
+            serde_json_string(r#"C:\Users\demo\"bracket".ckpart"#),
+            r#""C:\\Users\\demo\\\"bracket\".ckpart""#
+        );
     }
 }

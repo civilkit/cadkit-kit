@@ -7,7 +7,7 @@ Parametric CAD in the browser, with a verifiable kernel and a scriptable, agent-
 ![Short clip: handles on a feature, a plane context menu, and an open sketch with its toolbar](docs/img/demo.gif)
 
 CadKit is a parametric CAD application by CivilKit. It runs in a web browser (and installs as a PWA, or as a
-Mac app). A part is a feature tree saved as a `.ckpart` file; the CadKit kernel, a Rust/WebAssembly B-rep
+native desktop app for macOS, Windows, and Linux). A part is a feature tree saved as a `.ckpart` file; the CadKit kernel, a Rust/WebAssembly B-rep
 kernel kept in a separate repository, rebuilds it on every edit. Everything the app does can also be driven
 from scripts or by an AI agent.
 
@@ -28,13 +28,16 @@ from scripts or by an AI agent.
 - **Assemblies:** parts placed with mates, bill of materials, drawings (PDF, SVG, DXF).
 - **Checking:** measure, inspect, geometry checks and design checks against rules you choose, including an
   undercut check for two-part injection moulds.
-- **Library and wizards:** sample parts, catalog parts, and parametric wizards for gears, propellers, turbo
-  impellers, bearings, screws, washers, nuts, standoffs, heat-set inserts, springs, corner holes and knurls, and
-  Add fastener to hole, which fits a bolt, washers and a nut to a hole you select.
+- **Library, wizards and plugins:** sample parts, catalog parts, parametric wizards for gears, propellers, turbo
+  impellers, bearings, screws, washers, nuts, standoffs, heat-set inserts, springs, corner holes and knurls,
+  Add fastener to hole, sandboxed plugins (including SolidCraft WASM plugin zips) with direct 3D viewport
+  picking, arbitrary-axis cylinders/cones, PBR materials/presets, and plugin-declared hinge/slide motion sliders,
+  and a searchable **Community Package Hub** (`ck-hub` v1 JSON registry format) with SPDX license badges, SHA-256
+  verification, custom registry URLs with offline cache fallback, and one-click library/plugin install.
 - **Import:** STEP, SolidWorks parts (`.sldprt`), SketchUp (`.skp`), STL, OBJ, GLB and 3MF (as reference
-  meshes), FreeCAD (`.FCStd`), SolidCraft files, and DXF and SVG as sketch geometry. What each import keeps and loses is listed in the guide.
+  meshes), FreeCAD (`.FCStd`), Fusion 360 (`.f3d`, `.f3z`), SolidCraft files, and DXF and SVG as sketch geometry. What each import keeps and loses is listed in the guide.
 - **Export:** STEP, STL, OBJ, 3MF (including a Print Plate layout dialog with printer bed presets, auto-lay-flat, 2D bin-packing, and one-click Send to Slicer in the desktop app), glTF binary (`.glb`), USDZ (Apple AR / Quick Look), standalone offline HTML 3D viewer (`.html`), URDF robotics bundles (`.zip` with `.urdf` and metre-scaled STL meshes), DXF, and drawings as PDF, SVG or DXF.
-- **Scripting and agents:** a script language (the Script tab), a local MCP server so an AI assistant can build
+- **Scripting and agents:** a script language (the Script tab, including opt-in implicit boolean fusion via `autoFuse(true)` / `fuseIntersecting()`), a local MCP server so an AI assistant can build
   and inspect parts (including read-only measure, clearance, interference, thickness, draft and manufacturing
   checks), and an optional agent link that lets an MCP assistant read, take pictures of and (if you
   allow it) change the part you have open. A chat panel in the app runs Claude Code on your own
@@ -46,11 +49,10 @@ Limits and known gaps are in the guide ("Limits and known gaps"). The app is in 
 
 - **In the browser:** open <https://civilkit.io/cad/>. Nothing to install; the kernel runs in your browser, so
   parts stay on your computer. The Install button in the browser installs it as an offline app.
-- **Mac app:** Apple silicon and Intel builds, from the Releases page of this repository. The download is not
-  signed yet, so the first start needs one extra step; see [The Mac app](https://civilkit.io/docs/cad/getting-started/desktop).
-  There are no Linux or Windows builds yet.
+- **Desktop app (macOS, Windows, Linux):** native Tauri builds (`.dmg` for Apple silicon and Intel Macs, `.msi`/`.exe` for Windows, and `.AppImage`/`.deb` for Linux) with the embedded native Rust kernel and `.ckpart` file associations, from the Releases page of this repository. Builds are unsigned, so the first start may need one confirmation step; see [The desktop app](https://civilkit.io/docs/cad/getting-started/desktop).
 - **From an AI assistant:** see [Agents and the MCP server](https://civilkit.io/docs/cad/automation/mcp).
   Design notes are in `docs/agent-bridge.md` and `docs/agent-workflow.md`.
+- **Headless CLI & Docker:** run `cadkit regen`, `cadkit check`, `cadkit export` (STEP, STL, OBJ, 3MF, GLB, URDF, USDZ, HTML), and `cadkit mcp` in CI pipelines or containers; see `docs/cli-docker.md` and `Dockerfile`.
 
 ## Layout
 
@@ -59,10 +61,10 @@ Limits and known gaps are in the guide ("Limits and known gaps"). The app is in 
 | `apps/cad` | the application (Preact, Vite): editor, panels, file handling, library browser |
 | `packages/viewport` | the 3D viewport |
 | `packages/sketch` | the 2D sketch editor |
-| `packages/script`, `packages/skill`, `packages/agent-tools`, `packages/agent-link`, `packages/mcp` | scripting and agent access |
-| `packages/io`, `packages/fcstd`, `packages/solidcraft`, `packages/snapshot`, `packages/viewdata` | importers, renders and view data |
+| `packages/script`, `packages/skill`, `packages/agent-tools`, `packages/agent-link`, `packages/mcp`, `packages/cli` | scripting, headless CLI and agent access |
+| `packages/io`, `packages/fcstd`, `packages/f3d`, `packages/solidcraft`, `packages/snapshot`, `packages/viewdata` | importers, renders and view data |
 | `packages/platform`, `packages/store`, `packages/ui`, `packages/i18n` | platform layer, state, components, strings |
-| `desktop/` | the Mac app shell (Tauri) |
+| `desktop/` | the native desktop app shell for macOS, Windows, and Linux (Tauri) |
 | `guide/` | the user guide (mdBook sources) |
 | `docs/` | design notes per feature |
 | `tools/`, `e2e/`, `scripts/` | build, release and check scripts; end-to-end tests |
