@@ -1,4 +1,145 @@
 {
+  "0.8.17": [
+    {
+      "id": "arc-length",
+      "title": "Dimension an arc by its length",
+      "blurb": "Pick the Dimension tool, click an arc and press L: the box switches from the radius to the arc length. Type 25 and the arc is re-solved to 25 mm, with the label drawn across its chord."
+    },
+    {
+      "id": "expression-fields",
+      "title": "Type a sum, a unit or a variable",
+      "blurb": "In the Extrude Depth box type 20+20, 1in or w/2 and the value is worked out and shown under the box. A name that does not exist says so right there."
+    },
+    {
+      "id": "delete-cleanup",
+      "title": "Delete takes its leftovers",
+      "blurb": "Delete a circle in a sketch and its centre point and the dimensions on that point go with it, instead of a stray point with its labels staying behind."
+    },
+    {
+      "id": "ring-round-refusal",
+      "title": "A round on a free-form rim is refused at once",
+      "blurb": "Rounding the rim of a part drawn from a closed spline now says straight away that a smooth closed free-form rim cannot be rounded yet, instead of working for tens of seconds first."
+    }
+  ],
+  "0.8.16": [
+    {
+      "id": "plane-name",
+      "title": "Planes name themselves",
+      "blurb": "An angled plane is now named after what it is, like \"Plane 30 deg, 40 away, from Top\", and the name follows when you change its angle or offset. A sketch on that plane carries the same name, so the feature tree is easy to read."
+    },
+    {
+      "id": "draft-flip",
+      "title": "Flip a draft",
+      "blurb": "Select two or more side faces, use Features > Draft, and tick Flip to lean the faces the other way, so the part gets wider at the top instead of narrower."
+    },
+    {
+      "id": "counterbore-guard",
+      "title": "A counterbore that is too wide is refused",
+      "blurb": "A counterbore or countersink wider than the whole face it sits on, or a cut that would remove the entire body, is now refused with a clear message and advice instead of silently giving a bad result. Make the head smaller and the hole builds."
+    },
+    {
+      "id": "gear-limits",
+      "title": "Gear editor shows its limits",
+      "blurb": "The Gear editor now says how far Pressure angle (up to 26 degrees) and Root fillet (up to 0.5 x module) can go, because larger values made an invalid gear. If you type a value above the limit, it is set to the limit and the note under the field says so."
+    }
+  ],
+  "0.8.15": [
+    {
+      "id": "loft-no-twist",
+      "title": "Lofts go straight",
+      "blurb": "Lofting a circle to a rectangle on a parallel plane no longer twists the shape. The sides now run straight up from the circle to the rectangle's corners."
+    },
+    {
+      "id": "plane-offset",
+      "title": "Offset for angled planes",
+      "blurb": "Angle planes now have an Offset field. Tilt a plane 30 degrees about an axis, type 40 mm, and it slides along its own tilted normal. Sketch on it and extrude, and the solid sits exactly there."
+    },
+    {
+      "id": "construction-dash",
+      "title": "Construction lines keep their dashes",
+      "blurb": "A construction line is still drawn dashed when you select it or point at it, so it never looks like a normal line. It turns orange as before."
+    },
+    {
+      "id": "case-names",
+      "title": "A second case gets its own names",
+      "blurb": "Run the Case wizard when a Base and a Lid already exist: the new bodies are named Base 2 and Lid 2 instead of failing with a name clash."
+    }
+  ],
+  "0.8.14": [
+    {
+      "id": "sketch-mirror",
+      "title": "Mirror in the sketch",
+      "blurb": "Draw half a shape, select its lines, press Mirror and click a construction line, or press X or Y to mirror about an origin axis. The other half appears, tied to the first by symmetric constraints. Construction lines are now a clear teal dash, their buttons stay in view on narrow windows, and Mirror has its own ribbon button with a prompt over the view."
+    },
+    {
+      "id": "tangent-edges",
+      "title": "Switch off the lines inside smooth surfaces",
+      "blurb": "Display > Show > Tangent edges now works: switch it off and the lines inside smooth surfaces (the diagonals across knurl facets, fillet blends) disappear, while creases and outlines stay."
+    }
+  ],
+  "0.8.13": [
+    {
+      "id": "plane-modes",
+      "title": "Make a plane at an angle and cut along it",
+      "blurb": "In the Plane editor, the Angle mode turns a base plane about an axis by an angle you type: here the Top plane about the X axis by 30 degrees. Sketch on the new plane and extrude as a cut, through all both ways, to make a slanted opening."
+    },
+    {
+      "id": "plane-midperp",
+      "title": "Midplane and Perpendicular reference planes",
+      "blurb": "The Plane editor's Mode list also has Midplane, which needs a base plane and a second plane and sits between them, and Perpendicular, which needs a base plane and an axis (with a Flip direction box). Each mode shows only the fields it needs."
+    },
+    {
+      "id": "hollow-pipe",
+      "title": "Make a hollow pipe",
+      "blurb": "The Pipe feature has a Wall field. Leave it blank for a solid pipe, or type a wall thickness and the pipe becomes a tube you can look along."
+    }
+  ],
+  "0.8.12": [
+    {
+      "id": "plugin-sketch-preview",
+      "title": "Plugins show a live preview in your sketch",
+      "blurb": "Plugins that draw into an open sketch now show a live preview. While the plugin form is open, the curves it would add (the Honeycomb hexagons, for example) appear in the sketch in amber and update when you change a value. Press Add to draw them, and one undo removes them all."
+    },
+    {
+      "id": "herringbone-gears",
+      "title": "Herringbone gears with 40 or 48 teeth build",
+      "blurb": "The Gear generator's Herringbone type now builds gears with 40 or 48 teeth as well as small ones. Choose Features > Gear, pick Herringbone, set a wide face and the teeth you want, and confirm: the two helical halves meet in a V."
+    }
+  ],
+  "0.8.11": [
+    {
+      "id": "lofted-bottle",
+      "title": "Round, hollow and finish a lofted bottle",
+      "blurb": "A bottle built from three lofts, a stem and a rounded base now regenerates in about 10 seconds: the 5 mm base round builds, the 2 mm shell opened at the top no longer hangs, and a rim round after the shell works. Lofts from a rounded rectangle to a circle no longer twist."
+    }
+  ],
+  "0.8.10": [
+    {
+      "id": "loft-end-conditions",
+      "title": "Control how a loft leaves its first and last profile",
+      "blurb": "The Loft editor has an End conditions section: set Directional with an angle for the first or the last profile. Angle 90 leaves straight out, below 90 the sides bow outward, above 90 the body necks in."
+    },
+    {
+      "id": "rail-smoothing",
+      "title": "Choose how a loft runs through three or more profiles",
+      "blurb": "The Loft editor has a Rail smoothing choice. Natural (the default) runs one smooth curve through all the profiles and can swell past the widest one; Local keeps each section between its two profiles; Automatic chooses for you."
+    },
+    {
+      "id": "wrap-text",
+      "title": "Wrap text or shapes onto a cylinder",
+      "blurb": "Pick the round face of a cylinder (a mug, a bottle) and a sketch of lettering or closed shapes, and Wrap engraves it into the face or raises it from it. Set the depth, slide it along the axis, turn it around."
+    },
+    {
+      "id": "wrap-curve",
+      "title": "Wrap a curve around a cylinder",
+      "blurb": "In Project curve, the Wrap method lays a curve you drew flat around a cylindrical face and keeps its length. Turn it around the cylinder and slide it along the axis."
+    },
+    {
+      "id": "gears-join",
+      "title": "The Gears generator builds the whole gear again",
+      "blurb": "Plugins can join or cut against several bodies at once, so the Gears generator makes a full toothed gear beside its block."
+    }
+  ],
   "0.8.9": [
     {
       "id": "rounds-past-face",

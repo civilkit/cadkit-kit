@@ -2,6 +2,7 @@
 // body, the document and the measure / section / mass queries are untouched; picks keep the kernel's face and edge names.
 import { moveDir, movePoint, type Rigid } from '@kit/motion';
 import { instanceOfName, explodeOffsets, copyTurner, isExploded, type DocLike, type ExplodeState, type V3 } from './model';
+import { isSubassemblyFlexible } from './linkedComponents';
 
 interface ViewEdge { key?: string; pts: number[][]; mid?: number[] }
 export interface ShowBody {
@@ -54,11 +55,23 @@ export function displayBody<B extends ShowBody>(body: B, o: DisplayOpts): B {
   for (let t = 0; t < triFace.length; t++) { const c = inst[triFace[t]]?.comp; if (!c || !o.hidden.has(c)) keepTri.push(t); }
   const n = keepTri.length;
   const P = new Float32Array(n * 9), N = new Float32Array(n * 9), F = new Int32Array(n);
-  // a pose moves the component itself (a pattern copy keeps its place)
-  const rigOf = (i: { comp: string; key: string } | null | undefined): Rigid | undefined => (posed && i && i.key === i.comp ? o.pose!.get(i.comp) : undefined);
+  // a pose moves the component itself (a pattern copy keeps its place); flexible subassemblies also resolve `${comp}:${subComp}` poses
+  const rigOf = (i: { comp: string; key: string } | null | undefined, name?: string): Rigid | undefined => {
+    if (!posed || !i || i.key !== i.comp) return undefined;
+    if (name && (!o.doc || isSubassemblyFlexible(o.doc, i.comp))) {
+      const first = name.split('|')[0].replace(/#\d+$/, '');
+      const ids = [...first.matchAll(/@([A-Za-z_]\w*)\.(\d+)/g)].map((m) => m[1]);
+      const compIdx = ids.lastIndexOf(i.comp);
+      if (compIdx > 0) {
+        const subRig = o.pose!.get(`${i.comp}:${ids[compIdx - 1]}`);
+        if (subRig) return subRig;
+      }
+    }
+    return o.pose!.get(i.comp);
+  };
   keepTri.forEach((t, i) => {
     const d = off.get(owner[triFace[t]] ?? '') ?? [0, 0, 0];
-    const rig = rigOf(inst[triFace[t]]) ?? (facePosed ? o.facePose!.get(faceIds[triFace[t]]) : undefined);
+    const rig = rigOf(inst[triFace[t]], faceIds[triFace[t]]) ?? (facePosed ? o.facePose!.get(faceIds[triFace[t]]) : undefined);
     for (let v = 0; v < 3; v++) {
       const k = t * 9 + v * 3, q = i * 9 + v * 3;
       const p = rig ? movePoint(rig, [positions[k], positions[k + 1], positions[k + 2]]) : [positions[k], positions[k + 1], positions[k + 2]];
@@ -71,7 +84,7 @@ export function displayBody<B extends ShowBody>(body: B, o: DisplayOpts): B {
   for (let e of body.edges) {
     const i = e.key && o.inserts.size ? instanceOfName(e.key, o.inserts) : null;
     if (i && o.hidden.has(i.comp)) continue;
-    const rig = rigOf(i) ?? (e.key && o.edgePose ? o.edgePose.get(e.key) : undefined);
+    const rig = rigOf(i, e.key) ?? (e.key && o.edgePose ? o.edgePose.get(e.key) : undefined);
     if (rig) e = { ...e, pts: e.pts.map((p) => movePoint(rig, p)), ...(e.mid ? { mid: movePoint(rig, e.mid) } : {}) };
     const d = i ? off.get(i.key) : undefined;
     edges.push(d ? { ...e, pts: e.pts.map((p) => [p[0] + d[0], p[1] + d[1], p[2] + d[2]]), ...(e.mid ? { mid: [e.mid[0] + d[0], e.mid[1] + d[1], e.mid[2] + d[2]] } : {}) } : e);

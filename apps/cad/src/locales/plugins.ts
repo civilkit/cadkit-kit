@@ -1,6 +1,12 @@
 // Strings of the Plugins panel (PluginPanel.tsx). Names, titles and field labels that a plugin supplies come from its manifest and are shown as written.
 export const pluginStrings: Record<string, string | Record<string, string>> = {
   'cmd.add-plugin': 'Plugins',
+  'opt.plane.axis': 'Axis', 'opt.plane.axis.none': 'Choose an axis...', 'opt.plane.base2.none': 'Choose the second plane...', 'opt.plane.axis.picked': 'The axis picked', 'opt.plane.axis.std': '{axis} axis',
+  'opt.plane.angle': 'Angle', 'opt.plane.base2': 'Second plane', 'opt.plane.offset': 'Offset', 'opt.plane.flip': 'Flip direction',
+  'plugin.sketchLines': 'This draws {count} curves into the sketch you have open (shown in amber). Press Add to draw them.',
+  'plugin.sketchAdded': '{count} curves added to the sketch',
+  'plugin.sketchGone': 'The sketch is no longer open.',
+  'tip.sketch-plugins': 'Plugins that work in this sketch: pick one, set its parameters and the lines are drawn into the sketch you have open',
   'tip.add-plugin': 'Generators added by plugins: pick one, fill in its parameters and add the result to the model in one undo step. Built-in plugins ship with the app.',
   'plugin.title': 'Plugins',
   'plugin.pick': 'Pick a generator',

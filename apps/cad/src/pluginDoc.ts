@@ -6,11 +6,15 @@ import type { SelItem } from '@kit/plugin';
 
 export interface PluginDoc {
   bodies: Array<{ name: string; bbox: { min: number[]; max: number[] } | null; volume: number | null; feature?: string }>;
-  selection: Array<{ type: 'body' | 'face' | 'edge'; name?: string; body?: string; /** a face's place in its body's list */ index?: number; normal?: number[] }>;
+  selection: Array<{ type: 'body' | 'face' | 'edge'; name?: string; body?: string; /** a face's place in its body's list */ index?: number; normal?: number[]; /** an edge pick: a point on it (plugin frame, mm) */ point?: number[] }>;
   parameters: Array<{ name: string; expression: string; value: number }>;
   /** what generators stored for the components they made, from the runs recorded in the document */
   components: Record<string, Record<string, unknown>>;
   /** the display mesh and each body's faces (in the order of a face selection's `index`): what a plugin's `model.mesh` reads. The arrays are shared, not copied. */
+  /** each body's edges in its own order, with their polylines (document frame, mm): what a plugin's `model.edges` reads */
+  edges?: Record<string, Array<{ name: string; pts: number[][] }>>;
+  /** the document's thread features: what `model.threads` lists */
+  threads?: Array<Record<string, unknown>>;
   meshes?: { mesh: { positions: ArrayLike<number>; triFace: ArrayLike<number>; faceIds: string[] }; faces: Record<string, string[]> };
 }
 
@@ -30,7 +34,7 @@ function planeNormal(mesh: SelMesh, face: string): number[] | undefined {
   return n;
 }
 
-export function pluginDocContext(rows: readonly BodyRow[], mesh: SelMesh | null, selection: readonly string[], variables: ReadonlyArray<{ name?: unknown; expr?: unknown }> = [], runs: Record<string, { meta?: Record<string, unknown> }> = {}, opts: { /** picked edges too (a selection field that takes edges); the plugin's own `selection.get` keeps to bodies and faces, as before */ edges?: boolean } = {}): PluginDoc {
+export function pluginDocContext(rows: readonly BodyRow[], mesh: SelMesh | null, selection: readonly string[], variables: ReadonlyArray<{ name?: unknown; expr?: unknown }> = [], runs: Record<string, { meta?: Record<string, unknown> }> = {}, opts: { /** picked edges too (a selection field that takes edges); the plugin's own `selection.get` keeps to bodies and faces, as before */ edges?: boolean; /** a point on an edge (by its key), in the plugin's frame: an edge pick carries it, as SolidCraft's selection reference does */ edgePoint?: (key: string) => number[] | undefined; /** an edge's polyline by its key (document frame): fills `edges` */ edgePts?: (key: string) => number[][] | undefined; /** the document's thread features, for `model.threads` */ threads?: Array<Record<string, unknown>> } = {}): PluginDoc {
   const owner = new Map<string, number>(), edgeOwner = new Map<string, number>();
   rows.forEach((r, i) => { for (const f of r.faces) owner.set(f, i); for (const e of r.edges ?? []) edgeOwner.set(e, i); });
   const lo = rows.map(() => [Infinity, Infinity, Infinity]), hi = rows.map(() => [-Infinity, -Infinity, -Infinity]);
@@ -45,7 +49,7 @@ export function pluginDocContext(rows: readonly BodyRow[], mesh: SelMesh | null,
   for (const s of selection) {
     if (s.startsWith(BODY_PREFIX)) { const r = rows.find((x) => x.key === s); if (r) sel.push({ type: 'body', name: nameOf(r) }); continue; }
     const ei = owner.has(s) ? undefined : edgeOwner.get(s);
-    if (ei !== undefined && opts.edges) { sel.push({ type: 'edge', body: nameOf(rows[ei]), index: rows[ei].edges.indexOf(s) }); continue; }
+    if (ei !== undefined && opts.edges) { { const point = opts.edgePoint?.(s); sel.push({ type: 'edge', body: nameOf(rows[ei]), index: rows[ei].edges.indexOf(s), ...(point ? { point } : {}) }); } continue; }
     const i = owner.get(s);
     if (i === undefined) continue;   // a name that is not a face or edge of a body (a vertex, a sketch entity): not offered
     const normal = mesh ? planeNormal(mesh, s) : undefined;
@@ -54,7 +58,9 @@ export function pluginDocContext(rows: readonly BodyRow[], mesh: SelMesh | null,
   const parameters = variables.filter((v) => typeof v?.name === 'string').map((v) => ({ name: String(v.name), expression: String(v.expr ?? ''), value: Number.isFinite(Number(v.expr)) ? Number(v.expr) : 0 }));
   const components: PluginDoc['components'] = {};
   for (const r of Object.values(runs)) { const c = r?.meta?.components; if (c && typeof c === 'object') Object.assign(components, c as PluginDoc['components']); }
-  return { bodies, selection: sel, parameters, components, ...(mesh ? { meshes: { mesh, faces: Object.fromEntries(rows.map((r) => [nameOf(r), r.faces])) } } : {}) };
+  const edges: NonNullable<PluginDoc['edges']> = {};
+  if (opts.edgePts) for (const r of rows) edges[nameOf(r)] = (r.edges ?? []).map((e) => ({ name: e, pts: opts.edgePts!(e) ?? [] }));
+  return { bodies, selection: sel, parameters, components, ...(opts.edgePts ? { edges } : {}), ...(opts.threads ? { threads: opts.threads } : {}), ...(mesh ? { meshes: { mesh, faces: Object.fromEntries(rows.map((r) => [nameOf(r), r.faces])) } } : {}) };
 }
 
 /** The bodies of a scratch build for a plugin's measure: the kernel's mass properties give each body's name and volume (no box), the display mesh gives the boxes.
@@ -79,7 +85,7 @@ export function scratchRows(mesh: SelMesh | null, faceLumps: Record<string, numb
 }
 
 /** What a selection field takes from the document's selection: the bodies, faces and edges it accepts, as the references a plugin receives (`{type:'body', name}`,
- *  `{type:'face', body, index, normal?}`, `{type:'edge', body, index}`), or the bodies' names for a field that takes names. With a maximum, the last picks win. */
+ *  `{type:'face', body, index, normal?}`, `{type:'edge', body, index, point?}`), or the bodies' names for a field that takes names. With a maximum, the last picks win. */
 export function selectionItems(sel: PluginDoc['selection'], d: { accept?: readonly string[]; asNames?: boolean; maxItems?: number }): SelItem[] {
   const out: SelItem[] = [];
   const bodyOnlyFallback = !!d.accept?.includes('body') && !d.accept?.includes('face');
@@ -93,7 +99,7 @@ export function selectionItems(sel: PluginDoc['selection'], d: { accept?: readon
     if (s.type === 'body' && s.name && d.accept?.includes('body')) pushBody(s.name);
     else if (s.type === 'face' && s.body && d.accept?.includes('face') && !d.asNames) out.push({ type: 'face', body: s.body, ...(s.index !== undefined && s.index >= 0 ? { index: s.index } : {}), ...(s.normal ? { normal: s.normal } : {}) });
     else if (s.type === 'face' && s.body && bodyOnlyFallback) pushBody(s.body);
-    else if (s.type === 'edge' && s.body && d.accept?.includes('edge') && !d.asNames) out.push({ type: 'edge', body: s.body, ...(s.index !== undefined && s.index >= 0 ? { index: s.index } : {}) });
+    else if (s.type === 'edge' && s.body && d.accept?.includes('edge') && !d.asNames) out.push({ type: 'edge', body: s.body, ...(s.index !== undefined && s.index >= 0 ? { index: s.index } : {}), ...(s.point ? { point: s.point } : {}) });
   }
   return d.maxItems !== undefined && out.length > d.maxItems ? out.slice(out.length - d.maxItems) : out;
 }

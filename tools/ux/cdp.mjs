@@ -17,7 +17,7 @@ export function findChrome() {
 export async function launchChrome({ port, profileDir, width = 1440, height = 900 }) {
   const dir = profileDir ?? mkdtempSync(join(process.env.UX_TMP ?? tmpdir(), 'ux-chrome-'));
   const proc = spawn(findChrome(), [`--remote-debugging-port=${port}`, `--user-data-dir=${dir}`, '--headless=new', '--no-first-run', '--no-default-browser-check', '--use-gl=angle', '--use-angle=swiftshader-webgl', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', ...(process.env.UX_CHROME_ARGS ?? '').split(/\s+/).filter(Boolean), `--window-size=${width},${height}`, 'about:blank'], { stdio: 'ignore' });
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 240; i++) {
     try { const r = await fetch(`http://127.0.0.1:${port}/json/version`); if (r.ok) break; } catch { /* not up yet */ }
     await new Promise((r) => setTimeout(r, 250));
   }
@@ -36,7 +36,7 @@ export class Page {
     await new Promise((r, j) => { ws.once('open', r); ws.once('error', j); });
     const p = new Page(ws); await p.send('Page.enable'); await p.send('Runtime.enable'); return p;
   }
-  send(method, params = {}, timeout = 30000) { const id = ++this.id; return new Promise((res, rej) => { const t = setTimeout(() => { this.pending.delete(id); rej(new Error(`CDP ${method} timed out (page busy or hung)`)); }, timeout); this.pending.set(id, { res: (v) => { clearTimeout(t); res(v); }, rej: (e) => { clearTimeout(t); rej(e); } }); this.ws.send(JSON.stringify({ id, method, params })); }); }
+  send(method, params = {}, timeout = Number(process.env.CDP_TIMEOUT) || 30000) { const id = ++this.id; return new Promise((res, rej) => { const t = setTimeout(() => { this.pending.delete(id); rej(new Error(`CDP ${method} timed out (page busy or hung)`)); }, timeout); this.pending.set(id, { res: (v) => { clearTimeout(t); res(v); }, rej: (e) => { clearTimeout(t); rej(e); } }); this.ws.send(JSON.stringify({ id, method, params })); }); }
   async eval(expr, { await: aw = true } = {}) {
     const r = await this.send('Runtime.evaluate', { expression: expr, awaitPromise: aw, returnByValue: true });
     if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);

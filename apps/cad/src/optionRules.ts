@@ -9,6 +9,7 @@ import { sheetManagedPaths } from './sheet/options';
 import { featureLabel } from './featureLabels';
 import { curveManaged } from './curveRules';
 import { procSurfaceManaged } from './procSurfaceRules';
+import { axisChoices } from './revolveAxis';
 
 type Wire = Record<string, unknown>;
 
@@ -82,7 +83,7 @@ export function managedPaths(type: string): Set<string> {
     case 'fillet': return new Set(['radius', 'filletType', 'radii', 'profile', 'rho', 'shape', 'side1', 'center', 'side2']);
     case 'shell': return new Set(['thickness', 'outward', 'inside']);
     case 'rib': return new Set(['side', 'fillet', 'draft', 'target']);
-    case 'loft': return new Set(['sketches', 'guides', 'surface', 'op', 'body', 'target', 'startNormal', 'endNormal', 'centreLine', 'connectors']);
+    case 'loft': return new Set(['sketches', 'guides', 'surface', 'op', 'body', 'target', 'startNormal', 'endNormal', 'centreLine', 'connectors', 'railSmoothing']);
     case 'sweep': return new Set(['sketch', 'path', 'guides', 'twist', 'op', 'body', 'target']);
     case 'sphere': return new Set(['center', 'radius', 'op', 'body']);
     case 'combine': return new Set(['op', 'keepTools']);
@@ -101,7 +102,8 @@ export function managedPaths(type: string): Set<string> {
     case 'mirror': return new Set(['carryThreads']);
     case 'knit': return new Set(['surfaces', 'solid']);
     case 'trimSurface': return new Set(['surface', 'toolSurface', 'flip', 'mutual', 'deleteTool']);
-    case 'plane': return new Set(['base']);
+    case 'plane': return new Set(['base', 'offset', 'flip', 'axis', 'angle', 'base2']);
+    case 'connector': return new Set(['anchor', 'offset', 'flip', 'rotateZ', 'frozenFrame']);
     case 'thicken': return new Set(['thickness', 'thicknessAt']);
     default: { const sheet = sheetManagedPaths(type); if (sheet.size) return sheet; const curve = curveManaged(type); return curve.size ? curve : procSurfaceManaged(type); }
   }
@@ -221,6 +223,105 @@ export function planeBaseChoices(doc: { features?: unknown[] } | null | undefine
   if (cur?.kind === 'face' && cur.id) out.push([`face:${cur.id}`, t('opt.plane.face', { id: cur.id })]);
   return out;
 }
+
+// ---- Reference plane modes: what each needs (the kernel's reading, pinned by refPlane.kernel.test.ts) ----
+
+/** What a plane's mode reads. Offset: base, offset and flip. Angle: base, axis, angle, offset and flip (tilt about the axis, then move along the tilted normal by the offset). Perpendicular: base, axis and flip. Midplane: base and a second plane. */
+export interface PlaneNeeds { axis: boolean; angle: boolean; base2: boolean; offset: boolean; flip: boolean }
+export function planeNeeds(mode: unknown): PlaneNeeds {
+  if (mode === 'angle') return { axis: true, angle: true, base2: false, offset: true, flip: true };
+  if (mode === 'perpendicular') return { axis: true, angle: false, base2: false, offset: false, flip: true };
+  if (mode === 'mid') return { axis: false, angle: false, base2: true, offset: false, flip: false };
+  return { axis: false, angle: false, base2: false, offset: true, flip: true };
+}
+
+type SketchLike = { id: string; type: string; name?: string; entities?: Array<{ id: string; type: string }> };
+/** The selector value of an axis: `axis:x` (a standard axis), `sketchLine:SK:ent`, `feature:AX1`. */
+export function planeAxisValue(axis: unknown): string {
+  const a = axis as { kind?: string; axis?: string; sketch?: string; entity?: string; id?: string } | null | undefined;
+  if (!a || !a.kind) return '';
+  if (a.kind === 'axis' && typeof a.axis === 'string') return 'axis:' + a.axis;
+  if (a.kind === 'sketchLine' && a.sketch && a.entity) return `sketchLine:${a.sketch}:${a.entity}`;
+  if (a.kind === 'feature' && a.id) return 'feature:' + a.id;
+  return 'other';   // an axis given by a point and a direction (or an edge): kept as it is, shown as picked
+}
+export function planeAxisPatch(value: string): Wire {
+  const [kind, a, b] = value.split(':');
+  if (kind === 'axis') return { axis: { kind: 'axis', axis: a } };
+  if (kind === 'sketchLine') return { axis: { kind: 'sketchLine', sketch: a, entity: b } };
+  if (kind === 'feature') return { axis: { kind: 'feature', id: a } };
+  return {};
+}
+/** What a plane can turn about: the X, Y and Z axes, the axis features before it, and every straight line of the sketches before it. */
+export function planeAxisChoices(doc: { features?: unknown[] } | null | undefined, selfId: string, current: unknown): Array<[string, string]> {
+  const out: Array<[string, string]> = (['x', 'y', 'z'] as const).map((a): [string, string] => ['axis:' + a, t('opt.plane.axis.std', { axis: a.toUpperCase() })]);
+  for (const f of (doc?.features ?? []) as SketchLike[]) {
+    if (f.id === selfId) break;
+    if (f.type === 'axis') out.push([`feature:${f.id}`, featureLabel(doc, f as never) || f.id]);
+    else if (f.type === 'sketch') for (const e of axisChoices(f as never)) out.push([`sketchLine:${f.id}:${e[0]}`, `${featureLabel(doc, f as never) || f.id}: ${e[1]}`]);
+  }
+  const v = planeAxisValue(current);
+  if (v === 'other') out.push(['other', t('opt.plane.axis.picked')]);
+  return out;
+}
+
+// ---- Mate Connector (`type: 'connector'`) ----
+
+export const CONNECTOR_ROTATE_PRESETS = [0, 90, 180, 270] as const;
+
+/** The selector value of a connector's anchor: `std:front`, `feature:P1`, `connector:C1`, `face:F2.C1`, `frame`, or `picked`. */
+export function connectorAnchorValue(anchor: unknown): string {
+  const a = anchor as { kind?: string; id?: string; face?: string } | null | undefined;
+  if (!a || typeof a !== 'object' || !a.kind) return 'std:front';
+  if ((a.kind === 'std' || a.kind === 'feature' || a.kind === 'connector' || a.kind === 'face') && a.id) return `${a.kind}:${a.id}`;
+  if (a.kind === 'frame') return 'frame';
+  return 'picked';
+}
+
+/** Patch that sets `anchor` from a selector value (returns null for read-only `frame` / `picked` entries). */
+export function connectorAnchorPatch(value: string): Wire | null {
+  const i = value.indexOf(':');
+  if (i < 0) return null;
+  return { anchor: { kind: value.slice(0, i), id: value.slice(i + 1) } };
+}
+
+/** Anchor choices for a Mate Connector: standard planes, earlier Plane and Connector features, plus the current face / frame / geometric anchor. */
+export function connectorAnchorChoices(doc: { features?: unknown[] } | null | undefined, selfId: string, current: unknown): Array<[string, string]> {
+  const out: Array<[string, string]> = viewPlaneIds().map((id): [string, string] => ['std:' + id, planeName(id)]);
+  for (const f of (doc?.features ?? []) as Array<{ id: string; type: string; name?: string }>) {
+    if (f.id === selfId) break;
+    if (f.type === 'plane') out.push([`feature:${f.id}`, featureLabel(doc, f as never) || f.id]);
+    else if (f.type === 'connector') out.push([`connector:${f.id}`, featureLabel(doc, f as never) || f.id]);
+  }
+  const cur = current as { kind?: string; id?: string } | null | undefined;
+  if (cur?.kind === 'face' && cur.id) out.push([`face:${cur.id}`, t('opt.plane.face', { id: cur.id })]);
+  else if (cur?.kind === 'frame') out.push(['frame', t('opt.connector.frame')]);
+  else if (cur?.kind && !out.some(([v]) => v === connectorAnchorValue(cur))) out.push(['picked', t('opt.connector.picked', { kind: cur.kind })]);
+  return out;
+}
+
+/** Local `[dx, dy, dz]` offset of a Mate Connector (0 when absent). */
+export function connectorOffsetOf(eff: Wire): [number | string, number | string, number | string] {
+  const o = Array.isArray(eff.offset) ? eff.offset : [];
+  const item = (v: unknown): number | string => (typeof v === 'number' || (typeof v === 'string' && v !== '') ? v : 0);
+  return [item(o[0]), item(o[1]), item(o[2])];
+}
+
+/** Patch one component of `offset`; all-zero removes the field. */
+export function patchConnectorOffset(eff: Wire, index: 0 | 1 | 2, value: number | string): Wire {
+  const next = connectorOffsetOf(eff);
+  next[index] = value === '' ? 0 : value;
+  const zero = next.every((v) => v === 0);
+  return { offset: zero ? null : next };
+}
+
+/** Local Z rotation in degrees (0 when absent). */
+export const connectorRotateZOf = (eff: Wire): number | string =>
+  typeof eff.rotateZ === 'number' || (typeof eff.rotateZ === 'string' && eff.rotateZ !== '') ? eff.rotateZ : 0;
+
+/** Patch `rotateZ`; 0 or empty removes the field. */
+export const patchConnectorRotateZ = (deg: number | string): Wire =>
+  deg === 0 || deg === '' || deg === null ? { rotateZ: null } : { rotateZ: deg };
 
 // ---- To object / From object references ----
 

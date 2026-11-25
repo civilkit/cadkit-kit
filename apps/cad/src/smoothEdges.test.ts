@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { Session } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
-import { markSmoothEdges } from './smoothEdges';
+import { markSmoothEdges, withSmoothEdges } from './smoothEdges';
 import { chainSelection } from './roundChain';
 import { chainedEdgeRefs } from './featureCommands';
 
@@ -32,6 +32,35 @@ describe('markSmoothEdges (mesh from synthetic faces)', () => {
   it('leaves edges it cannot judge alone (one face, unknown face, no points)', () => {
     const m = twoFaces('flat');
     for (const e of [{ ...edge, faces: ['a'] }, { ...edge, faces: ['a', 'zz'] }, { ...edge, pts: [] }]) expect(markSmoothEdges(m, [e])[0].smooth).toBeUndefined();
+  });
+});
+
+describe('markSmoothEdges: the 10 degree picture threshold (numbers from the knurl edge data, #26)', () => {
+  // face b stands in the z = 0 plane but its normals are tilted by `deg` about the edge (the x axis)
+  const tilted = (deg: number): Parameters<typeof markSmoothEdges>[0] => {
+    const m = twoFaces('flat'), r = (deg * Math.PI) / 180;
+    const n = Array.from(m.normals);
+    for (let i = 6; i < 12; i++) { n[i * 3 + 1] = Math.sin(r); n[i * 3 + 2] = Math.cos(r); }
+    return { ...m, normals: Float32Array.from(n) };
+  };
+  const flags = (deg: number) => { const e = markSmoothEdges(tilted(deg), [edge])[0]; return [e.smooth === true, e.gentle === true]; };
+  it('a facet diagonal (1.7 to 3.1 degrees) is gentle; at 3.1 it is no longer smooth for the tangent chain', () => {
+    expect(flags(1.7)).toEqual([true, true]);
+    expect(flags(3.1)).toEqual([false, true]);
+  });
+  it('a real crease of the knurl (43.7 degrees) and anything past 10 degrees is neither', () => {
+    expect(flags(43.7)).toEqual([false, false]);
+    expect(flags(12)).toEqual([false, false]);
+  });
+});
+
+describe('withSmoothEdges (the body the viewport draws)', () => {
+  it('carries the smooth and gentle flags on its edges, and leaves a body with no edges alone', () => {
+    const body = { mesh: twoFaces('flat'), edges: [edge, { ...edge, key: 'x', faces: ['a', 'zz'] }] as Array<typeof edge & { smooth?: boolean; gentle?: boolean }> };
+    const out = withSmoothEdges(body);
+    expect(out.edges.map((e) => [e.smooth, e.gentle])).toEqual([[true, true], [undefined, undefined]]);
+    const none = { mesh: twoFaces('flat') };
+    expect(withSmoothEdges(none)).toBe(none);
   });
 });
 

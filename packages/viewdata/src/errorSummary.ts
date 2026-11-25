@@ -18,6 +18,8 @@ export interface DiagRoot extends RegenErr {
   knurl?: 'fixed' | 'face';
   /** An extrude or revolve whose sketch is one open line or chain (no closed outline): it is a web or a thin wall, not a solid profile. */
   openLine?: boolean;
+  /** A reference plane that was never given an input its mode needs (the kernel says only `missingReference`): which one. */
+  planeInput?: 'base' | 'axis' | 'base2';
   /** Ids of the consequences this root blocks, in document order. */
   blocks: string[];
 }
@@ -114,6 +116,15 @@ export function isOpenChainSketch(sk: { entities?: unknown; points?: unknown } |
   return new Set([...degree.keys()].map(find)).size === 1;
 }
 
+/** Which input a reference plane lacks for its mode: the base always, the axis of an angle or perpendicular plane, the second plane of a midplane. Undefined when it has them all (a reference that is gone). */
+export function planeInputMissing(f: DiagFeature): 'base' | 'axis' | 'base2' | undefined {
+  const has = (k: string): boolean => !!f[k] && typeof f[k] === 'object';
+  if (!has('base')) return 'base';
+  if ((f.mode === 'angle' || f.mode === 'perpendicular') && !has('axis')) return 'axis';
+  if (f.mode === 'mid' && !has('base2')) return 'base2';
+  return undefined;
+}
+
 export function diagnose(errors: readonly RegenErr[], features: readonly DiagFeature[]): Diagnosis {
   const index = new Map(features.map((f, i) => [f.id, i] as const));
   const byId = new Map(features.map((f) => [f.id, f] as const));
@@ -139,7 +150,8 @@ export function diagnose(errors: readonly RegenErr[], features: readonly DiagFea
     const seat = CUT_CODES.has(e.code) ? seatKind(f, byId) : undefined;
     const knurl = CUT_CODES.has(e.code) && !seat ? knurlKind(f, features) : undefined;
     const openLine = e.code === 'noClosedProfile' && (f?.type === 'extrude' || f?.type === 'revolve') && isOpenChainSketch(byId.get(String(f.sketch)) as { entities?: unknown } | undefined);
-    const base = { ...e, label: labelOf(e), type: f?.type, ...(seat ? { seat } : {}), ...(knurl ? { knurl } : {}), ...(openLine ? { openLine } : {}) };
+    const planeInput = e.code === 'missingReference' && f?.type === 'plane' ? planeInputMissing(f) : undefined;
+    const base = { ...e, label: labelOf(e), type: f?.type, ...(seat ? { seat } : {}), ...(knurl ? { knurl } : {}), ...(openLine ? { openLine } : {}), ...(planeInput ? { planeInput } : {}) };
     let cause: string | undefined; let via: 'ref' | 'code' = 'ref';
     if (rootOf.size && f) {
       const deps = closure(e.id);

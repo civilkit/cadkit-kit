@@ -94,6 +94,8 @@ export interface ToolOutput<S> {
   fields: FieldSpec[];
   /** i18n key of a short message for the status line, if any. */
   hint?: string;
+  /** Numbers for the hint's `{placeholders}` (Convert edges: how many curves it converted). */
+  hintArgs?: Record<string, number>;
   /** Constraints the tool inferred for the pending segment, shown as glyphs before the click. */
   pending?: string[];
   /** Where the shape being drawn started from (the line tool's last point): the perpendicular and tangent snaps are measured from it. */

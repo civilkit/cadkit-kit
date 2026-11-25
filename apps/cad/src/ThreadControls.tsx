@@ -21,6 +21,10 @@ export function Select(p: { name: string; label: string; value: string; stack?: 
   );
 }
 
+/** Whether the choices fit one joined row in the value column of a narrow panel (about 26 characters with their padding); longer sets wrap onto a full-width row of their own
+ *  below the label instead of being cut off. */
+export const segFits = (texts: string[]): boolean => texts.reduce((n, t) => n + t.length + 2, 0) <= 26;
+
 /** A segmented control (radio group): arrow keys move the choice, Tab leaves the group. */
 export function Seg<V extends string>(p: { name: string; label: string; value: V; options: Array<{ value: V; text: string; icon?: string; tip?: string }>; onChange(v: V): void; /** Shown to the right of the control, in the same row. */ trail?: ComponentChildren }): JSX.Element {
   const move = (e: KeyboardEvent, i: number): void => {
@@ -32,7 +36,7 @@ export function Seg<V extends string>(p: { name: string; label: string; value: V
     ((e.currentTarget as HTMLElement).parentElement?.querySelector(`[data-value="${next.value}"]`) as HTMLElement | null)?.focus();
   };
   return (
-    <div class="fedit-fld" data-path={p.name}>
+    <div class={'fedit-fld' + (segFits(p.options.map((o) => o.text)) ? '' : ' seg-wide')} data-path={p.name}>
       <span class="fedit-fld-label" id={`thread-${p.name}-label`}>{p.label}</span>
       <div class="fedit-ctl">
       <div class="thread-seg" role="radiogroup" aria-labelledby={`thread-${p.name}-label`}>

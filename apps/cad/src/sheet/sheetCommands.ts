@@ -65,7 +65,8 @@ const usedBySheet = (c: Ctx): Set<string> => new Set(feats(c).filter((f) => f.ty
 /** The sketch a base flange is made of: the one selected in the tree if it is closed, else the last closed sketch. */
 export const baseSketch = (c: Ctx): Feat | null => sketchWhere(c, isClosedSketch);
 /** The open chain of lines a contour flange follows: the selected or last open sketch. */
-export const contourSketch = (c: Ctx): Feat | null => sketchWhere(c, isOpenSketch);
+/** The kernel builds a contour flange from the straight lines of an open sketch and refuses one made only of arcs or splines ("no lines for a contour"). */
+export const contourSketch = (c: Ctx): Feat | null => sketchWhere(c, (s) => isOpenSketch(s) && ents(s).some((e) => e.type === 'line' && !e.construction));
 /** The sketch and line a fold follows: the selected sketch with a line, else the last that has one and is not the sheet's own outline. The line is the last one. */
 export function foldLine(c: Ctx): { sketch: string; curve: string } | null {
   const used = usedBySheet(c);
@@ -96,7 +97,9 @@ export function rulesTarget(c: Ctx): Feat | null {
 const withRule = (c: Ctx, ops: EditOp[]): EditOp[] => (rulesOf(c.doc).length ? ops : [{ op: 'add', feature: defaultRule(t('sheet.rule.defaultName')) } as EditOp, ...ops]);
 
 /** Whether the part has a solid a convert can start from (a body in the view). */
-const hasBody = (c: Ctx): boolean => !!c.box;
+/** Features that make no solid: a part holding only these (a sketch, a plane) has nothing to convert to sheet metal, though its box may be set. */
+const NO_SOLID = new Set(['sketch', 'sketch3d', 'plane', 'axis', 'connector', 'helix', 'projectCurve', 'editCurve', 'offsetCurve', 'compositeCurve', 'sheetRules', 'surfacePlanar', 'surfaceExtrude', 'surfaceRevolve', 'surfaceOffset', 'splitLine']);
+const hasBody = (c: Ctx): boolean => !!c.box && ((c.doc?.features ?? []) as unknown as Array<{ type: string }>).some((f) => !NO_SOLID.has(f.type));
 const whyConvert = (c: Ctx): string | undefined => {
   if (!c.doc) return t('why.noDocument');
   if (hasSheetBase(c.doc)) return t('why.sheet.hasBase');

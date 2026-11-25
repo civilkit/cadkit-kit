@@ -3,7 +3,7 @@
 
 export interface Box { min: number[]; max: number[] }
 export interface EdgeRef { faces: string[]; at: number[] }
-export interface ViewEdge { key?: string; faces?: string[]; mid?: number[]; /** world-space polyline of the edge */ pts?: number[][]; /** its two faces meet without a crease (see smoothEdges.ts) */ smooth?: boolean }
+export interface ViewEdge { key?: string; faces?: string[]; mid?: number[]; /** world-space polyline of the edge */ pts?: number[][]; /** its two faces meet without a crease (see smoothEdges.ts) */ smooth?: boolean; /** within 10 degrees (the view's Tangent edges layer) */ gentle?: boolean }
 
 /** A size for a new feature: about 5% of the smallest box dimension, rounded to 1, 2, 2.5 or 5 times a power of ten. */
 export function niceSize(box: Box | null, fraction = 0.05): number {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canDetachOnDelete, detachDeleteOps, freezeBeforeSuppressOps, isDetachableFeature, makeIndependentPlanePatch, reattachPatch } from './frozenPose';
+import { canDetachOnDelete, detachDeleteOps, freezeBeforeSuppressOps, isDetachableFeature, makeIndependentConnectorPatch, makeIndependentPlanePatch, reattachPatch } from './frozenPose';
 
 const F = { o: [0, 10, 0], x: [1, 0, 0], y: [0, 0, -1], z: [0, 1, 0] };
 
@@ -18,6 +18,9 @@ describe('frozenPose', () => {
     expect(isDetachableFeature(features[2])).toBe(true);  // face sketch
     expect(isDetachableFeature(features[4])).toBe(true);  // offset plane
     expect(isDetachableFeature({ id: 'P2', type: 'plane', mode: 'frame' })).toBe(false);
+    expect(isDetachableFeature({ id: 'C1', type: 'connector', anchor: { kind: 'face', id: 'F2.C1' } })).toBe(true);
+    expect(isDetachableFeature({ id: 'C2', type: 'connector', anchor: { kind: 'std', id: 'top' } })).toBe(false);
+    expect(isDetachableFeature({ id: 'C3', type: 'connector', anchor: { kind: 'frame', origin: [0, 0, 0], xDir: [1, 0, 0], yDir: [0, 1, 0] } })).toBe(false);
   });
 
   it('allows detaching when all direct dependents are sketches/planes with known frames', () => {
@@ -54,6 +57,14 @@ describe('frozenPose', () => {
       xDir: F.x,
       yDir: F.y,
       base: null,
+      frozenFrame: null,
+    });
+    expect(makeIndependentConnectorPatch(F)).toEqual({
+      anchor: { kind: 'frame', origin: F.o, xDir: F.x, yDir: F.y },
+      offset: null,
+      rotate: null,
+      flip: null,
+      rotateZ: null,
       frozenFrame: null,
     });
   });

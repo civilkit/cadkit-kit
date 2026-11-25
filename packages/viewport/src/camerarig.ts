@@ -130,6 +130,7 @@ export function groundPlane(up: UpAxis, box: { min: number[]; max: number[] } | 
     level: box ? box.min[h] : 0,
     ca: box ? (box.min[a] + box.max[a]) / 2 : 0,
     cb: box ? (box.min[b] + box.max[b]) / 2 : 0,
-    size: box ? Math.max(box.max[a] - box.min[a], box.max[b] - box.min[b], 20) : 100,
+    // the largest extent of the part in any direction, height included: a tall thin rail still gets a grid that reads against it
+    size: box ? Math.max(box.max[a] - box.min[a], box.max[b] - box.min[b], box.max[h] - box.min[h], 20) : 100,
   };
 }

@@ -54,6 +54,8 @@ export interface SketchControls {
   onImportSvg?: () => void;
   /** put a picture on the sketch plane to trace (or show the panel of the one it has) */
   onUnderlay?: () => void;
+  /** open the Plugins form (generators that read and draw into this sketch, such as the honeycomb) */
+  onPlugins?: () => void;
   /** Finish the sketch (as OK does) and open the Extrude card on it. Absent for a hole sketch. */
   onExtrude?: () => void;
   /** Finish the sketch and open the Revolve card on it. Absent for a hole sketch. */
@@ -112,8 +114,8 @@ export function SketchMake(p: Pick<SketchControls, 'onExtrude' | 'onRevolve'>) {
 export function SketchConstruction(p: Pick<SketchControls, 'construction' | 'onConstruction' | 'onToggleSelected'>) {
   return (
     <>
-      <button class="rb-btn" data-action="sketch-construction" aria-pressed={p.construction} title={t('app.sketch.constructionMode.tip')} onClick={p.onConstruction}>{t('app.sketch.constructionMode')}</button>
-      {p.onToggleSelected ? <button class="rb-btn" data-action="sketch-make-construction" title={t('app.sketch.toggleConstruction.tip')} onClick={p.onToggleSelected}>{t('app.sketch.toggleConstruction')}</button> : null}
+      <button class="rb-btn" data-action="sketch-construction" aria-pressed={p.construction} title={t('app.sketch.constructionMode.tip')} onClick={p.onConstruction}><Icon name="sketch-construction" size={16} />{t('app.sketch.constructionMode')}</button>
+      {p.onToggleSelected ? <button class="rb-btn" data-action="sketch-make-construction" title={t('app.sketch.toggleConstruction.tip')} onClick={p.onToggleSelected}><Icon name="sketch-make-construction" size={16} />{t('app.sketch.toggleConstruction')}</button> : null}
     </>
   );
 }

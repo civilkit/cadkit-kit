@@ -8,12 +8,13 @@ const input = (over: Partial<StatusItemInput> = {}): StatusItemInput => ({
 });
 
 describe('statusMode (width to layout)', () => {
-  it('folds into the "..." menu below 900, shows icons up to the label width, then labels Fully define', () => {
+  it('folds into the "..." menu below 1400, shows icons up to the label width, then labels Fully define', () => {
     expect(statusMode(STATUS_MENU_BELOW - 1)).toBe('menu');
     expect(statusMode(STATUS_MENU_BELOW)).toBe('icons');
     expect(statusMode(STATUS_LABEL_FROM - 1)).toBe('icons');
     expect(statusMode(STATUS_LABEL_FROM)).toBe('labelled');
-    expect(statusMode(1441)).toBe('labelled');
+    expect(statusMode(1441)).toBe('icons');   // a laptop ribbon: the tools win the room
+    expect(statusMode(1801)).toBe('labelled');
     expect(statusMode(0)).toBe('menu');
   });
 });

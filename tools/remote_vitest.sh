@@ -5,12 +5,13 @@
 # --kernel    the kernel checkout whose packages/ the kit aliases to (default: ../rebuild-main next to this kit)
 # --wasm      the wasm the kernel suites load (default: the newest ck_wasm.wasm under the kernel checkout's target/); build one with
 #             the kernel's tools/remote_build.sh when none exists or the kernel changed. Not needed with --typecheck.
+# --node DIR  a Node install on the box (its bin/ goes first on PATH), e.g. $HOME/ci/remote-vitest/node22/node-v22.22.0-linux-x64; the box's own Node is 20, the repo targets 22
 # --typecheck run `tsc --noEmit` on the kit (the kit's `typecheck` script) instead of vitest; no wasm is built or copied
 # Host: $REMOTE_BUILD_HOST, else the host part of the kernel checkout's `ci` git remote (as tools/remote_build.sh).
 # Everything on the box lives under ~/ci/remote-vitest/<name>; nothing outside it is written or deleted. Results print here.
 set -uo pipefail
 HERE=$(cd "$(dirname "$0")/.." && pwd -P)
-WT="$HERE"; KERNEL=""; WASM=""; TMO=1500; WORKERS=1; TC=0
+WT="$HERE"; KERNEL=""; WASM=""; TMO=1500; WORKERS=1; TC=0; NODEDIR=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --worktree) WT=$(cd "$2" && pwd -P) || exit 64; shift 2 ;;
@@ -18,6 +19,7 @@ while [ $# -gt 0 ]; do
     --wasm) WASM="$2"; shift 2 ;;
     --timeout) TMO="$2"; shift 2 ;;
     --workers) WORKERS="$2"; shift 2 ;;
+    --node) NODEDIR="$2"; shift 2 ;;
     --typecheck) TC=1; shift ;;
     --) shift; break ;;
     -h|--help) sed -n 2,10p "$0" >&2; exit 64 ;;
@@ -59,8 +61,11 @@ SYNCK=(rsync -a -e "$RSH" --exclude node_modules --exclude .DS_Store)
 ARGS=""; for a in "$@"; do ARGS="$ARGS $(printf '%q' "$a")"; done
 ssh "${SSHO[@]}" "$H" bash -s <<EOF
 set -u
+# the box's system Node is 20; the repo and the workflows target Node 22 (installed for this user in ~/ci/node22)
+[ -d "\$HOME/ci/node22/bin" ] && export PATH="\$HOME/ci/node22/bin:\$PATH"
+[ -n "$NODEDIR" ] && export PATH="$NODEDIR/bin:\$PATH"      # --node overrides it
 cd $R/$NAME/kit || exit 70
-STAMP=\$(cat package.json packages/*/package.json apps/*/package.json 2>/dev/null | cksum)
+STAMP=\$(cat package.json packages/*/package.json apps/*/package.json 2>/dev/null | cksum)\$(node -v)
 if [ ! -d node_modules ] || [ "\$(cat .npm-stamp 2>/dev/null)" != "\$STAMP" ]; then
   echo "installing dependencies on the box (once per change to the package files; the kit lockfile is not used because it lags package.json)..." >&2
   npm install --no-audit --no-fund >/tmp/remote-vitest-npm.log 2>&1 || { tail -5 /tmp/remote-vitest-npm.log >&2; echo "npm install failed on the box" >&2; exit 71; }

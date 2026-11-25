@@ -92,6 +92,7 @@ export const fastenerStrings: Record<string, string | Record<string, string>> = 
   'insert.holeIn': 'Cut it into',
   'insert.holeIn.all': 'Every body it reaches',
   'insert.summary': 'The insert is {interference} mm bigger than the hole on each side (the press fit), bore {bore} mm',
+  'insert.holeNeedsBody': 'There is no body to cut the hole into yet: make the part first, then add the insert.',
   'insert.holeNote': 'The insert overlaps the part by that press fit, as a real one does once pushed in.',
   'insert.unverified': 'The sizes are typical catalogue values (middle of the ranges manufacturers publish), not a drawing: check the sheet of the insert you buy.',
   'insert.position': 'Hole mouth centre',

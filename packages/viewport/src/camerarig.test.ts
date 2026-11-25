@@ -142,5 +142,6 @@ describe('view cube labels and ground grid', () => {
     const box = { min: [0, 1, 2], max: [10, 5, 8] };
     expect(groundPlane('y', box)).toMatchObject({ ax: 0, bx: 2, level: 1, ca: 5, cb: 5, size: 20 });
     expect(groundPlane('z', box)).toMatchObject({ ax: 0, bx: 1, level: 2, ca: 5, cb: 3 });
+    expect(groundPlane('z', { min: [-10, -10, 0], max: [10, 10, 500] }).size).toBe(500);   // a tall thin part: the grid follows its height, not its 20 mm footprint
   });
 });

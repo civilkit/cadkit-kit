@@ -38,3 +38,35 @@ describe('noClosedProfile on one open line', () => {
     expect(adviceOf(d.roots[0])).toBe('The sketch is not a closed outline. Close the gaps, then try again.');
   });
 });
+
+describe('a reference plane that lacks an input its mode needs', () => {
+  const root = (f: Record<string, unknown>, code = 'missingReference') => diagnose([{ id: 'P1', code }], [{ id: 'P1', type: 'plane', name: 'Plane 1', ...f }]).roots[0];
+  const TOP = { kind: 'std', id: 'top' };
+  it('names the missing axis, second plane or base instead of "a face or edge no longer exists"', () => {
+    const a = root({ mode: 'angle', base: TOP, angle: 30 });
+    expect(a.planeInput).toBe('axis');
+    expect(reasonOf(a)).toBe('it has no axis to turn about');
+    expect(adviceOf(a)).toContain('Pick the axis the plane turns about');
+    expect(root({ mode: 'perpendicular', base: TOP }).planeInput).toBe('axis');
+    const m = root({ mode: 'mid', base: TOP });
+    expect(m.planeInput).toBe('base2');
+    expect(adviceOf(m)).toContain('second plane');
+    const o = root({ mode: 'offset' });
+    expect(o.planeInput).toBe('base');
+    expect(reasonOf(o)).toBe('it has no plane to start from');
+  });
+  it('keeps the old wording when every input is given (a reference that is really gone)', () => {
+    const r = root({ mode: 'angle', base: TOP, axis: { kind: 'axis', axis: 'x' }, angle: 30 });
+    expect(r.planeInput).toBeUndefined();
+    expect(reasonOf(r)).toBe('a face or edge it uses no longer exists');
+  });
+  it('another feature type with a missing reference is unchanged', () => {
+    const r = diagnose([{ id: 'F2', code: 'missingReference' }], [{ id: 'F2', type: 'extrude' }]).roots[0];
+    expect(r.planeInput).toBeUndefined();
+  });
+  it('planeLineNormal says the axis lies along the base normal', () => {
+    const r = root({ mode: 'perpendicular', base: TOP, axis: { kind: 'axis', axis: 'z' } }, 'planeLineNormal');
+    expect(reasonOf(r)).toContain("along the base plane's normal");
+    expect(adviceOf(r)).toContain('axis that lies in the base plane');
+  });
+});

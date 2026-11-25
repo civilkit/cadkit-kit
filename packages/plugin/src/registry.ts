@@ -4,6 +4,12 @@
 import { parseManifest, type GeneratorDecl, type PluginManifest } from './manifest';
 import { checkParams, previewValues, type ParamIssue, type Values } from './params';
 
+/** A curve of a sketch in the sketch's own 2D frame (mm): what a plugin reads from the sketch the user has open and what it adds to it. */
+export type SketchCurveIO =
+  | { type: 'line'; a: [number, number]; b: [number, number]; construction?: boolean }
+  | { type: 'arc'; a: [number, number]; b: [number, number]; through: [number, number]; construction?: boolean }
+  | { type: 'circle'; c: [number, number]; r: number; construction?: boolean };
+
 /** What a generator may ask about the document it will add to (read-only; plan 4's `host.model`, reduced to what the built-ins need). */
 export interface GenerateContext {
   /** every name the document uses (features, folders, bodies), for generators that run as scripts */
@@ -16,6 +22,10 @@ export interface GenerateContext {
   remember?(meta: Record<string, unknown>): void;
   /** Reads the model as the run has changed it: the recorded script is built on top of the open document and the bodies come back with their volumes (and boxes, when known). Absent: a plugin that measures fails with a clear message. */
   readonly scratch?: { build(script: string): Promise<Array<{ name: string; volume: number | null; bbox: { min: number[]; max: number[] } | null }>> };
+  /** The sketch the user has open (its curves), when one is: `sketch.inspect` answers with it and `sketch.line` and the like draw into it. */
+  readonly openSketch?: { name: string; curves: ReadonlyArray<SketchCurveIO>; /** what is picked in the sketch: positions in `curves` and the picked points (2D, mm) */ picked?: { curves: number[]; points: Array<[number, number]> } };
+  /** Receives the curves a run drew into the open sketch; the script it returns is then empty and the app draws them into the sketch instead of adding features. */
+  sketchOut?(adds: SketchCurveIO[]): void;
   /** The run is a live preview, not the final Add: a generator may leave out detail that costs a lot to build and say so with `remember({ previewSkipped: [...] })`. */
   readonly preview?: boolean;
   /** `base`, or `base 2`, `base 3`... the first name no feature, folder or body of the document uses yet */
@@ -24,9 +34,9 @@ export interface GenerateContext {
 /** Parameter values in, script source out. May throw: the message is reported as a generator failure. */
 export type GenerateFn = (values: Values, ctx: GenerateContext) => string | Promise<string>;
 /** A context over a set of names already in use (a document's feature names, folders and bodies). */
-export function contextOf(used: Iterable<string>, opts: { up?: 'y' | 'z'; doc?: GenerateContext['doc']; scratch?: GenerateContext['scratch']; preview?: boolean } = {}): GenerateContext {
+export function contextOf(used: Iterable<string>, opts: { up?: 'y' | 'z'; doc?: GenerateContext['doc']; scratch?: GenerateContext['scratch']; preview?: boolean; openSketch?: GenerateContext['openSketch']; sketchOut?: GenerateContext['sketchOut'] } = {}): GenerateContext {
   const taken = new Set(used);
-  return { used: [...taken], ...(opts.up ? { up: opts.up } : {}), ...(opts.doc ? { doc: opts.doc } : {}), ...(opts.scratch ? { scratch: opts.scratch } : {}), ...(opts.preview ? { preview: true } : {}), uniqueName(base) { if (!taken.has(base)) return base; for (let n = 2; ; n++) if (!taken.has(`${base} ${n}`)) return `${base} ${n}`; } };
+  return { used: [...taken], ...(opts.up ? { up: opts.up } : {}), ...(opts.doc ? { doc: opts.doc } : {}), ...(opts.scratch ? { scratch: opts.scratch } : {}), ...(opts.preview ? { preview: true } : {}), ...(opts.openSketch ? { openSketch: opts.openSketch } : {}), ...(opts.sketchOut ? { sketchOut: opts.sketchOut } : {}), uniqueName(base) { if (!taken.has(base)) return base; for (let n = 2; ; n++) if (!taken.has(`${base} ${n}`)) return `${base} ${n}`; } };
 }
 export interface Plugin { manifest: PluginManifest; generate: Readonly<Record<string, GenerateFn>>; builtin: boolean }
 /** What a run records so "Edit parameters" can run it again (stored in the document by the app, see TODO: the document field). */

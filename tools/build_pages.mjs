@@ -5,7 +5,7 @@
 //      WASM_STRIP path of wasm-strip. See docs/pages-deploy.md.
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { siteFooter, siteHeadLinks, siteHeader } from './pages/siteChrome.mjs';
@@ -43,18 +43,21 @@ const die = (m) => { console.error(`build:pages: ${m}`); process.exit(1); };
 const kb = (n) => `${(n / 1024).toFixed(1)} KiB`;
 const fmt = (n) => `${n} bytes (${kb(n)})`;
 
-if (OUT === ROOT || !OUT.startsWith(ROOT + '/')) die(`PAGES_OUT must be a folder inside the repository (got ${OUT})`);
+// inside the repository, whichever path separator the platform uses
+const inside = (p) => { const r = relative(ROOT, p); return r !== '' && !r.startsWith('..') && !isAbsolute(r); };
+const WIN = process.platform === 'win32';
+if (!inside(OUT)) die(`PAGES_OUT must be a folder inside the repository (got ${OUT})`);
 
 // 0. wasm-strip must exist before anything is built
 const stripBin = [process.env.WASM_STRIP, '/opt/homebrew/bin/wasm-strip', '/usr/local/bin/wasm-strip'].filter(Boolean).find((p) => existsSync(p))
-  ?? (spawnSync('which', ['wasm-strip'], { encoding: 'utf8' }).stdout.trim() || null);
-if (!stripBin) die('wasm-strip not found. Install wabt (macOS: brew install wabt; Debian/Ubuntu: apt install wabt), or set WASM_STRIP=/path/to/wasm-strip.');
+  ?? (spawnSync(WIN ? 'where' : 'which', ['wasm-strip'], { encoding: 'utf8' }).stdout.trim().split(/\r?\n/)[0] || null);
+if (!stripBin) die('wasm-strip not found. Install wabt (macOS: brew install wabt; Debian/Ubuntu: apt install wabt; Windows: unzip the wabt release and set WASM_STRIP to wasm-strip.exe), or set WASM_STRIP=/path/to/wasm-strip.');
 const wasmSrc = resolve(ROOT, process.env.WASM_SRC || 'apps/cad/public/kernel/ck_wasm.wasm');
 if (!existsSync(wasmSrc)) die(`kernel wasm not found at ${wasmSrc}. It is not committed: copy it there (tools/sync_stack.sh in the kernel repo) or set WASM_SRC.`);
 
 // 1. app bundle
 console.log(`building the app into ${OUT} (base ${process.env.PAGES_BASE || './'})`);
-const vite = spawnSync('npx', ['vite', 'build', 'apps/cad', '--config', 'vite.config.ts'], { cwd: ROOT, stdio: 'inherit', env: { ...process.env, PAGES_BUILD: '1', PAGES_OUT: OUT, CK_REBUILD: FW } });
+const vite = spawnSync('npx', ['vite', 'build', 'apps/cad', '--config', 'vite.config.ts'], { cwd: ROOT, stdio: 'inherit', shell: WIN, env: { ...process.env, PAGES_BUILD: '1', PAGES_OUT: OUT, CK_REBUILD: FW } });
 if (vite.status !== 0) die('vite build failed');
 
 // 2. kernel: a COPY goes to the output and is stripped there; the source wasm is never touched
@@ -165,7 +168,7 @@ if (wantDocs) {
       if (/\bWARN|\bERROR/.test(b.stderr || '')) console.warn(`${label}: mdbook reported:\n${b.stderr}`);
     };
     const docsOut = join(dirname(OUT), 'docs');
-    if (!docsOut.startsWith(ROOT + '/')) die(`the documentation folder ${docsOut} must be inside the repository`);
+    if (!inside(docsOut)) die(`the documentation folder ${docsOut} must be inside the repository`);
     book(join(ROOT, 'guide'), join(docsOut, 'cad'), 'user guide');
     // the kernel book lives in the kernel repo: it gets the guide's CivilKit theme through a copy of guide/civilkit.css in its folder for the build
     // (mdBook writes the path of an additional stylesheet into every page, so it must be a relative name), removed again afterwards
@@ -202,7 +205,7 @@ const kernelBuild = await (async () => {
     return JSON.parse(k.request(JSON.stringify({ id: 1, msg: { type: 'ping' } })).json).result?.build ?? '';
   } catch { return ''; }
 })();
-writeFileSync(join(OUT, 'version.json'), JSON.stringify({ version, kit: kitRev, kernel: kernelBuild }) + '\n');
+writeFileSync(join(OUT, 'version.json'), JSON.stringify({ version, kit: kitRev, kernel: kernelBuild, channel: process.env.PAGES_CHANNEL === 'preview' ? 'preview' : 'release' }) + '\n');
 console.log(`version.json: ${version}, kit ${kitRev}, kernel ${kernelBuild || '(unknown)'}`);
 
 // 6. leak check: the build fails on any hit

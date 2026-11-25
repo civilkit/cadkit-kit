@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
+import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest';
 import { render, fireEvent, cleanup, screen } from '@testing-library/preact';
 import type { SketchSolverStatus } from '@ck/part-model';
 import { DEFAULT_SKETCH_PREFS } from './sketchPrefs';
@@ -7,6 +7,8 @@ import { SketchAnnotations } from './SketchAnnotations';
 import { SketchConstraintList } from './SketchConstraintList';
 import './i18n';
 
+// the Status group draws its icon row from this ribbon width up (it is the badge and one menu below it)
+beforeEach(() => { (window as unknown as { innerWidth: number }).innerWidth = 1600; });
 afterEach(cleanup);
 const st = (over: Partial<SketchSolverStatus>): SketchSolverStatus => ({ dof: 3, fullyDefined: false, conflicts: [], redundant: [], solved: true, state: 'under', ...over } as SketchSolverStatus);
 const bar = (status: SketchSolverStatus | null, extra: Partial<Parameters<typeof SketchBar>[0]> = {}) => {

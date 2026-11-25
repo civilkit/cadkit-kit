@@ -34,11 +34,12 @@ export const layout = computed<Layout>(() => (layoutPref.value === 'auto' ? comp
 export const narrowTablet = computed<boolean>(() => layout.value === 'tablet' && viewportInfo.value.w <= NARROW_TABLET_MAX);
 
 /** The workspace the layout draws. The stored workspace is never changed by it (a phone must not rewrite the desktop's panels). */
-export function effectiveWorkspace(ws: Workspace, l: Layout, narrow = false): Workspace {
+export function effectiveWorkspace(ws: Workspace, l: Layout, narrow = false, sketching = false): Workspace {
   if (l === 'desktop') return ws;
   // a touch layout has no keyboard and no right click to fall back on: ribbon and tool column both off (Minimal) still draws the compact ribbon, the stored choice is not touched
   const ribbon = ws.ribbon === 'off' && (l === 'phone' || ws.toolRail) ? 'off' : 'compact';
-  if (l === 'tablet' && narrow) return { ...ws, ribbon, leftPanel: ws.leftPanel === 'hidden' ? 'hidden' : 'docked', leftTabs: true, rightPanel: 'off' };
+  // while a sketch is open the docked panel folds: at 700 px it took a third of the width and pushed the sketch off the screen (sketcher review UX-R1-4); the panel button opens it again
+  if (l === 'tablet' && narrow) return { ...ws, ribbon, leftPanel: ws.leftPanel === 'hidden' ? 'hidden' : 'docked', leftTabs: true, rightPanel: 'off', ...(sketching ? { leftCollapsed: true } : {}) };
   if (l === 'tablet') return { ...ws, ribbon, leftPanel: ws.leftPanel === 'hidden' ? 'hidden' : 'docked', rightPanel: ws.rightPanel === 'off' ? 'off' : 'docked' };
   // phone: nothing floats or docks over the canvas; the tree, properties and diagnostics come as sheets from the bottom bar
   return { ...ws, ribbon, leftPanel: 'hidden', leftTabs: true, leftCollapsed: false, rightPanel: 'off', toolRail: false, sketchPalette: false, toolLabels: 'icons', drawerOpen: false };

@@ -80,7 +80,7 @@ export interface ScriptResult {
 }
 
 const DENIED = ['window', 'document', 'fetch', 'XMLHttpRequest', 'WebSocket', 'globalThis', 'self', 'parent', 'top', 'localStorage', 'sessionStorage', 'indexedDB', 'Worker', 'importScripts', 'Function', 'process', 'require', 'navigator', 'location', 'setTimeout', 'setInterval', 'queueMicrotask'];
-export const MAX_SOURCE = 40000;
+export const MAX_SOURCE = 400000;   // a sanity limit: a script a plugin generates (a 40 tooth gear is one outline of many segments) runs past 40000
 export const MAX_STEPS = 2000;
 
 /** Kernel text errors with a hint on what to change (the codes are docs/text.md). */

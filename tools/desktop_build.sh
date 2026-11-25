@@ -19,9 +19,13 @@ CK_REBUILD="$(cd "$CK_REBUILD" && pwd)"
 test -d "$CK_REBUILD/crates/ck-native" || { echo "no crates/ck-native in $CK_REBUILD" >&2; exit 1; }
 CK_COMMIT="$(git -C "$CK_REBUILD" rev-parse HEAD)"
 export CK_COMMIT
-CARGO_TOML=desktop/src-tauri/Cargo.toml
-cp "$CARGO_TOML" "$CARGO_TOML.orig"
-trap 'mv -f "$CARGO_TOML.orig" "$CARGO_TOML"' EXIT
+CARGO_TOML="$PWD/desktop/src-tauri/Cargo.toml"  # absolute: the script cd-s into desktop/ before the trap runs
+CARGO_LOCK="${CARGO_TOML%.toml}.lock"
+# Per-run backup (two runs must not share one), restored on any exit including a crash.
+CARGO_BAK="$(mktemp "${TMPDIR:-/tmp}/Cargo.toml.orig.XXXXXX")"
+LOCK_BAK="$CARGO_BAK.lock"
+cp "$CARGO_TOML" "$CARGO_BAK"; cp "$CARGO_LOCK" "$LOCK_BAK"
+trap 'cp -f "$CARGO_BAK" "$CARGO_TOML"; cp -f "$LOCK_BAK" "$CARGO_LOCK"; rm -f "$CARGO_BAK" "$LOCK_BAK"' EXIT
 sed -i.bak "s#path = \"[^\"]*crates/ck-native\"#path = \"$CK_REBUILD/crates/ck-native\"#" "$CARGO_TOML" && rm -f "$CARGO_TOML.bak"
 grep -q "$CK_REBUILD/crates/ck-native" "$CARGO_TOML" || { echo "could not point ck-native at $CK_REBUILD" >&2; exit 1; }
 cd desktop
@@ -35,6 +39,7 @@ done
 # The embedded native kernel must report the kernel commit it was built from (not "unknown" and not another checkout).
 for app in src-tauri/target/*/release/bundle/macos/*.app; do
   bin="$app/Contents/MacOS/$(ls "$app/Contents/MacOS" | head -1)"
-  if strings -a "$bin" | grep -q "$CK_COMMIT"; then echo "native kernel stamp ok in $app ($CK_COMMIT)"; else echo "native kernel commit $CK_COMMIT NOT found in $bin" >&2; exit 1; fi
+  # grep -c reads all input (grep -q + pipefail gives a false failure via SIGPIPE)
+  if [ "$(strings -a "$bin" | grep -c "$CK_COMMIT")" -gt 0 ]; then echo "native kernel stamp ok in $app ($CK_COMMIT)"; else echo "native kernel commit $CK_COMMIT NOT found in $bin" >&2; exit 1; fi
 done
 ls -la src-tauri/target/*/release/bundle/dmg/*.dmg

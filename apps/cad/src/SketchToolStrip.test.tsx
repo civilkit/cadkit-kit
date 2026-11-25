@@ -7,6 +7,8 @@ import { buildCommands, type Actions } from './commands';
 import { DEFAULT_SKETCH_PREFS } from './sketchPrefs';
 import './i18n';
 
+// the Status group draws its icon row from this ribbon width up (it is the badge and one menu below it)
+beforeEach(() => { (window as unknown as { innerWidth: number }).innerWidth = 1600; });
 afterEach(cleanup);
 
 const actions: Actions = {
@@ -169,9 +171,9 @@ describe('sketchRibbonGroups (the contextual Sketch tab)', () => {
     const groups = sketchRibbonGroups({ active: null, onPick: () => {}, labels: true });
     expect(groups.map((g) => g.id)).toEqual(['SketchSelect', 'Draw', 'Dimension', 'Constrain', 'Modify', 'Reference']);
   });
-  it('with controls: Select, Finish, Make, tools, Construction in Reference, then Status', async () => {
+  it('with controls: Select, Finish, Construction (pinned, always on screen), Make, tools, Reference, then Status', async () => {
     const { groups, container } = await draw();
-    expect(groups.map((g) => g.id)).toEqual(['SketchSelect', 'Finish', 'Make', 'Draw', 'Dimension', 'Constrain', 'Modify', 'Reference', 'Status']);
+    expect(groups.map((g) => g.id)).toEqual(['SketchSelect', 'Finish', 'Construction', 'Make', 'Draw', 'Dimension', 'Constrain', 'Modify', 'Reference', 'Status']);
     expect(container.querySelectorAll('.rb-tab').length).toBe(1);
     expect(container.querySelector('.rb-tab')?.textContent).toBe('Editing S1');
     expect(container.querySelector('[aria-label="Confirm sketch"]')).not.toBeNull();
@@ -217,7 +219,7 @@ describe('sketchRibbonGroups (the contextual Sketch tab)', () => {
   it('wide: Fully define shows its name; narrow: the badge plus one "..." menu holding the same items', async () => {
     const { SketchStatus } = await import('./SketchBar');
     const c = { ...controls(), onShowConstraints: vi.fn(), onReport: vi.fn(), onShowFree: vi.fn() };
-    const wide = render(<SketchStatus {...c} width={1441} />);
+    const wide = render(<SketchStatus {...c} width={1801} />);
     expect(wide.container.querySelector('[data-action="fully-define"]')!.textContent).toBe('Fully define');
     cleanup();
     const narrow = render(<SketchStatus {...c} width={800} />);
@@ -231,3 +233,11 @@ describe('sketchRibbonGroups (the contextual Sketch tab)', () => {
     expect(document.querySelector('.aux-menu input[type="checkbox"]')).not.toBeNull();   // the Snaps choices
   });
 });
+describe('Mirror in the strip', () => {
+  it('is a button of its own in the Edit group, not hidden in the Offset flyout (#72)', () => {
+    const slots = slotsFor('edit', sketchTools());
+    const slot = slots.find((x) => x.tools.some((t) => t.id === 'mirror'));
+    expect(slot?.tools.map((t) => t.id)).toEqual(['mirror']);
+  });
+});
+

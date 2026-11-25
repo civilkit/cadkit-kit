@@ -1,3 +1,4 @@
+// @vitest-environment node
 // The agent link end to end on loopback: the real daemon routes, the real MCP tools and the app's BridgeClient, with a stand-in
 // for the app's handlers. No kernel is needed (the daemon gets a fake backend), so this runs without CK_WASM.
 import { afterEach, describe, expect, it } from 'vitest';

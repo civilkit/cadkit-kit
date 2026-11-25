@@ -77,6 +77,7 @@ const ICONS: Record<string, string> = {
   trim: P('M12 3v18') + P('M3 12h9') + C('M12 12h9') + `<path d="m15.5 9 5 6M20.5 9l-5 6" stroke-width="1.5"/>`,
   break: P('M3 12h3.5M10 12h4M17.5 12h3.5') + C('M8.2 4v16M15.8 4v16') + D(8.2, 12, 1.4) + D(15.8, 12, 1.4),
   split: P('M3 12h18') + C('M12 4v16') + D(12, 12, 2.2) + `<path d="M12 12l-4-3M12 12l4 3" stroke-width="1.5"/>`,
+  'convert-edges': P('M4 4h16v6H4z') + P('M8 10v6M16 10v6') + P('M5 20h14') + D(8, 16, 1.4) + D(16, 16, 1.4),
   project: T('M4 4h16v6H4z') + C('M8 10v6M16 10v6') + P('M5 20h14') + D(8, 16, 1.4) + D(16, 16, 1.4),
   'pattern-linear': P('M3 8h5v8H3z') + T('M10 8h5v8h-5z') + C('M17 8h4v8h-4z') + C('M3 20h18'),
   'pattern-circular': P('M10 3h4v4h-4z') + T('M17.5 10.5h4v4h-4z') + T('M3 14.5h4v-4H3z') + C('M12 21a7.5 7.5 0 100-10') + D(12, 13, 1.4),
@@ -97,6 +98,8 @@ const ICONS: Record<string, string> = {
   'repeat-last': P('M19.5 12a7.5 7.5 0 10-2.2 5.3') + P('M19.5 5.5V12H13'),
   samples: P('M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4z') + A('M13 13h7v7h-7z'),
   // ---- import and export: a page for a drawing file, the cube for a solid, an accent arrow for the direction
+  'sketch-construction': P('M4 20 L9 15') + P('M11 13 L13 11') + P('M15 9 L20 4') + D(4, 20, 1.2) + D(20, 4, 1.2),
+  'sketch-make-construction': P('M4 20h8') + T('M13 20h2M17 20h3') + A('M12 16V9M9.5 11.5 12 9l2.5 2.5'),
   'sketch-import-dxf': P('M6 3h8l4 4v14H6z') + T('M14 3v4h4') + A('M9.5 17.5 12 12.5l2.5 5z'),
   'sketch-underlay': P('M4 5h16v14H4z') + A('M4 16l4-4 3 3 4-5 5 6') + D(8.5, 9.5, 1.3),
   'sketch-import-svg': P('M6 3h8l4 4v14H6z') + T('M14 3v4h4') + A('M8.5 17c1.5-4 3-4 3.5-1s2 2 3.5-2'),
@@ -226,6 +229,7 @@ const ICONS: Record<string, string> = {
   'layer-curves': P('M3 17C8 17 7 6 12 6s4 11 9 11') + D(3, 17) + D(21, 17),
   'layer-planes': C('M12 4l9 5-9 5-9-5z') + P('M12 8l4.5 2.5L12 13l-4.5-2.5z') + T('M3 14l9 5 9-5'),
   'layer-issues': P(HEX) + T(Y) + A(FACE.top, 2) + D(12, 7.5, 1.4),
+  'layer-tangent': P('M4 15h8') + T('M12 15a4 4 0 0 0 4-4') + P('M16 11v-5'),
   'layer-threads': P('M7 3v18M17 3v18') + T('M7 6l10 2M7 10l10 2M7 14l10 2M7 18l10 2'),
   'layer-dimensions': P('M3 7v10M21 7v10') + P('M3 12h18') + T('M3 12l3-2.2M3 12l3 2.2M21 12l-3-2.2M21 12l-3 2.2'),
   'layer-grid': P('M4 4h16v16H4z') + T('M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16'),
@@ -253,6 +257,7 @@ const ICONS: Record<string, string> = {
   'feature-sketch-point': P('M4 18h12V8H4z') + D(10, 13, 2.2) + T('M16 18l4-3'),
   'feature-sketch': P('M4 18h12V8H4z') + A('M14 6l4-2.5 2.5 3.5L16.5 9.5z') + T('M16 18l4-3'),
   'feature-plane': P('M3 15l9-5 9 5-9 5z') + C('M12 4v6'),
+  'feature-connector': O(12, 12, 3.5) + A('M12 8.5V3M9.5 5.5 12 3l2.5 2.5') + P('M15.5 12H21M9.5 14.5 5 19') + D(12, 12, 1.4),
   'feature-generic': P('M5 5h14v14H5z') + T('M9 9h6M9 12h6M9 15h3'),
   'feature-draft': P('M5 20V8l7-4 7 4v12z') + A('M5 20 19 8'),
   'feature-rib': P('M3 18h18') + P('M7 18V9h10v9') + A('M12 9V4'),
@@ -267,6 +272,7 @@ const ICONS: Record<string, string> = {
   // ---- feature creators (apps/cad/src/featureCreators.ts)
   'add-plane': P('M3 15l9-5 9 5-9 5z') + C('M3 9l9-5 9 5') + A('M12 10V4M9.5 6.5 12 4l2.5 2.5'),
   'add-axis': C('M5 19 19 5') + P('M7 12h10') + A('M12 5v14') + D(12, 12),
+  'add-connector': O(12, 12, 3.5) + A('M12 8.5V3M9.5 5.5 12 3l2.5 2.5') + P('M15.5 12H21M9.5 14.5 5 19') + D(12, 12, 1.4),
   'add-draft': P('M5 20V8l7-4 7 4v12z') + C('M3 20h18') + A('M5 20 19 8') + T('M9 20a4 4 0 00-1.2-2.8'),
   'add-rib': P('M3 19h18') + T('M3 19V9M21 19V9') + P('M8 19V10h3v9') + A('M9.5 10V5'),
   'add-lip': P('M4 16h16') + P('M4 16v-4h3v-3h10v3h3v4') + A('M7 9h10') + T('M4 20h16'),
@@ -287,6 +293,7 @@ const ICONS: Record<string, string> = {
   'add-pipe': P('M3 17c0-6 7-3 9-8s5-4 9-4') + C('M3 20c0-6 7-3 9-8s5-4 9-4'),
   'add-coil': P('M5 6c4-2 10-2 14 0M5 10c4-2 10-2 14 0M5 14c4-2 10-2 14 0M5 18c4-2 10-2 14 0'),
   'add-bounding-solid': P('M4 4h16v16H4z') + C('M8 8h8v8H8z') + A('M4 4l4 4M20 4l-4 4M4 20l4-4M20 20l-4-4'),
+  'add-wrap': P('M5 6c4 2 10 2 14 0v12c-4 2-10 2-14 0z') + A('M8 11c2 1 6 1 8 0') + T('M8 14.5c2 1 6 1 8 0'),
   'add-dome': P('M4 18h16') + A('M5 18a7 7 0 0 1 14 0'),
   'add-split-face': P('M4 6h16v12H4z') + A('M12 3v18', 2),
   'add-offset-surface': P('M3 16c5-6 13-6 18 0') + A('M3 10c5-6 13-6 18 0'),
@@ -454,6 +461,7 @@ export function featureIconName(type: string, op?: string): string {
     case 'rib': case 'lip': return 'feature-rib';
     case 'mirror': return 'feature-mirror';
     case 'knit': return 'feature-knit';
+    case 'wrap': return 'add-wrap';
     case 'projectCurve': return 'add-project-curve';
     case 'editCurve': return 'add-edit-curve';
     case 'offsetCurve': return 'add-offset-curve';

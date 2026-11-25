@@ -1,3 +1,4 @@
+// @vitest-environment node
 // Jobs and recipes end to end on loopback: the real daemon and tools, the app's BridgeClient and a scripted stand-in for the app.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';

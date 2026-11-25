@@ -90,6 +90,12 @@ describe('caseSummary', () => {
 describe('caseOps', () => {
   const empty = { features: [] as Array<{ id?: string; group?: unknown }> };
   const ex = (f: Array<Record<string, unknown>>) => f.filter((x) => x.type === 'extrude');
+  it('a second case in the same document takes free names instead of a body name conflict', () => {
+    const first = types(caseOps(empty, P({ lidHeight: 15 })) as never);
+    const second = types(caseOps({ features: first as never }, P({ lidHeight: 15 })) as never);
+    expect(ex(second)[0]).toMatchObject({ op: 'newBody', body: 'Base 2' });
+    expect(ex(second)[2]).toMatchObject({ op: 'newBody', body: 'Lid 2' });
+  });
   it('an empty document: the two cups and the move, all in a Case folder, numbered from F1, bodies Base and Lid', () => {
     const f = types(caseOps(empty, P({ lidHeight: 15 })) as never);
     expect(f[0].id).toBe('F1');

@@ -50,6 +50,40 @@ export const tensionOf = (eff: Wire, key: 'startNormal' | 'endNormal'): number =
 };
 export const tensionPatch = (key: 'startNormal' | 'endNormal', v: number): Wire => ({ [key]: v > 0 ? v : null });
 
+/** A loft end condition, in Fusion's terms: how the loft leaves the first or the last profile. Angle is measured from the profile plane (90 = straight out along its normal). */
+export type LoftCondType = 'free' | 'directional' | 'tangent' | 'curvature';
+export interface LoftCond { type: LoftCondType; angle: number; weight: number }
+export const LOFT_COND_TYPES: readonly LoftCondType[] = ['free', 'directional', 'tangent', 'curvature'];
+/** Conditions this app and the kernel can apply today; Tangent and Curvature are listed but refused by the kernel until it has them. */
+export const LOFT_COND_LIVE: readonly LoftCondType[] = ['free', 'directional'];
+const legacyKey = (i: number, n: number): 'startNormal' | 'endNormal' | null => (i === 0 ? 'startNormal' : i === n - 1 ? 'endNormal' : null);
+const condList = (eff: Wire, n: number): Array<Record<string, unknown> | null> =>
+  Array.from({ length: n }, (_, i) => { const c = Array.isArray(eff.conditions) ? (eff.conditions as unknown[])[i] : null; return c && typeof c === 'object' ? (c as Record<string, unknown>) : null; });
+/** The condition at profile `i` of `n`: a `conditions` entry, else the old start / end tension (directional, 90 degrees, the tension as weight), else free. */
+export function loftCondition(eff: Wire, n: number, i: number): LoftCond {
+  const c = condList(eff, n)[i];
+  if (c && LOFT_COND_TYPES.includes(c.type as LoftCondType)) {
+    return { type: c.type as LoftCondType, angle: typeof c.angle === 'number' ? c.angle : 90, weight: typeof c.weight === 'number' && c.weight > 0 ? c.weight : 1 };
+  }
+  const k = legacyKey(i, n);
+  const w = k ? tensionOf(eff, k) : 0;
+  return w > 0 ? { type: 'directional', angle: 90, weight: w } : { type: 'free', angle: 90, weight: 1 };
+}
+/** The patch that sets profile `i`'s condition. Free, and a directional one at 90 degrees, are written in the old startNormal / endNormal form (so the file still opens in older versions); the rest go in `conditions`. */
+export function loftConditionPatch(eff: Wire, n: number, i: number, c: LoftCond): Wire {
+  const list = condList(eff, n);
+  const k = legacyKey(i, n);
+  const patch: Wire = {};
+  const plain = c.type === 'free' || (c.type === 'directional' && c.angle === 90 && k !== null);
+  if (plain && k) { list[i] = null; patch[k] = c.type === 'free' ? null : c.weight; }
+  else {
+    list[i] = { type: c.type, angle: c.angle, weight: c.weight };
+    if (k) patch[k] = null;
+  }
+  patch.conditions = list.some((x) => x) ? list : null;
+  return patch;
+}
+
 /** The loft centre line: the id of the sketch (a planar open chain) the sections follow, or ''. */
 export const centreLineOf = (eff: Wire): string => ((eff.centreLine as { sketch?: unknown } | null | undefined)?.sketch as string | undefined) ?? '';
 export const centreLinePatch = (sketch: string): Wire => ({ centreLine: sketch ? { sketch } : null });
@@ -125,6 +159,28 @@ export const sweepGuides = (eff: Wire): CurveRef[] =>
   (Array.isArray(eff.guides) ? (eff.guides as Array<Record<string, unknown>>) : [])
     .filter((g) => g && g.kind === 'sketchCurve' && typeof g.sketch === 'string' && typeof g.entity === 'string').map((g) => ({ sketch: g.sketch as string, entity: g.entity as string }));
 export const sweepGuidesPatch = (refs: CurveRef[]): Wire => ({ guides: refs.length ? refs.map((r) => ({ kind: 'sketchCurve', sketch: r.sketch, entity: r.entity })) : null, ...(refs.length ? { twist: null } : {}) });
+/** A twisted sweep runs only along a straight path (one line, or lines all in one direction): along an arc, a spline or a path of several different pieces the kernel answers notImplemented. A curve-feature path is not offered the twist. */
+export function sweepTwistable(doc: PartDoc | null | undefined, eff: Wire): boolean {
+  const path = eff.path as { kind?: string; id?: string } | undefined;
+  if (!path || !path.id) return true;   // nothing chosen yet: keep the control
+  if (path.kind === 'curve') return false;
+  const sk = feats(doc).find((f) => f.id === path.id && f.type === 'sketch');
+  if (!sk) return true;
+  const pts = new Map(((sk.points as Array<{ id: string; x: number; y: number }> | undefined) ?? []).map((q) => [q.id, q] as const));
+  const ents = ((sk.entities as Array<{ type: string; p1?: string; p2?: string; construction?: boolean }> | undefined) ?? []).filter((e) => !e.construction && e.type !== 'point');
+  if (!ents.length) return true;
+  let d0: [number, number] | null = null;
+  for (const e of ents) {
+    if (e.type !== 'line') return false;
+    const a = pts.get(e.p1 ?? ''), b = pts.get(e.p2 ?? '');
+    if (!a || !b) return true;
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len < 1e-9) continue;
+    const d: [number, number] = [(b.x - a.x) / len, (b.y - a.y) / len];
+    if (!d0) d0 = d; else if (d[0] * d0[0] + d[1] * d0[1] < 0.999999) return false;
+  }
+  return true;
+}
 export const pathOf = (eff: Wire): string => ((eff.path as { id?: string } | undefined)?.id ?? '');
 export const pathPatch = (id: string): Wire => ({ path: { kind: 'sketch', id } });
 

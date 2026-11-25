@@ -27,7 +27,7 @@ async function run(code: string) {
 
 // Scripts under fixtures/solidcore each carry `// EXPECT {volume, tolRel, valid, refused}`; values are closed-form (see the README there).
 // KNOWN lists the cases the kernel does not yet meet; `it.fails` makes the entry fail when one starts to pass, so it gets removed.
-const KNOWN: Record<string, string> = {};
+const KNOWN: Record<string, string> = {};   // ledge-r5 (the wall round missing) was listed here until the kernel's ledge-r5-check reached main; it passes now
 
 const dir = resolve(__dirname, 'fixtures/solidcore');
 const files = readdirSync(dir).filter((f) => f.endsWith('.js')).sort();

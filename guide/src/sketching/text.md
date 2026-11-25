@@ -103,7 +103,7 @@ A script can place text with `s.text(...)`, choosing the font, height, anchor an
 
 ## Limits
 
-- **Text is flat.** It lies on the plane of its sketch. CivilKit CAD cannot yet wrap lettering around a cylinder or a cone. A cut from a flat sketch removes material straight along the cut direction, so lettering cut into a curved face is not bent to follow it.
+- **Text is flat in its sketch.** A plain cut from a flat sketch removes material straight along the cut direction, so lettering cut into a curved face is not bent to follow it. To put lettering onto a cylinder, use [Wrap](../modelling/solids.html#wrap).
 - Text is one line per item.
 - Kerning and ligatures are ignored; letters are placed with their plain advance widths. Bold and italic are separate font files.
 - Fonts whose strokes overlap inside a letter, and connected script faces, can fail validation when engraved.

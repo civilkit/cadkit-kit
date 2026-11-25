@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { MATE_KINDS, draftOf, draftProblem, mateChanges, mateDropsField, mateFeature, mateKind, newDraft, offeredKinds } from './mateKinds';
+import { MATE_KINDS, decodeConnectorRef, draftOf, draftProblem, encodeConnectorRef, isConnectorMateKind, limitsAreAngles, mateChanges, mateDropsField, mateFeature, mateKind, newDraft, offeredKinds } from './mateKinds';
 
 describe('mate kind table', () => {
   it('offers the kinds the kernel solves and lists the announced ones as pending', () => {
-    expect(offeredKinds().map((k) => k.id)).toEqual(['coincident', 'parallel', 'concentric', 'distance', 'angle', 'perpendicular', 'tangent', 'lock', 'symmetric', 'width', 'limits', 'hinge', 'slot', 'screw', 'gear', 'rackPinion']);
+    expect(offeredKinds().map((k) => k.id)).toEqual(['fastened', 'revolute', 'slider', 'cylindrical', 'planar', 'coincident', 'parallel', 'concentric', 'distance', 'angle', 'perpendicular', 'tangent', 'lock', 'symmetric', 'width', 'limits', 'hinge', 'slot', 'screw', 'gear', 'rackPinion']);
     for (const id of ['profileCenter', 'path', 'linearCoupler', 'cam', 'universalJoint']) expect(mateKind(id)?.pending).toBe(true);
     expect(new Set(MATE_KINDS.map((k) => k.id)).size).toBe(MATE_KINDS.length);
   });
@@ -69,5 +69,50 @@ describe('mate kind table', () => {
     delete d.refs.a2;
     expect(mateDropsField(f, d)).toBe(true);
     expect(draftOf({ kind: 'rackPinion', a: 'x', b: 'y', radius: 5, dir: [0, 1, 0] }).params).toMatchObject({ dirx: 0, diry: 1, dirz: 0, radius: 5 });
+  });
+  it('connector mates encode/decode connector refs, offset, rotateZ, flip and min/max limits', () => {
+    for (const k of ['fastened', 'revolute', 'slider', 'cylindrical', 'planar']) expect(isConnectorMateKind(k)).toBe(true);
+    expect(isConnectorMateKind('coincident')).toBe(false);
+    expect(decodeConnectorRef(encodeConnectorRef({ kind: 'connector', id: 'C1', component: 'I1' }))).toEqual({ kind: 'connector', id: 'C1', component: 'I1' });
+    expect(decodeConnectorRef(encodeConnectorRef({ kind: 'connector', id: 'C0' }))).toEqual({ kind: 'connector', id: 'C0' });
+
+    const d = newDraft('fastened');
+    expect(draftProblem(d)).toBe('asm.mate.err.refs');
+    d.refs = { a: 'I1:C_TOP', b: 'I2:C_BOT' };
+    d.flip = true;
+    d.params.offz = 5;
+    d.params.rotateZ = 90;
+    expect(draftProblem(d)).toBeNull();
+    const feat = mateFeature(d);
+    expect(feat).toEqual({
+      type: 'mate', kind: 'fastened',
+      a: { kind: 'connector', id: 'C_TOP', component: 'I1' },
+      b: { kind: 'connector', id: 'C_BOT', component: 'I2' },
+      flip: true, offset: [0, 0, 5], rotateZ: 90,
+    });
+    const back = draftOf(feat);
+    expect(back.refs).toEqual({ a: 'I1:C_TOP', b: 'I2:C_BOT' });
+    expect(back.params).toMatchObject({ offx: 0, offy: 0, offz: 5, rotateZ: 90 });
+    expect(mateChanges(feat, back)).toEqual([]);
+
+    // Revolute min/max angle limits + range validation
+    const rev = newDraft('revolute');
+    rev.refs = { a: 'I1:C1', b: 'I2:C2' };
+    rev.params.min = -30; rev.params.max = 30;
+    expect(limitsAreAngles(rev)).toBe(true);
+    expect(draftProblem(rev)).toBeNull();
+    expect(mateFeature(rev)).toMatchObject({ kind: 'revolute', min: -30, max: 30 });
+    rev.params.min = 45;
+    expect(draftProblem(rev)).toBe('asm.mate.err.range');
+
+    // Slider limits are lengths (not angles)
+    const sld = newDraft('slider');
+    sld.refs = { a: 'I1:C1', b: 'I2:C2' };
+    sld.params.min = 0; sld.params.max = 25;
+    expect(limitsAreAngles(sld)).toBe(false);
+    expect(draftProblem(sld)).toBeNull();
+
+    // Scalar offset on wire reads into offz
+    expect(draftOf({ kind: 'fastened', a: { kind: 'connector', id: 'C1', component: 'I1' }, b: { kind: 'connector', id: 'C2', component: 'I2' }, offset: 12 }).params).toMatchObject({ offx: 0, offy: 0, offz: 12 });
   });
 });

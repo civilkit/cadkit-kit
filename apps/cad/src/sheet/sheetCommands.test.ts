@@ -190,3 +190,20 @@ describe('sheet commands', () => {
     }
   });
 });
+
+describe('sheet commands that the kernel would refuse (audit)', () => {
+  const body = { min: [0, 0, 0], max: [10, 10, 10] };
+  it('Convert is off for a part that holds only a sketch (its box is set, but there is no solid)', () => {
+    expect(make(ctx([closed], { box: body })).cmd('add-sheet-convert').enabled?.()).toBe(false);
+    expect(make(ctx([closed, { type: 'extrude', id: 'F2' }], { box: body })).cmd('add-sheet-convert').enabled?.()).toBe(true);
+  });
+  it('a contour flange needs straight lines: an open sketch of arcs only, or of a spline, leaves it off', () => {
+    const arcs = { type: 'sketch', id: 'S5', entities: [{ id: 'a1', type: 'arc', c: 'o', p1: 'a', p2: 'b' }] };
+    const spline = { type: 'sketch', id: 'S6', entities: [{ id: 's1', type: 'spline', pts: ['a', 'b', 'c'] }] };
+    expect(make(ctx([arcs])).cmd('add-contour-flange').enabled?.()).toBe(false);
+    expect(make(ctx([spline])).cmd('add-contour-flange').enabled?.()).toBe(false);
+    const mixed = { type: 'sketch', id: 'S7', entities: [{ id: 'l1', type: 'line', p1: 'a', p2: 'b' }, { id: 'a1', type: 'arc', c: 'o', p1: 'b', p2: 'c' }] };
+    expect(make(ctx([mixed])).cmd('add-contour-flange').enabled?.()).toBe(true);
+  });
+});
+

@@ -35,15 +35,18 @@ function Section(p: { id: string; title: string; children: ComponentChildren }):
   );
 }
 
-function Num(p: { name: string; label: string; value: number; unit?: string; min?: number; max?: number; step?: number; onChange(v: number): void; hintText?: string }): JSX.Element {
+function Num(p: { name: string; label: string; value: number; unit?: string; min?: number; max?: number; step?: number; onChange(v: number): void; hintText?: string; /** the range, always shown under the field */ rangeNote?: string }): JSX.Element {
+  // a value above the limit is set to the limit: say so, instead of changing the number silently
+  const [limit, setLimit] = useState<number | null>(null);
   return (
     <label class="fedit-fld" data-path={p.name}>
       <span class="fedit-fld-label">{p.label}</span>
       <span class="fedit-num">
         <input {...numberAttrs(kindForMin(p.min))} type="number" step={p.step ?? 'any'} min={p.min} max={p.max} value={String(p.value)} aria-label={p.label} title={p.hintText}
-          onChange={(e) => { const raw = (e.currentTarget as HTMLInputElement).value; const v = Number(raw); if (raw.trim() !== '' && Number.isFinite(v)) p.onChange(v); }} />
+          onChange={(e) => { const raw = (e.currentTarget as HTMLInputElement).value; const v = Number(raw); if (raw.trim() !== '' && Number.isFinite(v)) { setLimit(p.max !== undefined && v > p.max ? p.max : p.min !== undefined && v < p.min ? p.min : null); p.onChange(v); } }} />
         {p.unit ? <span class="fedit-unit">{p.unit}</span> : null}
       </span>
+      {p.rangeNote ? <span class={'fedit-fld-note' + (limit !== null ? ' clamped' : '')} data-note={limit !== null ? 'clamped' : 'range'} role={limit !== null ? 'status' : undefined}>{limit !== null ? t('gear.clamped', { max: String(limit) }) : p.rangeNote}</span> : null}
     </label>
   );
 }
@@ -88,9 +91,9 @@ export function GearEditor(p: GearEditorProps): JSX.Element {
     if (type === 'internal' && draft.teeth < 24) patch.teeth = 40;
     if (type === 'helical' && !(draft.helixAngle > 0)) patch.helixAngle = 15;
     if (type === 'herringbone') {
-      // the catalogue default for a herringbone is 30 degrees (the helical default of 15 counts as untouched), and the groove starts at about 3 modules
+      // the catalogue default for a herringbone is 30 degrees (the helical default of 15 counts as untouched), and the groove starts at about 3 modules but never more than a quarter of the face (3 modules is 6 mm on the 10 mm default face, leaving 2 mm of tooth on each half)
       if (!(draft.helixAngle > 15 && draft.helixAngle <= 45)) patch.helixAngle = 30;
-      if (!(draft.grooveWidth > 0)) patch.grooveWidth = Math.round(3 * gearModule(draft) * 1000) / 1000;
+      if (!(draft.grooveWidth > 0)) patch.grooveWidth = Math.round(Math.min(3 * gearModule(draft), 0.25 * draft.faceWidth) * 1000) / 1000;
     }
     change(patch);
   };
@@ -108,6 +111,8 @@ export function GearEditor(p: GearEditorProps): JSX.Element {
         <button type="button" class="fedit-confirm" onClick={confirm} title={t('ui.editor.confirm', undefined, 'Confirm')} aria-label={t('ui.editor.confirm', undefined, 'Confirm')}><Icon name="check" size={20} /></button>
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
+      {/* a refused build is said at the top, under the title: at the foot of a long form it was never seen */}
+      {p.hint ? <div class="fedit-hint fedit-hint-top" role="alert">{p.hint}</div> : null}
 
       <Section id="gear" title={t('gear.section.gear')}>
         <Seg name="type" label={t('gear.type')} value={draft.type}
@@ -119,9 +124,9 @@ export function GearEditor(p: GearEditorProps): JSX.Element {
           ? <Num name="module" label={t('gear.module')} unit="mm" min={0.1} step={0.05} value={draft.module} onChange={(v) => change({ module: Math.max(0.1, v) })} />
           : <Num name="dp" label={t('gear.dp')} unit="1/in" min={0.5} step={0.5} value={draft.dp} onChange={(v) => change({ dp: Math.max(0.5, v) })} />}
         <Num name="teeth" label={rack ? t('gear.teethRack') : t('gear.teeth')} min={rack ? 1 : 6} step={1} value={draft.teeth} onChange={(v) => change({ teeth: Math.max(rack ? 1 : 6, Math.round(v)) })} />
-        <Num name="pressureAngle" label={t('gear.pressureAngle')} unit="deg" min={10} max={30} step={0.5} value={draft.pressureAngle} onChange={(v) => change({ pressureAngle: Math.min(30, Math.max(10, v)) })} />
+        <Num name="pressureAngle" label={t('gear.pressureAngle')} unit="deg" min={10} max={26} step={0.5} rangeNote={t('gear.pressureAngle.range', { max: '26' })} value={draft.pressureAngle} onChange={(v) => change({ pressureAngle: Math.min(26, Math.max(10, v)) })} />
         <Num name="faceWidth" label={t('gear.faceWidth')} unit="mm" min={0.1} value={draft.faceWidth} onChange={(v) => change({ faceWidth: Math.max(0.1, v) })} />
-        {helish ? <Num name="helixAngle" label={t('gear.helixAngle')} unit="deg" min={1} max={45} step={1} value={draft.helixAngle} onChange={(v) => change({ helixAngle: Math.min(45, Math.max(1, v)) })} /> : null}
+        {helish ? <Num name="helixAngle" label={t('gear.helixAngle')} unit="deg" min={1} max={45} step={1} rangeNote={t('gear.helixAngle.range')} value={draft.helixAngle} onChange={(v) => change({ helixAngle: Math.min(45, Math.max(1, v)) })} /> : null}
         {helical ? (
           <Seg name="hand" label={t('gear.hand')} value={draft.hand}
             options={[{ value: 'right', text: t('gear.hand.right'), icon: 'helix-right' }, { value: 'left', text: t('gear.hand.left'), icon: 'helix-left' }]} onChange={(v) => change({ hand: v })} />
@@ -149,8 +154,8 @@ export function GearEditor(p: GearEditorProps): JSX.Element {
       <Section id="tooth" title={t('gear.section.tooth')}>
         <Num name="addendum" label={t('gear.addendum')} unit="x m" min={0.2} step={0.05} value={draft.addendum} onChange={(v) => change({ addendum: Math.max(0.2, v) })} />
         <Num name="dedendum" label={t('gear.dedendum')} unit="x m" min={0.2} step={0.05} value={draft.dedendum} onChange={(v) => change({ dedendum: Math.max(0.2, v) })} />
-        {rack ? null : <Num name="rootFillet" label={t('gear.rootFillet')} unit="x m" min={0} max={0.6} step={0.05} value={draft.rootFillet} onChange={(v) => change({ rootFillet: Math.min(0.6, Math.max(0, v)) })} />}
-        <Num name="shift" label={t('gear.shift')} min={-1} max={1.5} step={0.05} value={draft.shift} onChange={(v) => change({ shift: Math.min(1.5, Math.max(-1, v)) })} />
+        {rack ? null : <Num name="rootFillet" label={t('gear.rootFillet')} unit="x m" min={0} max={0.5} step={0.05} rangeNote={t('gear.rootFillet.range', { max: '0.5' })} value={draft.rootFillet} onChange={(v) => change({ rootFillet: Math.min(0.5, Math.max(0, v)) })} />}
+        <Num name="shift" label={t('gear.shift')} min={-1} max={1.5} step={0.05} rangeNote={t('gear.shift.range')} value={draft.shift} onChange={(v) => change({ shift: Math.min(1.5, Math.max(-1, v)) })} />
         <Num name="backlash" label={t('gear.backlash')} unit="mm" min={0} step={0.01} value={draft.backlash} hintText={t('gear.backlashTip')} onChange={(v) => change({ backlash: Math.max(0, v) })} />
       </Section>
 
@@ -199,7 +204,6 @@ export function GearEditor(p: GearEditorProps): JSX.Element {
         </div>)}
       </Section>
 
-      {p.hint ? <div class="fedit-hint" role="alert">{p.hint}</div> : null}
     </div>
   );
 }

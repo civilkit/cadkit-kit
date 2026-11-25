@@ -33,13 +33,13 @@ The geometry kernel has its own, more technical list of limits in [the kernel gu
 - A part can hold inserted components and mates. A mate refers to faces, not edges.
 - Some mate kinds are not available: profile centre, path, linear coupler, cam and universal joint. A hinge has no built-in angle limit; add a **Limits** mate (distance or angle) to restrict its range.
 - A part has one material for mass properties. A custom material lives in the browser that made it. A file that names a custom material, opened elsewhere, keeps the name, and **Inspect** then asks for a density.
-- Colours and appearance are view settings. They are not an undo step, and they are not exported to STEP.
+- Colours and appearance are view settings. They are not an undo step; body colours are exported to STEP, 3MF, GLB, USDZ and HTML, while finishes and textures stay in the `.ckpart` file.
 - **Insert** from the library does not carry over the appearance of the inserted part.
 
 ## Importing
 
 - **View only is a choice, not the rule.** STEP and SketchUp ask which of the two you want when they open, and remember it per kind. The default for STEP is an imported solid feature saved with the part; the default for SketchUp is a reference mesh saved with the part. **View only** gives a body that is drawn but not saved with the part, and the next edit replaces it. A **SolidWorks** part opens as an editable imported body that is saved with the part. When both the feature history and the exact-solid import fail, the part opens view only.
-- **STEP** import does not read assemblies, placements, colours or names. Shell-based surface models and open shells are not imported. A small share of files in real use import with defects.
+- **STEP** import reads solids, surface models, AP214/AP242 body colours, product/occurrence names and assembly placements (into named bodies with appearances). Feature history, PMI/annotations, layers and per-face finishes are not read. A small share of files in real use import with defects.
 - **SolidWorks** import reads the geometry of the active configuration only, and rebuilds the feature history only where the kernel can; otherwise the part opens as the file's exact solid with no feature tree. Sheet and wire bodies are refused. A file whose geometry the kernel cannot read to a closed solid is refused.
 - **SketchUp** import is a surface body of planar faces: no curves, dimensions, scenes or text. Files over 50,000 faces are refused by default.
 - **OBJ, GLB and 3MF open as reference meshes only.** They do not become a solid, textures are not read, and a file with several objects comes in as one mesh. Ask for a STEP file when you need a solid.
@@ -50,7 +50,7 @@ The geometry kernel has its own, more technical list of limits in [the kernel gu
 ## Exporting
 
 - Model export formats are STEP, binary and ASCII STL, OBJ, 3MF, glTF (GLB), and DXF (a sketch, or three views). Drawings have their own exports: PDF, SVG, DXF and print. The bill of materials saves as CSV. See [Exporting](../files/export.md) and [Drawings](../files/drawings.md).
-- **STEP** export writes geometry only: no colours, names, layers or assemblies.
+- **STEP** export writes exact B-rep solids and surface models with body names and AP214/AP242 body colours (`STYLED_ITEM` / `COLOUR_RGB`); layers, finishes, textures and feature history are not written.
 - **DXF** export of a sketch uses layer 0 and a CONSTRUCTION layer. The three-view model DXF has no hidden lines, dimensions or text and uses a single layer. The drawing DXF is richer, with one layer per line style (see [Drawings](../files/drawings.md)).
 - **STL** and **OBJ** are meshes, with the mesh tolerance noted above. Use STEP when you need exact surfaces.
 

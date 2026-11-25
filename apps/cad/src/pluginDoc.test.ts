@@ -25,6 +25,14 @@ describe('what a plugin may read of the open document', () => {
     const d = pluginDocContext(rows, mesh, ['@body:F1.S1', 'F1.S1', 'F1.S2', 'F9.E1', 'v:3']);
     expect(d.selection).toEqual([{ type: 'body', name: 'Rail' }, { type: 'face', body: 'Rail', index: 0, normal: [1, 0, 0] }, { type: 'face', body: 'Rail', index: 1, normal: [0, 0, 1] }]);
   });
+  it('a picked edge carries a point on it, as SolidCraft\'s selection reference does, and a field that takes edges receives it', () => {
+    const withEdges = [{ ...rows[0], edges: ['F1.E1', 'F1.E2'] }] as unknown as BodyRow[];
+    const doc = pluginDocContext(withEdges, mesh as never, ['F1.E2'], [], {}, { edges: true, edgePoint: (k) => (k === 'F1.E2' ? [1, 2, 3] : undefined) });
+    expect(doc.selection).toEqual([{ type: 'edge', body: 'Rail', index: 1, point: [1, 2, 3] }]);
+    expect(selectionItems(doc.selection, { accept: ['edge'] })).toEqual([{ type: 'edge', body: 'Rail', index: 1, point: [1, 2, 3] }]);
+    // no point known: the pick is still an edge reference
+    expect(pluginDocContext(withEdges, mesh as never, ['F1.E1'], [], {}, { edges: true }).selection).toEqual([{ type: 'edge', body: 'Rail', index: 0 }]);
+  });
   it('a face whose triangles disagree has no normal', () => {
     const bent = { ...mesh, normals: [...mesh.normals.slice(0, 9), 0, 1, 0, 0, 1, 0, 0, 1, 0, ...mesh.normals.slice(18)] };
     expect(pluginDocContext(rows, bent, ['F1.S1']).selection).toEqual([{ type: 'face', body: 'Rail', index: 0 }]);

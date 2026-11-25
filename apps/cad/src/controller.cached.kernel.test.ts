@@ -40,7 +40,8 @@ const addBox = (id: string): EditOp[] => [
     entities: [{ id: 'e5', type: 'line', p1: 'p1', p2: 'p2' }, { id: 'e6', type: 'line', p1: 'p2', p2: 'p3' }, { id: 'e7', type: 'line', p1: 'p3', p2: 'p4' }, { id: 'e8', type: 'line', p1: 'p4', p2: 'p1' }], constraints: [] } as never },
 ];
 
-describe('cached open', { skip: !process.env.CK_WASM }, () => {
+// describe.skipIf, not describe(name, { skip }): with { skip: false } vitest runs every test inside, even the ones their own skipIf (the measure test below) says to skip
+describe.skipIf(!process.env.CK_WASM)('cached open', () => {
   it('shows the stored view before the kernel has opened the part, then the real one', async () => {
     const doc = sample('bench-clevis');
     const data = await stored(doc);
@@ -145,7 +146,7 @@ describe('cached open', { skip: !process.env.CK_WASM }, () => {
   }, 120_000);
 
   // CACHE_MEASURE=1 CK_WASM=... npx vitest run apps/cad/src/controller.cached.kernel.test.ts -t measure
-  it.skipIf(!process.env.CACHE_MEASURE)('measure: open time with and without the stored view', async () => {
+  it.skipIf(!process.env.CACHE_MEASURE || !process.env.CK_HEAVY)('measure: open time with and without the stored view', async () => {
     for (const name of ['bench-fan_shroud', 'heavy/matx-case']) {
       const doc = sample(name);
       const ms = (t0: number) => Math.round(performance.now() - t0);

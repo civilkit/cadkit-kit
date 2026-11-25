@@ -61,7 +61,7 @@ export function formatDimNumber(v: number): string {
 /** The label of a dimension: '1 500 mm', 'R12 mm', 'Ø8 mm', '110°'. */
 export function dimText(type: string, v: number): string {
   const n = formatDimNumber(v);
-  return type === 'angle' ? `${n}°` : `${type === 'radius' ? 'R' : type === 'diameter' ? 'Ø' : ''}${n} mm`;
+  return type === 'angle' ? `${n}°` : `${type === 'radius' ? 'R' : type === 'diameter' ? 'Ø' : type === 'arclength' ? '⌒' : ''}${n} mm`;
 }
 
 const slopeOf = (dx: number, dy: number): number => {
@@ -138,7 +138,7 @@ export const GLYPHS: Record<string, string> = {
   horizontal: 'H', vertical: 'V', equal: '=', parallel: '∥', perpendicular: '⊥', collinear: '≡',
   coincident: '●', midpoint: 'M', tangent: 'T', symmetric: '⇄', fix: '⚓', concentric: '◎', pointOnLine: '⌖', pointOnCircle: '⌖',
 };
-const DIM_TYPES = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'raddiff', 'angle']);
+const DIM_TYPES = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'raddiff', 'arclength', 'angle']);
 
 const mid = (a: Pt, b: Pt): Pt => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
@@ -225,6 +225,12 @@ export function dimensionShape(draft: SketchDraft, type: string, refs: string[],
       const c = pts.get(String(e.c)), p1 = pts.get(String(e.p1));
       return c && p1 ? leaderShape(c, Math.hypot(p1.x - c.x, p1.y - c.y), type === 'diameter', extra, side) : null;
     }
+    return null;
+  }
+  if (type === 'arclength') {   // drawn across the arc's chord, offset to the side; a full circle across its diameter
+    const e = ents.get(refs[0]);
+    if (e?.type === 'arc') { const a = pts.get(String(e.p1)), b = pts.get(String(e.p2)); return a && b && Math.hypot(b.x - a.x, b.y - a.y) > 1e-9 ? linearShape(a, b, side * o.off * level, 'free') : null; }
+    if (e?.type === 'circle') { const c = pts.get(String(e.c)); return c ? leaderShape(c, Number(e.r), true, o.off * 0.7 * level, side) : null; }
     return null;
   }
   if (type === 'raddiff' && refs.length === 2) {

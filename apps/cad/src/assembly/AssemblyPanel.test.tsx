@@ -231,6 +231,38 @@ describe('AssemblyPanel mate kinds', () => {
     await waitFor(() => expect(calls.edits.length).toBe(1));
     expect(calls.edits[0][0]).toEqual({ op: 'replace', id: 'F4', feature: { type: 'mate', kind: 'hinge', id: 'F4', a: 'F2.C0@F2.1', b: 'F2.C1@F1.1' } });
   });
+  it('connector mates: lists connectors in dropdowns and applies fastened/revolute mates with modifiers and limits', async () => {
+    const connPart = (name: string, cid: string, cname: string) => ({ format: 'ck-part', version: 1, name, features: [{ type: 'connector', id: cid, name: cname }] });
+    const doc = {
+      name: 'Asm',
+      features: [
+        { id: 'I1', type: 'insertPart', name: 'Base', part: connPart('Base', 'C_TOP', 'Top'), fixed: true },
+        { id: 'I2', type: 'insertPart', name: 'Arm', part: connPart('Arm', 'C_BOT', 'Bottom') },
+      ],
+    };
+    const { h, calls } = host({ doc: doc as never });
+    const r = mount(h, 'mates');
+    fireEvent.click(r.getByText('New mate'));
+    fireEvent.change(r.getByLabelText('Kind'), { target: { value: 'revolute' } });
+    fireEvent.change(r.getByLabelText('First'), { target: { value: 'I1:C_TOP' } });
+    fireEvent.change(r.getByLabelText('Second'), { target: { value: 'I2:C_BOT' } });
+    fireEvent.input(r.getByLabelText('Offset (mm) Z'), { target: { value: '5' } });
+    fireEvent.input(r.getByLabelText('Rotate Z'), { target: { value: '90' } });
+    fireEvent.input(r.getByLabelText('Minimum'), { target: { value: '-20' } });
+    fireEvent.input(r.getByLabelText('Maximum'), { target: { value: '20' } });
+    fireEvent.click(r.getByText('Flip'));
+    fireEvent.click(r.getByText('Apply'));
+    await waitFor(() => expect(calls.edits.length).toBe(1));
+    expect(calls.edits[0][0]).toEqual({
+      op: 'add',
+      feature: {
+        type: 'mate', kind: 'revolute',
+        a: { kind: 'connector', id: 'C_TOP', component: 'I1' },
+        b: { kind: 'connector', id: 'C_BOT', component: 'I2' },
+        flip: true, offset: [0, 0, 5], rotateZ: 90, min: -20, max: 20,
+      },
+    });
+  });
 });
 
 describe('AssemblyPanel interference, BOM and explode', () => {

@@ -33,6 +33,7 @@ export { makeConstraintTool, horizontalTool, verticalTool, coincidentTool, equal
 export { pickOf, classify, resolve as resolveConstraint, refusal, angleSpec, appendSpec, reportStatus, problemHint, refusedBy, type SolveProblem, type Pick, type PickKind, type Spec, type ConstraintKind, type StatusReport } from './constraints';
 export { constructionTool, setConstruction, markNewAsConstruction, CONSTRUCTIBLE } from './construction';
 export { withExactEdges } from './exactEdges';
+export { convertEdgesTool } from './convertEdges';
 export { projectTool, projectEdges, edgeCurve, projectCurves, referenceChain, chainCurves, classifyCurve, edgesFor, edgeNear, flatten, type Projected, type ProjectRes } from './project';
 export { linearPatternTool, circularPatternTool, applyLinear, applyCircular, type LinearState, type CircularState } from './pattern';
 export { fitCurve, bsplineCurve, clampDegree, minCvPoints } from './splineMath';

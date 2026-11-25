@@ -381,3 +381,19 @@ export function reportStatus(status: SketchSolverStatus, addedId?: string): Stat
   if (status.state === 'full') return mk('full', 'app.sketch.hint.status.fullyDefined', []);
   return mk('under', undefined, []);
 }
+
+/** Length along an arc (counter-clockwise from its first end to its second; coincident ends are the full circle) or a circle's circumference: what the kernel's arclength dimension measures. */
+export function curveLength(d: SketchDraft, id: string): number | undefined {
+  const e = d.entities.find((x) => x.id === id);
+  if (!e) return undefined;
+  const r = radiusOf(d, id);
+  if (r === undefined) return undefined;
+  if (e.type === 'circle') return 2 * Math.PI * r;
+  if (e.type !== 'arc') return undefined;
+  const c = xy(d, String(e.c)), p1 = xy(d, String(e.p1)), p2 = xy(d, String(e.p2));
+  if (!c || !p1 || !p2) return undefined;
+  let sweep = Math.atan2(p2.y - c.y, p2.x - c.x) - Math.atan2(p1.y - c.y, p1.x - c.x);
+  sweep = ((sweep % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  if (sweep < 1e-9) sweep = 2 * Math.PI;
+  return r * sweep;
+}

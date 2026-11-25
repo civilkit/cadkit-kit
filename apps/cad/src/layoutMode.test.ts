@@ -44,6 +44,13 @@ describe('layout signal', () => {
 });
 
 describe('effectiveWorkspace', () => {
+  it('a narrow tablet folds the docked panel while a sketch is open, and only then (UX-R1-4)', () => {
+    const open = { ...DEFAULT_WORKSPACE, leftCollapsed: false };
+    expect(effectiveWorkspace(open, 'tablet', true, true).leftCollapsed).toBe(true);
+    expect(effectiveWorkspace(open, 'tablet', true, false).leftCollapsed).toBe(false);
+    expect(effectiveWorkspace(open, 'tablet', false, true).leftCollapsed).toBe(false);   // a wide tablet has room for two panels
+    expect(effectiveWorkspace(open, 'desktop', false, true)).toBe(open);
+  });
   it('desktop is the stored workspace, untouched', () => {
     expect(effectiveWorkspace(DEFAULT_WORKSPACE, 'desktop')).toBe(DEFAULT_WORKSPACE);
   });

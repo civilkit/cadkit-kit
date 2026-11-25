@@ -8,7 +8,7 @@ import { bumpViewportContent } from './startContent';
 import { SelModel } from './select/model';
 import { blockedIssues, blockMessage, runProfile, withMould, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
-import { importStepView, importSldprtView, type StepImportResult } from './files/stepImport';
+import { importStepView, importSldprtView, importF3dView, type StepImportResult } from './files/stepImport';
 import { previewStep, type StepPreviewResult } from './files/stepPreview';
 import type { PreviewNode } from './files/stepPreviewMesh';
 import { sldprtAsPart, type SldprtPartResult } from './files/sldprtImport';
@@ -18,7 +18,7 @@ import { buildFolder, frozenPart, FOLDER_TAG, type FolderFormat } from './folder
 import { bakedDoc, recordsInFaces, type FaceFact } from './exportKnurl';
 import type { BakeCache } from './bakeCache';
 import { queryInterference, queryIntersection, queryMass, queryMeasure, type FaceRunItem, type Interference, type IntersectionCheck } from './inspect/kernel';
-import type { LumpInfo } from './bodies';
+import { keyOf, type LumpInfo } from './bodies';
 import { namesBodies } from './bodyOps';
 import { drawingQuery } from './drawing/kernel';
 import type { DrawingQuery } from './drawing/layout';
@@ -32,7 +32,7 @@ import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert }
 import { detachDeleteOps, isValidFrame } from './frozenPose';
 import { listPick } from './listPick';
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, toViewSurfaces, withSurfaces } from './surfaceView';
-import { markSmoothEdges } from './smoothEdges';
+import { withSmoothEdges, markSmoothEdges } from './smoothEdges';
 import type { BodyMesh, ViewSurface } from '@kit/viewport';
 import { openSheetEdges, type CosmeticKnurl, type InertiaFact } from '@kit/script';
 import { diagnose, summaryLine, diagnoseErrors as diagnoseErrorList, featureStatuses, type Diagnosis } from '@kit/viewdata';
@@ -42,6 +42,10 @@ import { isSheetFeature, type SheetEntry } from './sheet/model';
 import './sheet/register';
 import './pressPullType';
 import { watchComponents, partMassProps, urdfKernelData, type AsmComponent, type AsmExtra, type UrdfKernelData } from './assembly/kernel';
+import {
+  breakComponentLinkOps, expandFlexibleSubassemblyMates, getLinkedComponentStatus, isSubassemblyFlexible, linkInsertedPartOps, setSubassemblyFlexibleOps, updateLinkedComponentsOps,
+  type AvailableSourcesInput, type ExpandedMatesResult, type LinkedComponentRef, type LinkedComponentStatus,
+} from './assembly/linkedComponents';
 import type { ViewData } from './files/viewCache';
 import { DocFontPool, type FontProblem, type FontResult } from './docFonts';
 import { pinOf, readDocFonts, textFontsUsed, type DocFont, type FontSource } from './fonts';
@@ -84,13 +88,9 @@ export interface SketchPreview {
   refused?: boolean;
 }
 
-/** The view with `smooth` set on its edges that have no crease (the Tangent chain skips those). */
-function withSmoothEdges<B extends { mesh: BodyMesh; edges?: ViewEdge[] }>(b: B): B {
-  return b.edges?.length ? { ...b, edges: markSmoothEdges(b.mesh, b.edges) } : b;
-}
 
 /** One edge as the kernel reports it: `key` is the persistent name the viewport selects by. */
-export interface ViewEdge { key?: string; faces?: string[]; mid?: number[]; /** world-space polyline of the edge */ pts?: number[][]; /** its two faces meet without a crease (see smoothEdges.ts) */ smooth?: boolean }
+export interface ViewEdge { key?: string; faces?: string[]; mid?: number[]; /** world-space polyline of the edge */ pts?: number[][]; /** its two faces meet without a crease (see smoothEdges.ts) */ smooth?: boolean; /** within 10 degrees (the Tangent edges layer) */ gentle?: boolean }
 
 export interface ViewSink {
   setBody(b: unknown | null): void;
@@ -148,6 +148,8 @@ export class Controller {
   private materialSteps: MaterialStep[] = [];
   private previewTimer: ReturnType<typeof setTimeout> | null = null;
   private previewSeq = 0;
+  /** The last preview that failed: its ops, the document it ran on and its reply. The same ops on the same document fail the same way, so they are not run again (a slow failing boolean cost a minute each time the editor asked). */
+  private failedPreview: { key: string; reply: PreviewResult & { hint?: string; diagnosis?: Diagnosis | null } } | null = null;
   private previewWake: (() => void) | null = null;
   /** Rollback marker: id of the last feature that is on (`''` none, null = all). View only: the session has no op that sets the document's `rollback`. */
   private rollbackAnchor: string | null = null;
@@ -334,7 +336,7 @@ export class Controller {
       await this.repairTip();
     } catch (e) {
       this.store.cached.value = false;
-      this.store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error');
+      { const f = this.openFailure(e); this.store.notify(f.text, f.level); }
       throw e;
     } finally { this.endJob(own); }
   }
@@ -347,12 +349,13 @@ export class Controller {
     this.job = { prof: new Profiler(kind, features), prog: startProgress(features, 'kernel') };
     return true;
   }
-  private endJob(own: boolean): void {
+  /** `quiet`: the job ended in a refusal whose notice is on screen; a slow rebuild's "Rebuilt N features" line must not replace it. */
+  private endJob(own: boolean, quiet = false): void {
     if (!own || !this.job) return;
     const p = this.job.prof.finish();
     this.job.prog.end(); this.job = null;
     lastProfile.value = p;
-    if (p.totalMs >= PROFILE_NOTE_MS) this.store.notify(profileLine(t, p), 'info', undefined, { ttl: 8000 });
+    if (!quiet && p.totalMs >= PROFILE_NOTE_MS) this.store.notify(profileLine(t, p), 'info', undefined, { ttl: 8000 });
   }
   /** Times `f` as a phase of the running job (and shows it on the progress line); runs it plain when no job is running. */
   private ph<T>(phase: string, f: () => Promise<T>): Promise<T> {
@@ -768,7 +771,7 @@ export class Controller {
       return result;
     } finally {
       idle();
-      this.endJob(own);
+      this.endJob(own, this.rejected !== null);
     }
   }
 
@@ -801,6 +804,8 @@ export class Controller {
     const upTo = this.rollbackCount();
     const lim = clampDepthOps(ops, (id) => this.limits.get(id));
     ops = lim.ops;
+    const failKey = JSON.stringify([ops, upTo, this.sdoc().features]);
+    if (this.failedPreview?.key === failKey) return this.failedPreview.reply;
     await this.ensureFontsFor(featuresOf(ops));
     const r = await s.preview(ops, upTo === null ? undefined : { upTo });
     if (seq !== this.previewSeq) {
@@ -822,8 +827,13 @@ export class Controller {
     const cand = applyOpsLocal(this.sdoc().features as unknown as Array<Record<string, unknown>>, ops) ?? this.sdoc().features;
     const diagnosis = r.errors?.length ? this.diagnoseErrors(r.errors, r.hints ?? [], cand) : null;
     // one short sentence about the cause instead of every error joined (the full list is in `diagnosis`)
-    const hint = (diagnosis ? summaryLine(diagnosis) : '') || r.schemaError || 'preview failed';
-    return { ...r, hint, diagnosis };
+    let hint = (diagnosis ? summaryLine(diagnosis) : '') || r.schemaError || 'preview failed';
+    // the kernel's error code, so a slow failing build reads as a refusal and not as a hang
+    const code = r.errors?.[0]?.[1]?.code;
+    if (code && !hint.includes(code)) hint += ` (${code})`;
+    const reply = { ...r, hint, diagnosis };
+    if (!r.stale && !r.hints?.some((h) => h.code === 'trap')) this.failedPreview = { key: failKey, reply };
+    return reply;
   }
 
   /**
@@ -1461,6 +1471,55 @@ export class Controller {
   /** The `assembly` report of the last regen (total and per-component freedom, redundant and conflicting mates) and the detail of rejected features. */
   assemblyExtra(): AsmExtra { return this.asmExtra; }
 
+  /** Attach a `LinkedComponentRef` to an `insertPart` feature in the open assembly document. */
+  async linkInsertedPart(featureId: string, ref: Omit<LinkedComponentRef, 'sourceHash'> & { sourceHash?: string }): Promise<EditResult> {
+    const doc = this.document();
+    if (!doc) return { ok: false, record: null, errors: [] };
+    const ops = linkInsertedPartOps(doc as never, featureId, ref);
+    return ops.length ? this.edit(ops, 'link component') : { ok: true, record: null, errors: [] };
+  }
+
+  /** Status of all linked external components in the open assembly document against `availableSources`. */
+  getLinkedComponentStatus(availableSources: AvailableSourcesInput = []): LinkedComponentStatus[] {
+    return getLinkedComponentStatus(this.document() as never, availableSources);
+  }
+
+  /** Sync all (or specified) linked `insertPart` components and their shared instances with `availableSources`. */
+  async updateLinkedComponents(availableSources: AvailableSourcesInput, featureIds?: readonly string[]): Promise<{ ok: boolean; updatedIds: string[] }> {
+    const doc = this.document();
+    if (!doc) return { ok: false, updatedIds: [] };
+    const { ops, updatedIds } = updateLinkedComponentsOps(doc as never, availableSources, featureIds);
+    if (!ops.length) return { ok: true, updatedIds: [] };
+    const res = await this.edit(ops, 'update linked components');
+    return { ok: res.ok, updatedIds: res.ok ? updatedIds : [] };
+  }
+
+  /** Break the external link on an `insertPart` feature, converting it into a standalone embedded copy. */
+  async breakComponentLink(featureId: string): Promise<EditResult> {
+    const doc = this.document();
+    if (!doc) return { ok: false, record: null, errors: [] };
+    const ops = breakComponentLinkOps(doc as never, featureId);
+    return ops.length ? this.edit(ops, 'break component link') : { ok: true, record: null, errors: [] };
+  }
+
+  /** Toggle flexible vs rigid subassembly articulation on an `insertPart` feature. */
+  async setSubassemblyFlexible(featureId: string, flexible: boolean): Promise<EditResult> {
+    const doc = this.document();
+    if (!doc) return { ok: false, record: null, errors: [] };
+    const ops = setSubassemblyFlexibleOps(doc as never, featureId, flexible);
+    return ops.length ? this.edit(ops, 'toggle flexible subassembly') : { ok: true, record: null, errors: [] };
+  }
+
+  /** Whether an `insertPart` feature in the open assembly is marked as a flexible subassembly. */
+  isSubassemblyFlexible(featureId: string): boolean {
+    return isSubassemblyFlexible(this.document() as never, featureId);
+  }
+
+  /** All assembly mates including lifted internal mates of flexible subassemblies. */
+  expandFlexibleSubassemblyMates(): ExpandedMatesResult {
+    return expandFlexibleSubassemblyMates(this.document() as never);
+  }
+
   /** Volume (mm3, unit density) and solid count of a part document, asked of the kernel under a tag of its own so the open document is untouched. */
   async partMass(part: unknown): Promise<{ volume: number | null; error?: string }> {
     if (this.realLoad) await this.whenReal();
@@ -1583,7 +1642,7 @@ export class Controller {
     this.store.busy.value = true;
     try {
       const r = await importStepView(this.session, text, name);
-      if (r.ok) { this.importedLookNow = null; this.view.setBody(r.view); this.importedOnScreen = true; this.previewNodes = null; bumpViewportContent(); }
+      if (r.ok) { this.importedLookNow = r.look ?? null; this.view.setBody(r.view); this.importedOnScreen = true; this.previewNodes = null; bumpViewportContent(); }
       return r;
     } finally { this.store.busy.value = false; }
   }
@@ -1612,6 +1671,18 @@ export class Controller {
     this.store.busy.value = true;
     try {
       const r = await importSldprtView(this.session, bytes, name);
+      if (r.ok) { this.importedLookNow = null; this.view.setBody(r.view); this.importedOnScreen = true; this.previewNodes = null; bumpViewportContent(); }
+      return r;
+    } finally { this.store.busy.value = false; }
+  }
+
+  /** Show the bodies of a Fusion 360 .f3d / .f3z file in the viewport (view only, like STEP). */
+  async importF3d(bytes: Uint8Array, name: string): Promise<StepImportResult> {
+    if (this.realLoad) await this.whenReal();
+    if (!this.session) return { ok: false, code: 'noSession', message: 'no document loaded' };
+    this.store.busy.value = true;
+    try {
+      const r = await importF3dView(this.session, bytes, name);
       if (r.ok) { this.importedLookNow = null; this.view.setBody(r.view); this.importedOnScreen = true; this.previewNodes = null; bumpViewportContent(); }
       return r;
     } finally { this.store.busy.value = false; }
@@ -1769,7 +1840,19 @@ export class Controller {
     }
   }
 
+  /** Set when the user pressed Cancel: a part still opening then fails with the kernel closed, which is what was asked, not a fault. */
+  private cancelledAt = 0;
+  /** What to say about a part that failed to open: a cancel is said as one, a kernel that stopped on its own is said plainly (the file is untouched). */
+  openFailure(e: unknown): { text: string; level: 'info' | 'error' } {
+    const m = (e as Error)?.message ?? String(e);
+    const cancelled = Date.now() - this.cancelledAt < 15_000;
+    this.cancelledAt = 0;
+    if (cancelled) return { text: t('app.notice.openCancelled'), level: 'info' };
+    if (/kernel closed/i.test(m)) return { text: t('app.notice.openKernelStopped'), level: 'error' };
+    return { text: t('app.notice.openFailed', { message: m }), level: 'error' };
+  }
   async cancel(): Promise<void> {
+    this.cancelledAt = Date.now();
     if (this.previewAbort) { this.previewAbort.abort(); return; }
     this.pendingCancel?.();
     this.pendingCancel = null;
@@ -1965,10 +2048,37 @@ export class Controller {
     return s ? queryIntersection(s, faces.length ? faces : 'body', 'body') : null;
   }
 
-  /** STEP text of the current document, from the kernel (null when nothing is loaded). */
-  async exportStep(): Promise<string | null> {
+  /** Map each solid body key (`@body:<lowestFace>`) to its kernel lump index (0, 1, ...) when the kernel reported `faceBody`. */
+  bodyLumpIndices(): Map<string, number> {
+    const out = new Map<string, number>();
+    const { faceBody } = kernelBodies(this.shown);
+    const ids = this.bodyFaces()?.faceIds;
+    if (!faceBody || !ids) return out;
+    const groups = new Map<number, string[]>();
+    for (let i = 0; i < faceBody.length && i < ids.length; i++) {
+      const g = groups.get(faceBody[i]);
+      if (g) g.push(ids[i]); else groups.set(faceBody[i], [ids[i]]);
+    }
+    for (const [idx, faces] of groups) if (faces.length) out.set(keyOf(faces), idx);
+    return out;
+  }
+
+  /** STEP text of the current document, from the kernel (null when nothing is loaded). Optionally carries per-body RGB colors (0..1). */
+  async exportStep(colors?: Record<string, [number, number, number]>): Promise<string | null> {
     if (this.realLoad) await this.whenReal();
-    return this.session ? this.session.step() : null;
+    if (!this.session) return null;
+    if (colors && Object.keys(colors).length) {
+      const k = this.transport();
+      if (k) {
+        const tag = (this.session as unknown as { tag?: string }).tag ?? 'main';
+        const r = await k.request({ type: 'step', tag, name: this.session.document.name, colors });
+        if (r.trap) throw new Error(`trap: ${r.trap}`);
+        if (!r.ok) throw new Error(typeof r.error === 'string' ? r.error : 'request failed');
+        if (typeof r.result !== 'string') throw new Error('step did not return text');
+        return r.result;
+      }
+    }
+    return this.session.step();
   }
 
   /** The body meshed at an export quality / absolute chord height (the mesh on screen is not touched); null when nothing is loaded. */

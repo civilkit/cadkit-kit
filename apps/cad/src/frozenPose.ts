@@ -27,6 +27,10 @@ export function isDetachableFeature(f: Feat): boolean {
   if (f.type === 'plane') {
     return f.mode !== 'frame';
   }
+  if (f.type === 'connector') {
+    const a = f.anchor as RefLike;
+    return !!a && typeof a === 'object' && a.kind !== 'std' && a.kind !== 'frame';
+  }
   return false;
 }
 
@@ -108,6 +112,18 @@ export function makeIndependentPlanePatch(fr: ViewFrame): Record<string, unknown
     xDir: [...fr.x],
     yDir: [...fr.y],
     base: null,
+    frozenFrame: null,
+  };
+}
+
+/** Patch to turn a detached mate connector into an independent `frame` anchor at its frozen pose, clearing the warning. */
+export function makeIndependentConnectorPatch(fr: ViewFrame): Record<string, unknown> {
+  return {
+    anchor: { kind: 'frame', origin: [...fr.o], xDir: [...fr.x], yDir: [...fr.y] },
+    offset: null,
+    rotate: null,
+    flip: null,
+    rotateZ: null,
     frozenFrame: null,
   };
 }

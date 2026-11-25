@@ -3,10 +3,13 @@
 // reports faces and edge polylines but no dihedral angle, so it is read from the mesh: the vertex normals of each face at the edge.
 import type { BodyMesh } from '@kit/viewport';
 
-interface SmoothEdge { key?: string; faces?: string[]; pts?: number[][]; smooth?: boolean }
+interface SmoothEdge { key?: string; faces?: string[]; pts?: number[][]; smooth?: boolean; gentle?: boolean }
 
 /** Largest angle (degrees) between the two faces' normals along an edge that still counts as smooth. */
 const SMOOTH_DEG = 3;
+/** The picture's threshold: an edge whose faces differ by no more than this along its whole length is drawn only when Tangent edges is on. Wide on purpose: the facet
+ *  diagonals that split a knurl flank deviate 1.7 to 3.1 degrees, the real creases of the same part 43.7 degrees or more (data for #26). */
+const GENTLE_DEG = 10;
 
 /** The normal of `face`'s mesh vertex nearest to `p` (null when the face has no triangles). */
 function normalNear(m: BodyMesh, tris: number[], p: number[]): number[] | null {
@@ -19,9 +22,10 @@ function normalNear(m: BodyMesh, tris: number[], p: number[]): number[] | null {
   return n;
 }
 
-/** `edges` with `smooth` set on every two-face edge whose faces have the same normal along it (first, middle and last point). */
-export function markSmoothEdges<E extends SmoothEdge>(mesh: BodyMesh, edges: E[]): Array<E & { smooth?: boolean }> {
-  const cosTol = Math.cos((SMOOTH_DEG * Math.PI) / 180);
+/** `edges` with `smooth` set on every two-face edge whose faces have the same normal along it (first, middle and last point, within 3 degrees: the Tangent chain's
+ *  test) and `gentle` on those within 10 degrees (smooth ones included: what the view hides when Tangent edges is off). */
+export function markSmoothEdges<E extends SmoothEdge>(mesh: BodyMesh, edges: E[]): Array<E & { smooth?: boolean; gentle?: boolean }> {
+  const cosSmooth = Math.cos((SMOOTH_DEG * Math.PI) / 180), cosGentle = Math.cos((GENTLE_DEG * Math.PI) / 180);
   const byFace = new Map<string, number[]>();
   const faceIndex = new Map(mesh.faceIds.map((id, i) => [id, i]));
   for (let t = 0; t < mesh.triFace.length; t++) {
@@ -33,10 +37,18 @@ export function markSmoothEdges<E extends SmoothEdge>(mesh: BodyMesh, edges: E[]
     const a = byFace.get(e.faces[0]), b = byFace.get(e.faces[1]);
     if (!a || !b) return e;
     const k = e.pts.length - 1;
+    let worst = 1;
     for (const p of [e.pts[0], e.pts[Math.floor(k / 2)], e.pts[k]]) {
       const na = normalNear(mesh, a, p), nb = normalNear(mesh, b, p);
-      if (!na || !nb || na[0] * nb[0] + na[1] * nb[1] + na[2] * nb[2] < cosTol) return e;
+      if (!na || !nb) return e;
+      worst = Math.min(worst, na[0] * nb[0] + na[1] * nb[1] + na[2] * nb[2]);
     }
-    return { ...e, smooth: true };
+    if (worst >= cosSmooth) return { ...e, smooth: true, gentle: true };
+    return worst >= cosGentle ? { ...e, gentle: true } : e;
   });
+}
+
+/** A view body with `smooth` / `gentle` set on its edges (the Tangent chain, picking and the viewport's Tangent edges layer all read them). */
+export function withSmoothEdges<B extends { mesh: BodyMesh; edges?: SmoothEdge[] }>(b: B): B {
+  return b.edges?.length ? { ...b, edges: markSmoothEdges(b.mesh, b.edges) } : b;
 }

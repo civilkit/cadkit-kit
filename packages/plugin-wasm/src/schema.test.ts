@@ -20,14 +20,23 @@ describe('schemaToParams', () => {
       expect(b).toMatchObject({ type: 'selection', accept: ['face', 'body'], optional: true });
     });
     it('keeps only what this app can pick, and says so when nothing is left', () => {
-      expect(schemaToParams({ properties: { x: sel({}, ['edge', 'face']) } })[0].accept).toEqual(['face']);
-      expect(() => schemaToParams({ properties: { edges: sel({}, ['edge']) } })).toThrow(/edge, which this app cannot pick yet/);
-      expect(() => schemaToParams({ properties: { p: sel({}, ['profile', 'sketch_point']) } })).toThrow(/cannot pick yet/);
+      expect(schemaToParams({ properties: { x: sel({}, ['sketch_curve', 'face']) } })[0].accept).toEqual(['face']);
+      expect(schemaToParams({ properties: { holes: sel({ minItems: 1 }, ['edge']) }, required: ['holes'] })[0]).toMatchObject({ type: 'selection', accept: ['edge'], minItems: 1 });   // edges are picked in the view
+      expect(() => schemaToParams({ properties: { edges: sel({}, ['sketch_curve']) }, required: ['edges'] })).toThrow(/sketch_curve, which this app cannot pick yet/);
+      expect(() => schemaToParams({ properties: { p: sel({}, ['profile', 'sketch_point']) }, required: ['p'] })).toThrow(/cannot pick yet/);
+      expect(() => schemaToParams({ properties: { p: sel({ minItems: 1 }, ['profile']) } })).toThrow(/cannot pick yet/);   // asking for at least one is as good as required
+    });
+    it('an optional selection of things this app cannot pick is left out with a note, so the entry still installs', () => {
+      const notes: string[] = [];
+      const ps = schemaToParams({ properties: { size: { type: 'string', enum: ['a', 'b'] }, placement: { ...sel({ maxItems: 32 }, ['profile', 'sketch_point', 'sketch_curve']), title: 'Placement' } }, required: ['size'] }, notes);
+      expect(ps.map((x) => x.name)).toEqual(['size']);
+      expect(notes).toHaveLength(1);
+      expect(notes[0]).toMatch(/^Placement: it takes profile, sketch_point, sketch_curve, which this app cannot pick yet; it is left out and the plugin uses its default$/);
     });
     it('knows the reserved lists without the annotation', () => {
       const [bodies, targets] = schemaToParams({ properties: { bodies: { type: 'array', items: { type: 'string' } }, targets: { type: 'array' } } });
       expect(bodies).toMatchObject({ type: 'selection', accept: ['body'], asNames: true });
-      expect(targets).toMatchObject({ type: 'selection', accept: ['face', 'body'] });
+      expect(targets).toMatchObject({ type: 'selection', accept: ['edge', 'face', 'body'] });
       expect(() => schemaToParams({ properties: { tags: { type: 'array', items: { type: 'string' } } } })).toThrow(/not a selection is not supported/);
     });
     it('refuses what the annotation does not allow', () => {

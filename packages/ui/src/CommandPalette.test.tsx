@@ -67,4 +67,12 @@ describe('CommandPalette', () => {
     const { container } = render(<CommandPalette commands={[mk({ id: 'a', label: 'Samples' })]} pinned={['a']} onClose={() => {}} />);
     expect(container.querySelector('.pgrid button')!.textContent).toBe('Samples');
   });
+  it('puts the commands that can run first when searching, so Enter runs the first hit (a greyed-out 3D Mirror no longer comes first)', () => {
+    const sketch = vi.fn(), close = vi.fn();
+    const cmds = [mk({ id: 'm3', label: 'Mirror', group: 'Pattern', enabled: () => false }), mk({ id: 'm2', label: 'Mirror', group: 'Sketch', run: sketch })];
+    render(<CommandPalette commands={cmds} onClose={close} />);
+    fireEvent.input(screen.getByLabelText('Search commands'), { target: { value: 'mirror' } });
+    fireEvent.keyDown(screen.getByLabelText('Search commands'), { key: 'Enter' });
+    expect(sketch).toHaveBeenCalled();
+  });
 });

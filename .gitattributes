@@ -1,0 +1,27 @@
+# LF in the working tree on every platform, so a Windows checkout needs no autocrlf setting (fixtures and checksums compare bytes)
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.wasm binary
+*.woff binary
+*.woff2 binary
+*.step binary
+*.stp binary
+*.glb binary
+*.zip binary
+*.gz binary
+*.tgz binary
+*.pdf binary
+*.sldprt binary
+*.sldasm binary
+*.3mf binary
+*.f3d binary
+# licence texts keep the bytes they were published with
+apps/cad/public/fonts/*/OFL.txt -text

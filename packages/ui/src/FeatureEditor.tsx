@@ -29,7 +29,7 @@ const GROUPS: Record<string, Record<string, string[]>> = {
   fillet: { edges: ['edges'], operation: ['radius'] },
   chamfer: { edges: ['edges'], operation: ['distance', 'angle'] },
   shell: { faces: ['faces'], operation: ['thickness', 'outward', 'inside'] },
-  draft: { operation: ['angle', 'neutral'] },
+  draft: { operation: ['angle', 'neutral', 'flip'] },
   hole: { profile: ['sketch'], operation: ['kind', 'diameter', 'end', 'depth', 'tip', 'flip'] },
   lpattern: { seeds: ['seeds'], operation: ['count', 'spacing', 'reverse'] },
   cpattern: { seeds: ['seeds'], operation: ['count', 'angle', 'equal', 'reverse'] },
@@ -45,6 +45,8 @@ const GROUPS: Record<string, Record<string, string[]>> = {
   coil: { operation: ['op', 'radius', 'wireRadius', 'pitch', 'revolutions', 'height', 'leftHand'] },
   boundingSolid: { operation: ['padding'] },
   dome: { faces: ['face'], operation: ['height'] },
+  projectCurve: { source: ['sketch', 'curve'], faces: ['faces'], operation: ['method', 'alongAxis', 'around', 'rotation', 'flip', 'entities'] },
+  wrap: { profile: ['sketch'], faces: ['face'], operation: ['op', 'method', 'depth', 'alongAxis', 'around', 'rotation', 'taper', 'flip'] },
   splitLine: { faces: ['faces'], operation: ['plane', 'offset', 'flip'] },
   surfaceOffset: { faces: ['faces'], operation: ['distance', 'flip', 'keep'] },
   deleteBody: { operation: ['mode'] },
@@ -62,6 +64,8 @@ const GROUPS: Record<string, Record<string, string[]>> = {
 };
 
 /** Fields the editor does not offer: the STEP data of an imported body is replaced by importing again, not by typing. */
+/** The fields a Project curve takes only when its method is Wrap, with their defaults. */
+const WRAP_CURVE_DEFAULTS: Record<string, unknown> = { alongAxis: 0, around: 0, rotation: 0, flip: false };
 const HIDDEN: Record<string, string[]> = { importStep: ['blob', 'step'] };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -85,22 +89,28 @@ const FIELD_LABELS: Record<string, string> = {
   body: 'Body name',
   mode: 'Mode', offset: 'Offset', plane: 'Plane', base: 'Base', toolSurface: 'Tool surface', surface: 'Surface', surfaces: 'Surfaces',
   pitch: 'Pitch', revolutions: 'Revolutions', startAngle: 'Start angle', definedBy: 'Defined by', width: 'Width', height: 'Height',
-  majorRadius: 'Ring radius', minorRadius: 'Tube radius', wireRadius: 'Wire radius', wall: 'Wall', padding: 'Padding', leftHand: 'Left hand', keep: 'Keep the source', face: 'Face',
+  majorRadius: 'Ring radius', minorRadius: 'Tube radius', wireRadius: 'Wire radius', wall: 'Wall', padding: 'Padding', leftHand: 'Left hand', keep: 'Keep the source', face: 'Face', start: 'Start from',
 };
 
 /** Fields whose value is one of a few words, shown as a dropdown (the current value is always kept in the list). */
 export const ENUMS: Record<string, string[]> = {
   op: ['add', 'cut'],
   end: ['blind', 'through', 'throughBoth', 'upToNext'],
-  'plane.mode': ['offset', 'angle', 'mid', 'parallel', 'threePoints'],
+  'plane.mode': ['offset', 'angle', 'perpendicular', 'mid'],   // what the kernel builds; a plane that holds another value (an older file) keeps it in the list
+  'surfaceExtrude.end': ['blind', 'mid'],   // through, both ways and up to next silently build the Blind result for a surface
+  'surfaceRevolve.end': ['blind', 'mid'],
   'deleteBody.mode': ['delete', 'keep'],
+  'deleteFace.mode': ['delete'],   // the kernel has only Delete ('fill' and 'heal' answer notImplemented)
+  'moveFace.mode': ['offset'],   // a translate needs a vector the form cannot enter (the triball writes it); the value a file holds stays listed
   definedBy: ['pitchRevs', 'heightRevs', 'heightPitch'],
   'lip.kind': ['lip', 'groove'],
   'knurlBand.pattern': ['diamond', 'pyramid'],
   side: ['front', 'back', 'both'],
+  'wrap.method': ['auto', 'wrap'],   // 'project' is not built yet (wrapFaceUnsupported); a file that holds it keeps it shown
+  'projectCurve.method': ['project', 'wrap'],
 };
 const UNITS: Record<string, string> = {
-  depth: 'mm', majorRadius: 'mm', minorRadius: 'mm', wireRadius: 'mm', wall: 'mm', padding: 'mm', height: 'mm', radius: 'mm', distance: 'mm', thickness: 'mm', diameter: 'mm', spacing: 'mm', offset: 'mm', angle: '°',
+  depth: 'mm', majorRadius: 'mm', minorRadius: 'mm', wireRadius: 'mm', wall: 'mm', padding: 'mm', height: 'mm', radius: 'mm', distance: 'mm', thickness: 'mm', diameter: 'mm', spacing: 'mm', offset: 'mm', angle: '°', alongAxis: 'mm', around: '°', rotation: '°', taper: '°',
 };
 /** Whole-number fields (a count): their phone keypad is the digit pad. */
 const INTEGER_FIELDS = new Set(['count', 'count1', 'count2', 'sides', 'turns', 'segments', 'teeth', 'instances']);
@@ -120,6 +130,16 @@ export function enumLabel(enumKey: string, v: string): string {
     if (typeof console !== 'undefined') console.warn(`[i18n] missing enum label: ${key}`);
   }
   return humanise(v);
+}
+
+/** What a reference plane needs when its mode is chosen, beyond the base: Angle an axis (X) and 30 degrees, Perpendicular an axis, Midplane a second plane. Only what is not set. */
+export function planeModeDefaults(mode: string, eff: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const axis = mode === 'angle' || mode === 'perpendicular';
+  if (axis && !eff.axis) out.axis = { kind: 'axis', axis: 'x' };
+  if (mode === 'angle' && (eff.angle === undefined || eff.angle === null || eff.angle === '')) out.angle = 30;
+  if (mode === 'mid' && !eff.base2) out.base2 = { kind: 'std', id: (eff.base as { kind?: string; id?: string } | undefined)?.id === 'top' ? 'front' : 'top' };
+  return out;
 }
 
 const REFERENCE_FIELDS = new Set(['sketch', 'axis', 'path', 'neutral', 'plane']);
@@ -166,8 +186,13 @@ function kindOf(field: Field): Field['kind'] {
 /** Group a feature's primitive fields into ordered, titled sections. */
 export function sectionsOf(feature: FeatureLike | null): Section[] {
   if (!feature) return [];
-  const hidden = HIDDEN[feature.type ?? ''] ?? [];
+  const wrapping = feature.type === 'projectCurve' && feature.method === 'wrap';
+  // Project curve: the wrap-only fields show for the wrap method, and the projection-only ones are left out of it (the kernel does not read them)
+  const hidden = [...(HIDDEN[feature.type ?? ''] ?? []), ...(wrapping ? ['direction', 'procedural', 'along', 'curves', 'gapTolerance', 'curve'] : [])];
   const all = fieldsOf(feature as Record<string, unknown>).filter((f) => !hidden.includes(f.path));
+  if (feature.type === 'projectCurve' && feature.method === undefined) all.push({ path: 'method', label: 'method', kind: 'text', value: 'project' });
+  // a Pipe is made solid (no wall key): the Wall field is there to make it hollow, empty meaning solid
+  if (feature.type === 'pipe' && feature.wall === undefined) all.push({ path: 'wall', label: 'wall', kind: 'number', value: '' });
   for (const path of LIST_FIELDS) {
     const v = feature[path];
     if (Array.isArray(v)) all.push({ path, label: path, kind: 'list', value: listText(path, v) });
@@ -274,12 +299,22 @@ export function FeatureEditor(p: {
   const eff: Record<string, unknown> = { ...feature, ...draft };
   for (const k of Object.keys(eff)) if (eff[k] === null) delete eff[k];
   const opts = p.options?.({ eff, change: (patch) => apply2(patch), pickingPath: p.pickingPath, onPickRequest: p.onPickRequest }) ?? null;
-  const sections = sectionsOf(feature).map((sec) => ({ ...sec, fields: sec.fields.filter((f) => !opts?.hide.has(f.path)) })).filter((sec) => sec.fields.length > 0);
+  const sections = sectionsOf(feature.type === 'projectCurve' ? (eff as FeatureLike) : feature).map((sec) => ({ ...sec, fields: sec.fields.filter((f) => !opts?.hide.has(f.path)) })).filter((sec) => sec.fields.length > 0);
   const shownType = typeof eff.type === 'string' ? eff.type : feature.type;   // a draft that converts the feature (Press Pull: Offset <-> Straight) is titled by what it will be
   const title = t('feature.' + shownType, undefined, shownType ?? '') + (feature.name ? ` — ${feature.name}` : '');
 
   const apply = (path: string, value: unknown): void => {
-    const next = { ...draft, [path]: value };
+    let next: Record<string, unknown> = { ...draft, [path]: value };
+    // Pipe wall: blank or zero means solid, which is no wall at all
+    if (feature.type === 'pipe' && path === 'wall' && (value === '' || value === 0)) next = { ...next, wall: null };
+    // Project curve: choosing Wrap brings the wrap fields with their defaults; going back to Project takes them out
+    if (feature.type === 'projectCurve' && path === 'method') {
+      for (const [k, v] of Object.entries(WRAP_CURVE_DEFAULTS)) {
+        if (value === 'wrap') { if (eff[k] === undefined) next = { ...next, [k]: v }; } else if (feature[k] !== undefined || draft[k] !== undefined) next = { ...next, [k]: null };
+      }
+    }
+    // Reference plane: choosing a mode brings the inputs it needs with defaults (an axis, an angle, a second plane), so the plane builds at once
+    if (feature.type === 'plane' && path === 'mode' && typeof value === 'string') next = { ...next, ...planeModeDefaults(value, { ...eff, ...next }) };
     setDraft(next);
     p.onDraft(next);
   };

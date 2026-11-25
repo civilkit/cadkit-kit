@@ -52,6 +52,8 @@ export default defineConfig(({ command }) => ({
       '@kit/io': here('./packages/io/src/index.ts'),
       '@kit/fcstd': here('./packages/fcstd/src/index.ts'),
       '@kit/f3d': here('./packages/f3d/src/index.ts'),
+      '@kit/ipt': here('./packages/ipt/src/index.ts'),
+      '@kit/aec': here('./packages/aec/src/index.ts'),
       '@kit/solidcraft': here('./packages/solidcraft/src/index.ts'),
       '@kit/sketch': here('./packages/sketch/src/index.ts'),
       '@kit/script': here('./packages/script/src/index.ts'),
@@ -89,6 +91,8 @@ export default defineConfig(({ command }) => ({
     include: ['packages/**/*.test.{ts,tsx}', 'apps/**/*.test.{ts,tsx}', 'tools/**/*.test.{ts,tsx}'],
     // CK_KERNEL_URL (+ CK_KERNEL_TOKEN) runs the kernel suites against a local native service instead of CK_WASM (docs/local-kernel-service.md)
     setupFiles: ['./tools/vitest.kernel-env.ts'],
+    // a test that builds real geometry takes seconds (the twisted-extrude fillet 4.5 s on a quiet laptop, spring and washer 3 s) and more on the shared CI box, so the 5 s default timed them out; kernel runs get a minute (tests that need longer set their own)
+    testTimeout: process.env.CK_WASM || process.env.CK_KERNEL_URL ? 60_000 : 5_000,
     // the kernel suites load the wasm in every worker and run for minutes, so a worker per core (the default) overloads a laptop: at most CK_TEST_WORKERS (default 2), and one while the machine is already busy
     pool: 'forks',
     poolOptions: { forks: { minForks: 1, maxForks: testWorkers() } }

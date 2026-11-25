@@ -1,3 +1,4 @@
+import { tooBigMessage } from './zip';
 import { describe, expect, it } from 'vitest';
 import { fetchZipUrl, PluginManager, PluginRegistry, builtinRegistry, contextOf, fetchGithubPackage, inspectPackage, memoryStore, packageHash, parseGithubSpec, sha256Hex, scriptGenerator, stripWrapper } from './index';
 
@@ -185,5 +186,18 @@ describe('installing a wasm package from a link', () => {
     expect('error' in blocked && blocked.error).toMatch(/may not allow reading from other pages/);
     const good = await fetchZipUrl('https://x.example/p.zip', async () => ok, unzip);
     expect('files' in good && good.warnings[0]).toMatch(/not pinned/);
+  });
+
+  it('a zip over the limit says so in plain words, and names a desktop program as one', () => {
+    const big = new Uint8Array(31 * 1024 * 1024);
+    expect(tooBigMessage(big)).toBe('This plugin is bigger than CivilKit can install (31 MB; the limit is 8 MB).');
+    // a zip whose only entry is a Linux program (central directory only is read)
+    const name = new TextEncoder().encode('companion_linux-x64_v0.9.0/companion');
+    const cd = new Uint8Array(46 + name.length); const dv = new DataView(cd.buffer);
+    dv.setUint32(0, 0x02014b50, true); dv.setUint16(28, name.length, true); cd.set(name, 46);
+    const eocd = new Uint8Array(22); const ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true); ev.setUint16(10, 1, true); ev.setUint32(12, cd.length, true); ev.setUint32(16, 9 * 1024 * 1024, true);
+    const z = new Uint8Array(9 * 1024 * 1024 + cd.length + 22); z.set(cd, 9 * 1024 * 1024); z.set(eocd, 9 * 1024 * 1024 + cd.length);
+    expect(tooBigMessage(z)).toMatch(/^This plugin is bigger than CivilKit can install \(9 MB; the limit is 8 MB\)\. It contains a program for your computer .* download for the SolidCraft desktop app\.$/);
   });
 });

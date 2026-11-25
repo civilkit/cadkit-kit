@@ -5,6 +5,7 @@ import { useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import { Icon } from './icons';
 import { safeStorage } from '@kit/platform';
+import { t } from './i18n';
 
 const KEY = 'kit.editor.collapsed';
 
@@ -19,9 +20,11 @@ export function rememberCollapsed(id: string, closed: boolean, dflt = false): vo
   safeStorage.setJson(KEY, all);   // unavailable storage: the state just is not remembered
 }
 
-export function EditorSection(p: { id: string; title: string; summary?: string; defaultClosed?: boolean; children: ComponentChildren }): JSX.Element {
+/** `help`: an explanation of the section, kept out of the way behind a small ? button in the header (the section's fields stay uncluttered). */
+export function EditorSection(p: { id: string; title: string; summary?: string; defaultClosed?: boolean; help?: string; children: ComponentChildren }): JSX.Element {
   const dflt = p.defaultClosed === true;
   const [closed, setClosedState] = useState(() => loadCollapsed()[p.id] ?? dflt);
+  const [helpOpen, setHelpOpen] = useState(false);
   const toggle = (): void => { const next = !closed; setClosedState(next); rememberCollapsed(p.id, next, dflt); };
   return (
     <div class={'fedit-sec' + (closed ? ' closed' : '')} data-section={p.id}>
@@ -29,8 +32,13 @@ export function EditorSection(p: { id: string; title: string; summary?: string; 
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); toggle(); } }}>
         <span class="fedit-sec-title">{p.title}</span>
         {closed && p.summary ? <span class="fedit-sec-sum">{p.summary}</span> : null}
+        {p.help ? (
+          <button type="button" class={'fedit-help-btn' + (helpOpen ? ' on' : '')} aria-label={t('ui.editor.help')} aria-expanded={helpOpen} title={t('ui.editor.help')} data-help={p.id}
+            onClick={(e) => { e.stopPropagation(); setHelpOpen((v) => !v); }} onKeyDown={(e) => e.stopPropagation()}>?</button>
+        ) : null}
         <Icon name="chevron" size={14} class="fedit-chev" />
       </div>
+      {!closed && helpOpen && p.help ? <div class="fedit-help" role="note" data-help-text={p.id}>{p.help}</div> : null}
       {closed ? null : <div class="fedit-sec-fields">{p.children}</div>}
     </div>
   );

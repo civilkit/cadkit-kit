@@ -4,3 +4,4 @@ export * from './model';
 export * from './studies';
 export * from './player';
 export * from './clip';
+export * from './contactSets';

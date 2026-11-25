@@ -111,13 +111,23 @@ export function placementOps(id: string, old: ComponentRow, p: Placement): EditO
   return ops;
 }
 
-/** Mates and component patterns that name a face of component `id`. */
+/** The component (insertPart feature id) a mate reference belongs to: a face name (`F2.C1@I1.1`) or a connector ref (`{ kind: 'connector', id, component }`). */
+export function componentOfMateRef(v: unknown, inserts: ReadonlySet<string>): string | null {
+  if (typeof v === 'string') return componentOfName(v, inserts);
+  if (v && typeof v === 'object' && (v as { kind?: unknown }).kind === 'connector') {
+    const comp = (v as { component?: unknown }).component;
+    return typeof comp === 'string' && inserts.has(comp) ? comp : null;
+  }
+  return null;
+}
+
+/** Mates and component patterns that name a face or connector of component `id`. */
 export function dependentsOfComponent(doc: DocLike, id: string): string[] {
   const ins = insertIds(doc);
-  const owns = (v: unknown): boolean => typeof v === 'string' && componentOfName(v, ins) === id;
+  const owns = (v: unknown): boolean => componentOfMateRef(v, ins) === id;
   const out: string[] = [];
   for (const f of doc.features) {
-    if (f.type === 'mate' && (owns(f.a) || owns(f.b) || owns(f.c))) out.push(f.id);
+    if (f.type === 'mate' && (owns(f.a) || owns(f.b) || owns(f.a2) || owns(f.b2) || owns(f.c))) out.push(f.id);
     else if (f.type === 'cpattern' || f.type === 'lpattern') {
       const bodies = Array.isArray(f.bodies) ? (f.bodies as Array<{ face?: unknown }>) : [];
       if (bodies.length && bodies.some((b) => owns(b.face))) out.push(f.id);
@@ -134,7 +144,59 @@ export function deleteComponentOps(doc: DocLike, id: string): EditOp[] {
 /** The mover of a mate, as the kernel picks it: the component of `a` unless it is fixed. */
 export function mateComponents(doc: DocLike, f: Feat): string[] {
   const ins = insertIds(doc);
-  return ['a', 'b', 'c'].map((k) => (typeof f[k] === 'string' ? componentOfName(f[k] as string, ins) : null)).filter((x): x is string => !!x);
+  return ['a', 'b', 'c'].map((k) => componentOfMateRef(f[k], ins)).filter((x): x is string => !!x);
+}
+
+// ---- mate connectors ------------------------------------------------------------------------------------------------------
+
+export interface ConnectorOption {
+  /** Encoded value for dropdowns: `<componentId>:<connectorId>` or `:<connectorId>` for an assembly-level connector. */
+  key: string;
+  id: string;
+  name: string;
+  component?: string;
+  componentName?: string;
+}
+
+type ComponentLike = { id: string; connectors?: ReadonlyArray<readonly [string, { name?: string }]> };
+
+/** All available mate connectors in an assembly: per-component connectors (from kernel evaluation and/or embedded part features) plus top-level assembly connectors. */
+export function availableConnectors(doc: DocLike | null, components?: readonly ComponentLike[]): ConnectorOption[] {
+  if (!doc) return [];
+  const out: ConnectorOption[] = [];
+  const seen = new Set<string>();
+  const byComp = new Map<string, ComponentLike>((components ?? []).map((c) => [c.id, c]));
+  const add = (id: string, name: string, component?: string, componentName?: string) => {
+    const key = `${component ?? ''}:${id}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ key, id, name: name || id, ...(component ? { component, componentName } : {}) });
+  };
+  for (const f of doc.features) {
+    if (f.type === 'insertPart' && f.suppressed !== true) {
+      const compName = f.name ?? f.id;
+      const evalComp = byComp.get(f.id);
+      for (const entry of evalComp?.connectors ?? []) {
+        if (Array.isArray(entry) && typeof entry[0] === 'string') {
+          add(entry[0], typeof entry[1]?.name === 'string' && entry[1].name ? entry[1].name : entry[0], f.id, compName);
+        }
+      }
+      const partFeats = (f.part as { features?: Feat[] } | undefined)?.features;
+      if (Array.isArray(partFeats)) {
+        for (const pf of partFeats) {
+          if (pf && pf.type === 'connector' && pf.suppressed !== true && typeof pf.id === 'string') {
+            add(pf.id, typeof pf.name === 'string' && pf.name ? pf.name : pf.id, f.id, compName);
+          }
+        }
+      }
+    }
+  }
+  for (const f of doc.features) {
+    if (f.type === 'connector' && f.suppressed !== true) {
+      add(f.id, typeof f.name === 'string' && f.name ? f.name : f.id);
+    }
+  }
+  return out;
 }
 
 // ---- bill of materials ----------------------------------------------------------------------------------------------------

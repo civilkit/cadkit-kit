@@ -28,9 +28,9 @@ export const pointOfName = (n: string): number[] | null => parseVertexName(n) ??
 export const BODY = '@body';
 import { createNotifications, type Notice, type NoticeLevelInput, type NotifyOptions } from './notifications';
 export { createNotifications, noticeDuration, normaliseLevel, HISTORY_MAX, LIVE_MAX, type Notice, type NoticeLevel, type NoticeLevelInput, type NotifyOptions, type Notifications } from './notifications';
-export type DisplayLayer = 'sketches' | 'curves' | 'planes' | 'axes' | 'relations' | 'edges' | 'hidden' | 'grid' | 'dimensions' | 'threads' | 'issues';
+export type DisplayLayer = 'sketches' | 'curves' | 'planes' | 'axes' | 'relations' | 'edges' | 'hidden' | 'grid' | 'dimensions' | 'threads' | 'tangent' | 'issues';
 export type Display = Record<DisplayLayer, boolean>;
-export const DEFAULT_DISPLAY: Display = { sketches: true, curves: true, planes: false, axes: true, relations: true, edges: true, hidden: false, grid: true, dimensions: false, threads: true, issues: false };
+export const DEFAULT_DISPLAY: Display = { sketches: true, curves: true, planes: false, axes: true, relations: true, edges: true, hidden: false, grid: true, dimensions: false, threads: true, tangent: true, issues: false };
 export interface Workspace {
   ribbon: 'full' | 'compact' | 'off';
   leftPanel: 'docked' | 'floating' | 'hidden';

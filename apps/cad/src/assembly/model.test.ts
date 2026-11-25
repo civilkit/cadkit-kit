@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bomCsv, bomItems, bomTotal, componentOfName, componentRows, copyTurner, deleteComponentOps, explodeOffsets, instanceOfName, insertFeature, insertIds, placementOps, readExplode, refreshOps, suffixIds,
+  availableConnectors, bomCsv, bomItems, bomTotal, componentOfMateRef, componentOfName, componentRows, copyTurner, deleteComponentOps, dependentsOfComponent, explodeOffsets, instanceOfName, insertFeature, insertIds, mateComponents, placementOps, readExplode, refreshOps, suffixIds,
 } from './model';
 
 const part = (name: string, material = 'steel') => ({ format: 'ck-part', version: 1, name, material, features: [{ type: 'sketch', id: 'F1' }] });
@@ -125,4 +125,32 @@ describe('refreshOps', () => {
     expect(refreshOps(doc as never, 'F1', { features: [{ type: 'sketch', id: 'F1' }], name: 'P' })).toEqual({ ops: [], changed: false });
   });
   it('is a no-op for an unknown component', () => { expect(refreshOps(doc as never, 'F9', {})).toEqual({ ops: [], changed: false }); });
+});
+
+describe('mate connectors in assembly model', () => {
+  const doc = {
+    features: [
+      { id: 'I1', type: 'insertPart', name: 'Base', part: { name: 'BasePart', features: [{ id: 'C1', type: 'connector', name: 'TopCenter' }, { id: 'C_SUP', type: 'connector', name: 'Hidden', suppressed: true }] } },
+      { id: 'I2', type: 'insertPart', name: 'Arm', part: { name: 'ArmPart', features: [{ id: 'C2', type: 'connector', name: 'Pivot' }] } },
+      { id: 'I3', type: 'insertPart', name: 'Suppressed', suppressed: true, part: { name: 'X', features: [{ id: 'C9', type: 'connector' }] } },
+      { id: 'C_ASM', type: 'connector', name: 'OriginFrame' },
+      { id: 'M1', type: 'mate', kind: 'fastened', a: { kind: 'connector', id: 'C1', component: 'I1' }, b: { kind: 'connector', id: 'C2', component: 'I2' } },
+    ],
+  };
+  it('lists connectors from components (kernel + embedded part) and assembly root, deduplicated', () => {
+    const evalComps = [{ id: 'I1', connectors: [['C1', { name: 'TopCenter' }], ['C_GEN', { name: 'Generated' }]] as Array<[string, { name?: string }]> }];
+    expect(availableConnectors(doc as never, evalComps)).toEqual([
+      { key: 'I1:C1', id: 'C1', name: 'TopCenter', component: 'I1', componentName: 'Base' },
+      { key: 'I1:C_GEN', id: 'C_GEN', name: 'Generated', component: 'I1', componentName: 'Base' },
+      { key: 'I2:C2', id: 'C2', name: 'Pivot', component: 'I2', componentName: 'Arm' },
+      { key: ':C_ASM', id: 'C_ASM', name: 'OriginFrame' },
+    ]);
+  });
+  it('tracks component ownership and dependents for connector mates', () => {
+    const ins = insertIds(doc as never);
+    expect(componentOfMateRef({ kind: 'connector', id: 'C1', component: 'I1' }, ins)).toBe('I1');
+    expect(componentOfMateRef({ kind: 'connector', id: 'C_ASM' }, ins)).toBeNull();
+    expect(mateComponents(doc as never, doc.features[4] as never)).toEqual(['I1', 'I2']);
+    expect(dependentsOfComponent(doc as never, 'I2')).toEqual(['M1']);
+  });
 });

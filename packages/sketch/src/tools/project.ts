@@ -128,9 +128,9 @@ export function edgeCurve(frame: PlaneFrame3, edge: BodyEdge): Projected | null 
 }
 
 /** Add the projection of `edges` onto the plane of `frame` to the draft. */
-export function projectEdges(draft: SketchDraft, frame: PlaneFrame3, edges: BodyEdge[]): ProjectRes {
+export function projectEdges(draft: SketchDraft, frame: PlaneFrame3, edges: BodyEdge[], opts: { construction?: boolean } = {}): ProjectRes {
   const curves: Array<Projected | null> = edges.map((edge) => edgeCurve(frame, edge));
-  return projectCurves(draft, curves);
+  return projectCurves(draft, curves, opts);
 }
 
 /** Add reference curves (already flattened; null = nothing to project) as fixed geometry: construction unless `opts.construction` is false (then a real outline that an extrude can use). */
@@ -150,7 +150,15 @@ export function projectCurves(draft: SketchDraft, curves: Array<Projected | null
   for (const c of curves) {
     if (!c) { skipped++; continue; }
     const had = findExisting(d, c);
-    if (had) { existing++; ids.push(had); continue; }
+    if (had) {
+      // converting an edge that was projected as reference earlier: it becomes real outline (extrudable) instead of being refused as a duplicate
+      const old = d.entities.find((x) => x.id === had);
+      if (opts.construction === false && old?.construction) {
+        d = { ...d, entities: d.entities.map((x) => (x.id === had ? { ...x, construction: false } : x)) };
+        added.push(had); ids.push(had); continue;
+      }
+      existing++; ids.push(had); continue;
+    }
     let fields: Record<string, unknown>;
     switch (c.kind) {
       case 'line': fields = { type: 'line', p1: fixedPoint(c.a), p2: fixedPoint(c.b), ...flag }; break;
@@ -312,8 +320,9 @@ const after = (env: ToolEnv, r: ProjectRes): ToolOutput<ProjectState> => {
   return view(r.draft, hint ?? (left.length ? 'app.sketch.hint.projectSelection' : undefined), left);
 };
 
-export const projectTool: Tool<ProjectState> = {
-  id: 'project',
+/** `construction: false` makes the "Convert edges" tool: the same picking, but the copies are real, fixed outline that an extrude can use, not dashed reference. */
+const makeProjectTool = (id: string, construction: boolean): Tool<ProjectState> => ({
+  id,
   start: () => ({}),
   step(_state, ev, draft, _settings, env) {
     if (!env?.body) return view(draft, ev.type === 'click' || (ev.type === 'key' && ev.key === 'Enter') ? 'app.sketch.hint.noBody' : undefined);
@@ -328,16 +337,18 @@ export const projectTool: Tool<ProjectState> = {
       case 'click': {
         const e = edgeNear(env, ev.at);
         if (!e) return view(draft, 'app.sketch.hint.pickBodyEdge', pending(env, draft));
-        return after(env, projectEdges(draft, env.body.frame, [e]));
+        return after(env, projectEdges(draft, env.body.frame, [e], { construction }));
       }
       case 'key': {
         if (ev.key !== 'Enter') return view(draft, undefined, pending(env, draft));
         const edges = edgesFor(env.body.edges, env.selection ?? []);
         if (!edges.length) return view(draft, 'app.sketch.hint.nothingSelected');
-        return after(env, projectEdges(draft, env.body.frame, edges));
+        return after(env, projectEdges(draft, env.body.frame, edges, { construction }));
       }
       default:
         return view(draft, undefined, pending(env, draft));
     }
   },
-};
+});
+
+export const projectTool = makeProjectTool('project', true);

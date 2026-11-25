@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import { loadAssetPolicy, readAsset, resolveAsset, type AssetPolicy } from './assetPolicy';
 
 let base: string, root: string, outside: string, policy: AssetPolicy;
@@ -70,7 +70,7 @@ describe('asset policy: what may be opened', () => {
 describe('asset policy: the user\'s configuration', () => {
   it('reads CK_MCP_ASSET_ROOTS and the size, ignores relative and missing roots, and allows nothing by default', () => {
     expect(loadAssetPolicy({}, join(base, 'nodir')).roots).toEqual([]);
-    const p = loadAssetPolicy({ CK_MCP_ASSET_ROOTS: [root, 'relative/dir', join(base, 'missing')].join(':'), CK_MCP_ASSET_MAX_MB: '2' }, join(base, 'nodir'));
+    const p = loadAssetPolicy({ CK_MCP_ASSET_ROOTS: [root, 'relative/dir', join(base, 'missing')].join(delimiter), CK_MCP_ASSET_MAX_MB: '2' }, join(base, 'nodir'));
     expect(p.roots).toEqual([root]);
     expect(p.maxBytes).toBe(2 * 1024 * 1024);
     expect(p.source).toBe('CK_MCP_ASSET_ROOTS');

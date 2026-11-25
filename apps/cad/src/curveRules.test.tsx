@@ -162,7 +162,7 @@ describe('freeform rules', () => {
 
 describe('creators', () => {
   it('Project curve: the selected sketch, else the last with a curve; picked faces; a selected curve feature', () => {
-    expect(added(projectCurveOps(ctx()))).toEqual({ type: 'projectCurve', sketch: 'S2', faces: [], degree: 3, tolerance: 0.001, direction: 'both' });
+    expect(added(projectCurveOps(ctx()))).toEqual({ type: 'projectCurve', sketch: 'S2', faces: [], method: 'project', degree: 3, tolerance: 0.001, direction: 'both' });
     expect(added(projectCurveOps(ctx({ selectedId: 'S1', selection: ['F3.C1'] })))).toMatchObject({ sketch: 'S1', faces: ['F3.C1'] });
     expect(added(projectCurveOps(ctx({ selectedId: 'E1' })))).toMatchObject({ curve: 'E1' });
     expect(projectCurveOps(ctx({ doc: { features: [] } as never }))).toBeNull();

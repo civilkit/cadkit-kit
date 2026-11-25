@@ -14,6 +14,7 @@ export function stateDir(): string {
 export const stateFile = (dir = stateDir()): string => join(dir, 'daemon.json');
 export const lockFile = (dir = stateDir()): string => join(dir, 'daemon.lock');
 
+/** Mode 0600 where the platform enforces it. On Windows chmod only toggles read-only, so the protection is the folder: ~/.ck-cad is under the user's profile, whose default access list admits only that user, SYSTEM and administrators. */
 export function writeState(s: DaemonState, dir = stateDir()): void {
   const f = stateFile(dir);
   writeFileSync(f, JSON.stringify(s), { mode: 0o600 });

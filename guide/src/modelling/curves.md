@@ -24,6 +24,14 @@ Project curve takes a curve that lies flat (a sketch, or a curve feature you mad
 | Fit tolerance | How closely the curve follows the faces, in millimetres. | 0.001 mm |
 | Keep exact (procedural) | Keeps the projection as its definition instead of a fitted spline, so it stays exact when the face or the sketch changes. It works on exactly one face (the editor warns otherwise) and the curve must stay inside the face. Degree and Direction are not used then; **Project along** chooses the sketch direction, the nearest point of the face, or a direction you type, and **Gap tolerance** is how far apart the pieces of a chain may end. With Keep exact on, **Add curve** lists several curves to project together (sketch curves, edges or earlier curve features, in the order they join end to end); the list replaces the single source, and removing the last curve brings the source back. Turning Keep exact off drops the list. | Off |
 
+### Wrap onto a cylinder
+
+Set **Method** to **Wrap** to lay a curve you drew flat around a cylinder instead of casting it straight down. Wrap keeps the curve's lengths: its sideways distance in the sketch becomes distance along the cylinder's surface, so a wiggly spline drawn on a flat sketch winds around the cylinder with the same shape and length. The curve may be open or closed and may go around more than once. The result is an ordinary 3D curve, so you can use it as a sweep path (for example to sweep a groove or a rib around a bottle).
+
+Pick exactly one cylindrical face; a flat, cone or free-form face is refused with an explanation. Wrap adds these options: **Along the axis** (slides the curve along the cylinder), **Around** (turns it around the axis, in degrees), **Rotation** (turns it in the sketch, in degrees, about its middle) and **Flip direction** (mirrors it around the circumference). Direction, Keep exact and the other projection options are not used. If the curve winds so far that it cannot be fitted within the tolerance, the editor says it is too long: wrap it in shorter pieces or raise the fit tolerance a little.
+
+A known limit: a pipe swept along a wrapped curve that lies half inside the cylinder wall is a valid solid, but its display can show gaps. Keep such a sweep clear of the wall, or make it from a profile that sits fully outside.
+
 The note in the editor says what to expect: the result is one smooth curve lying on the faces, and a curve that misses every face is reported. If the result comes in several separate pieces, the editor's note says so, but check the curve in the view. A projection that reaches no face is refused and the feature is left as it was.
 
 ## Offset curve

@@ -2,7 +2,7 @@
 export { parseManifest, engineOk, safePath, withPlacement, PLACEMENT_PARAMS, type PluginManifest, type GeneratorDecl, type WasmDecl, type FileGrant, type ParsedManifest } from './manifest';
 export { checkDefs, checkParams, effectiveValues, checkValue, defaultsOf, previewValues, formModel, isVisible, toJsonSchema, type ParamDef, type ParamType, type SelCategory, type SelItem, SEL_CATEGORIES, SEL_TYPE, type ParamOption, type VisibleIf, type Values, type ParamIssue, type Checked, type FormField, type FormGroup } from './params';
 export { trimForPreview, REPEAT_MIN, type TrimmedScript } from './previewTrim';
-export { PluginRegistry, contextOf, type GenerateContext, type Plugin, type GenerateFn, type Prepared, type RunRecord } from './registry';
+export { PluginRegistry, contextOf, type GenerateContext, type Plugin, type GenerateFn, type Prepared, type RunRecord, type SketchCurveIO } from './registry';
 export { caseManifest, generateCase, CASE_PLUGIN_ID } from './builtin/case';
 export { springManifest, generateSpring, SPRING_PLUGIN_ID } from './builtin/spring';
 import { PluginRegistry } from './registry';

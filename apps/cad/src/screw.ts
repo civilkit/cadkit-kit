@@ -48,6 +48,11 @@ export function screwIssue(p: ScrewParams): ScrewIssue | null {
   return null;
 }
 
+/** The heads the screw table has a row for at this size (M12 and M16 have no pan or cheese head): the wizard lists only these, so a choice never ends in a refusal. */
+export function headsFor(size: string): Array<ScrewParams['head']> {
+  return SCREW_HEADS.filter((head) => { try { screwOps({ features: [] }, { ...DEFAULT_SCREW, size, head, drive: defaultDrive(head), length: 60 }); return true; } catch { return false; } });
+}
+
 /** The ops that append the screw to the document (all in one tree folder named after the wizard, see wizardGroup.ts), numbered from the document's next feature id. Throws with the helper's message. */
 export function screwOps(doc: { features: Array<{ id?: string; body?: unknown }>; seq?: number }, p: ScrewParams): EditOp[] {
   // each call builds a fresh recorder, so the part's earlier screws are counted here: the second gets 'Screw 2', not a clashing 'Screw'

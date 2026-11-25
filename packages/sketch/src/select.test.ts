@@ -85,3 +85,25 @@ describe('boxSelect', () => {
     expect(boxSelect(d(), { x0: 11, y0: 1, x1: -1, y1: -1 }, 'window')).toEqual(['e1']);
   });
 });
+
+describe('deleteEntity leaves no orphans', () => {
+  const base = (): SketchDraft => ({
+    id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [],
+    points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'c', x: 20, y: 10 }, { id: 'a', x: 0, y: 30 }, { id: 'b', x: 40, y: 30 }, { id: 'd', x: 40, y: 50 }],
+    entities: [{ id: 'circ', type: 'circle', c: 'c', r: 5 }, { id: 'l1', type: 'line', p1: 'a', p2: 'b' }, { id: 'l2', type: 'line', p1: 'b', p2: 'd' }],
+    constraints: [
+      { id: 'k1', type: 'hdist', refs: ['O', 'c'], value: 20 }, { id: 'k2', type: 'vdist', refs: ['O', 'c'], value: 10 }, { id: 'k3', type: 'radius', refs: ['circ'], value: 5 },
+      { id: 'k4', type: 'distance', refs: ['a', 'b'], value: 40 }, { id: 'k5', type: 'vdist', refs: ['O', 'd'], value: 50 },
+    ],
+  });
+  it('a circle takes its centre and the position dimensions on the centre with it (the label no longer hangs in the sketch)', () => {
+    const out = deleteEntity(base(), 'circ');
+    expect(out.points.map((p) => p.id)).not.toContain('c');
+    expect(out.constraints.map((c) => c.id)).toEqual(['k4', 'k5']);
+  });
+  it('a line takes only the end points nothing else uses; a shared end and the origin stay', () => {
+    const out = deleteEntity(base(), 'l1');
+    expect(out.points.map((p) => p.id)).toEqual(['O', 'c', 'b', 'd']);   // a went, b is still the end of l2
+    expect(out.constraints.map((c) => c.id)).toEqual(['k1', 'k2', 'k3', 'k5']);   // k4 measured a to b
+  });
+});

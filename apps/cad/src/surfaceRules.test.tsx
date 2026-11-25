@@ -4,7 +4,7 @@ import { afterEach } from 'vitest';
 import { FeatureEditor } from '@kit/ui';
 import type { PartDoc } from '@ck/part-model';
 import { optionsFor } from './FeatureOptions';
-import { continuitiesFor, patchChoice, patchOf, guidesPatch, loftGuides, loftProfiles, move, nextFree, sweepGuides, sweepGuidesPatch, tensionOf, tensionPatch, toggleKnit, sketchInfos, surfaceInfos } from './surfaceRules';
+import { continuitiesFor, patchChoice, patchOf, guidesPatch, loftGuides, loftProfiles, move, nextFree, sweepGuides, sweepGuidesPatch, tensionOf, tensionPatch, loftCondition, loftConditionPatch, toggleKnit, sketchInfos, surfaceInfos, sweepTwistable } from './surfaceRules';
 import { boundaryLoop, boundaryRefs, knitOps, openEdgesOf, thickenOps, trimSurfaceOps } from './featureCreators';
 import { pickValue, type ViewEdge } from './featureCommands';
 import './i18n';
@@ -98,7 +98,7 @@ describe('surface editors', () => {
     mid.unmount();
     const end = mount({ type: 'loft', id: 'L9', sketches: ['A', 'B', 'P'] }, doc);
     expect(end.q('[data-note="loftPointMiddle"]')).toBeNull();
-    expect(end.q('[data-note="pointHint"]')).not.toBeNull();
+    expect(end.q('[data-help="loftProfiles"]')).not.toBeNull();   // the point rule is explained behind the ? button
     end.unmount();
     const both = mount({ type: 'loft', id: 'L9', sketches: ['P', 'A', 'P'] }, doc);
     expect(both.q('[data-note="loftPointBoth"]')).not.toBeNull();
@@ -193,5 +193,47 @@ describe('selection to feature', () => {
   });
   it('thicken starts from the surface a picked face belongs to', () => {
     expect((thickenOps(ctx(['SP.P'])) as unknown as Array<{ feature: { surface: string } }>)[0].feature.surface).toBe('SP');
+  });
+});
+
+describe('loft end conditions', () => {
+  it('reads the old start and end tension as a directional condition at 90 degrees', () => {
+    expect(loftCondition({ startNormal: 2 }, 3, 0)).toEqual({ type: 'directional', angle: 90, weight: 2 });
+    expect(loftCondition({ endNormal: true }, 3, 2)).toEqual({ type: 'directional', angle: 90, weight: 1 });
+    expect(loftCondition({}, 3, 0).type).toBe('free');
+    expect(loftCondition({ startNormal: 2 }, 3, 1).type).toBe('free');   // a middle profile has no old form
+  });
+  it('writes free and a 90 degree directional in the old form, anything else in conditions', () => {
+    expect(loftConditionPatch({}, 3, 0, { type: 'directional', angle: 90, weight: 2 })).toEqual({ startNormal: 2, conditions: null });
+    expect(loftConditionPatch({ startNormal: 2 }, 3, 0, { type: 'free', angle: 90, weight: 1 })).toEqual({ startNormal: null, conditions: null });
+    const p = loftConditionPatch({ startNormal: 2 }, 3, 2, { type: 'directional', angle: 60, weight: 1.5 });
+    expect(p).toEqual({ endNormal: null, conditions: [null, null, { type: 'directional', angle: 60, weight: 1.5 }] });
+    expect(loftCondition({ ...p }, 3, 2)).toEqual({ type: 'directional', angle: 60, weight: 1.5 });
+    // changing the other end keeps the first one's entry
+    const q = loftConditionPatch({ conditions: p.conditions }, 3, 0, { type: 'directional', angle: 45, weight: 1 });
+    expect(q.conditions).toEqual([{ type: 'directional', angle: 45, weight: 1 }, null, { type: 'directional', angle: 60, weight: 1.5 }]);
+  });
+});
+
+describe('sweep twist availability', () => {
+  const path = (id: string, pts: Array<[number, number]>, types: string[] = []): Wire => ({ type: 'sketch', id, points: pts.map(([x, y], i) => ({ id: 'p' + i, x, y })), entities: pts.slice(1).map((_, i) => ({ id: 'e' + i, type: types[i] ?? 'line', p1: 'p' + i, p2: 'p' + (i + 1) })) });
+  const doc = { features: [path('ONE', [[0, 0], [30, 0]]), path('SAME', [[0, 0], [10, 0], [30, 0]]), path('BENT', [[0, 0], [10, 0], [10, 10]]), path('ARC', [[0, 0], [10, 10]], ['arc'])] } as unknown as PartDoc;
+  const eff = (id: string, kind = 'sketch'): Wire => ({ path: { kind, id } });
+  it('is offered for one line or lines in one direction, and while no path is chosen', () => {
+    expect([sweepTwistable(doc, eff('ONE')), sweepTwistable(doc, eff('SAME')), sweepTwistable(doc, {})]).toEqual([true, true, true]);
+  });
+  it('is hidden for a bent path, an arc and a curve feature (the kernel answers notImplemented)', () => {
+    expect([sweepTwistable(doc, eff('BENT')), sweepTwistable(doc, eff('ARC')), sweepTwistable(doc, eff('H', 'curve'))]).toEqual([false, false, false]);
+  });
+});
+
+describe('trim surface tool = plane', () => {
+  it('offers a plane to pick once the tool is a plane, and writes it', () => {
+    const doc = { features: [{ type: 'surfaceExtrude', id: 'W', sketch: 'A' }] } as unknown as PartDoc;
+    const m = mount({ type: 'trimSurface', id: 'T', surface: 'W', plane: { kind: 'std', id: 'top' } }, doc);
+    const sel = m.q('[data-path="plane"] select') as HTMLSelectElement | null;
+    expect(sel).not.toBeNull();
+    fireEvent.change(sel!, { target: { value: 'std:front' } });
+    expect(JSON.stringify(m.drafts.at(-1))).toContain('"front"');
   });
 });

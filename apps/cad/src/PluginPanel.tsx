@@ -227,7 +227,7 @@ export function PluginPanel(p: PluginPanelProps): JSX.Element {
                 <button key={`${plugin.manifest.id}/${decl.id}`} type="button" class="fedit-card-btn" style="display:block;width:100%;text-align:left;margin-bottom:6px" data-testid={`plugin-item-${plugin.manifest.id}-${decl.id}`} onClick={() => p.onPick(plugin.manifest.id, decl.id)}>
                   <strong>{decl.title}</strong>
                   <span class="thread-hint" style="display:block">{decl.description ?? ''}</span>
-                  <span class="thread-hint" style="display:block;opacity:.7">{t('plugin.by', { plugin: plugin.manifest.name, version: plugin.manifest.version })}{plugin.builtin ? ` · ${t('plugin.builtin')}` : ''}</span>
+                  <span class="thread-hint plugin-sub" style="display:block">{t('plugin.by', { plugin: plugin.manifest.name, version: plugin.manifest.version })}{plugin.builtin ? ` · ${t('plugin.builtin')}` : ''}</span>
                 </button>
               ))}
             </div>

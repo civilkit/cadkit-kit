@@ -4,6 +4,7 @@
 import type { EditOp } from '@ck/session';
 import { t } from './i18n';
 import { groupOps, wizardGroupName } from './wizardGroup';
+import { freeBodyName, usedBodyNames } from './bodyOps';
 import { caseEditOps, caseGeometry, maxTopRadius, TOP_WALL_FACTOR, type CaseBoxOpts } from '@kit/script';
 
 export const CASE_TONGUE_SIDES = ['lid', 'base'] as const;
@@ -124,5 +125,11 @@ function nextSeq(doc: Doc): number {
 /** The ops that append the case to the document (one tree folder named after the wizard, see wizardGroup.ts), numbered from the document's next feature id. Throws with the helper's message. */
 export function caseOps(doc: Doc, p: CaseParams): EditOp[] {
   const group = wizardGroupName(doc.features, t('case.title'));
-  return groupOps(caseEditOps(caseOpts(p), nextSeq(doc)) as unknown as EditOp[], group);
+  // a second case in the same document: free names ("Base 2", "Lid 2"), not a body name conflict
+  const used = usedBodyNames(doc.features as never);
+  const base = freeBodyName(used, p.baseName.trim());
+  used.add(base);
+  const lid = freeBodyName(used, p.lidName.trim());
+  const o = caseOpts(p);
+  return groupOps(caseEditOps({ ...o, names: [base, lid] }, nextSeq(doc)) as unknown as EditOp[], group);
 }

@@ -15,7 +15,7 @@ export function hasAutoName(f: { type?: string; name?: unknown; autoName?: unkno
   if (f.autoName === true) return true;
   if (f.autoName === false) return false;
   const n = typeof f.name === 'string' ? f.name : '';
-  if (f.type === 'plane') return !n || templateRe('app.plane.defaultName').test(n) || templateRe('app.plane.midName').test(n);
+  if (f.type === 'plane') return !n || templateRe('app.plane.defaultName').test(n) || templateRe('app.plane.midName').test(n) || templateRe('app.plane.angleName').test(n) || templateRe('app.plane.angleOffsetName').test(n);
   if (f.type === 'sketch') return templateRe('app.sketch.defaultName').test(n);
   return false;
 }
@@ -24,7 +24,7 @@ export function featureLabel(doc: DocIn, f: Feat | undefined | null): string {
   if (!f) return '';
   const name = typeof f.name === 'string' ? f.name : '';
   try {
-    if (f.type === 'plane' && hasAutoName(f as never) && (f.mode === 'offset' || f.mode === 'mid' || f.mode === undefined)) return planeDefaultName(doc, f as never);
+    if (f.type === 'plane' && hasAutoName(f as never) && (f.mode === 'offset' || f.mode === 'mid' || f.mode === 'angle' || f.mode === undefined)) return planeDefaultName(doc, f as never);
     if (f.type === 'sketch' && hasAutoName(f as never) && f.plane && (f.plane as { kind?: string }).kind !== 'face') return t('app.sketch.defaultName', { plane: refLabel(doc, f.plane as never) });
   } catch { /* a field of an unexpected shape never takes the tree down: show the stored name */ }
   return name || String(f.id ?? '');
@@ -37,7 +37,11 @@ export function refLabel(doc: DocIn, ref: RefIn): string {
   return f ? featureLabel(doc, f) : ref.id;
 }
 /** The default name of a new Plane feature: `Plane -60 from Front` (offset) or `Plane between A and B`. */
-export function planeDefaultName(doc: DocIn, f: { mode?: string; base?: RefIn; base2?: RefIn; offset?: number | string }): string {
+export function planeDefaultName(doc: DocIn, f: { mode?: string; base?: RefIn; base2?: RefIn; offset?: number | string; angle?: number | string }): string {
+  if (f.mode === 'angle') {
+    const off = Number(f.offset);
+    return off ? t('app.plane.angleOffsetName', { angle: fmtNum(f.angle), offset: fmtNum(f.offset), base: refLabel(doc, f.base) }) : t('app.plane.angleName', { angle: fmtNum(f.angle), base: refLabel(doc, f.base) });
+  }
   if (f.mode === 'mid') return t('app.plane.midName', { a: refLabel(doc, f.base), b: refLabel(doc, f.base2) });
   return t('app.plane.defaultName', { offset: fmtNum(f.offset), base: refLabel(doc, f.base) });
 }

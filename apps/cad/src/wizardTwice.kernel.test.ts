@@ -90,7 +90,8 @@ describe('an inserting wizard run twice into one part', () => {
     { name: 'Turbo impeller', plan: (d: never, _i: number) => impellerPlan(d, DEFAULT_IMPELLER).patch },
   ];
   for (const fam of families) {
-    it(`${fam.name}`, async () => {
+    // the Turbo impeller twice takes over 400 s on the CI box (a 2009 Xeon E5520); the other families finish in seconds. Opt in with CK_HEAVY=1.
+    it.skipIf(fam.name === 'Turbo impeller' && !process.env.CK_HEAVY)(`${fam.name}`, async () => {
       const c = await world();
       for (let i = 0; i < 2; i++) {
         const r = await c.applyDocPatch(fam.plan(c.document() as never, i) as never, fam.name);

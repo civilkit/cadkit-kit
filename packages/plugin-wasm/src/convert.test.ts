@@ -99,17 +99,25 @@ describe('author release -> our package', () => {
   it('leaves out an importer and an entry with a field it cannot draw, and keeps the rest', async () => {
     const entries = [
       { name: 'cabinet', effect: 'edit', slots: [{ name: 'Cabinet' }], input_schema: { properties: { width: { type: 'number', default: 600 } } } },
-      { name: 'seat', effect: 'edit', slots: [{ name: 'Seat…' }], input_schema: { properties: { edges: { type: 'array', 'x-solidcraft-selection': { version: 1, accept: ['edge'] } } } } },
+      { name: 'seat', effect: 'edit', slots: [{ name: 'Seat…' }], input_schema: { required: ['edges'], properties: { edges: { type: 'array', 'x-solidcraft-selection': { version: 1, accept: ['sketch_curve'] } } } } },
+      { name: 'rail', effect: 'edit', slots: [{ name: 'Rail' }], input_schema: { properties: { placement: { type: 'array', title: 'Placement', 'x-solidcraft-selection': { version: 1, accept: ['sketch_point'] } } } } },
       { name: 'convert', kind: 'importer', effect: 'open', extensions: ['smp'], input_schema: { properties: {} } },
     ];
     const c = await convertRelease(release({ capabilities: ['commands@0.2'], runtime: { module: 'woodwork.wasm', entries } }), fake);
     if ('error' in c) throw new Error(c.error);
     const m = JSON.parse(new TextDecoder().decode(c.files.get('plugin.json')!));
-    expect(m.contributes.generators.map((g: { id: string }) => g.id)).toEqual(['cabinet']);
+    expect(m.contributes.generators.map((g: { id: string }) => g.id)).toEqual(['cabinet', 'rail']);   // rail's only parameter is an optional pick this app cannot do: it stays, without that field
     const notes = c.notes.join(' | ');
+    expect(notes).toMatch(/Rail, placement: it takes sketch_point, which this app cannot pick yet; it is left out/);
     expect(notes).toMatch(/left out, this app cannot run them yet: convert/);
-    expect(notes).toMatch(/left out Seat: .*edge, which this app cannot pick yet/);
+    expect(notes).toMatch(/left out Seat: .*sketch_curve, which this app cannot pick yet/);
     expect(notes).toMatch(/built for commands@0\.2; this app has only been tested with commands@0\.1/);
+  });
+
+  it('when no entry survives, the error says why', async () => {
+    const entries = [{ name: 'seat', effect: 'edit', slots: [{ name: 'Seat…' }], input_schema: { required: ['edges'], properties: { edges: { type: 'array', title: 'Edges', 'x-solidcraft-selection': { version: 1, accept: ['sketch_curve'] } } } } }];
+    const c = await convertRelease(release({ capabilities: ['commands@0.2'], runtime: { module: 'woodwork.wasm', entries } }), fake);
+    expect('error' in c && c.error).toMatch(/^the plugin has no entry this app can run: Seat: parameter "edges": it takes sketch_curve, which this app cannot pick yet$/);
   });
 
   it('the manager converts in plan() and tells the dialog where the package came from', async () => {

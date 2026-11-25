@@ -57,7 +57,7 @@ describe('SketchUp summary and refusals', () => {
     expect(skpRefusal([['import', { code: 'body.empty', params: {} }]])).toEqual({ code: 'body.empty', message: 'import: body.empty' });
   });
   it('a refused reply is a failure with the structured code; a thrown call is a trap', async () => {
-    const refused = { importSkp: async () => ({ errors: [['import', { code: 'body.empty', params: { message: 'model has no visible faces' } }]] as never, body: null }) };
+    const refused = { importSkp: async () => ({ errors: [['import', { code: 'body.empty', params: { message: 'model has no visible faces' } }]] as never, warnings: [], body: null }) };
     expect(await importSkpView(refused, new Uint8Array([1]), 'x')).toEqual({ ok: false, code: 'body.empty', message: 'model has no visible faces' });
     const boom = { importSkp: async () => { throw new Error('wasm trap'); } };
     expect(await importSkpView(boom, new Uint8Array([1]), 'x')).toEqual({ ok: false, code: 'trap', message: 'wasm trap' });

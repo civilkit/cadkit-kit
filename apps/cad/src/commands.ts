@@ -177,7 +177,7 @@ let lastCommandId: string | null = null;
 export function resetLastCommand(): void { lastCommandId = null; }
 const NOT_REPEATABLE = new Set(['palette', 'repeat-last', 'community-hub']);
 
-const LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations', 'dimensions', 'threads'];
+const LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations', 'dimensions', 'threads', 'tangent'];
 
 export function buildCommands(a: Actions): Command[] {
   const cmds: Command[] = [

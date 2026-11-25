@@ -18,7 +18,9 @@ export function reasonOf(r: DiagRoot): string {
   if (r.seat) return r.seat === 'fixed' ? t('diag.reason.seat.fixed') : t('diag.reason.seat.face');
   if (r.knurl) return r.knurl === 'fixed' ? t('diag.reason.knurl.fixed') : t('diag.reason.knurl.face');
   if (r.openLine) return t('diag.reason.noClosedProfile.openLine');
-  const detail = typeof r.params?.detail === 'string' ? r.params.detail : '';
+  if (r.planeInput) return t('diag.reason.plane.missing.' + r.planeInput);
+  // the kernel's sweepPathInvalid says which case it is in `message` ("the path has 2 splines", "a gap between pieces") and what to do in `hint`
+  const detail = typeof r.params?.detail === 'string' ? r.params.detail : r.code === 'sweepPathInvalid' && typeof r.params?.message === 'string' ? r.params.message : '';
   const tip = r.code === 'draftTooLarge' ? tipHeight(r.params) : null;   // the kernel's own sentence carries the height to 15 digits
   if (tip !== null) return t('diag.reason.draftTooLarge.height', { h: String(tip) });
   const known = t('diag.reason.' + r.code, undefined, '');
@@ -64,9 +66,13 @@ export function adviceOf(r: DiagRoot): string {
   if (r.seat) return r.seat === 'fixed' ? t('diag.advice.seat.fixed') : t('diag.advice.seat.face');
   if (r.knurl) return r.knurl === 'fixed' ? t('diag.advice.knurl.fixed') : t('diag.advice.knurl.face');
   if (r.openLine) return t('diag.advice.noClosedProfile.openLine');
+  if (r.planeInput) return t('diag.advice.plane.missing.' + r.planeInput);
   const tip = r.code === 'draftTooLarge' ? tipHeight(r.params) : null;
   if (tip !== null) return t('diag.advice.draftTooLarge.height', { h: String(tip) });
-  const advice = t('diag.advice.' + r.code, undefined, t('diag.advice.generic'));
+  // a code without advice of its own: the kernel's hint when it gave one ("make the counterbore narrower than the face"), else the generic line
+  const own = t('diag.advice.' + r.code, undefined, '');
+  const hint = typeof r.params?.hint === 'string' ? r.params.hint.trim() : '';
+  const advice = own || hint || t('diag.advice.generic');
   const max = maxSizeOf(r.params);
   return max ? `${t('diag.advice.maxSize', { size: maxSizeText(max) })} ${advice}` : advice;
 }

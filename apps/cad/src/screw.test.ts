@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SCREW, defaultDrive, screwIssue, screwOpts, screwOps, type ScrewParams } from './screw';
+import { DEFAULT_SCREW, SCREW_SIZE_LIST, defaultDrive, headsFor, screwIssue, screwOpts, screwOps, type ScrewParams } from './screw';
 
 const P = (o: Partial<ScrewParams> = {}): ScrewParams => ({ ...DEFAULT_SCREW, ...o });
 
@@ -30,3 +30,19 @@ describe('screw wizard rules', () => {
     expect(ops[0].feature.id).toBe('F8');
   });
 });
+
+describe('heads offered per size (audit: M12 and M16 refused the default head)', () => {
+  it('every size offers at least one head, and each offered head builds', () => {
+    for (const size of SCREW_SIZE_LIST) {
+      const heads = headsFor(size);
+      expect(heads.length, size).toBeGreaterThan(0);
+      for (const head of heads) expect(screwIssue({ ...DEFAULT_SCREW, size, head, drive: defaultDrive(head), length: 60 }), `${size} ${head}`).toBeNull();
+    }
+  });
+  it('a size with no pan head does not list one', () => {
+    for (const size of SCREW_SIZE_LIST) {
+      if (screwIssue({ ...DEFAULT_SCREW, size, head: 'pan', drive: 'cross', length: 60 })) expect(headsFor(size)).not.toContain('pan');
+    }
+  });
+});
+

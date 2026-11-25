@@ -4,20 +4,32 @@ import { SEL_CATEGORIES, type ParamDef, type SelCategory } from '@kit/plugin';
 
 type Prop = { type?: string; title?: string; description?: string; default?: unknown; minimum?: number; maximum?: number; maxLength?: number; enum?: Array<string | number>; oneOf?: Array<{ const?: string | number; title?: string }>; 'x-visible-if'?: ParamDef['visibleIf']; /** a switch whose detail is slow to build: a live preview runs with it off */ 'x-preview-off'?: boolean; minItems?: number; maxItems?: number; items?: { type?: string }; 'x-solidcraft-selection'?: { version?: unknown; accept?: unknown } } & Record<string, unknown>;
 
-/** What this app can pick in the viewport: a body, or a face of one. Edges, profiles and sketch points and curves are not offered yet. */
-export const PICKABLE: readonly SelCategory[] = ['body', 'face'];
+/** What this app can pick in the viewport: a body, a face or an edge of one. Profiles and sketch points and curves are not offered yet. */
+export const PICKABLE: readonly SelCategory[] = ['body', 'face', 'edge'];
 /** Array properties a schema may use without the annotation (SolidCraft's reserved lists): bodies by name, or references to what is selected. */
 const RESERVED: Record<string, { accept: SelCategory[]; asNames?: boolean }> = { bodies: { accept: ['body'], asNames: true }, body_ids: { accept: ['body'], asNames: true }, selection: { accept: ['edge', 'face', 'body'] }, target: { accept: ['edge', 'face', 'body'] }, targets: { accept: ['edge', 'face', 'body'] } };
 /** The keywords a selection field may carry; any other (uniqueItems, a detailed `items`) is something this app does not draw. */
 const SEL_KEYS = new Set(['type', 'title', 'description', 'minItems', 'maxItems', 'items', 'default', 'x-solidcraft-selection', 'x-solidcraft-icon']);
 
-export function schemaToParams(schema: unknown): ParamDef[] {
+/** A selection of things this app cannot pick yet. An optional one is left out of the form (the plugin runs without it); a required one drops the entry. */
+class Unpickable extends Error {}
+
+/** `notes` receives one line for each optional parameter left out because it asks for something this app cannot pick yet. */
+export function schemaToParams(schema: unknown, notes?: string[]): ParamDef[] {
   const s = schema as { properties?: Record<string, Prop>; required?: string[] } | undefined;
   const out: ParamDef[] = [];
   for (const [name, p] of Object.entries(s?.properties ?? {})) {
     const d: ParamDef = { name, type: 'string' };
     if (p.type === 'array') {
-      const a = selectionField(name, p);
+      let a: Partial<ParamDef>;
+      try { a = selectionField(name, p); }
+      catch (e) {
+        if (e instanceof Unpickable && !(s?.required ?? []).includes(name) && !(p.minItems && p.minItems > 0)) {
+          notes?.push(`${p.title ?? name}: ${e.message.replace(/^parameter "[^"]*": /, '')}; it is left out and the plugin uses its default`);
+          continue;
+        }
+        throw e;
+      }
       Object.assign(d, a, { type: 'selection' });
       if (p.title) d.title = p.title;
       if (p.description) d.description = p.description;
@@ -57,6 +69,6 @@ function selectionField(name: string, p: Prop): Partial<ParamDef> {
     accept = ann.accept as SelCategory[];
   } else { accept = reserved.accept; asNames = !!reserved.asNames; }
   const can = accept.filter((a) => PICKABLE.includes(a));
-  if (!can.length) throw new Error(`parameter "${name}": it takes ${accept.join(', ')}, which this app cannot pick yet`);
+  if (!can.length) throw new Unpickable(`parameter "${name}": it takes ${accept.join(', ')}, which this app cannot pick yet`);
   return { accept: can, ...(asNames ? { asNames } : {}), ...(p.minItems !== undefined ? { minItems: p.minItems } : {}), ...(p.maxItems !== undefined ? { maxItems: p.maxItems } : {}) };
 }

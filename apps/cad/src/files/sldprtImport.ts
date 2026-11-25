@@ -8,6 +8,7 @@
 // (a kernel without the message, a file that does not rebuild, a rebuild with errors or another volume) falls back to the imported body.
 import type { PartDoc } from '@ck/part-model';
 import { emptyPart } from '@ck/part-model';
+import type { BodyLookSpec } from '@kit/viewport';
 import { base64Of, viewOfImport, type StepImportResult } from './stepImport';
 import { folderToggleOps, HISTORY_FOLDER, standInOrigin } from '../historyFolder';
 
@@ -27,11 +28,12 @@ async function sha256Hex(text: string): Promise<string> {
 }
 
 /** The part that holds a STEP text as one imported body (`feature`: the tree name of the import step). */
-export async function partOfStep(step: string, name: string, feature = 'SolidWorks body'): Promise<PartDoc> {
+export async function partOfStep(step: string, name: string, feature = 'SolidWorks body', appearance?: Record<string, BodyLookSpec>): Promise<PartDoc> {
   const key = await sha256Hex(step);
   // `heal`: as the importStep message reads a file (edges that follow their faces only to the file's accuracy get a tolerance;
   // a sound solid is left as it is). A part that is still not a valid solid comes in as a surface body, never as a solid.
-  return { ...emptyPart(name), blobs: { [key]: step }, features: [{ type: 'importStep', id: 'F1', name: feature, blob: key, heal: true }], seq: 2 } as unknown as PartDoc;
+  const hasAppearance = appearance && Object.keys(appearance).length > 0;
+  return { ...emptyPart(name), blobs: { [key]: step }, features: [{ type: 'importStep', id: 'F1', name: feature, blob: key, heal: true }], ...(hasAppearance ? { appearance } : {}), seq: 2 } as unknown as PartDoc;
 }
 
 const volumeOf = async (k: SldprtKernel, tag: string): Promise<number | null> => {

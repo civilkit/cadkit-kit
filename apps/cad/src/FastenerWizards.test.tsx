@@ -117,6 +117,14 @@ describe('InsertWizard', () => {
     expect(m.drafts.at(-1)).toMatchObject({ hole: true, holeIn: 'Lid' });
     expect(m.q('[data-testid="insert-hole-note"]')).not.toBeNull();
   });
+  it('with no body in the document the hole option is off and says why (the cut would fail with nothingToCut)', () => {
+    const m = mount<InsertParams>(InsertWizard, { ...DEFAULT_INSERT, hole: true }, { bodies: [] });
+    expect(m.input('hole').disabled).toBe(true);
+    expect(m.input('hole').checked).toBe(false);
+    expect(m.q('[data-path="hole"]').getAttribute('title')).toMatch(/no body/i);
+    const unknown = mount<InsertParams>(InsertWizard, DEFAULT_INSERT);   // bodies not known: not judged
+    expect(unknown.input('hole').disabled).toBe(false);
+  });
   it('a hole that does not fit the insert blocks Add', () => {
     const m = mount<InsertParams>(InsertWizard, DEFAULT_INSERT);
     const before = m.drafts.length;

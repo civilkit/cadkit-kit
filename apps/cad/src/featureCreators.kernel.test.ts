@@ -130,10 +130,22 @@ describe('creator commands against the real kernel', { skip: !process.env.CK_WAS
     w.select(['F2.S.e1', 'F2.S.e3'], 'face');
     expect(w.cmd('add-draft').enabled!()).toBe(true);
     await w.run('add-draft');
-    expect(last(w)).toMatchObject({ type: 'draft', faces: ['F2.S.e1', 'F2.S.e3'], angle: 3, neutral: { kind: 'std', id: 'front' } });
+    expect(last(w)).toMatchObject({ type: 'draft', faces: ['F2.S.e1', 'F2.S.e3'], angle: 3, flip: false, neutral: { kind: 'std', id: 'front' } });
     const after = await w.stats();
     expect(after.errors).toEqual([]);
     expect(after.volume!).toBeLessThan(10000);
+  });
+
+  it('draft Flip turns the taper the other way (the editor offers it): the volume goes up instead of down', async () => {
+    const w = await world(box());
+    w.select(['F2.S.e1', 'F2.S.e3'], 'face');
+    await w.run('add-draft');
+    const id = (last(w) as { id: string }).id;
+    const down = (await w.stats()).volume!;
+    await w.controller.edit([{ op: 'set', id, path: 'flip', value: true } as never]);
+    const s = await w.stats();
+    expect(s.errors).toEqual([]);
+    expect(s.volume!).toBeGreaterThan(down);
   });
 
   it('draft of a face parallel to the neutral plane is the structured draftParallelFace error', async () => {

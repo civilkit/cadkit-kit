@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
+  HUB_PARSER_VERSION,
   BUILTIN_HUB_INDEX,
   BUILTIN_REGISTRY_ID,
   HUB_FORMAT,
@@ -66,14 +67,62 @@ const sampleIndex = (packages: HubPackage[] = [samplePkg()], over: Partial<HubIn
 });
 
 describe('hub registry schema & validator', () => {
-  it('BUILTIN_HUB_INDEX is valid and covers all four package kinds', () => {
+  it('BUILTIN_HUB_INDEX is valid and contains real released SolidCraft plugins', () => {
     const res = validateHubIndex(BUILTIN_HUB_INDEX);
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     expect(res.warnings).toEqual([]);
-    const kinds = new Set(res.index.packages.map((p) => p.kind));
-    expect(kinds).toEqual(new Set(['part', 'assembly', 'plugin', 'library']));
-    expect(res.index.packages.length).toBeGreaterThanOrEqual(6);
+    expect(res.index.packages.length).toBeGreaterThanOrEqual(25);
+    expect(res.index.packages.every((p) => p.kind === 'plugin' && !!p.downloadUrl)).toBe(true);   // only entries with a release zip
+    expect(res.index.packages.some((p) => p.id === 'timber')).toBe(false);   // its catalog zip is the source archive, no wasm
+    expect(res.index.packages.some((p) => p.id === 'box-importer')).toBe(false);   // its release is an app tag, no zip
+    expect(res.index.packages.some((p) => p.id === 'solidcraft-gears')).toBe(true);
+    expect(res.index.packages.some((p) => p.id === 'gridfinity')).toBe(true);
+    expect(res.index.packages.some((p) => p.id === 'woodwork')).toBe(true);
+  });
+
+  it('the live catalog: an entry with a tag but no zip, and a hidden id, are left out', () => {
+    const z = (slug: string) => `https://github.com/o/${slug}/releases/download/v1/${slug}.zip`;
+    const plug = (slug: string, release: object) => ({ id: slug, repo: `o/${slug}`, name: slug, description: 'd', version: '1.0.0', license: 'MIT', release });
+    const r = parseHubIndexJson(JSON.stringify({ plugins: [plug('good', { tag: 'v1', zip: z('good') }), plug('apptag', { tag: 'v0.45.0b-android' }), plug('timber', { tag: 'v1', zip: z('timber') })] }));
+    expect(r.ok && r.index.packages.map((p) => p.id)).toEqual(['good']);
+  });
+
+  it('parseHubIndexJson parses SolidCraft plugins.json and skips plugins without releases', () => {
+    const raw = {
+      generated: '2026-11-22T12:00:00Z',
+      plugins: [
+        {
+          repo: 'bherbruck/solidcraft-gears',
+          url: 'https://github.com/bherbruck/solidcraft-gears',
+          owner: 'bherbruck',
+          id: 'solidcraft-gears',
+          slug: 'solidcraft-gears',
+          name: 'Gears',
+          description: 'Involute spur gear generator.',
+          version: '0.1.1',
+          license: 'MIT',
+          category: 'Gears & motion',
+          topics: ['cad', 'gears'],
+          updated: '2026-11-12T22:08:00Z',
+          release: { tag: 'v0.1.1', zip: 'https://github.com/bherbruck/solidcraft-gears/releases/download/v0.1.1/solidcraft-gears-0.1.1.zip' },
+        },
+        {
+          repo: 'someone/unreleased-plugin',
+          owner: 'someone',
+          id: 'unreleased-plugin',
+          name: 'Unreleased Plugin',
+          description: 'Has no release yet.',
+          release: null,
+        },
+      ],
+    };
+    const res = parseHubIndexJson(JSON.stringify(raw));
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.index.packages.map((p) => p.id)).toEqual(['solidcraft-gears']);
+    expect(res.index.packages[0].source).toBe('github:bherbruck/solidcraft-gears@v0.1.1');
+    expect(res.index.packages[0].downloadUrl).toContain('solidcraft-gears-0.1.1.zip');
   });
 
   it('rejects non-objects, invalid JSON, wrong format, and unsupported version with plain-English diagnostics', () => {
@@ -167,6 +216,21 @@ describe('filterHubPackages', () => {
 });
 
 describe('fetchHubIndex and HubRegistryStore', () => {
+  it('drops a cache made by an older parser or older than a day for the built-in registry', async () => {
+    const kv = memKv();
+    const stale = sampleIndex([samplePkg({ id: 'removed-entry', name: 'Removed', kind: 'plugin' })], { name: 'old' });
+    kv.setItem('ck.hub.cache.v1', JSON.stringify({ v: 1, entries: { [BUILTIN_REGISTRY_ID]: { at: 1700000000000, index: stale } } }));
+    const fetchNever: FetchLike = vi.fn(async () => { throw new Error('offline'); });
+    const store = new HubRegistryStore({ fetch: fetchNever, kv, now: () => 1700000000000 });
+    expect((await store.load()).index.name).toBe(BUILTIN_HUB_INDEX.name);   // the v1 copy is not shown
+    expect(kv.getItem('ck.hub.cache.v1')).toBeNull();
+    kv.setItem('ck.hub.cache.v2', JSON.stringify({ v: 2, p: HUB_PARSER_VERSION - 1, entries: { [BUILTIN_REGISTRY_ID]: { at: 1700000000000, index: stale } } }));
+    expect((await new HubRegistryStore({ fetch: fetchNever, kv, now: () => 1700000000000 }).load()).index.name).toBe(BUILTIN_HUB_INDEX.name);
+    kv.setItem('ck.hub.cache.v2', JSON.stringify({ v: 2, p: HUB_PARSER_VERSION, entries: { [BUILTIN_REGISTRY_ID]: { at: 1700000000000, index: stale } } }));
+    expect((await new HubRegistryStore({ fetch: fetchNever, kv, now: () => 1700000000000 + 3600_000 }).load()).index.name).toBe('old');   // same parser, under a day: used
+    expect((await new HubRegistryStore({ fetch: fetchNever, kv, now: () => 1700000000000 + 25 * 3600_000 }).load()).index.name).toBe(BUILTIN_HUB_INDEX.name);   // a day on: the snapshot
+  });
+
   it('fetches, validates, caches, and falls back to cached index when offline', async () => {
     const kv = memKv();
     const remoteIndex = sampleIndex([samplePkg({ id: 'remote-1', name: 'Remote Gear Plugin', kind: 'plugin' })], { name: 'Custom Team Hub' });

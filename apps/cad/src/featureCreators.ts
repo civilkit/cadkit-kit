@@ -23,7 +23,8 @@ const faceMode = (c: Ctx): string[] => (c.mode === 'face' ? faceNames(c.selectio
 
 // ---- sketches by what they hold ----
 
-const hasAxisLine = (s: Feat): boolean => isClosedSketch(s) && axisLine(s) !== null;
+/** A surface of revolution takes an open profile too (a curve beside the axis), so it needs only a curve and a construction line to turn about. */
+const hasProfileAndAxis = (s: Feat): boolean => hasCurves(s) && axisLine(s) !== null;
 
 /** The sketch a command uses: the one selected in the tree if it fits, else the last that fits. */
 export function sketchWhere(c: Ctx, fits: (s: Feat) => boolean, with3d = false): Feat | null {
@@ -110,6 +111,17 @@ export function axisOps(c: Ctx): EditOp[] | null {
   const refs = faces.length ? faces.map((id) => ({ kind: 'face', id })) : [{ kind: 'std', id: 'front' }, { kind: 'std', id: 'top' }];
   return [{ op: 'add', feature: { type: 'axis', refs } }];
 }
+/** A Mate Connector: a named coordinate frame anchored to the picked face, selected connector/plane, chosen reference plane, or Front plane. */
+export function connectorOps(c: Ctx): EditOp[] | null {
+  if (!c.doc) return null;
+  const faces = faceMode(c);
+  const anchor = faces.length
+    ? { kind: 'face', id: faces[0] }
+    : feats(c).find((f) => f.type === 'connector' && f.id === c.selectedId)
+      ? { kind: 'connector', id: c.selectedId! }
+      : planeBase(c);
+  return [{ op: 'add', feature: { type: 'connector', anchor } }];
+}
 /** The plane the first sketch sits on (the base of the first boss): faces tilt about its intersection with them. */
 function neutralPlane(c: Ctx): unknown {
   const first = feats(c).find((f) => f.type === 'sketch');
@@ -119,7 +131,7 @@ function neutralPlane(c: Ctx): unknown {
 export function draftOps(c: Ctx): EditOp[] | null {
   const faces = faceMode(c);
   if (!faces.length) return null;
-  return [{ op: 'add', feature: { type: 'draft', neutral: neutralPlane(c), faces, angle: 3 } }];
+  return [{ op: 'add', feature: { type: 'draft', neutral: neutralPlane(c), faces, angle: 3, flip: false } }];
 }
 export function ribOps(c: Ctx): EditOp[] | null {
   const sk = sketchWhere(c, isOpenSketch);
@@ -173,6 +185,14 @@ export function pressPullOps(c: Ctx): EditOp[] | null {
   const faces = faceMode(c);
   return faces.length && c.box ? [{ op: 'add', feature: { type: 'moveFace', faces, mode: 'offset', distance: niceSize(c.box, 0.1) } }] : null;
 }
+/** Wrap: the closed profiles or lettering of a sketch laid onto the one picked cylinder face and cut into it (the editor switches to raise). Needs a body, a face and a sketch of closed shapes or text.
+ *  Depth is a fiftieth of the smallest side, rounded, so the first result is a visible engraving rather than a through cut. */
+export function wrapOps(c: Ctx): EditOp[] | null {
+  const faces = faceMode(c);
+  const sk = sketchWhere(c, (s) => isClosedSketch(s) || hasCircle(s));
+  if (faces.length !== 1 || !c.box || !sk) return null;
+  return [{ op: 'add', feature: { type: 'wrap', sketch: sk.id, face: faces[0], op: 'cut', depth: niceSize(c.box, 0.02), method: 'auto', alongAxis: 0, around: 0, rotation: 0, taper: 0, flip: false, tolerance: 0.001 } }];
+}
 /** Combine: the body under the first picked face joined with the bodies under the other picked faces (the editor switches to cut, intersect or split). Needs faces on two bodies. */
 export function combineOps(c: Ctx): EditOp[] | null {
   const rows = c.bodyRows?.() ?? [];
@@ -220,7 +240,22 @@ export function boundingSolidOps(c: Ctx): EditOp[] | null {
 /** A dome on the picked flat round face (one face only): a fifth of the smallest side high; a negative height is a dimple. */
 export function domeOps(c: Ctx): EditOp[] | null {
   const faces = faceMode(c);
-  return faces.length === 1 && c.box ? [{ op: 'add', feature: { type: 'dome', face: faces[0], height: niceSize(c.box, 0.2) } }] : null;
+  return faces.length === 1 && c.box && !notRound(c, faces[0]) ? [{ op: 'add', feature: { type: 'dome', face: faces[0], height: niceSize(c.box, 0.2) } }] : null;
+}
+/** True when the edges of this face are known and are not one closed round outline: the kernel only domes a flat face bounded by one circle (anything else is refused with invalidValue). Unknown edges: not judged (false). */
+export function notRound(c: Ctx, face: string): boolean {
+  const own = c.edges.filter((e) => e.faces?.includes(face));
+  if (!own.length || own.some((e) => !e.pts)) return false;
+  if (own.length !== 1 || own[0].pts!.length < 4) return true;   // several edges, or one straight edge: not a single circle
+  const pts = own[0].pts!;
+  const n = pts.length, first = pts[0], last = pts[n - 1];
+  const gap = Math.hypot(first[0] - last[0], first[1] - last[1], first[2] - last[2]);
+  const ring = gap < 1e-6 ? pts.slice(0, -1) : pts;
+  const ctr = [0, 1, 2].map((k) => ring.reduce((a, p) => a + p[k], 0) / ring.length);
+  const r = ring.map((p) => Math.hypot(p[0] - ctr[0], p[1] - ctr[1], p[2] - ctr[2]));
+  const mean = r.reduce((a, b) => a + b, 0) / r.length;
+  const closed = gap <= 1e-3 * mean + 1e-6;
+  return !closed || r.some((x) => Math.abs(x - mean) > 0.02 * mean);
 }
 /** Split the picked flat faces by the plane across the middle of the body's longest side (the editor moves or changes the plane). */
 export function splitFaceOps(c: Ctx): EditOp[] | null {
@@ -257,7 +292,12 @@ export function splitOps(c: Ctx): EditOp[] | null {
 }
 /** The same split with a centred tongue on the base and a groove 0.2 mm wider and deeper in the lid: the editor sets height, width and clearance. */
 export function lipJointOps(c: Ctx): EditOp[] | null {
-  return c.box ? [{ op: 'add', feature: { type: 'lipJoint', ...splitPlane(c), names: [t('app.split.below'), t('app.split.above')], height: niceSize(c.box, 0.15), widthRatio: 0.5, clearance: 0.2 } }] : null;
+  if (!c.box) return null;
+  // The tongue's width as a share of the wall needs a wall: on a hollow part (a Shell before it) that is the default; on a solid body the kernel refuses it, so the width and the inset are millimetres there
+  const hollow = feats(c).some((f) => f.type === 'shell');
+  const w = niceSize(c.box, 0.1);
+  const size = hollow ? { widthRatio: 0.5 } : { width: w, inset: +(w / 2).toPrecision(6) };
+  return [{ op: 'add', feature: { type: 'lipJoint', ...splitPlane(c), names: [t('app.split.below'), t('app.split.above')], height: niceSize(c.box, 0.15), ...size, clearance: 0.2 } }];
 }
 export function helixOps(c: Ctx): EditOp[] | null {
   const sk = sketchWhere(c, hasCircle);
@@ -297,7 +337,7 @@ export function surfaceExtrudeOps(c: Ctx): EditOp[] | null {
   return sk ? [{ op: 'add', feature: { type: 'surfaceExtrude', sketch: sk.id, end: 'blind', depth: 10 } }] : null;
 }
 export function surfaceRevolveOps(c: Ctx): EditOp[] | null {
-  const sk = sketchWhere(c, hasAxisLine);
+  const sk = sketchWhere(c, hasProfileAndAxis);
   const axis = sk ? axisLine(sk) : null;
   return sk && axis ? [{ op: 'add', feature: { type: 'surfaceRevolve', sketch: sk.id, axis, end: 'blind', angle: 360 } }] : null;
 }
@@ -551,7 +591,7 @@ export function projectCurveOps(c: Ctx): EditOp[] | null {
   const curve = curveFeatures(c).find((f) => f.id === c.selectedId && f.type !== 'helix');
   const sk = curve ? null : sketchWhere(c, hasCurves);
   const src = curve ? { curve: curve.id } : sk ? { sketch: sk.id } : null;
-  return src ? [{ op: 'add', feature: { type: 'projectCurve', ...src, faces: faceMode(c), degree: 3, tolerance: 0.001, direction: 'both' } }] : null;
+  return src ? [{ op: 'add', feature: { type: 'projectCurve', ...src, faces: faceMode(c), method: 'project', degree: 3, tolerance: 0.001, direction: 'both' } }] : null;
 }
 /** What an Offset curve or Composite curve starts from: the picked edges (in the order picked), else the curve feature selected in the tree, else a sketch that holds curves (the selected one, else the last). */
 function chainSource(c: Ctx): Record<string, unknown> | null {
@@ -624,6 +664,7 @@ const ok = (f: (c: Ctx) => unknown) => (c: Ctx): boolean => !!c.doc && f(c) !== 
 export const CREATORS: Creator[] = [
   { id: 'add-plane', tab: 'Features', group: 'Reference', keys: 'Shift+N', enabled: doc, ops: planeOps },
   { id: 'add-axis', tab: 'Features', group: 'Reference', keys: 'Shift+A', enabled: doc, ops: axisOps },
+  { id: 'add-connector', tab: 'Features', group: 'Reference', tip: true, enabled: doc, ops: connectorOps },
   { id: 'add-draft', tab: 'Features', group: 'Modify', keys: 'Shift+G', enabled: (c) => hasSolid(c) && faceMode(c).length > 0, ops: draftOps },
   { id: 'add-rib', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c) && ok((x) => sketchWhere(x, isOpenSketch))(c), ops: ribOps },
   { id: 'add-lip', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c) && lipOps(c) !== null, ops: lipOps },
@@ -636,6 +677,7 @@ export const CREATORS: Creator[] = [
   { id: 'add-coil', tab: 'Features', group: 'Create', tip: true, enabled: doc, ops: coilOps },
   { id: 'add-bounding-solid', tab: 'Features', group: 'Create', tip: true, enabled: (c) => hasSolid(c), ops: boundingSolidOps },
   { id: 'add-dome', tab: 'Features', group: 'Modify', tip: true, enabled: (c) => domeOps(c) !== null, ops: domeOps },
+  { id: 'add-wrap', tab: 'Features', group: 'Create', tip: true, enabled: (c) => wrapOps(c) !== null, ops: wrapOps },
   { id: 'add-split-face', tab: 'Features', group: 'Modify', tip: true, enabled: (c) => splitFaceOps(c) !== null, ops: splitFaceOps },
   { id: 'add-offset-surface', tab: 'Surfaces', group: 'Edit', tip: true, enabled: (c) => doc(c) && offsetSurfaceOps(c) !== null, ops: offsetSurfaceOps },
   { id: 'add-scale', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c), ops: scaleOps },
@@ -652,7 +694,7 @@ export const CREATORS: Creator[] = [
   { id: 'add-delete-body', tab: 'Features', group: 'Bodies', enabled: (c) => hasSolid(c) && faceMode(c).length > 0, ops: deleteBodyOps },
   { id: 'add-surface-planar', tab: 'Surfaces', group: 'Create', tip: true, enabled: ok((c) => sketchWhere(c, isClosedSketch)), ops: surfacePlanarOps },
   { id: 'add-surface-extrude', tab: 'Surfaces', group: 'Create', tip: true, enabled: ok((c) => sketchWhere(c, hasCurves)), ops: surfaceExtrudeOps },
-  { id: 'add-surface-revolve', tab: 'Surfaces', group: 'Create', tip: true, enabled: ok((c) => sketchWhere(c, hasAxisLine)), ops: surfaceRevolveOps },
+  { id: 'add-surface-revolve', tab: 'Surfaces', group: 'Create', tip: true, enabled: ok((c) => sketchWhere(c, hasProfileAndAxis)), ops: surfaceRevolveOps },
   { id: 'add-trim-surface', tab: 'Surfaces', group: 'Edit', tip: true, enabled: (c) => doc(c) && trimSurfaceOps(c) !== null, ops: trimSurfaceOps },
   { id: 'add-knit', tab: 'Surfaces', group: 'Edit', tip: true, enabled: ok((c) => (surfaceFeatures(c).length ? true : null)), ops: knitOps },
   { id: 'add-thicken', tab: 'Surfaces', group: 'Edit', tip: true, enabled: ok((c) => surfaceTarget(c)), ops: thickenOps },

@@ -57,5 +57,9 @@ try {
     } catch (e) { failed++; console.error(`${m.id}: ${e.message}`); }
     finally { page.close(); }
   }
-} finally { chrome.close(); server.close(); }
+} finally {
+  chrome.close(); server.close();
+  // The Chrome profile is 150 to 400 MB per run; leaving them filled the disk.
+  if (!process.env.CLIP_KEEP_PROFILE) { try { (await import('node:fs')).rmSync(resolve(profile), { recursive: true, force: true }); } catch {} }
+}
 process.exit(failed ? 1 : 0);

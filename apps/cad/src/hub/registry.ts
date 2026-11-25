@@ -3,14 +3,17 @@
 // Everything loaded from a remote hub index is untrusted JSON: it is validated strictly against the
 // `ck-hub` v1 schema, cleaned of control/bidi characters, and never executed as code.
 import { clean, httpsUrl } from '../library/manifest';
+import { catalogAddress } from './relay';
 import { readLimited, type FetchLike, type FetchResponse } from '../library/source';
 import type { KV } from '../library/registry';
+import { SOLIDCRAFT_PLUGINS_PACKAGES } from './solidcraftCatalog';
 
 export const HUB_FORMAT = 'ck-hub' as const;
 export const HUB_VERSION = 1 as const;
 export const HUB_MAX_BYTES = 2 * 1024 * 1024;
 export const HUB_MAX_PACKAGES = 2000;
 export const BUILTIN_REGISTRY_ID = 'builtin';
+export const SOLIDCRAFT_PLUGINS_URL = 'https://tharje.github.io/solidcraft-plugins/data/plugins.json';
 
 export type HubPackageKind = 'part' | 'assembly' | 'plugin' | 'library';
 export const HUB_PACKAGE_KINDS: readonly HubPackageKind[] = ['part', 'assembly', 'plugin', 'library'];
@@ -28,6 +31,8 @@ export interface HubPackage {
   tags: string[];
   /** `github:owner/repo@tag` (or `github:owner/repo`) or an `https://` URL. */
   source: string;
+  /** Optional direct `.zip` release download URL (`https://`). */
+  downloadUrl?: string;
   /** Optional 64-character lowercase hex SHA-256 integrity hash. */
   sha256?: string;
   /** Optional HTTPS preview image URL. */
@@ -202,6 +207,13 @@ export function validateHubIndex(raw: unknown, opts: ValidateHubOptions = {}): H
       const source = normalizeHubSource(p.source, opts.allowLocalhost);
       if (!source) fail(`${at}.source`, 'Package source must be a github:owner/repo[@tag] spec or an https:// URL.');
 
+      let downloadUrl: string | undefined;
+      if (p.downloadUrl !== undefined && p.downloadUrl !== null && p.downloadUrl !== '') {
+        const d = httpsUrl(String(p.downloadUrl), opts.allowLocalhost);
+        if (!d) warnings.push({ path: `${at}.downloadUrl`, message: 'Ignored non-HTTPS downloadUrl.' });
+        else downloadUrl = d;
+      }
+
       let sha256: string | undefined;
       if (p.sha256 !== undefined && p.sha256 !== '') {
         if (typeof p.sha256 === 'string' && SHA256_RE.test(p.sha256.trim())) sha256 = p.sha256.trim().toLowerCase();
@@ -240,6 +252,7 @@ export function validateHubIndex(raw: unknown, opts: ValidateHubOptions = {}): H
           category,
           tags,
           source,
+          ...(downloadUrl ? { downloadUrl } : {}),
           ...(sha256 ? { sha256 } : {}),
           ...(preview ? { preview } : {}),
           ...(pkgHomepage ? { homepage: pkgHomepage } : {}),
@@ -264,7 +277,104 @@ export function validateHubIndex(raw: unknown, opts: ValidateHubOptions = {}): H
   };
 }
 
-/** Parse a raw JSON string and validate it as a `ck-hub` v1 index. */
+/** Catalog entries not offered, by id. timber: its catalog zip is the source archive (timber-0.1.1-source.zip), with no timber.wasm in it, so it can never install; a catalog data problem for its maintainer. */
+export const HUB_HIDDEN_IDS: ReadonlySet<string> = new Set(['timber']);
+
+/** Convert a SolidCraft Plugins directory index (`https://tharje.github.io/solidcraft-plugins/data/plugins.json`,
+ *  shape `{ generated, plugins: [...] }`) into a validated `ck-hub` v1 index, keeping only plugins with published releases. */
+export function parseSolidCraftPluginsIndex(raw: unknown, opts: ValidateHubOptions = {}): HubParseResult {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { ok: false, diagnostics: [{ path: '', message: 'SolidCraft plugin index must be a JSON object.' }] };
+  }
+  const obj = raw as Record<string, unknown>;
+  if (!Array.isArray(obj.plugins)) {
+    return { ok: false, diagnostics: [{ path: 'plugins', message: 'Expected a "plugins" array.' }] };
+  }
+  const packages: HubPackage[] = [];
+  const seen = new Set<string>();
+  const warnings: HubDiagnostic[] = [];
+  for (let i = 0; i < obj.plugins.length; i++) {
+    const p = obj.plugins[i];
+    if (!p || typeof p !== 'object' || Array.isArray(p)) continue;
+    const item = p as Record<string, unknown>;
+    const rel = item.release;
+    if (!rel || typeof rel !== 'object' || Array.isArray(rel)) continue;
+    const relObj = rel as Record<string, unknown>;
+    const tag = typeof relObj.tag === 'string' ? clean(relObj.tag) : '';
+    const rawZip = typeof relObj.zip === 'string' ? relObj.zip.trim() : '';
+    const zipUrl = rawZip ? (httpsUrl(rawZip, opts.allowLocalhost) ?? undefined) : undefined;
+    // only entries with a release zip: the others (an app tag such as v0.45.0b-android) can never be installed here
+    if (!zipUrl) continue;
+
+    const repo = typeof item.repo === 'string' ? clean(item.repo) : '';
+    if (!repo || !repo.includes('/')) continue;
+    const rawId = typeof item.slug === 'string' ? item.slug : typeof item.id === 'string' ? item.id : repo.split('/')[1];
+    let id = clean(rawId).replace(/[^A-Za-z0-9._-]/g, '-').slice(0, 64);
+    if (!id || !/^[A-Za-z0-9]/.test(id)) id = `p-${id}`;
+    if (seen.has(id) || HUB_HIDDEN_IDS.has(id)) continue;
+
+    const rawSource = tag ? `github:${repo}@${tag}` : (zipUrl ?? '');
+    const source = normalizeHubSource(rawSource, opts.allowLocalhost);
+    if (!source) {
+      warnings.push({ path: `plugins[${i}]`, message: `Skipped "${id}": invalid source.` });
+      continue;
+    }
+
+    seen.add(id);
+    const name = clean(typeof item.name === 'string' ? item.name : id).slice(0, 100) || id;
+    const summary = clean(typeof item.description === 'string' ? item.description : name).slice(0, 400) || name;
+    const author = clean(typeof item.owner === 'string' ? item.owner : repo.split('/')[0]).slice(0, 80) || 'unknown';
+    const rawVer = typeof item.version === 'string' ? clean(item.version) : tag.replace(/^v/, '');
+    const version = (rawVer && VERSION_RE.test(rawVer) ? rawVer : '0.0.0').slice(0, 40);
+    const rawLic = typeof item.license === 'string' ? clean(item.license) : '';
+    const license = rawLic && SPDX_RE.test(rawLic) ? rawLic : 'Unknown';
+    const category = clean(typeof item.category === 'string' ? item.category : 'plugins').slice(0, 40) || 'plugins';
+    const tags: string[] = [];
+    if (Array.isArray(item.topics)) {
+      const seenTags = new Set<string>();
+      for (const t of item.topics) {
+        if (typeof t !== 'string') continue;
+        const c = clean(t).toLowerCase().slice(0, 32);
+        if (c && !seenTags.has(c) && tags.length < 12) { seenTags.add(c); tags.push(c); }
+      }
+    }
+    const preview = typeof item.image === 'string' ? (httpsUrl(item.image, opts.allowLocalhost) ?? undefined) : undefined;
+    const homepage = typeof item.url === 'string' ? (httpsUrl(item.url, opts.allowLocalhost) ?? undefined) : undefined;
+    const rawUpd = typeof item.updated === 'string' ? item.updated.trim() : '';
+    const updatedAt = /^\d{4}-\d{2}-\d{2}/.test(rawUpd) ? rawUpd.slice(0, 10) : undefined;
+
+    packages.push({
+      id,
+      name,
+      kind: 'plugin',
+      summary,
+      author,
+      version,
+      license,
+      category,
+      tags,
+      source,
+      ...(zipUrl ? { downloadUrl: zipUrl } : {}),
+      ...(preview ? { preview } : {}),
+      ...(homepage ? { homepage } : {}),
+      ...(updatedAt ? { updatedAt } : {}),
+    });
+  }
+  return {
+    ok: true,
+    warnings,
+    index: {
+      format: HUB_FORMAT,
+      version: HUB_VERSION,
+      name: 'SolidCraft Community Plugins',
+      description: 'Community SolidCraft plugins with published releases from tharje.github.io/solidcraft-plugins.',
+      homepage: 'https://tharje.github.io/solidcraft-plugins/',
+      packages,
+    },
+  };
+}
+
+/** Parse a raw JSON string and validate it as a `ck-hub` v1 index (or SolidCraft `data/plugins.json`). */
 export function parseHubIndexJson(text: string, opts: ValidateHubOptions = {}): HubParseResult {
   let raw: unknown;
   try {
@@ -274,6 +384,9 @@ export function parseHubIndexJson(text: string, opts: ValidateHubOptions = {}): 
       ok: false,
       diagnostics: [{ path: '', message: `Invalid JSON in registry index: ${(e as Error).message}` }],
     };
+  }
+  if (raw && typeof raw === 'object' && !Array.isArray(raw) && !('format' in raw) && Array.isArray((raw as Record<string, unknown>).plugins)) {
+    return parseSolidCraftPluginsIndex(raw, opts);
   }
   return validateHubIndex(raw, opts);
 }
@@ -348,126 +461,15 @@ export function hubTags(packages: readonly HubPackage[]): string[] {
   return [...new Set(packages.flatMap((p) => p.tags.map((x) => x.toLowerCase())))].sort((a, b) => a.localeCompare(b));
 }
 
-// ---- Curated built-in starter catalog --------------------------------------------------------------------------------
+// ---- Built-in SolidCraft Community Plugins catalog (released plugins from tharje.github.io/solidcraft-plugins) ------
 
 export const BUILTIN_HUB_INDEX: HubIndex = {
   format: HUB_FORMAT,
   version: HUB_VERSION,
-  name: 'CadKit Community Starter Hub',
-  description: 'Curated community parts, assemblies, libraries, and parametric plugin generators.',
-  homepage: 'https://github.com/cadkit-community/hub',
-  packages: [
-    {
-      id: 'metric-fasteners-lib',
-      name: 'ISO Metric Fasteners Library',
-      kind: 'library',
-      summary: 'Standard M2–M12 socket head cap screws, hex nuts, washers, and brass heat-set inserts ready for click-to-place insertion.',
-      author: 'cadkit-community',
-      version: '1.2.0',
-      license: 'MIT',
-      category: 'fasteners',
-      tags: ['iso', 'metric', 'screws', 'nuts', 'washers', 'hardware'],
-      source: 'github:cadkit-community/metric-fasteners@v1.2.0',
-      sha256: '3f7c2b9a1e4d6f80c5a2b7e9d1f3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9',
-      updatedAt: '2026-10-18',
-    },
-    {
-      id: 'aluminium-extrusion-kit',
-      name: '2020 / 4040 T-Slot Extrusion Profiles',
-      kind: 'library',
-      summary: 'Parametric V-slot and T-slot aluminum profiles, corner gussets, L-brackets, and T-nuts for CNC and 3D printer frames.',
-      author: 'open-frame-lab',
-      version: '1.0.4',
-      license: 'Apache-2.0',
-      category: 'structural',
-      tags: ['2020', '4040', 'extrusion', 't-slot', 'frame', 'brackets'],
-      source: 'github:open-frame-lab/tslot-library@v1.0.4',
-      sha256: '8a1e4c7b2d5f903e6a8c1b4d7f0e2a5c8b1d4f7a0c3e6b9d2f5a8c1e4b7d0f3a',
-      updatedAt: '2026-10-25',
-    },
-    {
-      id: 'gridfinity-generator',
-      name: 'Gridfinity Bin & Baseplate Generator',
-      kind: 'plugin',
-      summary: 'Parametric generator for stackable Gridfinity storage bins, magnet/screw baseplates, label lips, and custom divider grids.',
-      author: 'maker-plugins',
-      version: '2.1.0',
-      license: 'MIT',
-      category: 'organizers',
-      tags: ['gridfinity', '3d-printing', 'storage', 'bins', 'parametric'],
-      source: 'github:maker-plugins/cadkit-gridfinity@v2.1.0',
-      sha256: '4b9d2e7f1a3c5e80b4d6f8a0c2e4b6d8f0a2c4e6b8d0f2a4c6e8b0d2f4a6c8e0',
-      updatedAt: '2026-11-02',
-    },
-    {
-      id: 'nema-stepper-mounts',
-      name: 'NEMA 17 & NEMA 23 Stepper Motors',
-      kind: 'part',
-      summary: 'Dimensionally accurate NEMA 17 and NEMA 23 stepper motors with mounting face clearances, D-shafts, and L-brackets.',
-      author: 'robotics-commons',
-      version: '1.1.0',
-      license: 'CC-BY-4.0',
-      category: 'robotics',
-      tags: ['stepper', 'nema23', 'stepper', 'motor', 'motion'],
-      source: 'github:robotics-commons/nema-motors@v1.1.0',
-      sha256: 'c1d3e5f7a9b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3',
-      updatedAt: '2026-10-12',
-    },
-    {
-      id: 'planetary-gearbox-asm',
-      name: '3:1 Compact Planetary Gearbox',
-      kind: 'assembly',
-      summary: 'Complete mated planetary reducer assembly with sun, carrier, three planet gears, ring housing, and 608 bearing seats.',
-      author: 'mech-designs',
-      version: '0.9.2',
-      license: 'MIT OR Apache-2.0',
-      category: 'mechanical',
-      tags: ['gearbox', 'planetary', 'gears', 'assembly', 'motion'],
-      source: 'github:mech-designs/planetary-gearbox@v0.9.2',
-      sha256: '9f8e7d6c5b4a39281706f5e4d3c2b1a09f8e7d6c5b4a39281706f5e4d3c2b1a0',
-      updatedAt: '2026-11-08',
-    },
-    {
-      id: 'pcb-enclosure-plugin',
-      name: 'DIN-Rail & PCB Enclosure Generator',
-      kind: 'plugin',
-      summary: 'Generate snap-fit or screw-boss electronics enclosures with PCB standoffs, ventilation louvers, and DIN-rail clips.',
-      author: 'embedded-cad',
-      version: '1.4.0',
-      license: 'Apache-2.0',
-      category: 'enclosures',
-      tags: ['pcb', 'enclosure', 'din-rail', 'electronics', 'snap-fit'],
-      source: 'github:embedded-cad/din-enclosure-plugin@v1.4.0',
-      updatedAt: '2026-11-11',
-    },
-    {
-      id: 'six-dof-robot-arm',
-      name: '6-DOF Desktop Robot Arm Assembly',
-      kind: 'assembly',
-      summary: 'Articulated 6-axis educational robot arm with revolute mates configured for Motion tab playback and URDF export.',
-      author: 'robotics-commons',
-      version: '1.0.0',
-      license: 'MIT',
-      category: 'robotics',
-      tags: ['robot', 'urdf', '6dof', 'arm', 'assembly', 'kinematics'],
-      source: 'github:robotics-commons/desktop-6dof-arm@v1.0.0',
-      sha256: '1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809',
-      updatedAt: '2026-11-15',
-    },
-    {
-      id: 'compliant-hinge-parts',
-      name: '3D-Printable Living Hinges & Latches',
-      kind: 'part',
-      summary: 'Flexure hinges, snap latches, and compliant spring clips tuned for PETG and Nylon FDM printing.',
-      author: 'compliant-lab',
-      version: '1.0.1',
-      license: 'CC0-1.0',
-      category: 'mechanical',
-      tags: ['compliant', 'flexure', 'hinge', 'latch', '3d-printing'],
-      source: 'github:compliant-lab/living-hinges@v1.0.1',
-      updatedAt: '2026-10-30',
-    },
-  ],
+  name: 'SolidCraft Community Plugins',
+  description: 'Community SolidCraft plugins with published releases from tharje.github.io/solidcraft-plugins.',
+  homepage: 'https://tharje.github.io/solidcraft-plugins/',
+  packages: SOLIDCRAFT_PLUGINS_PACKAGES,
 };
 
 // ---- Remote registry fetching, caching & offline fallback ------------------------------------------------------------
@@ -553,12 +555,19 @@ interface StoredRegistries {
 }
 
 interface CachedRegistryMap {
-  v: 1;
+  v: 2;
+  /** the version of the index parser and filters that produced these entries: a cache made by another one is dropped, so entries since removed or hidden do not stay on screen */
+  p: number;
   entries: Record<string, { at: number; index: HubIndex }>;
 }
 
 const REG_KEY = 'ck.hub.registries.v1';
-const CACHE_KEY = 'ck.hub.cache.v1';
+const CACHE_KEY = 'ck.hub.cache.v2';
+const OLD_CACHE_KEY = 'ck.hub.cache.v1';
+/** Raise this whenever parseSolidCraftPluginsIndex or the catalog filters change what an index contains. */
+export const HUB_PARSER_VERSION = 2;
+/** The built-in registry's cached copy is used for a day; after that the app's own snapshot shows until Refresh. */
+const BUILTIN_CACHE_MAX_AGE_MS = 24 * 3600 * 1000;
 
 export interface HubStoreDeps {
   fetch: FetchLike;
@@ -607,7 +616,7 @@ export class HubRegistryStore {
       const rawCache = this.deps.kv?.getItem(CACHE_KEY);
       if (rawCache) {
         const parsed = JSON.parse(rawCache) as CachedRegistryMap;
-        if (parsed && parsed.v === 1 && parsed.entries && typeof parsed.entries === 'object') {
+        if (parsed && parsed.v === 2 && parsed.p === HUB_PARSER_VERSION && parsed.entries && typeof parsed.entries === 'object') {
           for (const [id, entry] of Object.entries(parsed.entries)) {
             if (entry && typeof entry.at === 'number') {
               const checked = validateHubIndex(entry.index, { allowLocalhost: this.deps.allowLocalhost });
@@ -617,6 +626,7 @@ export class HubRegistryStore {
         }
       }
     } catch { /* ignore corrupt cache */ }
+    try { this.deps.kv?.removeItem(OLD_CACHE_KEY); } catch { /* ignore */ }
   }
 
   private saveRegistries(): void {
@@ -631,14 +641,14 @@ export class HubRegistryStore {
     try {
       const entries: Record<string, { at: number; index: HubIndex }> = {};
       for (const [id, val] of this.memCache) entries[id] = val;
-      const data: CachedRegistryMap = { v: 1, entries };
+      const data: CachedRegistryMap = { v: 2, p: HUB_PARSER_VERSION, entries };
       this.deps.kv?.setItem(CACHE_KEY, JSON.stringify(data));
     } catch { /* storage full or unavailable */ }
   }
 
   listRegistries(): HubRegistryEntry[] {
     return [
-      { id: BUILTIN_REGISTRY_ID, name: BUILTIN_HUB_INDEX.name, builtin: true, addedAt: 0 },
+      { id: BUILTIN_REGISTRY_ID, name: BUILTIN_HUB_INDEX.name, url: SOLIDCRAFT_PLUGINS_URL, builtin: true, addedAt: 0 },
       ...this.custom,
     ];
   }
@@ -684,10 +694,32 @@ export class HubRegistryStore {
     this.saveRegistries();
   }
 
-  /** Load a registry by id (defaults to active). Uses cache unless `refresh: true`; falls back to cache when offline. */
+  /** Load a registry by id (defaults to active). Uses cache unless `refresh: true`; falls back to cache or snapshot when offline. */
   async load(id: string = this.active, opts: { refresh?: boolean } = {}): Promise<HubLoadResult> {
     if (id === BUILTIN_REGISTRY_ID) {
-      return { registryId: BUILTIN_REGISTRY_ID, index: BUILTIN_HUB_INDEX, offline: false };
+      const stored = this.memCache.get(BUILTIN_REGISTRY_ID);
+      const cached = stored && (this.deps.now ?? Date.now)() - stored.at < BUILTIN_CACHE_MAX_AGE_MS ? stored : undefined;
+      if (!opts.refresh) {
+        return cached
+          ? { registryId: BUILTIN_REGISTRY_ID, index: cached.index, offline: false, cachedAt: cached.at }
+          : { registryId: BUILTIN_REGISTRY_ID, index: BUILTIN_HUB_INDEX, offline: false };
+      }
+      try {
+        const index = await fetchHubIndex(catalogAddress(SOLIDCRAFT_PLUGINS_URL), { fetch: this.deps.fetch, allowLocalhost: this.deps.allowLocalhost });
+        const now = (this.deps.now ?? Date.now)();
+        this.memCache.set(BUILTIN_REGISTRY_ID, { at: now, index });
+        this.saveCache();
+        return { registryId: BUILTIN_REGISTRY_ID, index, offline: false, cachedAt: now };
+      } catch (e) {
+        const msg = (e as Error).message || 'Could not refresh registry.';
+        return {
+          registryId: BUILTIN_REGISTRY_ID,
+          index: cached ? cached.index : BUILTIN_HUB_INDEX,
+          offline: true,
+          ...(cached ? { cachedAt: cached.at } : {}),
+          error: msg,
+        };
+      }
     }
     const entry = this.custom.find((e) => e.id === id);
     if (!entry?.url) {

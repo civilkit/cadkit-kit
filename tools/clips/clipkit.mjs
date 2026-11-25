@@ -19,7 +19,7 @@ export async function openDoc(ctx, doc, { workspace = PRESET, name = doc.name } 
   if (restore) {
     await rec.waitFor(`[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Restore')`, 'the restore box');
     await page.eval(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Restore').click()`);
-    await rec.waitFor(`document.querySelectorAll('.tree .row[data-id]').length > 1 && /ready/i.test(document.querySelector('.status')?.textContent || '')`, 'the part to load', 120000);
+    await rec.waitFor(`document.querySelectorAll('.tree .row[data-id]').length >= ${Math.min(2, doc.features.length)} && /ready/i.test(document.querySelector('.status')?.textContent || '')`, 'the part to load', 120000);
   } else {
     await rec.waitFor(`/ready/i.test(document.querySelector('.status')?.textContent || '') && document.querySelectorAll('canvas').length > 0`, 'the app to load', 120000);
   }

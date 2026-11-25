@@ -105,7 +105,8 @@ describe('daemon', () => {
       const st = readState(dir)!;
       expect(st.port).toBe(d.port);
       expect(st.token).toHaveLength(64);
-      expect(statSync(join(dir, 'daemon.json')).mode & 0o777).toBe(0o600);
+      // POSIX enforces the mode; Windows does not (the file sits in the user's own profile folder, whose default access list is already user-only)
+      if (process.platform !== 'win32') expect(statSync(join(dir, 'daemon.json')).mode & 0o777).toBe(0o600);
       const auth = { authorization: `Bearer ${d.token}` };
       expect((await http(d.port, { path: '/health' })).status).toBe(401);
       expect((await http(d.port, { path: '/health', headers: { authorization: 'Bearer wrong' } })).status).toBe(401);

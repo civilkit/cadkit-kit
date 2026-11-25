@@ -28,7 +28,7 @@
  */
 import type { SketchDraft } from '../types';
 import { capsOverall, storedValue } from '../slotLength';
-import { angleSpec, appendSpec, centerId, classify, lineEnds, pickOf, radiusOf, refusal, xy, type Pick, type Spec } from './constraints';
+import { angleSpec, appendSpec, centerId, curveLength, classify, lineEnds, pickOf, radiusOf, refusal, xy, type Pick, type Spec } from './constraints';
 import { projectEdgeAt } from './project';
 import type { FieldSpec, Pt, PreviewShape, Tool, ToolOutput, ToolSettings } from './types';
 
@@ -48,6 +48,8 @@ export interface DimensionState {
   picks: Pick[];
   /** Circle dimension: false = diameter (default), true = radius. */
   radius: boolean;
+  /** Key L: an arc (or circle) is dimensioned by its length along the curve, not its radius. */
+  arcLen?: boolean;
   orient: DimOrient;
   /** H, V or A was pressed: the pointer no longer chooses the orientation. */
   orientFixed?: boolean;
@@ -69,7 +71,7 @@ const dist = (a: Pt, b: Pt) => Math.hypot(b.x - a.x, b.y - a.y);
 const isCurve = (p: Pick) => p.kind === 'circle' || p.kind === 'arc';
 
 /** What the picks (1 or 2) measure, or a hint key when the pair is not dimensionable. */
-function resolveDim(d: SketchDraft, picks0: readonly Pick[], radius: boolean, orient: DimOrient): { pending: Pending } | { more: true } | { hint: string } {
+function resolveDim(d: SketchDraft, picks0: readonly Pick[], radius: boolean, orient: DimOrient, arcLen = false): { pending: Pending } | { more: true } | { hint: string } {
   let picks = picks0;
   let [a, b] = picks;
   if (b && isCurve(a) && isCurve(b)) {
@@ -108,6 +110,11 @@ function resolveDim(d: SketchDraft, picks0: readonly Pick[], radius: boolean, or
   };
   if (picks.length === 1) {
     if (a.kind === 'point') return { more: true };
+    if (arcLen && isCurve(a)) {
+      const len = curveLength(d, a.id), c = xy(d, centerId(d, a.id) ?? ''), r = radiusOf(d, a.id);
+      if (len === undefined || !c || r === undefined) return bad;
+      return { pending: { spec: { type: 'arclength', refs: [a.id] }, measured: len, unit: 'length' as const, label: 'app.sketch.field.arclength', preview: [{ kind: 'circle' as const, c, r }] } };
+    }
     if (a.kind === 'line') { const e = lineEnds(d, a.id); return e ? twoPoints(e[0], e[1]) : bad; }
     return a.kind === 'circle' || a.kind === 'arc' ? curve(a) : bad;
   }
@@ -144,13 +151,13 @@ function view(state: DimensionState, draft: SketchDraft, settings: ToolSettings,
 
 /** The mode keys the value box hands to the tool (see `FieldSpec.keys`): R switches radius and diameter on a circle; H, V and A switch the orientation of a length. */
 function modeKeys(p: { unit: string }): string[] {
-  return p.unit === 'length' ? ['h', 'v', 'a', 'r'] : [];
+  return p.unit === 'length' ? ['h', 'v', 'a', 'r', 'l'] : [];
 }
 
 /** Re-resolve the pending dimension from the current picks (after a pick or a mode key). */
 function refresh(state: DimensionState, draft: SketchDraft, settings: ToolSettings): ToolOutput<DimensionState> {
   if (!state.picks.length) return view({ ...state, pending: undefined, live: undefined }, draft, settings);
-  const r = resolveDim(draft, state.picks, state.radius, state.orient);
+  const r = resolveDim(draft, state.picks, state.radius, state.orient, state.arcLen === true);
   if ('hint' in r) return view(state, draft, settings, r.hint);
   if ('more' in r) return view({ ...state, pending: undefined, live: undefined }, draft, settings);
   return view({ ...state, pending: r.pending }, draft, settings);
@@ -226,6 +233,7 @@ export const dimensionTool: Tool<DimensionState> = {
           case 'Escape':
             if (state.live !== undefined) return view({ ...state, live: undefined }, draft, settings);
             return view({ ...state, picks: [], pending: undefined }, draft, settings);
+          case 'l': case 'L': return refresh({ ...state, arcLen: !state.arcLen, live: undefined }, draft, settings);
           case 'r': case 'R': return refresh({ ...state, radius: !state.radius, live: undefined }, draft, settings);
           case 'h': case 'H': return refresh({ ...state, orient: 'horizontal', orientFixed: true, live: undefined }, draft, settings);
           case 'v': case 'V': return refresh({ ...state, orient: 'vertical', orientFixed: true, live: undefined }, draft, settings);

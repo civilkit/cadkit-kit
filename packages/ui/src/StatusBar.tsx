@@ -16,7 +16,6 @@ export function StatusBar(p: {
   return (
     <div class="status">
       {p.busy ? <span key="@busy" class="st-busy">{t('ui.status.busy')}</span> : <span key="@ready" class="ready"><span class="dot" />{t('ui.status.ready')}</span>}
-      {p.hover ? <span key="@hover" class="st-hover">{p.hover}</span> : null}
       {p.sketch ?? null}
       {p.alerts && p.alerts.total > 0 ? <button key="@alerts" class="st-item st-chip st-alerts" data-testid="alerts-chip" aria-expanded={p.alerts.open} title={t('ui.status.alerts.tip')} onClick={p.alerts.onToggle}>
         {t('ui.status.alerts')} <b class={p.alerts.unreadErrors ? 'err' : p.alerts.unread ? 'warn' : ''}>{p.alerts.unread ? p.alerts.unread : p.alerts.total}</b></button> : null}
@@ -24,6 +23,7 @@ export function StatusBar(p: {
         ? <button key={i.label} class={'st-item st-chip' + (i.dim ? ' dim' : '') + (i.low ? ' st-low' : '')} title={i.title} onClick={i.onClick}>{i.icon ? <Icon name={i.icon} size={14} /> : null}{i.label} <b class={i.tone ?? ''}>{i.value}</b></button>
         : <span key={i.label} class={'st-item' + (i.low ? ' st-low' : '')}>{i.label} <b class={i.tone ?? ''}>{i.value}</b></span>)}
       <span key="@sp" class="sp" />
+      {p.hover ? <span key="@hover" class="st-hover">{p.hover}</span> : null}
       {p.links?.length ? <span key="@links" class="st-links">{p.links.map((l) => <a key={l.href} href={l.href} target="_blank" rel="noopener">{l.label}</a>)}</span> : null}
       {p.help ? <span key="@help" class="st-help">{p.help}</span> : null}
       {p.onToggleDrawer ? <button key="@drawer" class="st-drawer" aria-pressed={!!p.drawerOpen} onClick={p.onToggleDrawer}>{t('ui.status.drawer')}</button> : null}

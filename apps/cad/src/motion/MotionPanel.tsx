@@ -25,8 +25,10 @@ export function MotionPanel({ store, pluginJoints, pluginJointValues, onPluginJo
   const s = useSig(() => ({
     drivers: store.drivers.value, values: store.values.value, motion: store.motion.value, found: store.found.value, finding: store.finding.value, clearance: store.clearance.value,
     problem: store.problem.value, contact: store.contact.value, posed: store.pose.value !== null,
+    contactSets: store.contactSets(), parts: store.parts(), stopOnContact: store.stopOnContact.value, activeContact: store.activeContact.value,
   }));
   const say = (sw: Parameters<MotionStore['stopWords']>[0], unit: string): string => { const d = store.stopWords(sw, unit); return t(d.key, d.params); };
+  const badge = s.activeContact ?? (s.contact ? { bodyA: s.contact.a, bodyB: s.contact.b } : null);
   return (
     <div class="asm-sec motion-panel">
       <section class="asm-card" aria-label={t('motion.title')}>
@@ -44,7 +46,7 @@ export function MotionPanel({ store, pluginJoints, pluginJointValues, onPluginJo
                 const f = s.found[d.mate];
                 return (
                   <div class="asm-f wide" key={d.mate} data-driver={d.mate}>
-                    <span>{store.label(d.mate)} ({fmt(v)}{u})</span>
+                    <span class="mtl-num">{store.label(d.mate)} ({v.toFixed(d.kind === 'angle' ? 1 : 2)}{u})</span>
                     <input type="range" min={r.min} max={r.max} step={d.kind === 'angle' ? 1 : 0.5} value={v} aria-label={store.label(d.mate)} onInput={(ev) => store.setValue(d.mate, parseFloat((ev.target as HTMLInputElement).value))} />
                     <input {...numberAttrs('signed')} type="number" step="any" value={v} aria-label={t('motion.value')} onInput={(ev) => store.setValue(d.mate, parseFloat((ev.target as HTMLInputElement).value))} />
                     <label class="asm-f"><span>{t('motion.min')}</span><input {...numberAttrs('signed')} type="number" step="any" value={r.min} aria-label={t('motion.min')} onChange={(ev) => store.setRange(d.mate, { min: parseFloat((ev.target as HTMLInputElement).value) })} /></label>
@@ -77,6 +79,47 @@ export function MotionPanel({ store, pluginJoints, pluginJointValues, onPluginJo
         {s.posed ? <div class="asm-note" role="status">{t('motion.banner')}</div> : null}
         <div class="asm-note">{t('motion.note')}</div>
         <div class="asm-note">{t('motion.timelineHint')}</div>
+      </section>
+      <section class="asm-card" aria-label={t('motion.contactSets.title')} data-testid="contact-sets-card" data-contact-sets>
+        <h4>{t('motion.contactSets.title')}</h4>
+        <label class="asm-chk">
+          <input type="checkbox" checked={s.stopOnContact} aria-label={t('motion.contactSets.stopOnContact')} data-testid="stop-on-contact" onChange={(ev) => store.setStopOnContact((ev.target as HTMLInputElement).checked)} />{' '}
+          {t('motion.contactSets.stopOnContact')}
+        </label>
+        <div class="asm-bar">
+          <button class="btn" data-testid="add-contact-set" onClick={() => store.addContactSet()}>{t('motion.contactSets.add')}</button>
+        </div>
+        {s.contactSets.length === 0 ? <div class="asm-note">{t('motion.contactSets.empty')}</div> : null}
+        {s.contactSets.map((cs) => (
+          <div class="asm-card inner" key={cs.id} data-contact-set={cs.id} data-testid={`contact-set-${cs.id}`}>
+            <div class="asm-row">
+              <label class="asm-chk">
+                <input type="checkbox" checked={cs.enabled} aria-label={t('motion.contactSets.enable', { name: cs.name })} data-testid={`contact-set-enabled-${cs.id}`} onChange={(ev) => store.setContactSetEnabled(cs.id, (ev.target as HTMLInputElement).checked)} />{' '}
+                <span class="row-name">{cs.name}</span>
+              </label>
+              <span class="asm-acts">
+                <button class="row-act on del" title={t('motion.contactSets.remove')} aria-label={t('motion.contactSets.removeSet', { name: cs.name })} data-testid={`remove-contact-set-${cs.id}`} onClick={() => store.removeContactSet(cs.id)}>×</button>
+              </span>
+            </div>
+            <div class="asm-members" role="group" aria-label={t('motion.contactSets.members')}>
+              {s.parts.map((partId) => {
+                const partName = store.nameOf(partId);
+                const active = cs.memberIds.includes(partId);
+                return (
+                  <label class="asm-chk" key={partId} data-member={partId}>
+                    <input type="checkbox" checked={active} aria-label={partName} data-testid={`contact-set-member-${cs.id}-${partId}`} onChange={() => store.toggleContactSetMember(cs.id, partId)} />{' '}
+                    {partName}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        {badge ? (
+          <div class="asm-note" role="status" data-testid="active-contact-badge" data-contact-badge>
+            {t('motion.contactSets.badge', { a: store.nameOf(badge.bodyA), b: store.nameOf(badge.bodyB) })}
+          </div>
+        ) : null}
       </section>
       {pluginJoints && pluginJoints.length > 0 ? (
         <section class="asm-card" aria-label={t('motion.plugin.title')} data-testid="plugin-joints-card">

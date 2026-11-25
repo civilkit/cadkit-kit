@@ -167,6 +167,8 @@ export function InsertWizard(p: InsertWizardProps): JSX.Element {
   const { draft, change } = w;
   const s = w.issue ? null : insertSummary(draft);
   const bodies = p.bodies ?? [];
+  // cutting the recommended hole needs a body to cut it into: with none the insert is placed and the cut fails with nothingToCut
+  const noBody = p.bodies !== undefined && p.bodies.length === 0;
   return (
     <Frame id="insert" icon="add-insert" title={t('insert.title')} apply={t('insert.apply')} applyTip={t('insert.applyTip')} issue={w.issue} issueText={w.issue ? (w.issue.code === 'kernel' ? w.issue.message : t('insert.issue.' + w.issue.code, w.issue.params, w.issue.message)) : ''} hint={p.hint} onCancel={p.onCancel} onApply={w.apply} onKey={w.onKey}>
       <Pick name="size" label={t('fastener.size')} value={draft.size} options={INSERT_SIZE_NAMES.map((n) => ({ value: n, text: n }))} onChange={(size) => change({ size, ...insertDefaults(size) })} />
@@ -176,9 +178,9 @@ export function InsertWizard(p: InsertWizardProps): JSX.Element {
       <Num name="holeDepth" label={t('insert.holeDepth')} unit="mm" min={0.1} step={0.5} value={draft.holeDepth} hintText={t('insert.holeDepthTip')} onChange={(holeDepth) => change({ holeDepth })} />
       <Num name="rings" label={t('insert.rings')} min={0} max={8} step={1} value={draft.rings} hintText={t('insert.ringsTip')} onChange={(rings) => change({ rings: Math.round(rings) })} />
       <ThreadFields thread={draft.thread} clearance={draft.clearance} onThread={(thread) => change({ thread })} onClearance={(clearance) => change({ clearance })} />
-      <label class="fedit-fld" data-path="hole" title={t('insert.holeTip')}>
+      <label class="fedit-fld" data-path="hole" title={noBody ? t('insert.holeNeedsBody') : t('insert.holeTip')}>
         <span class="fedit-fld-label">{t('insert.hole')}</span>
-        <input type="checkbox" checked={draft.hole} aria-label={t('insert.hole')} onChange={(e) => change({ hole: (e.currentTarget as HTMLInputElement).checked })} />
+        <input type="checkbox" checked={draft.hole && !noBody} disabled={noBody} aria-label={t('insert.hole')} onChange={(e) => change({ hole: (e.currentTarget as HTMLInputElement).checked })} />
       </label>
       {draft.hole && bodies.length > 0 ? (
         <Pick name="holeIn" label={t('insert.holeIn')} value={draft.holeIn} options={[{ value: '', text: t('insert.holeIn.all') }, ...bodies.map((b) => ({ value: b, text: b }))]} onChange={(holeIn) => change({ holeIn })} />

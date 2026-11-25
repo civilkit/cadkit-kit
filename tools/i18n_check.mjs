@@ -6,11 +6,13 @@
 // Exit 1 on: missing key, unlisted dynamic key, duplicate key, locale key not in en, placeholder mismatch,
 // unlabelled editor enum value, hardcoded-string count above the baseline. Everything else is a warning.
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { join, relative, basename, dirname } from 'node:path';
+import { join, relative, basename, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC_DIRS = ['apps', 'packages'];
+/** A source file's text with LF line endings (a Windows checkout may hold CRLF). */
+const readSrc = (f) => readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
 const isTest = (f) => /\.(test|kernel\.test)\.(ts|tsx)$/.test(f) || /\/stubs\//.test(f);
 
 function walk(dir, out = []) {
@@ -18,11 +20,11 @@ function walk(dir, out = []) {
     if (n === 'node_modules' || n.startsWith('.') || n === 'dist' || n === 'public') continue;
     const p = join(dir, n);
     const st = statSync(p);
-    if (st.isDirectory()) walk(p, out); else if (/\.(ts|tsx)$/.test(n)) out.push(p);
+    if (st.isDirectory()) walk(p, out); else if (/\.(ts|tsx)$/.test(n)) out.push(p.split(sep).join('/'));   // forward slashes: the file tests below key on '/locales/' and '/stubs/'
   }
   return out;
 }
-const rel = (f) => relative(ROOT, f);
+const rel = (f) => relative(ROOT, f).split(sep).join('/');   // forward slashes on every platform: the allow lists and the report key on them
 export function sourceFiles() { return SRC_DIRS.flatMap((d) => walk(join(ROOT, d))); }
 
 const KEY = String.raw`[A-Za-z][\w\-]*(?:\.[\w\-]+)+`;
@@ -32,7 +34,7 @@ const lineOf = (text, idx) => text.slice(0, idx).split('\n').length;
 
 /** Read a catalogue file: entries { key, line, value } (value = text up to the end of the entry, for placeholders). */
 export function readCatalog(file) {
-  const text = readFileSync(file, 'utf8');
+  const text = readSrc(file);
   const entries = [];
   const ms = [...text.matchAll(ENTRY_RE)];
   ms.forEach((m, i) => {
@@ -52,7 +54,7 @@ export function catalogFiles(files) {
   return files.filter((f) => !isTest(f) && (/\/locales\/|\/strings\.ts$/.test(f)) && (text(f).match(new RegExp(String.raw`^\s*.*'${KEY}'\s*:\s*['"\`{]`, 'gm')) ?? []).length >= 5);
 }
 const cache = new Map();
-function text(f) { if (!cache.has(f)) cache.set(f, readFileSync(f, 'utf8')); return cache.get(f); }
+function text(f) { if (!cache.has(f)) cache.set(f, readSrc(f)); return cache.get(f); }
 
 /** English catalogue (all catalogue files except language files) and language catalogues keyed by code. */
 export function loadCatalogs(files) {
@@ -110,7 +112,7 @@ export function loadDynamic() {
 /** Editor enums (ENUMS in FeatureEditor.tsx) -> keys that must exist. */
 export function editorEnums() {
   const f = join(ROOT, 'packages/ui/src/FeatureEditor.tsx');
-  const src = readFileSync(f, 'utf8');
+  const src = readSrc(f);
   const block = src.match(/export const ENUMS[^=]*=\s*\{([\s\S]*?)\n\};/);
   const out = {};
   if (block) for (const m of block[1].matchAll(/'?([\w.]+)'?:\s*\[([^\]]*)\]/g)) out[m[1]] = [...m[2].matchAll(/'([^']+)'/g)].map((x) => x[1]);
@@ -129,7 +131,7 @@ export function schemaUnions() {
   const fw = kernelDir();
   const f = join(fw, 'packages/part-model/src/features.ts');
   if (!existsSync(f)) return {};
-  const src = readFileSync(f, 'utf8'); const out = {};
+  const src = readSrc(f); const out = {};
   for (const m of src.matchAll(/^\s*(\w+)\??:\s*((?:'[\w]+'\s*\|\s*)+'[\w]+')/gm)) {
     const vals = [...m[2].matchAll(/'([\w]+)'/g)].map((x) => x[1]);
     out[m[1]] = [...new Set([...(out[m[1]] ?? []), ...vals])];
@@ -142,7 +144,7 @@ export function schemaFeatures() {
   const fw = kernelDir();
   const f = join(fw, 'packages/part-model/src/features.ts');
   if (!existsSync(f)) return {};
-  const src = readFileSync(f, 'utf8'); const out = {};
+  const src = readSrc(f); const out = {};
   for (const b of src.matchAll(/export interface \w+Feature \{([\s\S]*?)\n\}/g)) {
     const type = b[1].match(/^\s*type:\s*'(\w+)'/m)?.[1];
     if (!type) continue;

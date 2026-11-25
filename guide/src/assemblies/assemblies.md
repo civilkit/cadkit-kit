@@ -48,15 +48,29 @@ Buttons on a row:
 
 Choose **Mate** to open the Mates section, then **New mate**.
 
-1. Pick the **Kind**. The menu is grouped as Standard, Advanced and Mechanical, and each kind has a tooltip.
-2. Fill the references. Each reference slot has a **Pick** button: press it, then click a face in the model. Select faces in Face mode (the hint under the list says so). A round face gives its axis for kinds that need an axis, such as Concentric.
+1. Pick the **Kind**. The menu is grouped as Connector joints, Standard, Advanced and Mechanical, and each kind has a tooltip.
+2. Fill the references. For **Connector joints** (Fastened, Revolute, Slider, Cylindrical, Planar), choose one mate connector from each component's dropdown. For face-based mates, press **Pick**, then click a face in the model (Face mode). A round face gives its axis for kinds that need an axis, such as Concentric.
 3. Press **Flip** if the kind has it and you want the other orientation (the wording changes with the kind, see the table).
-4. Enter the value for kinds that have one (a distance, an angle, a ratio and so on) and, if you like, a **Name**.
+4. Enter the value for kinds that have one (a distance, an angle, a ratio, connector offset/rotate Z, or limits) and, if you like, a **Name**.
 5. Press **Preview** to see the result without committing it ("Preview shown. Apply keeps it."), then **Apply**. Cancel drops a preview.
 
-References are faces. Edges are not accepted. Angles are in degrees, lengths in millimetres.
+Angles are in degrees, lengths in millimetres.
 
 To change a mate, choose **Edit** on its row. Changing the kind replaces the mate. The **Delete** button removes it. Pressing Apply checks the draft first and tells you what is missing: "Pick every reference first.", "Pick different faces.", "Enter a number." and so on.
+
+## Mate connectors
+
+A **Mate connector** (`Features > Reference > Mate connector`) is a named local coordinate frame `(origin, X, Y, Z)` saved as a feature in a part or assembly. Anchor it to a planar or cylindrical face, a standard plane, a reference plane, or another connector, then optionally adjust its local **Offset (X, Y, Z)**, **Flip Z axis**, and **Rotate Z** (in 90° steps or any custom angle). If an upstream face disappears, a detached mate connector holds its last known frame (`frozenFrame`) until you reattach it or convert it to an independent fixed frame.
+
+In an assembly, connector joints place two components with a single mate instead of stacking multiple face mates:
+
+| Kind | Remaining DOF | Extra fields | Flip means |
+|---|---|---|---|
+| Fastened | 0 DOF (rigid) | Offset (X, Y, Z), Rotate Z | Opposes connector Z axes |
+| Revolute | 1 rotational DOF about Z | Offset, Rotate Z, Min/Max angle (°) | Opposes connector Z axes |
+| Slider | 1 translational DOF along Z | Offset, Rotate Z, Min/Max travel (mm) | Opposes connector Z axes |
+| Cylindrical | 2 DOF (1T + 1R along/about Z) | Offset, Rotate Z | Opposes connector Z axes |
+| Planar | 3 DOF (2T in XY + 1R about Z) | Offset, Rotate Z | Opposes connector Z axes |
 
 ### Mate kinds
 

@@ -37,7 +37,7 @@ export interface DefineResult {
   fully: boolean;
 }
 
-const DIM = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'raddiff', 'angle']);
+const DIM = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'raddiff', 'arclength', 'angle']);
 const round = (v: number) => Math.round(v * 1e4) / 1e4;
 
 /**

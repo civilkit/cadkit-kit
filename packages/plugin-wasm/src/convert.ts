@@ -103,10 +103,11 @@ export async function convertRelease(input: Map<string, Uint8Array>, transpile: 
   // an entry whose form this app cannot draw (a selection list, say) is left out on its own; the rest of the plugin still installs
   const generators: Array<{ id: string; entry: string; title: string; params: ParamDef[]; effect?: 'read'; slots?: Array<{ kind: 'menu' | 'ribbon'; name: string }> }> = [];
   for (const e of rt.entries.filter((x) => !leftOut(x))) {
-    try { generators.push({ id: e.name, entry: e.name, title: title(e), ...(e.effect === 'read' ? { effect: 'read' as const } : {}), params: schemaToParams(e.input_schema) as ParamDef[], ...(slotsOf(e).length ? { slots: slotsOf(e) } : {}) }); }
+    const entryNotes: string[] = [];
+    try { generators.push({ id: e.name, entry: e.name, title: title(e), ...(e.effect === 'read' ? { effect: 'read' as const } : {}), params: schemaToParams(e.input_schema, entryNotes) as ParamDef[], ...(slotsOf(e).length ? { slots: slotsOf(e) } : {}) }); notes.push(...entryNotes.map((n) => `${title(e)}, ${n.charAt(0).toLowerCase()}${n.slice(1)}`)); }
     catch (err) { notes.push(`left out ${title(e)}: ${(err as Error).message}`); }
   }
-  if (!generators.length) return { error: 'the plugin has no entry this app can run' };
+  if (!generators.length) return { error: `the plugin has no entry this app can run${notes.filter((n) => n.startsWith('left out')).length ? `: ${notes.filter((n) => n.startsWith('left out')).map((n) => n.replace(/^left out /, '')).join('; ')}` : ''}` };
 
   const grants = (rt.permissions?.files ?? []).filter((f) => typeof f?.name === 'string' && /^[a-z][a-z0-9_-]{0,39}$/.test(f.name)).slice(0, 8).map((f) => ({ name: f.name!, ...(f.read ? { read: true } : {}), ...(f.write ? { write: true } : {}) }));
   const pkg = new Map<string, Uint8Array>();

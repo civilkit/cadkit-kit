@@ -1,3 +1,4 @@
+// @vitest-environment node
 // app_open_asset end to end on loopback: the real daemon, the real tool and policy, the app's BridgeClient and the real app handler with a
 // stand-in opener. No kernel. What matters: the bytes reach the app without passing through the tool result, and nothing outside the
 // allowed folders, of the wrong type, too big, or without the edit permission is ever read.

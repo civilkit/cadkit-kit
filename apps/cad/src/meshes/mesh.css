@@ -70,7 +70,7 @@
 .m2s-panel .m2s-seg button + button { border-left: 0; }
 .m2s-panel .m2s-seg button:nth-child(2) { border-radius: 6px 0 0 6px; }
 .m2s-panel .m2s-seg button:last-child { border-radius: 0 6px 6px 0; }
-.m2s-panel .m2s-seg button.on { background: var(--accent, #3b82f6); border-color: var(--accent, #3b82f6); color: #fff; }
+.m2s-panel .m2s-seg button.on { background: var(--accent, #3b82f6); border-color: var(--accent, #3b82f6); color: var(--on-accent); }
 .m2s-panel .m2s-seg button:focus-visible { outline: 2px solid var(--accent, #3b82f6); outline-offset: 1px; }
 .m2s-panel .m2s-preview-label { margin: 0; color: var(--text-2); font-style: italic; }
 .m2s-panel .m2s-details { display: flex; flex-direction: column; gap: 6px; }

@@ -100,6 +100,10 @@ A file that holds several objects comes in as **one** mesh (one row in the tree)
 
 Not converted (they stay faceted, still a valid solid): tori, free-form surfaces, rounded box corners, cylinders cut at an angle and crossing cylinders.
 
+## Fusion 360 files
+
+Fusion 360 files (`.f3d`) and packages (`.f3z`) open as a new part that holds the bodies (an imported STEP body, saved with the part). Closed bodies come in as solid bodies; a body that is not a closed solid, or has a face on a surface type the reader does not support yet, comes in as a surface body of the faces that could be read, and the Import report says why. Nothing is approximated into a solid it is not. The design history, sketches, parameters and assemblies are not read. If a file fails, export the design from Fusion as STEP and open that.
+
 ## SolidWorks parts
 
 SolidWorks part files (`.sldprt`) are read directly.

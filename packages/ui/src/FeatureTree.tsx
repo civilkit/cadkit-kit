@@ -62,6 +62,14 @@ export type TreeDrop = { kind: 'row'; id: string } | { kind: 'folder'; name: str
 
 /** The history tree: one row per feature with its kind icon, a name, the id muted at the right, and (on hover or
  *  selection) icon buttons to edit, suppress and remove. A failed feature is red with its hint underneath. */
+/** One line of a long failure text for the tree row: up to the first " (", " — " or sentence end, at most 90 characters; the whole text sits behind the row's "?" button. */
+export function shortHint(full: string): string {
+  const cut = [full.indexOf(' ('), full.indexOf(' — '), full.indexOf('. ')].filter((i) => i > 20);
+  let s = cut.length ? full.slice(0, Math.min(...cut)) : full;
+  if (s.length > 90) s = s.slice(0, 90).replace(/\s+\S*$/, '');
+  return s.length < full.length ? s + '…' : full;
+}
+
 export function FeatureTree(p: {
   rows: FeatureRow[];
   status: FeatureStatus[];
@@ -138,6 +146,7 @@ export function FeatureTree(p: {
   const slow = (slowRef.current ??= createSlowClick((id) => setRenamingRef.current(id)));   // a slow second click on the selected row renames it
   useEffect(() => () => slow.cancel(), []);
   const [collapsed, setCollapsed] = useState<string[]>(loadCollapsed);
+  const [hintOpen, setHintOpen] = useState<string[]>([]);   // failed rows whose full error text is shown
   const persist = (n: string[]) => { safeStorage.setJson(COLLAPSED_KEY, n); };
   const toggle = (id: string) => setCollapsed((c) => { const n = c.includes(id) ? c.filter((x) => x !== id) : [...c, id]; persist(n); return n; });
   const owner = sketchOwners(p.rows);
@@ -330,7 +339,13 @@ export function FeatureTree(p: {
             <button class="row-del row-act" title={t('ui.tree.remove')} aria-label={t('ui.tree.remove')}
               onClick={(e) => { e.stopPropagation(); p.onRemove(r.id); }}><Icon name="trash" size={15} /></button>
           </span>
-          {failed ? <span class="row-hint">{st.hint ?? st.code}</span> : null}
+          {failed ? (() => {
+            const full = st.hint ?? st.code ?? '', short = shortHint(full), open = hintOpen.includes(r.id);
+            return <span class="row-hint" data-testid="row-hint">{open || short === full ? full : short}
+              {short !== full ? <button type="button" class="row-hint-more" aria-expanded={open} title={open ? t('ui.tree.hintLess', undefined, 'Show less') : t('ui.tree.hintMore', undefined, 'Show the full message')}
+                onClick={(e) => { e.stopPropagation(); setHintOpen((h) => (h.includes(r.id) ? h.filter((x) => x !== r.id) : [...h, r.id])); }}>{open ? '–' : '?'}</button> : null}
+            </span>;
+          })() : null}
           {blocked ? (
             <span class="row-blocked-line"><button type="button" class="row-blocked" data-blocked-by={blocked} title={t('ui.tree.blockedByTitle', { id: blocked }, 'Only fails because {id} failed. Select {id}.')}
               onClick={(e) => { e.stopPropagation(); p.onSelect(blocked); }}>

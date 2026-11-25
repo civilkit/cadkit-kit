@@ -2,7 +2,8 @@
 // of a part on its own (for the bill of materials). Both go through the session's own transport.
 import type { Session } from '@ck/session';
 
-export interface AsmComponent { id: string; dof: number; place?: { o: number[]; x: number[]; y: number[]; z: number[] } }
+export type AsmConnectorEntry = [string, { name?: string; o: number[]; x: number[]; y: number[]; z: number[] }];
+export interface AsmComponent { id: string; dof: number; place?: { o: number[]; x: number[]; y: number[]; z: number[] }; connectors?: AsmConnectorEntry[] }
 
 /** The `assembly` object of a regen reply asked with `opts.dofReport`: remaining freedom in total and per component, and the mates that are redundant or rejected. */
 export interface AsmReport {

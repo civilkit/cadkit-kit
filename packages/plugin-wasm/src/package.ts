@@ -62,12 +62,15 @@ export function wasmGenerators(p: InstalledPlugin, deps: WasmDeps = {}): Record<
       let n = base; for (let k = 2; taken(n); k++) n = `${base} ${k}`;
       own.name = n;
     }
-    const I = new Interpreter(scratch, { ...(ctx.up ? { up: ctx.up } : {}), ...(ctx.doc ? { doc: { ...ctx.doc, bodies: [...ctx.doc.bodies], selection: [...ctx.doc.selection], ...(ctx.up ? { up: ctx.up } : {}) } } : {}) });
+    const I = new Interpreter(scratch, { ...(ctx.openSketch ? { openSketch: ctx.openSketch } : {}), ...(ctx.up ? { up: ctx.up } : {}), ...(ctx.doc ? { doc: { ...ctx.doc, bodies: [...ctx.doc.bodies], selection: [...ctx.doc.selection], ...(ctx.up ? { up: ctx.up } : {}) } } : {}) });
     const limits = { deadlineMs: w.limits?.deadlineMs ?? 30000, maxCommands: w.limits?.maxCommands ?? 256 };
     try {
     if (deps.runner) await deps.runner(p, g.entry!, own, (c, a) => I.run(c, a), limits);
     else await runPlugin(await loaded!, g.entry!, own, (c, a) => I.run(c, a), { allow, deadlineMs: w.limits?.deadlineMs ?? 30000, maxCommands: w.limits?.maxCommands ?? 256, sync: (c, a) => I.runSync(c, a) });
     } catch (e) { throw new Error(friendlyPluginError((e as Error).message)); }
+    // a run in an open sketch draws into that sketch: the app adds the curves to it, there is no script
+    const drawn = I.hostAdds();
+    if (drawn.length && ctx.sketchOut) { ctx.sketchOut(drawn); return ''; }
     if (!I.order.length && !I.assigned.size) throw new Error('the plugin made no geometry');   // Material only gives bodies a board material
     const offset = [Number(place_x), Number(place_y), Number(place_z)];
     const stored = I.componentMetadata();

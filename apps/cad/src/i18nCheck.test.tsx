@@ -5,11 +5,16 @@ import { render, cleanup } from '@testing-library/preact';
 import { FeatureEditor, ENUMS, humanise } from '@kit/ui';
 import { optionsFor } from './FeatureOptions';
 import './i18n';
-import { run, schemaFeatures } from '../../../tools/i18n_check.mjs';
+import { run, schemaFeatures, sourceFiles } from '../../../tools/i18n_check.mjs';
 
 afterEach(cleanup);
 
 describe('i18n static checks', () => {
+  it('scanned file paths use forward slashes on every platform (the locale-file tests key on /locales/)', () => {
+    const files = sourceFiles();
+    expect(files.length).toBeGreaterThan(100);
+    expect(files.filter((f: string) => f.includes('\\'))).toEqual([]);
+  });
   it('no missing/duplicate keys, locale drift, unlabelled enums or new hardcoded strings', () => {
     const r = run();
     expect(r.errors).toEqual([]);
@@ -74,6 +79,6 @@ describe('reference plane Mode dropdown (regression)', () => {
   it('lists localised labels, not the schema values', () => {
     const r = render(<FeatureEditor feature={{ type: 'plane', id: 'P1', mode: 'offset' }} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} options={optionsFor} />);
     const sel = r.container.querySelector('[data-path="mode"] select') as HTMLSelectElement;
-    expect([...sel.options].map((o) => o.textContent)).toEqual(['Offset', 'Angle', 'Midplane', 'Parallel', 'Three points']);
+    expect([...sel.options].map((o) => o.textContent)).toEqual(['Offset', 'Angle', 'Perpendicular', 'Midplane']);
   });
 });

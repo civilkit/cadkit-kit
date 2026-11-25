@@ -28,10 +28,10 @@ export interface LookControls {
   onShowAll(): void;
 }
 
-export const DISPLAY_LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations', 'dimensions', 'threads', 'issues'];
+export const DISPLAY_LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations', 'dimensions', 'threads', 'tangent', 'issues'];
 
 /** A button on the viewport that opens a small checklist of display layers. Hiding a layer never changes the document. */
-export function DisplayMenu(p: { /** Shown right under the Display button (the Section chip), so the two can never sit on top of each other. */ children?: ComponentChildren; display: Display; onToggle(layer: DisplayLayer, on: boolean): void; /** Given only while a sketch is open: the sketch's own show toggles, so there is one Display menu. */ sketch?: { show: SketchShow; onToggle(key: keyof SketchShow, on: boolean): void; /** how many dimensions are drawn */ dimDisplay?: DimDisplay; onDimDisplay?(v: DimDisplay): void; /** the Line tool's typed angles make dimensions; right angles as a square */ typedAngleDims?: boolean; rightAngleSquare?: boolean; onFlag?(key: 'typedAngleDims' | 'rightAngleSquare', on: boolean): void }; look?: LookControls; analysis?: { opts: AnalysisOptions; onChange(patch: Partial<AnalysisOptions>): void } }) {
+export function DisplayMenu(p: { /** The ground grid's spacing in mm (0 = automatic, follows the zoom) and how to change it */ groundGrid?: { spacing: number; onSpacing(mm: number): void }; /** Shown right under the Display button (the Section chip), so the two can never sit on top of each other. */ children?: ComponentChildren; display: Display; onToggle(layer: DisplayLayer, on: boolean): void; /** Given only while a sketch is open: the sketch's own show toggles, so there is one Display menu. */ sketch?: { show: SketchShow; onToggle(key: keyof SketchShow, on: boolean): void; /** how many dimensions are drawn */ dimDisplay?: DimDisplay; onDimDisplay?(v: DimDisplay): void; /** the Line tool's typed angles make dimensions; right angles as a square */ typedAngleDims?: boolean; rightAngleSquare?: boolean; onFlag?(key: 'typedAngleDims' | 'rightAngleSquare', on: boolean): void }; look?: LookControls; analysis?: { opts: AnalysisOptions; onChange(patch: Partial<AnalysisOptions>): void } }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -83,10 +83,19 @@ export function DisplayMenu(p: { /** Shown right under the Display button (the S
           ) : null}
           {p.look || p.analysis ? <div class="display-head">{t('display.layers')}</div> : null}
           {DISPLAY_LAYERS.map((layer) => (
-            <label key={layer} class="display-row">
-              <input type="checkbox" checked={p.display[layer]} onChange={(e) => p.onToggle(layer, (e.currentTarget as HTMLInputElement).checked)} />
-              <span>{t('layer.' + layer)}</span>
-            </label>
+            <>
+              <label key={layer} class="display-row">
+                <input type="checkbox" checked={p.display[layer]} onChange={(e) => p.onToggle(layer, (e.currentTarget as HTMLInputElement).checked)} />
+                <span>{t('layer.' + layer)}</span>
+              </label>
+              {layer === 'grid' && p.groundGrid && p.display.grid ? (
+                <label class="display-field" data-testid="ground-grid-spacing">
+                  <span>{t('display.gridSpacing')}</span>
+                  <input type="number" min="0" step="any" value={p.groundGrid.spacing > 0 ? p.groundGrid.spacing : ''} placeholder={t('display.gridAuto')} aria-label={t('display.gridSpacing')}
+                    onChange={(e) => { const v = Number((e.currentTarget as HTMLInputElement).value); p.groundGrid!.onSpacing(Number.isFinite(v) && v > 0 ? v : 0); }} />
+                </label>
+              ) : null}
+            </>
           ))}
         </div>
       ) : null}

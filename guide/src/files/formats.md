@@ -9,15 +9,15 @@ All lengths are millimetres inside the app. Formats that carry other units are c
 | Format | Extension | How to open | You get | What is lost |
 |---|---|---|---|---|
 | CivilKit CAD part | `.ckpart`, `.json`, `.ckpart.gz` | Open, drop | The full editable part | Nothing |
-| STEP | `.step`, `.stp` | Open, drop, More file actions | A part feature saved with the part (or a view-only solid, your choice in the import box) | The history; colours, names, assembly structure |
+| STEP | `.step`, `.stp` | Open, drop, More file actions | A part feature saved with the part (or a view-only solid, your choice in the import box), with AP214/AP242 body colours, names and assembly placements | The history; textures and per-face finishes |
 | SolidWorks part | `.sldprt` | Open, drop, More file actions | An editable imported body (view-only if it cannot be built) | The feature tree, sketches, configurations, annotations |
+| Fusion 360 | `.f3d`, `.f3z` | Open, drop, More file actions | The bodies as an imported body in a new part; bodies that are not closed solids come in as surface bodies | The design history, sketches, parameters, assemblies, and faces on surface types the reader does not support yet |
 | SketchUp | `.skp` | Open, drop, More file actions | A reference mesh saved with the part, with its colours (or a view-only surface model, your choice in the import box) | Scenes, text, dimensions, curves as true arcs |
 | STL | `.stl` | Open, drop, More file actions | A reference mesh saved with the part | Colours, textures |
 | OBJ | `.obj` | Open, drop (with its `.mtl` for colours), More file actions | A reference mesh saved with the part, with colours when the `.mtl` comes with it | Normals, textures, smoothing groups, lines; objects are joined into one mesh |
 | glTF binary | `.glb` | Open, drop, More file actions | A reference mesh saved with the part, with its colours (metres and Y up converted) | Textures, animation, vertex colours; compressed or multi-file glTF is refused |
 | 3MF | `.3mf` | Open, drop, More file actions | A reference mesh saved with the part, with its colours and unit | Textures, colour gradients, print supports; build items are joined into one mesh |
 | FreeCAD | `.FCStd` | Open, drop | An editable part for the features that map | Features that do not map; the rest of the document |
-| Fusion 360 | `.f3d`, `.f3z` | Open, drop, More file actions | Editable part with mapped timeline features and user parameters (cm converted to mm), or embedded ACIS SAT / STEP B-rep bodies; `.f3z` unpacks nested `.f3d` designs | Proprietary binary-only `.smb` B-reps without SAT/STEP or timeline metadata; unsupported feature types are listed as warnings |
 | SolidCraft | `.solidcraft` | Open, drop | An editable part for the features that map | Features that do not map are kept as suppressed placeholders |
 | DXF | `.dxf` | Home > Sketch group, or drop | Sketch geometry (lines, arcs, circles, splines, points) | Text, hatches, dimensions, blocks, 3D entities |
 | SVG | `.svg` | Home > Sketch group, or drop | Sketch geometry (paths, rectangles, circles, ellipses, lines, polygons) | Text, images, fills, strokes, gradients, clip paths |
@@ -29,7 +29,7 @@ DWG cannot be imported yet. "View only" means you can look at the body and turn 
 | Format | Extension | Where | Carries | What is lost |
 |---|---|---|---|---|
 | CivilKit CAD part | `.ckpart`, `.ckpart.gz` | Save, Save as | The recipe and the app's own data | Nothing |
-| STEP | `.step` | Export | The exact solid | Colours, history |
+| STEP | `.step` | Export | The exact solid, with body colours and names (AP214/AP242) | History, finishes and textures |
 | STL (binary or ASCII) | `.stl` | Export | A triangle mesh | The exact surfaces, colours, history |
 | OBJ | `.obj` | Export | A triangle mesh, one object per body | The exact surfaces, history |
 | 3MF | `.3mf` | Export | A triangle mesh for 3D printing, one object per body, with body colours | The exact surfaces, history |

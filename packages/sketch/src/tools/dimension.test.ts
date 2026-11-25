@@ -166,9 +166,9 @@ describe('dimension to a body edge', () => {
 });
 
 describe('dimension value box command keys', () => {
-  it('offers H, V, A and R to the box for a length, and none for an angle', () => {
+  it('offers H, V, A, R and L to the box for a length, and none for an angle', () => {
     const o = run(dimensionTool, [point('p1'), point('p2')]);
-    expect(o.fields[0].keys).toEqual(['h', 'v', 'a', 'r']);
+    expect(o.fields[0].keys).toEqual(['h', 'v', 'a', 'r', 'l']);
     expect(run(dimensionTool, [point('p1')]).fields).toEqual([]);
   });
 });
@@ -197,5 +197,24 @@ describe('radial offset between concentric circles', () => {
   it('equal radii on one centre are refused', () => {
     const same: SketchDraft = { ...rings, entities: [rings.entities[0], { id: 'e2', type: 'circle', c: 'p1', r: 10 }] };
     expect(run(dimensionTool, [ent('e1'), ent('e2')], same).state.pending?.spec.type).not.toBe('raddiff');
+  });
+});
+
+describe('arc length dimension (key L)', () => {
+  // a quarter arc of radius 20 about the origin, counter-clockwise from (20,0) to (0,20)
+  const q: SketchDraft = { ...draft, points: [{ id: 'c', x: 0, y: 0 }, { id: 'a', x: 20, y: 0 }, { id: 'b', x: 0, y: 20 }], entities: [{ id: 'e1', type: 'arc', c: 'c', p1: 'a', p2: 'b' }] };
+  const arc = (): ToolEvent => { const snap: SnapHit = { kind: 'entity', at: { x: 14, y: 14 }, entityId: 'e1' } as never; return { type: 'click', at: snap.at, snap, mods: M }; };
+  it('an arc is a radius first; L measures along the curve instead', () => {
+    expect(run(dimensionTool, [arc()], q).state.pending?.spec.type).toBe('radius');
+    const o = run(dimensionTool, [arc(), key('l')], q);
+    expect(o.state.pending?.spec).toMatchObject({ type: 'arclength', refs: ['e1'] });
+    expect(o.state.pending?.measured).toBeCloseTo(10 * Math.PI, 9);
+    expect(run(dimensionTool, [arc(), key('l'), key('l')], q).state.pending?.spec.type).toBe('radius');
+  });
+  it('coincident ends are the full circle, and a typed value is stored as the constraint', () => {
+    const full: SketchDraft = { ...q, points: [{ id: 'c', x: 0, y: 0 }, { id: 'a', x: 20, y: 0 }, { id: 'b', x: 20, y: 0 }] };
+    expect(run(dimensionTool, [arc(), key('l')], full).state.pending?.measured).toBeCloseTo(40 * Math.PI, 9);
+    const done = run(dimensionTool, [arc(), key('l'), typed(25)], q);
+    expect(done.draft.constraints.at(-1)).toMatchObject({ type: 'arclength', refs: ['e1'], value: 25 });
   });
 });

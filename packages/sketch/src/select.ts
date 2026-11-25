@@ -194,7 +194,13 @@ export function setEntityDim(draft: SketchDraft, id: string, field: 'len' | 'rad
 /** Remove an entity with the constraints that mention it, and any point no remaining entity or constraint uses. */
 export function deleteEntity(draft: SketchDraft, id: string): SketchDraft {
   const entities = draft.entities.filter((e) => e.id !== id);
-  const constraints = draft.constraints.filter((c) => !(c.refs ?? []).includes(id));
+  const pointsOf = (e: DraftEntity): string[] => [...['p1', 'p2', 'c', 'p'].filter((k) => typeof e[k] === 'string').map((k) => e[k] as string), ...(Array.isArray(e.pts) ? (e.pts as string[]) : [])];
+  // the points only the deleted entity used (a circle's centre, a line's free ends) go with it, and so do the constraints and dimensions on them:
+  // a position dimension on the centre of a circle that is gone would otherwise keep the centre, and its label, in the sketch
+  const stillUsed = new Set(entities.flatMap(pointsOf));
+  const fixedIds = new Set(draft.points.filter((p) => p.fixed).map((p) => p.id));
+  const gone = new Set((draft.entities.find((e) => e.id === id) ? pointsOf(draft.entities.find((e) => e.id === id)!) : []).filter((p) => !stillUsed.has(p) && !fixedIds.has(p)));
+  const constraints = draft.constraints.filter((c) => !(c.refs ?? []).includes(id) && !(c.refs ?? []).some((r) => gone.has(r)));
   const used = new Set<string>();
   for (const e of entities) for (const k of ['p1', 'p2', 'c', 'p']) if (typeof e[k] === 'string') used.add(e[k] as string);
   for (const e of entities) if (Array.isArray(e.pts)) for (const p of e.pts as string[]) used.add(p);

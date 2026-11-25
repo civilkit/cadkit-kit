@@ -3,6 +3,7 @@
 // plugin installer (respecting the "Allow plugins from other people" safety gate and SHA-256 pins).
 import type { JSX } from 'preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import { viaRelay } from './relay';
 import { fetchGithubPackage, fetchZipUrl, filesFromZip, parseGithubSpec, type Plan, type PluginManager } from '@kit/plugin';
 import { textAttrs } from '@kit/ui';
 import { t } from '../i18n';
@@ -34,8 +35,8 @@ export interface HubDialogProps {
   onLibraryAdded?(record: LibraryRecord): void;
   /** Injectable fetch for plugin package downloads (defaults to globalThis.fetch). */
   fetch?: (url: string) => Promise<Response>;
-  /** The built-in starter catalog is a preview: its sources are placeholders that do not resolve, so its entries have no install button.
-   *  Default true; a test (or a build whose catalog really resolves) passes false. */
+  /** When true, marks the built-in catalog as preview-only (no install buttons). Defaults to false since the
+   *  built-in SolidCraft Community Plugins catalog lists real released plugins. */
   builtinIsPreview?: boolean;
   onClose(): void;
 }
@@ -84,6 +85,8 @@ export function HubDialog(p: HubDialogProps): JSX.Element {
 
   const [thirdParty, setThirdParty] = useState(() => thirdPartyEnabled());
   const [gatePrompt, setGatePrompt] = useState(false);
+  const [gatePkg, setGatePkg] = useState<HubPackage | null>(null);
+  const [manualZipPkg, setManualZipPkg] = useState<HubPackage | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionErr, setActionErr] = useState('');
   const [actionOk, setActionOk] = useState('');
@@ -169,7 +172,12 @@ export function HubDialog(p: HubDialogProps): JSX.Element {
   const toggleThirdParty = (checked: boolean): void => {
     setThirdPartyEnabled(checked);
     setThirdParty(checked);
-    if (checked) setGatePrompt(false);
+    if (checked) {
+      setGatePrompt(false);
+      const resume = gatePkg;
+      setGatePkg(null);
+      if (resume) void startPluginInstall(resume, true);
+    }
     if (p.pluginManager) {
       void p.pluginManager.load().then(() => {
         bump((n) => n + 1);
@@ -178,13 +186,40 @@ export function HubDialog(p: HubDialogProps): JSX.Element {
     }
   };
 
-  const startPluginInstall = async (pkg: HubPackage): Promise<void> => {
+  const installFromPickedZip = async (pkg: HubPackage, file: File): Promise<void> => {
+    if (!p.pluginManager) return;
+    setActionErr('');
+    setActionOk('');
+    setBusyId(pkg.id);
+    try {
+      const unzipped = await filesFromZip(new Uint8Array(await file.arrayBuffer()));
+      if ('error' in unzipped) {
+        setActionErr(unzipped.error);
+        return;
+      }
+      const plan = await p.pluginManager.plan(unzipped);
+      if (pkg.sha256 && plan.inspection.hash && plan.inspection.hash.toLowerCase() !== pkg.sha256.toLowerCase()) {
+        setActionErr(t('hub.plugin.shaMismatch', { expected: pkg.sha256.slice(0, 12), actual: plan.inspection.hash.slice(0, 12) }));
+        return;
+      }
+      setManualZipPkg(null);
+      setPendingPlugin({ pkg, plan, source: { kind: 'zip', name: file.name }, fetchWarnings: [] });
+    } catch (e) {
+      setActionErr((e as Error).message || String(e));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const startPluginInstall = async (pkg: HubPackage, allowOverride = false): Promise<void> => {
     setActionErr('');
     setActionOk('');
     setPendingLib(null);
     setPendingPlugin(null);
+    setManualZipPkg(null);
     if (!p.pluginManager) return;
-    if (!thirdParty) {
+    if (!thirdParty && !allowOverride) {
+      setGatePkg(pkg);
       setGatePrompt(true);
       return;
     }
@@ -195,6 +230,10 @@ export function HubDialog(p: HubDialogProps): JSX.Element {
       if (/^https?:/i.test(pkg.source)) {
         source = { kind: 'zip', name: pkg.source };
         fetched = await fetchZipUrl(pkg.source, doFetch, filesFromZip);
+      } else if (pkg.downloadUrl) {
+        // a plugin with a release zip: read it through the relay (GitHub's release downloads cannot be read from a page); the raw-file route never worked for these
+        source = { kind: 'zip', name: pkg.downloadUrl };
+        fetched = await fetchZipUrl(pkg.downloadUrl, (u) => doFetch(viaRelay(u)), filesFromZip);
       } else {
         const spec = parseGithubSpec(pkg.source);
         if (typeof spec === 'string') {
@@ -206,7 +245,12 @@ export function HubDialog(p: HubDialogProps): JSX.Element {
         fetched = 'error' in r ? r : { files: r.files, warnings: r.warnings };
       }
       if ('error' in fetched) {
-        setActionErr(fetched.error);
+        // too big to install is said as it is; any other failure to read the zip offers the manual download
+        if (pkg.downloadUrl && !fetched.error.startsWith('This plugin is bigger')) {
+          setManualZipPkg(pkg);
+        } else {
+          setActionErr(fetched.error);
+        }
         return;
       }
       const plan = await p.pluginManager.plan(fetched.files);
@@ -216,7 +260,8 @@ export function HubDialog(p: HubDialogProps): JSX.Element {
       }
       setPendingPlugin({ pkg, plan, source, fetchWarnings: fetched.warnings ?? [] });
     } catch (e) {
-      setActionErr((e as Error).message || String(e));
+      if (pkg.downloadUrl) setManualZipPkg(pkg);
+      else setActionErr((e as Error).message || String(e));
     } finally {
       setBusyId(null);
     }
@@ -280,7 +325,7 @@ export function HubDialog(p: HubDialogProps): JSX.Element {
     }
   };
 
-  const previewOnly = regId === BUILTIN_REGISTRY_ID && p.builtinIsPreview !== false;   // the starter catalog lists placeholder sources: nothing to install yet
+  const previewOnly = regId === BUILTIN_REGISTRY_ID && p.builtinIsPreview === true;
   const pluginInstallable = !!pendingPlugin && !pendingPlugin.plan.refusal && !!pendingPlugin.plan.inspection.ok;
 
   return (
@@ -301,11 +346,9 @@ export function HubDialog(p: HubDialogProps): JSX.Element {
               {registries.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
           </label>
+          <button type="button" class="rb-btn" disabled={loading} data-testid="hub-registry-refresh" onClick={() => void loadRegistry(regId, true)}>{t('hub.registry.refresh')}</button>
           {regId !== BUILTIN_REGISTRY_ID ? (
-            <>
-              <button type="button" class="rb-btn" disabled={loading} data-testid="hub-registry-refresh" onClick={() => void loadRegistry(regId, true)}>{t('hub.registry.refresh')}</button>
-              <button type="button" class="rb-btn" disabled={loading} data-testid="hub-registry-remove" onClick={onRemoveRegistry}>{t('hub.registry.remove')}</button>
-            </>
+            <button type="button" class="rb-btn" disabled={loading} data-testid="hub-registry-remove" onClick={onRemoveRegistry}>{t('hub.registry.remove')}</button>
           ) : null}
           <span class="hub-count" style="margin-left:auto" data-testid="hub-count">
             {t('hub.count', { shown: filtered.length, total: index.packages.length })}
@@ -373,72 +416,93 @@ export function HubDialog(p: HubDialogProps): JSX.Element {
           </div>
         </div>
 
-        <div class="hub-body">
-          {loading ? <div class="hub-banner" role="status" data-testid="hub-loading">{t('hub.loading')}</div> : null}
-          {offline ? (
-            <div class="hub-banner warn" role="status" data-testid="hub-offline-banner">
-              {t('hub.offlineBanner', { reason: offlineReason })}
-            </div>
-          ) : null}
-          {loadErr ? <div class="hub-banner err" role="alert" data-testid="hub-load-err">{loadErr}</div> : null}
-          {actionErr ? <div class="hub-banner err" role="alert" data-testid="hub-action-err">{actionErr}</div> : null}
-          {actionOk ? <div class="hub-banner ok" role="status" data-testid="hub-action-ok">{actionOk}</div> : null}
+        {(loading || offline || loadErr || actionErr || actionOk || (gatePrompt && !thirdParty) || manualZipPkg || pendingPlugin || pendingLib) ? (
+          <div class="hub-status" data-testid="hub-status">
+            {loading ? <div class="hub-banner" role="status" data-testid="hub-loading">{t('hub.loading')}</div> : null}
+            {offline ? (
+              <div class="hub-banner warn" role="status" data-testid="hub-offline-banner">
+                {t('hub.offlineBanner', { reason: offlineReason })}
+              </div>
+            ) : null}
+            {loadErr ? <div class="hub-banner err" role="alert" data-testid="hub-load-err">{loadErr}</div> : null}
+            {actionErr ? <div class="hub-banner err" role="alert" data-testid="hub-action-err">{actionErr}</div> : null}
+            {actionOk ? <div class="hub-banner ok" role="status" data-testid="hub-action-ok">{actionOk}</div> : null}
 
-          {gatePrompt && !thirdParty ? (
-            <div class="hub-banner warn" role="alert" data-testid="hub-plugin-gate">
-              <span>{t('hub.plugin.gateNotice')}</span>
-              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
-                <input type="checkbox" checked={thirdParty} data-testid="hub-plugin-gate-toggle" onChange={(e) => toggleThirdParty((e.currentTarget as HTMLInputElement).checked)} />
-                <span>{t('hub.plugin.enableGate')}</span>
-              </label>
-            </div>
-          ) : null}
+            {gatePrompt && !thirdParty ? (
+              <div class="hub-banner warn" role="alert" data-testid="hub-plugin-gate">
+                <span>{t('hub.plugin.gateNotice')}</span>
+                <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+                  <input type="checkbox" checked={thirdParty} data-testid="hub-plugin-gate-toggle" onChange={(e) => toggleThirdParty((e.currentTarget as HTMLInputElement).checked)} />
+                  <span>{t('hub.plugin.enableGate')}</span>
+                </label>
+              </div>
+            ) : null}
 
-          {pendingPlugin ? (
-            <div class="hub-confirm" role="alertdialog" data-testid="hub-plugin-confirm">
-              <strong>
-                {t('hub.plugin.confirmTitle', {
-                  name: pendingPlugin.plan.inspection.manifest?.name ?? pendingPlugin.pkg.name,
-                  version: pendingPlugin.plan.inspection.manifest?.version ?? pendingPlugin.pkg.version,
-                })}
-              </strong>
-              {pendingPlugin.plan.inspection.manifest ? (
-                <div class="hub-card-meta">
-                  <span>{t('plugin.adds')}: {pendingPlugin.plan.inspection.manifest.contributes.generators.map((g) => g.title).join(', ')}</span>
-                  {pendingPlugin.plan.inspection.hash ? <span>{t('plugin.pin')}: {pendingPlugin.plan.inspection.hash.slice(0, 16)}…</span> : null}
+            {manualZipPkg && manualZipPkg.downloadUrl ? (
+              <div class="hub-banner warn" role="alert" data-testid="hub-manual-zip">
+                <span>{t('hub.plugin.manualZipNote', { name: manualZipPkg.name })}</span>
+                <a class="rb-btn" href={manualZipPkg.downloadUrl} target="_blank" rel="noopener noreferrer" data-testid="hub-manual-zip-download">{t('hub.downloadZip')}</a>
+                <label class="rb-btn" style="cursor:pointer" data-testid="hub-manual-zip-pick">
+                  {t('hub.plugin.pickZip')}
+                  <input type="file" accept=".zip" style="display:none" onChange={(e) => {
+                    const f = (e.currentTarget as HTMLInputElement).files?.[0];
+                    (e.currentTarget as HTMLInputElement).value = '';
+                    if (f && manualZipPkg) void installFromPickedZip(manualZipPkg, f);
+                  }} />
+                </label>
+                <button type="button" class="rb-btn" onClick={() => setManualZipPkg(null)}>{t('ui.cancel')}</button>
+              </div>
+            ) : null}
+
+            {pendingPlugin ? (
+              <div class="hub-confirm" role="alertdialog" data-testid="hub-plugin-confirm">
+                <strong>
+                  {t('hub.plugin.confirmTitle', {
+                    name: pendingPlugin.plan.inspection.manifest?.name ?? pendingPlugin.pkg.name,
+                    version: pendingPlugin.plan.inspection.manifest?.version ?? pendingPlugin.pkg.version,
+                  })}
+                </strong>
+                {pendingPlugin.plan.inspection.manifest ? (
+                  <div class="hub-card-meta">
+                    <span>{t('plugin.adds')}: {pendingPlugin.plan.inspection.manifest.contributes.generators.map((g) => g.title).join(', ')}</span>
+                    {pendingPlugin.plan.inspection.hash ? <span>{t('plugin.pin')}: {pendingPlugin.plan.inspection.hash.slice(0, 16)}…</span> : null}
+                  </div>
+                ) : null}
+                {pendingPlugin.plan.refusal ? <div class="hub-banner err" role="alert">{pendingPlugin.plan.refusal}</div> : null}
+                {pendingPlugin.plan.inspection.errors.map((err) => <div key={err} class="hub-banner err" role="alert">{err}</div>)}
+                {[...pendingPlugin.fetchWarnings, ...pendingPlugin.plan.inspection.warnings].map((w) => <div key={w} class="hub-card-meta">{w}</div>)}
+                <div class="hub-confirm-actions">
+                  <button type="button" class="rb-btn" disabled={!pluginInstallable || busyId !== null} data-testid="hub-plugin-confirm-btn" onClick={() => void confirmPluginInstall()}>
+                    {t('hub.plugin.confirmInstall')}
+                  </button>
+                  <button type="button" class="rb-btn" data-testid="hub-plugin-cancel-btn" onClick={() => setPendingPlugin(null)}>
+                    {t('ui.cancel')}
+                  </button>
                 </div>
-              ) : null}
-              {pendingPlugin.plan.refusal ? <div class="hub-banner err" role="alert">{pendingPlugin.plan.refusal}</div> : null}
-              {pendingPlugin.plan.inspection.errors.map((err) => <div key={err} class="hub-banner err" role="alert">{err}</div>)}
-              {[...pendingPlugin.fetchWarnings, ...pendingPlugin.plan.inspection.warnings].map((w) => <div key={w} class="hub-card-meta">{w}</div>)}
-              <div class="hub-confirm-actions">
-                <button type="button" class="rb-btn" disabled={!pluginInstallable || busyId !== null} data-testid="hub-plugin-confirm-btn" onClick={() => void confirmPluginInstall()}>
-                  {t('hub.plugin.confirmInstall')}
-                </button>
-                <button type="button" class="rb-btn" data-testid="hub-plugin-cancel-btn" onClick={() => setPendingPlugin(null)}>
-                  {t('ui.cancel')}
-                </button>
               </div>
-            </div>
-          ) : null}
+            ) : null}
 
-          {pendingLib ? (
-            <div class="hub-confirm" role="alertdialog" data-testid="hub-library-confirm">
-              <div>
-                {pendingLib.preview.licence
-                  ? t('library.licence.warn', { licence: pendingLib.preview.licence })
-                  : t('library.licence.warnUnknown')}
+            {pendingLib ? (
+              <div class="hub-confirm" role="alertdialog" data-testid="hub-library-confirm">
+                <div>
+                  {pendingLib.preview.licence
+                    ? t('library.licence.warn', { licence: pendingLib.preview.licence })
+                    : t('library.licence.warnUnknown')}
+                </div>
+                <div class="hub-confirm-actions">
+                  <button type="button" class="rb-btn" disabled={busyId !== null} data-testid="hub-library-confirm-btn" onClick={() => void confirmLibraryAdd()}>
+                    {t('hub.library.confirmAdd')}
+                  </button>
+                  <button type="button" class="rb-btn" data-testid="hub-library-cancel-btn" onClick={() => setPendingLib(null)}>
+                    {t('ui.cancel')}
+                  </button>
+                </div>
               </div>
-              <div class="hub-confirm-actions">
-                <button type="button" class="rb-btn" disabled={busyId !== null} data-testid="hub-library-confirm-btn" onClick={() => void confirmLibraryAdd()}>
-                  {t('hub.library.confirmAdd')}
-                </button>
-                <button type="button" class="rb-btn" data-testid="hub-library-cancel-btn" onClick={() => setPendingLib(null)}>
-                  {t('ui.cancel')}
-                </button>
-              </div>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
+        ) : null}
+
+        <div class="hub-body">
 
           {previewOnly ? <div class="cat-sub" role="note" data-testid="hub-preview-note">{t('hub.preview.note')}</div> : null}
 
@@ -488,9 +552,14 @@ export function HubDialog(p: HubDialogProps): JSX.Element {
                     ) : null}
 
                     <div class="hub-card-foot">
-                      {link ? (
-                        <a class="hub-source-link" href={link} target="_blank" rel="noopener noreferrer">{t('hub.sourceLink')}</a>
-                      ) : <span />}
+                      <span style="display:inline-flex;gap:10px;align-items:center">
+                        {link ? (
+                          <a class="hub-source-link" href={pkg.homepage ?? link} target="_blank" rel="noopener noreferrer">{t('hub.sourceLink')}</a>
+                        ) : null}
+                        {pkg.downloadUrl ? (
+                          <a class="hub-source-link" href={pkg.downloadUrl} target="_blank" rel="noopener noreferrer" data-testid={`hub-zip-${pkg.id}`}>{t('hub.downloadZip')}</a>
+                        ) : null}
+                      </span>
                       {previewOnly ? <span class="cat-sub" data-testid={`hub-preview-${pkg.id}`}>{t('hub.preview.badge')}</span> : (
                       <button
                         type="button"

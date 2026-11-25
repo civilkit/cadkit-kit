@@ -26,6 +26,12 @@ describe('the Plane tool takes its base from the selection', () => {
   });
   it('names carry the offset and base', () => {
     expect(planeDefaultName(null, { mode: 'offset', base: { kind: 'std', id: 'front' }, offset: -60 })).toBe('Plane -60 from Front');
+    expect(planeDefaultName(null, { mode: 'angle', base: { kind: 'std', id: 'top' }, angle: 30, offset: 0 })).toBe('Plane 30 deg from Top');
+    expect(planeDefaultName(null, { mode: 'angle', base: { kind: 'std', id: 'top' }, angle: 30, offset: 40 })).toBe('Plane 30 deg, 40 away, from Top');
+    // an angle plane keeps its generated name in step with the angle and offset it has now, and a user's own name stays
+    const doc = { features: [{ id: 'F1', type: 'plane', mode: 'angle', base: { kind: 'std', id: 'top' }, angle: 30, offset: 40, name: 'Plane 10 from Top', autoName: true }] };
+    expect(featureLabel(doc, doc.features[0] as never)).toBe('Plane 30 deg, 40 away, from Top');
+    expect(featureLabel(doc, { ...doc.features[0], autoName: false, name: 'Hinge' } as never)).toBe('Hinge');
     expect(refLabel(null, { kind: 'std', id: 'top' })).toBe('Top');
   });
 });

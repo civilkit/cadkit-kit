@@ -4,7 +4,7 @@
 // names are unique across bodies ("F4.S.sp", "F4.S.e1|F4.S.e2#0"), so selection and hover need nothing more.
 import type { BodyMesh } from './meshgeom';
 
-export interface SurfaceEdge { key?: string; pts: number[][] }
+export interface SurfaceEdge { key?: string; pts: number[][]; /** its two faces meet without a crease (a tangent edge: a fillet's boundary, a seam inside one smooth surface) */ smooth?: boolean; /** within 10 degrees: also hidden when Tangent edges is off (the facet diagonals of a knurl) */ gentle?: boolean }
 /** One surface body for the viewer: its feature id, mesh (faceIds are the kernel's face names), edges and box. */
 export interface ViewSurface {
   id: string;

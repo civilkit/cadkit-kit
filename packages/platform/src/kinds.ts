@@ -1,7 +1,7 @@
 // The one table of file kinds the app opens: which extensions are binary containers (read as bytes; text would corrupt them)
 // and which are text. The file picker, the drop path and the Open / Import menus all take their answers from here.
 
-export type FileKind = 'part' | 'step' | 'dxf' | 'svg' | 'stl' | 'sldprt' | 'skp' | 'fcstd' | 'f3d' | 'solidcraft' | 'obj' | 'glb' | '3mf';
+export type FileKind = 'part' | 'step' | 'dxf' | 'svg' | 'stl' | 'sldprt' | 'skp' | 'fcstd' | 'f3d' | 'ipt' | 'solidcraft' | 'obj' | 'glb' | '3mf' | 'ifc' | '3dm' | 'dwg' | 'rvt';
 
 export const FILE_KINDS: Record<FileKind, { exts: string[]; binary: boolean }> = {
   part: { exts: ['ckpart', 'ckpart', 'json', 'gz'], binary: false },   // JSON; a gzip stream is detected by its magic and unpacked to text
@@ -16,7 +16,12 @@ export const FILE_KINDS: Record<FileKind, { exts: string[]; binary: boolean }> =
   skp: { exts: ['skp'], binary: true },
   fcstd: { exts: ['fcstd'], binary: true },
   f3d: { exts: ['f3d', 'f3z'], binary: true },
+  ipt: { exts: ['ipt'], binary: true },
   solidcraft: { exts: ['solidcraft', 'sc'], binary: true },
+  ifc: { exts: ['ifc'], binary: true },
+  '3dm': { exts: ['3dm'], binary: true },
+  dwg: { exts: ['dwg'], binary: true },
+  rvt: { exts: ['rvt'], binary: true },
 };
 
 const extOf = (name: string): string => name.split('.').pop()?.toLowerCase() ?? '';

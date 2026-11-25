@@ -7,11 +7,15 @@ import type { EditOp } from '@ck/session';
 import { InlineName, numberAttrs, textAttrs } from '@kit/ui';
 import { t } from '../i18n';
 import {
-  bomCsv, bomItems, bomText, bomTotal, componentOfName, componentRows, deleteComponentOps, insertFeature, insertIds, mateComponents, NO_PLACEMENT, placementOps, refreshOps,
+  availableConnectors, bomCsv, bomItems, bomText, bomTotal, componentOfName, componentRows, deleteComponentOps, insertFeature, insertIds, mateComponents, NO_PLACEMENT, placementOps, refreshOps,
   type ComponentRow, type DocLike, type ExplodeDir, type ExplodeState, type Placement, type V3,
 } from './model';
-import { KIND_GROUPS, MATE_KINDS, draftOf, draftProblem, limitsAreAngles, mateChanges, mateDropsField, mateFeature, mateKind, newDraft, type MateDraft, type MateParam, type RefKey } from './mateKinds';
-import type { AsmFeatureError, AsmReport } from './kernel';
+import {
+  breakComponentLinkOps, expandFlexibleSubassemblyMates, getComponentLinkStatus, isSubassemblyComponent, isSubassemblyFlexible, linkInsertedPartOps, normalizeAvailableSources, setSubassemblyFlexibleOps, updateLinkedComponentsOps,
+  type AvailableSourcesInput,
+} from './linkedComponents';
+import { isConnectorMateKind, KIND_GROUPS, MATE_KINDS, draftOf, draftProblem, limitsAreAngles, mateChanges, mateDropsField, mateFeature, mateKind, newDraft, type MateDraft, type MateParam, type RefKey } from './mateKinds';
+import type { AsmComponent, AsmFeatureError, AsmReport } from './kernel';
 import { massText } from '../inspect/mass';
 import { MotionPanel } from '../motion/MotionPanel';
 import type { MotionStore } from '../motion/store';
@@ -26,6 +30,8 @@ export interface AsmHost {
   doc: (DocLike & { name?: string }) | null;
   /** remaining degrees of freedom by component id, from the last rebuild */
   dof: ReadonlyMap<string, number>;
+  /** evaluated components from the last rebuild (including their connectors) */
+  components?: readonly AsmComponent[];
   /** failed features by id (the kernel's code) */
   errors: ReadonlyMap<string, string>;
   /** the kernel's degrees-of-freedom report of the last rebuild (`assembly` of the regen reply), when it sent one */
@@ -61,6 +67,8 @@ export interface AsmHost {
   motion?: MotionStore;
   /** Plugin-declared hinge/slide joints surfaced in the Motion section. */
   pluginJoints?: { entries: readonly PluginJointEntry[]; values: Readonly<Record<string, number>>; onChange(id: string, value: number): void; onReset(): void };
+  /** Available external component sources (open tabs, library parts, files) for linked component status and sync. */
+  linkedSources?: AvailableSourcesInput;
 }
 
 export interface AsmProps { host: AsmHost; section: Section; onSection(s: Section): void }
@@ -201,6 +209,65 @@ function PartsSection({ host }: { host: AsmHost }): JSX.Element {
   };
   const selectRow = (r: ComponentRow) => { setSel(r.id); setEditPlace({ dx: r.dx, dy: r.dy, dz: r.dz, axis: r.axis, angle: r.angle || 90 }); host.select(facesOfComponent(host, r.id)); };
 
+  const availableSources = host.linkedSources ?? [];
+  const normSources = useMemo(() => normalizeAvailableSources(availableSources), [availableSources]);
+
+  const linkComponent = async (r: ComponentRow) => {
+    if (!host.doc) return;
+    let sourceKind: 'file' | 'tab' | 'library' = 'tab';
+    let sourceUri = '';
+    let sourceHash: string | undefined;
+    const match =
+      (r.source ? normSources.get(r.source) : undefined) ??
+      [...normSources.values()].find((s) => s.name === r.partName || s.name === r.name) ??
+      [...normSources.values()][0];
+    if (match) {
+      sourceKind = match.sourceKind;
+      sourceUri = match.sourceUri;
+      sourceHash = match.sourceHash;
+    } else if (r.source) {
+      sourceKind = samples?.some((s) => s.id === r.source) ? 'library' : 'file';
+      sourceUri = r.source;
+    } else {
+      const f = await host.openFile({ accept: ['.ckpart', '.ckpart', '.json'] });
+      if (f) {
+        sourceKind = 'file';
+        sourceUri = f.name;
+      } else {
+        sourceKind = 'tab';
+        sourceUri = `tab:${r.partName || r.name || r.id}`;
+      }
+    }
+    const ops = linkInsertedPartOps(host.doc, r.id, { sourceKind, sourceUri, ...(sourceHash ? { sourceHash } : {}) });
+    if (ops.length && (await host.edit(ops))) {
+      host.notify(t('asm.link.linkedDone', { name: r.name, source: sourceUri }));
+    }
+  };
+
+  const updateLink = async (r: ComponentRow) => {
+    if (!host.doc) return;
+    const { ops, updatedIds } = updateLinkedComponentsOps(host.doc, availableSources, [r.id]);
+    if (ops.length) {
+      if (await host.edit(ops)) host.notify(t('asm.link.updatedDone', { n: updatedIds.length }));
+      return;
+    }
+    await refreshFromFile(r);
+  };
+
+  const breakLink = async (r: ComponentRow) => {
+    if (!host.doc) return;
+    const ops = breakComponentLinkOps(host.doc, r.id);
+    if (ops.length && (await host.edit(ops))) {
+      host.notify(t('asm.link.brokenDone', { name: r.name }));
+    }
+  };
+
+  const toggleFlexible = async (r: ComponentRow, nextFlexible: boolean) => {
+    if (!host.doc) return;
+    const ops = setSubassemblyFlexibleOps(host.doc, r.id, nextFlexible);
+    if (ops.length) await host.edit(ops);
+  };
+
   return (
     <div class="asm-sec">
       <section class="asm-card" aria-label={t('asm.insert.title')}>
@@ -221,14 +288,33 @@ function PartsSection({ host }: { host: AsmHost }): JSX.Element {
       {rows.length === 0 ? <div class="empty">{t('asm.parts.empty')}</div> : null}
       {rows.map((r) => {
         const hidden = host.hidden.includes(r.id);
+        const linkStatus = getComponentLinkStatus(host.doc, r.id, availableSources);
+        const isLinked = Boolean(linkStatus?.linked);
+        const isSubasm = isSubassemblyComponent(host.doc, r.id);
+        const flexible = isSubassemblyFlexible(host.doc, r.id);
         return (
           <div key={r.id}>
             <div class={'asm-row' + (sel === r.id ? ' sel' : '') + (r.suppressed ? ' suppressed' : '') + (hidden ? ' hid' : '')} onMouseEnter={() => host.hover?.(r.id)} onMouseLeave={() => host.hover?.(null)} onClick={() => selectRow(r)} title={t('asm.part.select', { name: r.name })}>
               <span class="row-id">{r.id}</span>
               {renaming === r.id
                 ? <InlineName value={r.name} onCommit={(n) => { setRenaming(null); void host.edit([{ op: 'set', id: r.id, path: 'name', value: n }]); }} onCancel={() => setRenaming(null)} />
-                : <span class="row-name" onDblClick={() => setRenaming(r.id)}>{r.name}<small class="asm-part">{r.partName}</small><DofBadge row={r} /></span>}
+                : <span class="row-name" onDblClick={() => setRenaming(r.id)}>{r.name}<small class="asm-part">{r.partName}</small><DofBadge row={r} />{isLinked ? <span class={'asm-link-badge' + (linkStatus?.outOfDate ? ' stale' : '')} data-testid={`linked-badge-${r.id}`} title={linkStatus?.sourceUri}>{linkStatus?.outOfDate ? t('asm.link.outOfDate') : t('asm.link.linked')}</span> : null}</span>}
               <span class="asm-acts" onClick={(e) => e.stopPropagation()}>
+                {isSubasm ? (
+                  <button class="row-act on" data-testid={`toggle-flexible-${r.id}`} data-action="toggle-flexible" aria-pressed={flexible} title={flexible ? t('asm.subasm.flexibleTip') : t('asm.subasm.rigidTip')} aria-label={flexible ? t('asm.subasm.flexible') : t('asm.subasm.rigid')} onClick={() => void toggleFlexible(r, !flexible)}>
+                    {flexible ? t('asm.subasm.flexible') : t('asm.subasm.rigid')}
+                  </button>
+                ) : null}
+                {isLinked ? (
+                  <>
+                    {linkStatus?.outOfDate || linkStatus?.sourceAvailable ? (
+                      <button class="row-act on" data-testid={`update-link-${r.id}`} data-action="update-link" title={t('asm.link.update')} aria-label={t('asm.link.update')} onClick={() => void updateLink(r)}>{t('asm.link.update')}</button>
+                    ) : null}
+                    <button class="row-act on" data-testid={`break-link-${r.id}`} data-action="break-link" title={t('asm.link.break')} aria-label={t('asm.link.break')} onClick={() => void breakLink(r)}>{t('asm.link.break')}</button>
+                  </>
+                ) : (
+                  <button class="row-act on" data-testid={`link-component-${r.id}`} data-action="link-component" title={t('asm.link.linkTo')} aria-label={t('asm.link.linkTo')} onClick={() => void linkComponent(r)}>{t('asm.link.linkTo')}</button>
+                )}
                 <button class="row-act on" aria-pressed={!hidden} title={hidden ? t('asm.part.show') : t('asm.part.hide')} aria-label={hidden ? t('asm.part.show') : t('asm.part.hide')} onClick={() => host.toggleHidden(r.id)}>{hidden ? '○' : '●'}</button>
                 <button class="row-act on" aria-pressed={r.suppressed} title={r.suppressed ? t('asm.part.unsuppress') : t('asm.part.suppress')} aria-label={r.suppressed ? t('asm.part.unsuppress') : t('asm.part.suppress')} onClick={() => void host.edit([{ op: 'set', id: r.id, path: 'suppressed', value: !r.suppressed }])}>S</button>
                 <button class="row-act on" aria-pressed={r.fixed} title={r.fixed ? t('asm.part.float') : t('asm.part.fix')} aria-label={r.fixed ? t('asm.part.float') : t('asm.part.fix')} onClick={() => void host.edit([{ op: 'set', id: r.id, path: 'fixed', value: !r.fixed }])}>{r.fixed ? '⚓' : '↔'}</button>
@@ -312,6 +398,7 @@ function DofReport(p: { host: AsmHost; selMate: string | null; onMate(id: string
 function MatesSection({ host }: { host: AsmHost }): JSX.Element {
   const doc = host.doc!;
   const mates = doc.features.filter((f) => f.type === 'mate');
+  const liftedMates = useMemo(() => expandFlexibleSubassemblyMates(doc).liftedMates, [doc]);
   const [editing, setEditing] = useState<string | 'new' | null>(null);
   const [draft, setDraft] = useState<MateDraft>(() => newDraft());
   const [picking, setPicking] = useState<RefKey | null>(null);
@@ -354,7 +441,8 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
     setPreviewed(r.ok);
     setMsg(r.ok ? t('asm.mate.previewOk') : (r.hint ?? t('asm.mate.failed', { code: '?' })));
   };
-  const setKind = (id: string) => setDraft((d) => ({ ...newDraft(id), refs: d.refs, name: d.name, flip: d.flip }));
+  const setKind = (id: string) => setDraft((d) => ({ ...newDraft(id), refs: isConnectorMateKind(d.kind) === isConnectorMateKind(id) ? d.refs : {}, name: d.name, flip: d.flip }));
+  const connOptions = useMemo(() => availableConnectors(doc, host.components), [doc, host.components]);
   // the test slider of a Drive field: every change previews the motion (the preview is dropped on Cancel; Apply keeps the value)
   const driveKey = mateKind(draft.kind)?.params.find((q) => q.drive)?.key;
   const driveVal = driveKey ? draft.params[driveKey] : undefined;
@@ -391,13 +479,28 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
             </select></label>
           {kdef ? <div class="asm-note" title={t('asm.mate.tip.' + kdef.id)}>{kdef.pending ? t('asm.mate.pending.' + kdef.id) : t('asm.mate.tip.' + kdef.id)}</div> : null}
           {(kdef?.refs ?? []).map((r) => (
-            <div class="asm-ref" key={r.key}>
-              <span class="asm-ref-l">{t('asm.mate.ref.' + r.key)} ({t('asm.mate.ref.' + r.label)}){r.optional ? ` - ${t('asm.mate.optional')}` : ''}</span>
-              <button class={'btn' + (picking === r.key ? ' on' : '')} aria-pressed={picking === r.key} onClick={() => { setPicking(picking === r.key ? null : r.key); host.select([]); }}>{picking === r.key ? t('asm.mate.picking') : t('asm.mate.pick')}</button>
-              <span class="asm-ref-v" title={draft.refs[r.key]}>{draft.refs[r.key] ? `${nameOfFace(host, draft.refs[r.key])}: ${draft.refs[r.key]}` : t('asm.mate.unpicked')}</span>
-              {r.optional && draft.refs[r.key] ? <button class="row-act on" title={t('asm.mate.clear')} aria-label={t('asm.mate.clear') + ' ' + t('asm.mate.ref.' + r.key)} onClick={() => setDraft((d) => { const refs = { ...d.refs }; delete refs[r.key]; return { ...d, refs }; })}>\u00D7</button> : null}
-            </div>
+            r.accept.includes('connector') ? (
+              <label class="asm-f wide" key={r.key}>
+                <span>{t('asm.mate.ref.' + r.key)} ({t('asm.mate.ref.' + r.label)})</span>
+                <select value={draft.refs[r.key] ?? ''} aria-label={t('asm.mate.ref.' + r.key)} onChange={(e) => {
+                  const v = (e.target as HTMLSelectElement).value;
+                  setDraft((d) => { const refs = { ...d.refs }; if (v) refs[r.key] = v; else delete refs[r.key]; return { ...d, refs }; });
+                  setMsg(null);
+                }}>
+                  <option value="">{t('asm.mate.chooseConnector')}</option>
+                  {connOptions.map((c) => <option key={c.key} value={c.key}>{c.componentName ? `${c.componentName}: ${c.name}` : `${t('asm.mate.root')}: ${c.name}`}</option>)}
+                </select>
+              </label>
+            ) : (
+              <div class="asm-ref" key={r.key}>
+                <span class="asm-ref-l">{t('asm.mate.ref.' + r.key)} ({t('asm.mate.ref.' + r.label)}){r.optional ? ` - ${t('asm.mate.optional')}` : ''}</span>
+                <button class={'btn' + (picking === r.key ? ' on' : '')} aria-pressed={picking === r.key} onClick={() => { setPicking(picking === r.key ? null : r.key); host.select([]); }}>{picking === r.key ? t('asm.mate.picking') : t('asm.mate.pick')}</button>
+                <span class="asm-ref-v" title={draft.refs[r.key]}>{draft.refs[r.key] ? `${nameOfFace(host, draft.refs[r.key])}: ${draft.refs[r.key]}` : t('asm.mate.unpicked')}</span>
+                {r.optional && draft.refs[r.key] ? <button class="row-act on" title={t('asm.mate.clear')} aria-label={t('asm.mate.clear') + ' ' + t('asm.mate.ref.' + r.key)} onClick={() => setDraft((d) => { const refs = { ...d.refs }; delete refs[r.key]; return { ...d, refs }; })}>\u00D7</button> : null}
+              </div>
+            )
           ))}
+          {isConnectorMateKind(draft.kind) && connOptions.length === 0 ? <div class="asm-note">{t('asm.mate.noConnectors')}</div> : null}
           {kdef?.choice ? (
             <label class="asm-f wide"><span>{t('asm.mate.choice.' + kdef.choice.key)}</span>
               <select value={draft.choice} aria-label={t('asm.mate.choice.' + kdef.choice.key)} onChange={(e) => setDraft((d) => ({ ...d, choice: (e.target as HTMLSelectElement).value }))}>
@@ -416,16 +519,20 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
               ) : null}
             </div>
           ))}
-          {kdef?.params.some((q) => q.vec) ? (
-            <div class="asm-f wide" title={t('asm.mate.ptip.dir')}><span>{t('asm.mate.param.dir')} - {t('asm.mate.optional')}</span>
-              <span class="asm-place">{kdef.params.filter((q) => q.vec).map((q) => (
-                <input {...numberAttrs('signed')} key={q.key} type="number" step="any" placeholder={'XYZ'[q.vec!.i]} aria-label={t('asm.mate.param.dir') + ' ' + 'XYZ'[q.vec!.i]} value={Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : ''}
-                  onInput={(e) => { const x = parseFloat((e.target as HTMLInputElement).value); setDraft((d) => ({ ...d, params: { ...d.params, [q.key]: x } })); }} />
-              ))}</span></div>
-          ) : null}
+          {[...new Set((kdef?.params ?? []).filter((q) => q.vec).map((q) => q.vec!.key))].map((vecKey) => {
+            const label = vecKey === 'offset' ? t('asm.mate.param.offset') : t('asm.mate.param.dir');
+            const tip = vecKey === 'offset' ? t('asm.mate.ptip.offset') : t('asm.mate.ptip.dir');
+            return (
+              <div key={vecKey} class="asm-f wide" title={tip}><span>{label} - {t('asm.mate.optional')}</span>
+                <span class="asm-place">{(kdef?.params ?? []).filter((q) => q.vec?.key === vecKey).map((q) => (
+                  <input {...numberAttrs('signed')} key={q.key} type="number" step="any" placeholder={'XYZ'[q.vec!.i]} aria-label={label + ' ' + 'XYZ'[q.vec!.i]} value={Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : ''}
+                    onInput={(e) => { const x = parseFloat((e.target as HTMLInputElement).value); setDraft((d) => ({ ...d, params: { ...d.params, [q.key]: x } })); }} />
+                ))}</span></div>
+            );
+          })}
           {kdef?.flip ? <label class="asm-chk" title={kdef.flipLabel ? t('asm.mate.fliptip.' + kdef.id) : undefined}><input type="checkbox" checked={draft.flip} onChange={(e) => setDraft((d) => ({ ...d, flip: (e.target as HTMLInputElement).checked }))} /> {kdef.flipLabel ? t('asm.mate.flip.' + kdef.id) : t('asm.mate.flip')}</label> : null}
           <label class="asm-f wide"><span>{t('asm.mate.name')}</span><input {...textAttrs} type="text" value={draft.name} onInput={(e) => setDraft((d) => ({ ...d, name: (e.target as HTMLInputElement).value }))} /></label>
-          <div class="asm-note">{t('asm.mate.hint')}</div>
+          <div class="asm-note">{t(isConnectorMateKind(draft.kind) ? 'asm.mate.connectorHint' : 'asm.mate.hint')}</div>
           {problem && !msg ? <div class="asm-note">{t(problem)}</div> : null}
           {msg ? <div class="asm-note warn" role="status">{msg}</div> : null}
           <div class="asm-bar">
@@ -435,7 +542,7 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
           </div>
         </section>
       ) : null}
-      {mates.length === 0 && !editing ? <div class="empty">{t('asm.mate.empty')}</div> : null}
+      {mates.length === 0 && liftedMates.length === 0 && !editing ? <div class="empty">{t('asm.mate.empty')}</div> : null}
       {mates.map((m) => {
         const kind = String(m.kind ?? 'coincident');
         const comps = mateComponents(doc, m).map((c) => doc.features.find((f) => f.id === c)?.name ?? c);
@@ -451,6 +558,16 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
               <button class="row-act on" title={t('asm.mate.edit')} aria-label={t('asm.mate.edit')} disabled={editing !== null} onClick={() => open(m.id, draftOf(m as Record<string, unknown>))}>✎</button>
               <button class="row-act on del" title={t('asm.mate.delete')} aria-label={t('asm.mate.delete')} onClick={() => { if (editing === m.id) close(); void host.edit([{ op: 'remove', id: m.id }]); }}>×</button>
             </span>
+          </div>
+        );
+      })}
+      {liftedMates.map((m) => {
+        const kind = String(m.kind ?? 'coincident');
+        const icon = mateKind(kind)?.icon ?? '?';
+        return (
+          <div key={m.id} class="asm-row lifted-mate" data-testid={`lifted-mate-${m.id}`}>
+            <span class="row-id">{m.id}</span>
+            <span class="row-name"><span class="asm-kind-icon" aria-hidden="true">{icon}</span> {m.name ?? kindLabel(kind)}<small class="asm-part">{kindLabel(kind)} · {t('asm.subasm.flexible')}</small></span>
           </div>
         );
       })}

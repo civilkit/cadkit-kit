@@ -198,7 +198,7 @@ describe('gears against the real kernel', { skip: !process.env.CK_WASM }, () => 
     expect(b.s.document.features.map((f) => f.id)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9']);
     expect((await b.s.verify()).regen.errors).toEqual([]);
     console.log('GEARTIME herringbone20', b.ms);
-  }, 300000);
+  }, 900000);   // a busy CI box took close to 300 s for this build more than once; the time is logged above
 
   it('herringbone 40T: valid, one body', async () => {
     // rootFillet 0: at the default 0.3 the twist-sweep union of the two halves trips the kernel's boolean

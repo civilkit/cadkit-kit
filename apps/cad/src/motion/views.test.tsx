@@ -45,6 +45,44 @@ describe('MotionPanel', () => {
     const { findByText } = render(<MotionPanel store={store} />);
     expect(await findByText(/No mate can be driven yet/)).toBeTruthy();
   });
+
+  it('creates and removes contact sets, toggles members and enabled state, and stops on contact with an active badge', async () => {
+    const { store } = setup();
+    const { container, findByText, findByLabelText, getByTestId } = render(<MotionPanel store={store} />);
+    await findByLabelText('Slot Slide');
+
+    // Add a contact set
+    fireEvent.click(await findByText('Add contact set'));
+    expect(store.contactSets()).toHaveLength(1);
+    const setId = store.contactSets()[0].id;
+
+    // Toggle member bodies Rail (F1) and Slider (F2) into the contact set
+    fireEvent.click(getByTestId(`contact-set-member-${setId}-F1`));
+    fireEvent.click(getByTestId(`contact-set-member-${setId}-F2`));
+    expect(store.contactSets()[0].memberIds).toEqual(['F1', 'F2']);
+
+    // Enable "Stop on contact"
+    fireEvent.click(getByTestId('stop-on-contact'));
+    expect(store.stopOnContact.value).toBe(true);
+
+    // Drag slider past contact limit (12 > 8): motion clamps to 8 and shows active contact badge "Rail <-> Slider"
+    fireEvent.input((await findByLabelText('Slot Slide')) as HTMLInputElement, { target: { value: '12' } });
+    await waitFor(() => expect(container.querySelector('[data-contact-badge]')).not.toBeNull());
+    expect(container.querySelector('[data-contact-badge]')!.textContent).toContain('Rail <-> Slider');
+    expect(store.values.value.F3).toBe(8);
+    expect(store.pose.value!.get('F2')!.t[0]).toBe(8);
+
+    // Disable the contact set: contact badge clears and further scrubbing is not clamped by this set
+    fireEvent.click(getByTestId(`contact-set-enabled-${setId}`));
+    expect(store.contactSets()[0].enabled).toBe(false);
+    fireEvent.input((await findByLabelText('Slot Slide')) as HTMLInputElement, { target: { value: '12' } });
+    await waitFor(() => expect(store.pose.value!.get('F2')!.t[0]).toBe(12));
+    expect(container.querySelector('[data-contact-badge]')).toBeNull();
+
+    // Remove the contact set
+    fireEvent.click(getByTestId(`remove-contact-set-${setId}`));
+    expect(store.contactSets()).toHaveLength(0);
+  });
 });
 
 describe('MotionTimeline', () => {

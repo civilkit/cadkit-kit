@@ -380,3 +380,46 @@ describe('numeric keypads', () => {
     expect((container.querySelector('[data-path="angle"] input') as HTMLInputElement).getAttribute('inputmode')).toBe('decimal');
   });
 });
+
+describe('Project curve: the Wrap method', () => {
+  const PC = { type: 'projectCurve', id: 'F5', sketch: 'F4', faces: ['F2.S.e1'], degree: 3, tolerance: 0.001, direction: 'both' };
+  const paths = (f: Record<string, unknown>) => sectionsOf(f as never).flatMap((s) => s.fields.map((x) => x.path));
+  it('a projection offers the Method (also on an older feature without one) and no wrap fields', () => {
+    expect(paths(PC)).toContain('method');
+    expect(paths(PC)).not.toContain('alongAxis');
+    expect(paths({ ...PC, method: 'project' })).toContain('direction');
+  });
+  it('the wrap method shows its fields and leaves out what the kernel does not read', () => {
+    const w = paths({ ...PC, method: 'wrap', alongAxis: 0, around: 0, rotation: 0, flip: false });
+    expect(w).toEqual(expect.arrayContaining(['method', 'alongAxis', 'around', 'rotation', 'flip', 'degree', 'tolerance']));
+    expect(w).not.toContain('direction');
+  });
+  it('choosing Wrap brings the wrap fields with their defaults; choosing Project takes them out again', () => {
+    const drafts: Array<Record<string, unknown>> = [];
+    const { container } = render(<FeatureEditor feature={PC as never} onDraft={(d) => drafts.push(d)} onConfirm={() => {}} onCancel={() => {}} />);
+    const sel = [...container.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.value === 'wrap'))!;
+    fireEvent.change(sel, { target: { value: 'wrap' } });
+    expect(drafts.at(-1)).toMatchObject({ method: 'wrap', alongAxis: 0, around: 0, rotation: 0, flip: false });
+    fireEvent.change(sel, { target: { value: 'project' } });
+    expect(drafts.at(-1)).toMatchObject({ method: 'project', alongAxis: null, around: null, rotation: null, flip: null });
+  });
+});
+
+describe('pipe wall (audit: the editor never offered it)', () => {
+  const PIPE = { type: 'pipe', id: 'F3', op: 'add', path: { kind: 'sketch', id: 'F1' }, radius: 2 };
+  it('a solid pipe still shows an empty Wall field; typing a wall writes it', () => {
+    const drafts: Array<Record<string, unknown>> = [];
+    const { container } = render(<FeatureEditor feature={PIPE} onDraft={(d) => drafts.push(d)} onConfirm={() => {}} onCancel={() => {}} />);
+    const field = container.querySelector('[data-path="wall"] input') as HTMLInputElement;
+    expect(field).not.toBeNull();
+    expect(field.value).toBe('');
+    fireEvent.change(field, { target: { value: '0.5' } });
+    fireEvent.blur(field);
+    expect(drafts.at(-1)).toMatchObject({ wall: 0.5 });
+  });
+  it('a pipe that has a wall shows it once', () => {
+    const { container } = render(<FeatureEditor feature={{ ...PIPE, wall: 0.5 }} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} />);
+    expect(container.querySelectorAll('[data-path="wall"]').length).toBe(1);
+  });
+});
+

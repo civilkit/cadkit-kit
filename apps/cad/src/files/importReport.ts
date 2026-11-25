@@ -12,6 +12,8 @@ export interface ImportPart {
   faces: number; facesTotal: number;
   /** id of the part's surface body (`<feature>.P<k>`), for a surface */
   surface?: string;
+  /** optional AP214/AP242 RGB color (0..1 floats) from the STEP file */
+  color?: [number, number, number];
   reasons: PartReason[];
 }
 
@@ -27,10 +29,15 @@ function partOf(x: unknown): ImportPart | null {
     const q = r as Record<string, unknown>;
     return [{ code: String(q.code ?? ''), faces: Array.isArray(q.faces) ? q.faces.map(String) : [], message: String(q.message ?? '') }];
   }) : [];
+  const rawCol = o.color;
+  const color = Array.isArray(rawCol) && rawCol.length >= 3 && rawCol.slice(0, 3).every((c) => typeof c === 'number' && Number.isFinite(c))
+    ? ([rawCol[0], rawCol[1], rawCol[2]] as [number, number, number])
+    : undefined;
   return {
     label: String(o.label ?? ''), outcome,
     faces: typeof o.faces === 'number' ? o.faces : 0, facesTotal: typeof o.facesTotal === 'number' ? o.facesTotal : 0,
     ...(typeof o.surface === 'string' ? { surface: o.surface } : {}),
+    ...(color ? { color } : {}),
     reasons,
   };
 }

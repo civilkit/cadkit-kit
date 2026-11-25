@@ -22,6 +22,11 @@ export function groupByFace(m: BodyMesh, rank?: (face: string) => number): Group
   return { positions, normals, ranges, triOrder: Int32Array.from(order) };
 }
 
+/** The edges the visible lines draw: all of them, or (Tangent edges off) without those whose faces meet without a crease (`gentle`: within 10 degrees, `smooth` implies it). */
+export function visibleEdges<E extends { smooth?: boolean; gentle?: boolean }>(edges: E[], tangentOn: boolean): E[] {
+  return tangentOn ? edges : edges.filter((e) => !e.smooth && !e.gentle);
+}
+
 export function edgeSegments(edges: Array<{ pts: number[][] }>): Float32Array {
   const out: number[] = [];
   for (const e of edges) for (let i = 0; i + 1 < e.pts.length; i++) out.push(...e.pts[i], ...e.pts[i + 1]);

@@ -114,4 +114,24 @@ describe('the commands a joinery plugin needs', () => {
     expect(z).toContain(`p.combine('cut', "Rail", ["Tool"], { keepTools: true })`);
     expect(I.script({ up: 'y' })).toContain('rotate: { axis: [0,1,0], origin: [0,0,0], angle: 45 }');   // plugin Z (up) is the document's Y
   });
+
+  it('components are numbered as in SolidCraft: the root is 0, a new component gets an id, and a plugin may name it by id or by name', async () => {
+    const I = new Interpreter(scratch, { doc: doc('z') });
+    const made = await I.run('component.create', { name: 'Rail' }) as { component: number; occurrence: number; parent: number };
+    expect(made.component).toBeGreaterThan(0);
+    expect(made.parent).toBe(0);
+    const l = await I.run('component.list', {}) as { active: number; active_path: unknown[]; pending_moves: unknown[]; components: Array<{ id: number; name: string; parent: number | null; occurrences: Array<{ id: number; component: number; parent: number; transform: number[][] }> }> };
+    expect(l.active).toBe(made.component);
+    expect(l.active_path).toEqual([]);
+    expect(l.pending_moves).toEqual([]);
+    expect(l.components[0]).toMatchObject({ id: 0, name: 'Root', parent: null });
+    const rail = l.components.find((c) => c.name === 'Rail')!;
+    expect(rail).toMatchObject({ id: made.component, parent: 0 });
+    expect(rail.occurrences[0]).toMatchObject({ component: made.component, parent: 0 });
+    expect(rail.occurrences[0].transform).toHaveLength(4);
+    await I.run('component.activate', { component: 0 });
+    expect(((await I.run('component.list', {})) as { active: number }).active).toBe(0);
+    await I.run('component.activate', { component: made.component });
+    expect(((await I.run('component.list', {})) as { active: number }).active).toBe(made.component);
+  });
 });

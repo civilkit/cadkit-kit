@@ -129,7 +129,7 @@ describe('names', () => {
     expect(c.next()).toBe('Part8');
   });
   it('classifies dropped files', () => {
-    expect(['a.ckpart', 'a.JSON', 'x.step', 'x.STP', 'm.skp', 'N.SKP', 'a.skp.bak', 'd.dxf', 'v.SVG', 'm.stl', 'p.png', 'noext', 'a.FCStd', 'part.f3d', 'asm.F3Z', 'p.SolidCraft'].map(dropKind)).toEqual(['part', 'part', 'step', 'step', 'skp', 'skp', 'unknown', 'dxf', 'svg', 'stl', 'unknown', 'unknown', 'fcstd', 'f3d', 'f3d', 'solidcraft']);
+    expect(['a.ckpart', 'a.JSON', 'x.step', 'x.STP', 'm.skp', 'N.SKP', 'a.skp.bak', 'd.dxf', 'v.SVG', 'm.stl', 'p.png', 'noext', 'a.FCStd', 'part.f3d', 'asm.F3Z', 'b.ipt', 'B.IPT', 'p.SolidCraft', 'bldg.ifc', 'hull.3DM', 'plan.dwg', 'fam.RVT'].map(dropKind)).toEqual(['part', 'part', 'step', 'step', 'skp', 'skp', 'unknown', 'dxf', 'svg', 'stl', 'unknown', 'unknown', 'fcstd', 'f3d', 'f3d', 'ipt', 'ipt', 'solidcraft', 'ifc', '3dm', 'dwg', 'rvt']);
   });
 });
 

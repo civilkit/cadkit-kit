@@ -175,7 +175,7 @@ With no selection, Loft takes the unused closed sketches drawn since the last so
 | Guide curves | Open sketches the loft follows along its length. Add guide adds one. | None |
 | Make a surface (not a solid) | Builds a sheet instead of a solid. Profiles may then be open curves, all of one kind. | Off |
 | Operation, Body name | As for Extrude. Hidden for a surface. | Add |
-| Start tension, End tension | How strongly the loft leaves the first and last profile along its normal. 0 means free. | 0 |
+| End conditions | One drop-down for the first profile and one for the last. **Free** lets the loft settle by itself. **Directional** steers it: the **Angle** is measured from the profile plane (90° leaves straight out along the profile's normal) and the **Weight** says how far it holds that direction before it turns (1 is neutral, more holds it longer). Tangent to a face and Curvature are listed but not available yet. Only for a plain loft: not with guide curves, a centre line or a point end. A file made with the old Start and End tension opens as Directional at 90° with that weight. | Free |
 
 **Points.** The first or the last profile may be a sketch holding a single point. The loft then comes to a tip there. Only one end can be a point; a point cannot be in the middle, and it cannot be combined with guide curves or with a surface loft. The Editor explains whichever rule you break.
 
@@ -236,6 +236,17 @@ A bounding solid is the box that just holds the bodies you pick. Pick a face on 
 ## Dome
 
 A dome raises a spherical cap on a flat face bounded by one circle. Pick that face and choose **Dome** (**Features > Modify**). Set the **Height**; a negative height cuts a dimple into the body. A face that is not a plain circle is refused, and an oval dome is not built.
+
+## Wrap
+
+Wrap lays lettering or closed shapes from a flat sketch onto a cylinder and cuts or raises them there, so a name on a mug follows the curve. Draw the sketch (or the text) on a plane beside the cylinder, pick the round face, and choose **Wrap** (**Home > Create > Pipe > Wrap**).
+
+- **Operation:** Cut material engraves, Add material raises. **Depth** is how far.
+- **Method:** Automatic chooses for you; Wrap keeps the lengths of the sketch along the surface; Project drops the sketch straight onto the face.
+- **Along the axis, Around, Rotation:** slide the shape up the cylinder, turn it round the cylinder, and spin it on the surface. Each takes a number or an expression.
+- **Taper** slopes the walls.
+
+A shape wider than one turn of the cylinder is refused, as is one that runs off the face; the message says which shape and by how much. Wrap works on cylinder faces for now; cone and free-form faces come later.
 
 ## Split face
 

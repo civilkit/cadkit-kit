@@ -15,6 +15,8 @@
   --z-tool-scrim: 38; --z-sheet-scrim: 39; --z-sheet: 40; --z-nav: 41; --z-tool-tray: 42; --z-dof-pop: 45; --z-dialog: 50;
   --z-toast: 60; --z-toast-top: 61; --z-keypad: 300; --z-tooltip: 1000; --z-help: 1100;
   --accent: #0b74dc; --accent-soft: #e2f0fe;
+  /* text on an accent background: AA (4.5:1) in every theme; -2 is for secondary lines */
+  --on-accent: #ffffff; --on-accent-2: #ffffff;
   --bg: #eef0f3; --panel: #ffffff; --panel-2: #f6f7f9;
   --line: #d5d9e0; --line-soft: #e6e9ee;
   --text: #1c2129; --text-2: #5b6573;
@@ -39,6 +41,7 @@
 
 :root[data-theme="dark"] {
   --accent: #4da3ff; --accent-soft: #16304d;
+  --on-accent: #06121f; --on-accent-2: #0b2540;
   --bg: #0e1318; --panel: #151b22; --panel-2: #1a222b;
   --line: #2a343f; --line-soft: #212a33;
   --text: #e3e8ee; --text-2: #96a3b2;
@@ -61,10 +64,11 @@
 }
 /* Solarized Dark (Ethan Schoonover's public palette): base03 #002b36, base02 #073642, base01 #586e75, base0 #839496, base1 #93a1a1; accents blue, green, yellow, red, violet. */
 :root[data-theme="solarized-dark"] {
-  --accent: #268bd2; --accent-soft: #0a3f52;
+  --accent: #268bd2; --accent-soft: #08394a;
+  --on-accent: #06121f; --on-accent-2: #06121f;
   --bg: #00212b; --panel: #002b36; --panel-2: #073642;
   --line: #124b59; --line-soft: #0a3d4a;
-  --text: #93a1a1; --text-2: #839496;
+  --text: #93a1a1; --text-2: #9aa9a9;
   --title: #001c24; --title-text: #eee8d5;
   --ok: #859900; --warn: #b58900; --err: #dc322f;
   --vp-top: #0a3a47; --vp-bottom: #00232d;
@@ -85,6 +89,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]):not([data-theme="dark"]):not([data-theme="solarized-dark"]) {
   --accent: #4da3ff; --accent-soft: #16304d;
+  --on-accent: #06121f; --on-accent-2: #0b2540;
   --bg: #0e1318; --panel: #151b22; --panel-2: #1a222b;
   --line: #2a343f; --line-soft: #212a33;
   --text: #e3e8ee; --text-2: #96a3b2;

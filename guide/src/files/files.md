@@ -28,7 +28,7 @@ Some browsers reserve Ctrl+N and Ctrl+O for themselves; the buttons always work.
 
 ## Open
 
-**Open** shows the browser's file picker. It accepts parts (`.ckpart`, `.json`, and compressed `.gz` parts), STEP (`.step`, `.stp`), SolidWorks (`.sldprt`), SketchUp (`.skp`), DXF (`.dxf`), SVG (`.svg`), FreeCAD (`.FCStd`) and SolidCraft (`.solidcraft`) files. The app decides by the extension. What each foreign format becomes is described in [Importing](import.md).
+**Open** shows the browser's file picker. It accepts parts (`.ckpart`, `.json`, and compressed `.gz` parts), STEP (`.step`, `.stp`), SolidWorks (`.sldprt`), Fusion 360 (`.f3d`, `.f3z`), SketchUp (`.skp`), DXF (`.dxf`), SVG (`.svg`), FreeCAD (`.FCStd`) and SolidCraft (`.solidcraft`) files. The app decides by the extension. What each foreign format becomes is described in [Importing](import.md).
 
 You can also drag one file onto the window; a dashed overlay shows while you drag. Dropping more than one file at a time is refused ("Drop one file at a time."). A DXF or an SVG opens into the sketch you are editing, or as a new sketch on the front plane. STL files cannot be imported.
 

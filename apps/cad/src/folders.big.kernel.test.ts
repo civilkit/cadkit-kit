@@ -27,7 +27,8 @@ function withPlanesFirst(doc: PartDoc, n: number): PartDoc {
 
 type Call = { type: string; ms: number; ran?: number; reused?: number; full?: boolean };
 
-describe('folders on the heavy sample (matx-case)', { skip: !process.env.CK_WASM }, () => {
+// Heavy: about 1.5 minutes on a current laptop but over 10 minutes on the CI box (a 2009 Xeon E5520), where it has timed out in every run. Opt in with CK_HEAVY=1 on a fast machine.
+describe('folders on the heavy sample (matx-case)', { skip: !process.env.CK_WASM || !process.env.CK_HEAVY }, () => {
   it('group 12 planes, undo, redo, rename, ungroup: no feature re-runs, each step is quick', async () => {
     const calls: Call[] = [];
     const kernel: KernelFactory = {

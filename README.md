@@ -25,7 +25,7 @@ from scripts or by an AI agent.
 - **History:** an editable feature tree with rollback, undo and redo, equations and variables, configurations,
   broken-reference survival (sketches, planes and axes hold their last known position when an upstream
   reference disappears so downstream features stay intact and can be reattached), and several documents in tabs.
-- **Assemblies:** parts placed with mates, bill of materials, drawings (PDF, SVG, DXF).
+- **Assemblies:** parts placed with face mates or single-mate **Mate connectors** (named coordinate frames with Fastened, Revolute, Slider, Cylindrical, and Planar joints), degrees-of-freedom reporting, bill of materials, exploded views, motion studies, and drawings (PDF, SVG, DXF).
 - **Checking:** measure, inspect, geometry checks and design checks against rules you choose, including an
   undercut check for two-part injection moulds.
 - **Library, wizards and plugins:** sample parts, catalog parts, parametric wizards for gears, propellers, turbo
@@ -34,9 +34,9 @@ from scripts or by an AI agent.
   picking, arbitrary-axis cylinders/cones, PBR materials/presets, and plugin-declared hinge/slide motion sliders,
   and a searchable **Community Package Hub** (`ck-hub` v1 JSON registry format) with SPDX license badges, SHA-256
   verification, custom registry URLs with offline cache fallback, and one-click library/plugin install.
-- **Import:** STEP, SolidWorks parts (`.sldprt`), SketchUp (`.skp`), STL, OBJ, GLB and 3MF (as reference
-  meshes), FreeCAD (`.FCStd`), Fusion 360 (`.f3d`, `.f3z`), SolidCraft files, and DXF and SVG as sketch geometry. What each import keeps and loses is listed in the guide.
-- **Export:** STEP, STL, OBJ, 3MF (including a Print Plate layout dialog with printer bed presets, auto-lay-flat, 2D bin-packing, and one-click Send to Slicer in the desktop app), glTF binary (`.glb`), USDZ (Apple AR / Quick Look), standalone offline HTML 3D viewer (`.html`), URDF robotics bundles (`.zip` with `.urdf` and metre-scaled STL meshes), DXF, and drawings as PDF, SVG or DXF.
+- **Import:** STEP (AP214/AP242 with body colours, names, and assembly placements), SolidWorks parts (`.sldprt`), SketchUp (`.skp`), STL, OBJ, GLB and 3MF (as reference
+  meshes), FreeCAD (`.FCStd`), SolidCraft files, and DXF and SVG as sketch geometry. What each import keeps and loses is listed in the guide.
+- **Export:** STEP (AP214/AP242 with body colours and names), STL, OBJ, 3MF (including a Print Plate layout dialog with printer bed presets, auto-lay-flat, 2D bin-packing, and one-click Send to Slicer in the desktop app), glTF binary (`.glb`), USDZ (Apple AR / Quick Look), standalone offline HTML 3D viewer (`.html`), URDF robotics bundles (`.zip` with `.urdf` and metre-scaled STL meshes), DXF, and drawings as PDF, SVG or DXF.
 - **Scripting and agents:** a script language (the Script tab, including opt-in implicit boolean fusion via `autoFuse(true)` / `fuseIntersecting()`), a local MCP server so an AI assistant can build
   and inspect parts (including read-only measure, clearance, interference, thickness, draft and manufacturing
   checks), and an optional agent link that lets an MCP assistant read, take pictures of and (if you

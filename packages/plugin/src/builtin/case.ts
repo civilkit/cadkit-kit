@@ -45,7 +45,9 @@ export const caseManifest: PluginManifest = {
 
 const q = (s: unknown): string => JSON.stringify(String(s));
 /** The caseBox() call for the checked values. */
-export const generateCase: GenerateFn = (v: Values) => {
+export const generateCase: GenerateFn = (v: Values, ctx) => {
+  // free names, so a second case in the same document does not collide on 'Base' and 'Lid'
+  const un = (n: unknown, d: string): string => (ctx ? ctx.uniqueName(String(n).trim() || d) : String(n).trim());
   const opt = (k: string): string => (v[k] === undefined ? '' : `${k}: ${v[k]}, `);
-  return `caseBox({ width: ${v.width}, depth: ${v.depth}, height: ${v.height}, wall: ${v.wall}, radius: ${v.radius}, topRadius: ${v.topRadius}, ${opt('lidHeight')}${opt('tongueHeight')}${opt('tongueWidth')}clearance: ${v.clearance}, tongueOn: ${q(v.tongueOn)}, names: [${q(String(v.baseName).trim())}, ${q(String(v.lidName).trim())}], axis: ${q(v.axis)}, origin: [${v.x}, ${v.y}, ${v.z}] });\n`;
+  return `caseBox({ width: ${v.width}, depth: ${v.depth}, height: ${v.height}, wall: ${v.wall}, radius: ${v.radius}, topRadius: ${v.topRadius}, ${opt('lidHeight')}${opt('tongueHeight')}${opt('tongueWidth')}clearance: ${v.clearance}, tongueOn: ${q(v.tongueOn)}, names: [${q(un(v.baseName, 'Base'))}, ${q(un(v.lidName, 'Lid'))}], axis: ${q(v.axis)}, origin: [${v.x}, ${v.y}, ${v.z}] });\n`;
 };

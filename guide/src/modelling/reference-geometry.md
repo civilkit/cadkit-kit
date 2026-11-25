@@ -28,13 +28,35 @@ The plane's name is made from its settings, for example "Plane 10 from Front" or
 
 | Control | What it does | Default |
 |---|---|---|
-| Mode | How the plane is made: Offset, Angle, Midplane, Parallel, Three points. Origin and directions appears only for a plane that already uses it | Offset (Midplane for two faces) |
-| Offset | Distance in mm along the base plane's normal. A negative value goes the other way | 10 |
+| Mode | How the plane is made: Offset, Angle, Midplane, Parallel, Three points. Perpendicular, and Origin and directions, appear only for a plane that already uses them | Offset (Midplane for two faces) |
+| Offset | Distance in mm along the base plane's normal. A negative value goes the other way. In Angle mode it moves the tilted plane along its own normal. Ignored in Perpendicular and Midplane modes | 10 |
 | Angle | Degrees. Shown only for a plane that already has an angle | |
 | Flip direction | Turns the plane around so it faces the other way. In Offset mode the base is flipped before the offset is applied, so the plane lies on the other side of the base (offset 10 flipped is 10 mm the other way). In Angle mode it negates the angle. Shown only for a plane that already has it set; a new plane starts without it | Off |
 | Base plane | The plane to start from: Front Plane, Top Plane, Right Plane, an earlier Plane feature, or the face it hangs on ("Face F2.C1") | The base chosen as above |
 
-Offset and Midplane are complete: pick the base (and, for a midplane, the two faces at creation) and the plane is built. The other modes need extra references that the Editor cannot set yet: Angle needs a line to turn about, Parallel needs a point, Three points needs three points, Origin and directions needs vectors. If you switch a plane to one of them it fails with a "missing reference" error and the plane is not built. Switch back to Offset or Midplane. For midplanes, the Editor can change the first base only; to change the second face, delete the plane and make it again.
+Offset and Midplane are complete: pick the base (and, for a midplane, the two faces at creation) and the plane is built. The other modes in the Mode list need references that the Editor has no field for: Angle needs a line to turn about, Parallel needs a point, Three points needs three points, Origin and directions needs vectors. If you switch a plane to one of them it fails at once with the message "The edit broke the model ... a face or edge it uses no longer exists" and the OK button stays greyed out. The message is the generic one for a missing reference; here it means the mode has nothing to work from, not that a face was lost. Switch back to Offset, or press Cancel edit. For midplanes, the Editor can change the first base only; to change the second face, delete the plane and make it again.
+
+Each mode, as the kernel builds it (checked with a circle of radius 25 on the Top plane):
+
+| Mode | Needs | Result |
+|---|---|---|
+| Offset | Base plane, Offset | The base moved along its normal by Offset (40 on Top gives a plane 40 mm up; negative goes down; Flip puts it on the other side, facing down) |
+| Angle | Base plane, a line to turn about (an axis, a sketch line or an edge), Angle | The base turned about that line by Angle degrees, then moved along its own (tilted) normal by Offset. With no Offset (or 0) the plane passes through the line |
+| Perpendicular | Base plane, a line | A plane through the line, standing square to the base. A line along the base's normal is refused (`planeLineNormal`) |
+| Midplane | Two planes or faces | The plane halfway between them. For two planes that are not parallel, the plane through their meeting line that splits the angle (the wider angle of the pair) |
+
+Perpendicular appears in the Mode list only for a plane that already uses it. Today the app's Editor can create only Offset and Midplane planes; a plane that is turned about a line, or perpendicular to one, comes from scripting (the `workplane` call, see [Scripting](../automation/scripting.md)) or from an agent, and the Editor then shows its Angle value and lets you change it.
+
+**Tilted and away from the base.** One Angle plane does both: it is turned about the line, then moved along its tilted normal by Offset. On the Top plane, turning about the X axis by 30° with Offset 40 gives a plane whose origin is (0, -20, 34.641) and whose normal is (0, -0.5, 0.866): 40 mm from the line, measured square to the plane. An Angle plane that hangs on an Offset plane still turns about the line you give, so the offset of its base is not kept: put the distance in the Angle plane's own Offset instead.
+
+**Older files.** Before 0.8.14 an Angle plane ignored its Offset, and a plane switched from Offset to Angle kept the Offset it had (a new plane starts at 10). Such a plane now moves by that stored value when the file is rebuilt. Open the plane: the Offset field is shown in Angle mode, set it to 0 to get the old position back.
+
+### Example: a circle, a plane 40 mm above, a tilted plane
+
+1. Start a sketch on the **Top** plane and draw a circle of radius 25. Finish the sketch.
+2. Select the **Top Plane** in the tree and press **Shift+N**. Set **Offset** to 40 and press OK. The new plane is 40 mm above the circle ("Plane 40 from Top").
+3. With the new plane selected, press **S** to sketch on it. A circle drawn there and extruded 10 mm gives the same solid as one drawn on the Top plane, 40 mm higher.
+4. For a plane tilted 30 degrees about the X axis, make an Angle plane by script. The plane passes through the X axis and its normal leans 30 degrees toward -Y. A tilted plane 40 mm away from that one is an Offset plane with the tilted plane as its Base plane.
 
 The kernel has more plane modes (perpendicular, line and point, normal to a path or curve, tangent to a cylinder or sphere). The app uses the tangent plane by itself when you sketch on a curved face. See [planes](/docs/cad/kernel/format/planes.html#the-plane-feature) in the kernel book.
 

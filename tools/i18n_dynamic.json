@@ -104,6 +104,7 @@
   "layer.planes",
   "layer.relations",
   "layer.sketches",
+  "layer.tangent",
   "layer.threads"
  ],
  "light.+": [
@@ -196,6 +197,17 @@
   "opt.end.upToFace",
   "opt.end.upToNext",
   "opt.end.upToPoint"
+ ],
+ "opt.loft.rails.+": [
+  "opt.loft.rails.auto",
+  "opt.loft.rails.local",
+  "opt.loft.rails.natural"
+ ],
+ "opt.loft.cond.+": [
+  "opt.loft.cond.curvature",
+  "opt.loft.cond.directional",
+  "opt.loft.cond.free",
+  "opt.loft.cond.tangent"
  ],
  "opt.loft.+": [
   "opt.loft.loftPointBoth",
@@ -1067,6 +1079,16 @@
   "cmd.export-step",
   "cmd.export-stl",
   "cmd.export-stl-ascii"
+ ],
+ "diag.reason.plane.missing.+": [
+  "diag.reason.plane.missing.axis",
+  "diag.reason.plane.missing.base",
+  "diag.reason.plane.missing.base2"
+ ],
+ "diag.advice.plane.missing.+": [
+  "diag.advice.plane.missing.axis",
+  "diag.advice.plane.missing.base",
+  "diag.advice.plane.missing.base2"
  ],
  "diag.reason.+": [
   "diag.reason.blendRoundsCross",

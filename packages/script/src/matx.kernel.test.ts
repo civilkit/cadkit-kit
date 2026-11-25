@@ -50,7 +50,8 @@ function meshStats(m: { positions: ArrayLike<number>; triFace: ArrayLike<number>
   const noTri = m.faceIds.filter((_, i) => !seen.has(i));
   return { open, noTri };
 }
-describe('matx components', { skip: !existsSync(FC_FILE) }, () => {
+// describe.skipIf, not describe(name, { skip }): with { skip: false } vitest runs every test inside, even the ones their own skipIf (MATX_DEBUG, MATX_ALL) says to skip
+describe.skipIf(!existsSync(FC_FILE))('matx components', () => {
   for (const g of Object.keys(GROUPS)) {
     it.skipIf(only.length > 0 && !only.includes(g))('component ' + g, async () => {
       const { h, mp, controller } = await host();

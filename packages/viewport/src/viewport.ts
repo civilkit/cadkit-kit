@@ -7,7 +7,7 @@ import { OrbitRig } from './orbitrig';
 import { PenGuard, TouchGuard } from './touchguard';
 import { groundPlane, poseForDirection, switchUpAxis, upVector, viewDirection, type OrbitMode, type OrbitPivot, type UpAxis } from './camerarig';
 import { backToFront, finishParams, hiddenSets, lookMaterial, looksTinted, lookOpacity, pickThrough, rangeCentre, rangeSphere, separateBodies, sortTrianglesBackToFront, triangleCentroids, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
-import { groupByFace, edgeSegments, facesGeometry, namesBox, nameOwner, withoutOwned, positionsBox, type BodyMesh, type Grouped } from './meshgeom';
+import { groupByFace, edgeSegments, visibleEdges, facesGeometry, namesBox, nameOwner, withoutOwned, positionsBox, type BodyMesh, type Grouped } from './meshgeom';
 import { pickFace, nearestEdge } from './pick';
 import { sketchPolylines, selectedSketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
@@ -19,6 +19,7 @@ import { vertexName, pointOfName, BODY } from '@kit/store';
 import { boxPick, type Project, type ScreenRect } from './boxselect';
 import { buildBoxDimensions, label as textLabel } from './dimensions';
 import { clampInsets, fitLimit, insetShift, NO_INSETS, sameInsets, type SafeInsets } from './safeArea';
+import { constructionColour, CONSTRUCTION_PX } from './sketchLook';
 import { bodyScreenPx, isRightClick, rightClickSlop, scaledPickTol } from './navTolerance';
 import { navButtons, wheelFactor, zoomAbout, zoomedDistance } from './navButtons';
 import { RefPlanes, PLANE_PICK_TOL, type RefPlaneId } from './refplanes';
@@ -178,8 +179,8 @@ export interface SketchPointerEvent {
 
 /** What a sketch tool wants drawn while it works (plane coordinates). */
 export type SketchPreviewShape =
-  | { kind: 'line'; a: { x: number; y: number }; b: { x: number; y: number } }
-  | { kind: 'circle'; c: { x: number; y: number }; r: number }
+  | { kind: 'line'; a: { x: number; y: number }; b: { x: number; y: number }; /** a construction entity: drawn dashed, as it is unselected */ dashed?: boolean }
+  | { kind: 'circle'; c: { x: number; y: number }; r: number; dashed?: boolean }
   /** A dotted guide, for example from the point a shape is aligned with to the pointer. */
   | { kind: 'guide'; a: { x: number; y: number }; b: { x: number; y: number }; /** a guide through the model: drawn dashed in the model colour */ model?: boolean }
   /** A snap marker, sized in screen pixels: a square on a point, a triangle on a midpoint, a diamond on an
@@ -215,6 +216,9 @@ export class Viewport {
   private baseTints: Float32Array | null = null;
   private combLines: number[][][] = [];
   private edgeLines: LineSegments2 | null = null;
+  /** The edge lines with and without the tangent edges (null when there are none): the Tangent edges layer picks which the lines draw. */
+  private edgeGeoAll: LineSegmentsGeometry | null = null;
+  private edgeGeoCrease: LineSegmentsGeometry | null = null;
   private hull: THREE.Mesh | null = null;
   /** Per-body appearance and visibility (see setBodyView) and the meshes of the transparent bodies, drawn back to front after the opaque ones. */
   private bodyView: BodyViewSpec = { bodies: [], looks: {}, hidden: [] };
@@ -280,7 +284,7 @@ export class Viewport {
   private sketchEdit: SketchEditShape | null = null;
   private sketchOverlay: THREE.Group | null = null;
   /** The dashed material of the construction lines, resized with the zoom. */
-  private constructionMat: THREE.LineDashedMaterial | null = null;
+  private constructionMat: LineMaterial | null = null;
   private sketchDrag: string | null = null;
   /** Rubber band in progress in Select mode: where it started (client pixels, element pixels, plane coordinates). */
   private rubber: { cx: number; cy: number; x: number; y: number; moved: boolean } | null = null;
@@ -345,7 +349,7 @@ export class Viewport {
     this.offHdri = onHdriProviderChanged(() => { for (const [k, v] of [...this.hdris]) if (v === null) this.hdris.delete(k); this.setLighting(this.lightPreset); this.requestRender(); });
     this.controls.addEventListener('start', () => { this.anim = null; });   // a drag or a wheel turn takes the camera over from a running view animation
     this.offTextures = onTexturesChanged(() => { this.applyMeshLook(); this.requestRender(); });   // an image texture finished loading
-    this.controls.addEventListener('change', () => { if (this.ortho) this.updateClip(); this.requestRender(); this.scheduleSketchRefresh(); this.reportSketchZoom(); });
+    this.controls.addEventListener('change', () => { if (this.ortho) this.updateClip(); this.requestRender(); this.scheduleSketchRefresh(); this.scheduleGroundRefresh(); this.reportSketchZoom(); });
 
     this.scene.add(this.hemi);
     this.sun.position.set(1, 2, 1.5);
@@ -392,7 +396,7 @@ export class Viewport {
   /** Re-read the page's background colour (after a theme change). */
   refreshTheme(): void {
     this.applyBackground();
-    this.buildGroundGrid(this.box);
+    this.buildGroundGrid(this.box, true);
     this.viewCube?.refreshTheme();
   }
 
@@ -484,10 +488,10 @@ export class Viewport {
     this.requestRender();
   };
 
-  /** Dolly towards (dy < 0, a drag up) or away from the target by a screen drag of dy pixels. */
+  /** Dolly towards (dy < 0, a drag up) or away from the target by a screen drag of dy pixels, scaled by the zoom speed preference (the keys and the Ctrl + middle drag use this path too, as the wheel does). */
   zoomBy(dy: number): void {
     const off = this.camera.position.clone().sub(this.controls.target);
-    const len = zoomedDistance(off.length(), dy, this.controls.minDistance || 1e-3, this.controls.maxDistance || Infinity);
+    const len = zoomedDistance(off.length(), dy * this.zoomSpeed, this.controls.minDistance || 1e-3, this.controls.maxDistance || Infinity);
     this.camera.position.copy(this.controls.target).add(off.setLength(len));
     this.controls.update();
     this.requestRender();
@@ -638,7 +642,7 @@ export class Viewport {
    *  turn off body picking. null clears the overlay and restores everything. */
   setSketchEdit(v: SketchEditShape | null): void {
     this.clearSketchOverlay();
-    if (this.groundGrid) this.groundGrid.visible = !v && this.layerOn('grid');   // the sketch has its own grid
+    if (this.groundGrid) { this.groundGrid.visible = !v && this.layerOn('grid'); if (!v && this.layerOn('grid')) this.buildGroundGrid(this.box); }   // the sketch has its own grid
     if (!v) { this.setSketchUnderlay(null); this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; this.sketchDef = null; this.sketchConflict = null; this.sketchFree = null; }
     this.sketchDefLines = [];
     const leaving = !v && !!this.sketchEdit;
@@ -675,16 +679,18 @@ export class Viewport {
       const solved = this.fatSketchLines(seg, 0x0b74dc, 2.2);
       group.add(solved);
     }
-    // Construction geometry: dashed and lighter (it is never extruded)
+    // Construction geometry: dashed, teal (a hue of its own, so it is not mistaken for a thin solid line), as heavy as the solid lines (it is never extruded)
     const cons = this.segmentsOf(sketchEditPolylines(v.sketch, v.frame as never, 'construction'));
     this.constructionMat = null;
     if (cons.length) {
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(cons, 3));
+      const lines = this.fatSketchLines(cons, constructionColour(this.darkBackground()), CONSTRUCTION_PX);
       const upp = this.sketchUnitsPerPixel();
-      const mat = new THREE.LineDashedMaterial({ color: 0x0b74dc, dashSize: upp * 6, gapSize: upp * 4, transparent: true, opacity: 0.75 });
-      const lines = new THREE.LineSegments(geo, mat);
+      const mat = lines.material as LineMaterial;
+      mat.dashed = true; mat.dashSize = upp * 7; mat.gapSize = upp * 4; mat.dashScale = 1;
+      mat.defines.USE_DASH = '';
+      mat.needsUpdate = true;
       lines.computeLineDistances();
+      lines.renderOrder = 1;
       group.add(lines);
       this.constructionMat = mat;
     }
@@ -834,6 +840,7 @@ export class Viewport {
     const frame = v.frame as never;
     const upp = this.sketchUnitsPerPixel();
     const solid: number[] = [];
+    const dstrokes: number[] = [];   // the same for construction entities, dashed
     const strokes: number[] = [];   // the lines and circles being drawn: thick, with a dark casing, so they read over the grid and a pale face
     const dotted: number[] = [];
     const msolid: number[] = [];
@@ -843,14 +850,14 @@ export class Viewport {
     for (const sh of shapes) {
       const mdl = sh.kind !== 'line' && sh.kind !== 'circle' && sh.model === true;
       const S = mdl ? msolid : solid, D = mdl ? mdotted : dotted;
-      if (sh.kind === 'line') seg(strokes, sh.a, sh.b);
+      if (sh.kind === 'line') seg(sh.dashed ? dstrokes : strokes, sh.a, sh.b);
       else if (sh.kind === 'guide') seg(D, sh.a, sh.b);
       else if (sh.kind === 'circle') {
         const n = 64;
         for (let i = 0; i < n; i++) {
           const a0 = (i / n) * Math.PI * 2;
           const a1 = ((i + 1) / n) * Math.PI * 2;
-          seg(strokes, { x: sh.c.x + sh.r * Math.cos(a0), y: sh.c.y + sh.r * Math.sin(a0) }, { x: sh.c.x + sh.r * Math.cos(a1), y: sh.c.y + sh.r * Math.sin(a1) });
+          seg(sh.dashed ? dstrokes : strokes, { x: sh.c.x + sh.r * Math.cos(a0), y: sh.c.y + sh.r * Math.sin(a0) }, { x: sh.c.x + sh.r * Math.cos(a1), y: sh.c.y + sh.r * Math.sin(a1) });
         }
       } else {
         const k = upp * (sh.style === 'anchor' ? ANCHOR_HALF_PX : MARKER_HALF_PX);
@@ -860,14 +867,17 @@ export class Viewport {
     }
     const group = new THREE.Group();
     group.userData.pickable = false;
-    if (strokes.length) {
+    for (const [list, dash] of [[strokes, false], [dstrokes, true]] as const) {
+      if (!list.length) continue;
       // a wide dark casing under the sketch-orange stroke: the 1 px line was lost between the grid lines on a pale face
       for (const [width, color, opacity, order] of [[5, 0x0d1117, 0.55, 18], [2.6, 0xe8730c, 1, 20]] as const) {
         const geo = new LineSegmentsGeometry();
-        geo.setPositions(strokes);
+        geo.setPositions(list);
         const mat = new LineMaterial({ color, linewidth: width, worldUnits: false, depthTest: false, transparent: true, opacity });
         mat.resolution.set(Math.max(1, this.host.clientWidth), Math.max(1, this.host.clientHeight));
+        if (dash) { mat.dashed = true; mat.dashSize = upp * 7; mat.gapSize = upp * 4; mat.dashScale = 1; mat.defines.USE_DASH = ''; mat.needsUpdate = true; }
         const fat = new LineSegments2(geo, mat);
+        if (dash) fat.computeLineDistances();
         fat.renderOrder = order;
         fat.userData.pickable = false;
         group.add(fat);
@@ -995,7 +1005,7 @@ export class Viewport {
       if (!this.sketchEdit) return;
       this.rebuildSketchGrid();
       this.rebuildSketchPreview();
-      if (this.constructionMat) { const upp = this.sketchUnitsPerPixel(); this.constructionMat.dashSize = upp * 6; this.constructionMat.gapSize = upp * 4; }
+      if (this.constructionMat) { const upp = this.sketchUnitsPerPixel(); this.constructionMat.dashSize = upp * 7; this.constructionMat.gapSize = upp * 4; }
       this.opts.onSketchView?.();
     });
   }
@@ -1224,11 +1234,12 @@ export class Viewport {
   setLayerVisible(layer: string, on: boolean): void {
     this.layers[layer] = on;
     if (layer === 'edges') this.applyMeshLook();
+    if (layer === 'tangent') this.applyTangentEdges();
     if (layer === 'sketches') { if (this.sketchLines) this.sketchLines.visible = on; if (this.sketchQuiet) this.sketchQuiet.visible = on; }
     if (layer === 'curves' && this.curveLines) this.curveLines.visible = on;
     if (layer === 'planes' && this.planeLines) this.planeLines.visible = on;
     if (layer === 'axes' && this.axisLines) this.axisLines.visible = on;
-    if (layer === 'grid' && this.groundGrid) this.groundGrid.visible = on;
+    if (layer === 'grid' && this.groundGrid) { this.groundGrid.visible = on; if (on) this.buildGroundGrid(this.box); }
     if (layer === 'dimensions' && this.dimGroup) this.dimGroup.visible = on;
     if (layer === 'threads' && this.threadGroup) this.threadGroup.visible = on;
     if (layer === 'issues') for (const m of this.issueMeshes) m.visible = on;
@@ -1236,6 +1247,11 @@ export class Viewport {
   }
 
   private layerOn(layer: string): boolean { return this.layers[layer] !== false; }
+
+  /** The visible edge lines leave out the tangent edges when that layer is off; the faint hidden lines of a wireframe keep every edge. */
+  private applyTangentEdges(): void {
+    if (this.edgeLines && this.edgeGeoAll) this.edgeLines.geometry = !this.layerOn('tangent') && this.edgeGeoCrease ? this.edgeGeoCrease : this.edgeGeoAll;
+  }
 
   /** A ground grid under the part (at the part's lowest y), in the 3D view: fine lines, stronger every fifth, the step a
    *  round number that gives about twenty cells across the part. */
@@ -1246,24 +1262,46 @@ export class Viewport {
     (this.groundGrid.material as THREE.Material).dispose();
     this.groundGrid = null;
   }
-  private buildGroundGrid(box: { min: number[]; max: number[] } | null): void {
-    this.disposeGroundGrid();
+  /** The user's ground-grid spacing in millimetres (0 = automatic: it follows the zoom). */
+  private groundBase = 0;
+  private groundKey = '';
+  private groundRefreshPending = false;
+  setGroundGridSpacing(mm: number): void { const v = Number.isFinite(mm) && mm > 0 ? mm : 0; if (v === this.groundBase) return; this.groundBase = v; this.groundKey = ''; this.buildGroundGrid(this.box); this.requestRender(); }
+  /** Camera moved: the ground grid follows the zoom (lines 8 to 80 px apart) and the view, at most once per frame, and only when its lines would change. */
+  private scheduleGroundRefresh(): void {
+    if (this.groundRefreshPending || !this.groundGrid || this.sketchEdit || !this.layerOn('grid')) return;
+    this.groundRefreshPending = true;
+    requestAnimationFrame(() => { this.groundRefreshPending = false; if (this.groundGrid && !this.sketchEdit) this.buildGroundGrid(this.box); });
+  }
+  private buildGroundGrid(box: { min: number[]; max: number[] } | null, force = false): void {
     const gp = groundPlane(this.upAxis, box);
-    const cx = gp.ca, cz = gp.cb, y = gp.level, size = gp.size;
-    const half = size * 1.6;
-    const raw = (half * 2) / 24;
-    const mag = 10 ** Math.floor(Math.log10(raw));
-    const step = [1, 2, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? 10 * mag;
-    const n = Math.ceil(half / step);
-    const ox = Math.round(cx / step) * step;
-    const oz = Math.round(cz / step) * step;
+    const level = gp.level;
+    // the zoom decides the spacing and the view decides how far the lines run: the grid fills the screen and never ends inside it
+    const tgt = this.controls.target;
+    const t3 = [tgt.x, tgt.y, tgt.z];
+    const centre = [t3[gp.ax], t3[gp.bx]];
+    const upp = this.worldPerPixel(t3);
+    const spec = adaptiveGrid(upp, this.groundBase);
+    const step = spec.minor;
+    const w = Math.max(1, this.dom.clientWidth || this.host.clientWidth), h = Math.max(1, this.dom.clientHeight || this.host.clientHeight);
+    const reach = Math.max(w, h) * upp * 1.6;   // a looking-down view needs about its screen; an oblique one sees farther along the ground
+    const half = Math.max(reach, gp.size * 1.2);
+    const n = Math.min(160, Math.ceil(half / step));
+    const major = spec.major;
+    const ox = Math.round(centre[0] / major) * major;
+    const oz = Math.round(centre[1] / major) * major;
+    const key = [step, n, ox, oz, level, this.upAxis].join('|');
+    if (!force && this.groundGrid && key === this.groundKey) return;
+    this.groundKey = key;
+    this.disposeGroundGrid();
     const pos: number[] = [];
     const col: number[] = [];
     const css = getComputedStyle(this.host);
     const minor = new THREE.Color(css.getPropertyValue('--line').trim() || '#aab2bd');
-    const major = new THREE.Color(css.getPropertyValue('--text-2').trim() || '#7a8591');
+    const majorC = new THREE.Color(css.getPropertyValue('--text-2').trim() || '#7a8591');
+    const y = level;
     for (let i = -n; i <= n; i++) {
-      const c = i % 5 === 0 ? major : minor;
+      const c = Math.abs(Math.round((ox + i * step) / step)) % spec.majorEvery === 0 ? majorC : minor;
       const x = ox + i * step;
       const z = oz + i * step;
       const seg = [x, oz - n * step, x, oz + n * step, ox - n * step, z, ox + n * step, z];
@@ -1494,6 +1532,9 @@ export class Viewport {
     if (seg.length) {
       const eg = new LineSegmentsGeometry();
       eg.setPositions(seg);
+      this.edgeGeoAll = eg;
+      const creased = edgeSegments(visibleEdges(merged.edges, false));
+      this.edgeGeoCrease = creased.length && creased.length < seg.length ? (() => { const g2 = new LineSegmentsGeometry(); g2.setPositions(creased); return g2; })() : null;
       const px = edgePixels(this.edgeWidth), size = new THREE.Vector2(Math.max(1, this.host.clientWidth), Math.max(1, this.host.clientHeight));
       const em = new LineMaterial({ color: 0x2b3542, linewidth: px, worldUnits: false });
       const hm = new LineMaterial({ color: 0x2b3542, linewidth: px, worldUnits: false, depthTest: false, transparent: true, opacity: HIDDEN_EDGE_OPACITY });
@@ -1507,6 +1548,7 @@ export class Viewport {
       this.hiddenEdgeLines.renderOrder = -1;
       this.scene.add(this.hiddenEdgeLines);
     }
+    this.applyTangentEdges();
     this.grouped = g;
     this.edges = merged.edges;
     this.combLines = [...merged.edges.map((e) => e.pts), ...(body.sketches?.length ? sketchPolylines(shown(body.sketches) as never).flatMap((x) => x.polylines) : [])];
@@ -2667,6 +2709,7 @@ export class Viewport {
       (o.material as THREE.Material).dispose();
     }
     this.mesh = this.edgeLines = this.highlight = null;
+    this.edgeGeoAll?.dispose(); this.edgeGeoCrease?.dispose(); this.edgeGeoAll = this.edgeGeoCrease = null;
     if (this.hull) {
       this.scene.remove(this.hull);
       if (this.hull.geometry !== bodyGeo) this.hull.geometry.dispose();   // the body's own geometry is freed above; buildGlass hands the hull a wrapper of its own when there are clear or textured bodies

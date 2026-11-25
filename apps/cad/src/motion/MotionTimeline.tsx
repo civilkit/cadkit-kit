@@ -117,7 +117,7 @@ export function MotionTimeline({ store, hasClip, embedded = false }: { store: Mo
         <div class="mtl-group" role="group" aria-label={t('motion.clip.title')}>
           <select value={s.fmt} aria-label={t('motion.clip.format')} disabled={!!s.exporting} onChange={(ev) => { fmtSig.value = (ev.target as HTMLSelectElement).value as ClipFormat; }}>{CLIP_FORMATS.map((f) => <option key={f} value={f}>{t('motion.clip.fmt.' + f)}</option>)}</select>
           <button class="btn" disabled={s.computing || !!s.exporting || !study.tracks.length} title={needKeys} onClick={() => void store.exportClip(fmtSig.value)}>{t('motion.clip.export')}</button>
-          {s.exporting ? <span class="mtl-time" role="status">{s.exporting.done} / {s.exporting.of}</span> : null}
+          {s.exporting ? <span class="mtl-time mtl-count" role="status">{s.exporting.done} / {s.exporting.of}</span> : null}
         </div>
       ) : null}
     </>
@@ -134,7 +134,7 @@ export function MotionTimeline({ store, hasClip, embedded = false }: { store: Mo
               <div class="mtl-group" role="group" aria-label={t('motion.study.transport')}>
                 {s.playing ? <button class="btn mtl-primary" onClick={() => store.pause()}>{t('motion.study.pause')}</button> : <button class="btn mtl-primary" disabled={s.computing || !study.tracks.length} title={needKeys} onClick={() => void store.play()}>{t('motion.study.play')}</button>}
                 <select value={s.speed} aria-label={t('motion.study.speed')} onChange={(ev) => store.setSpeed(parseFloat((ev.target as HTMLSelectElement).value))}>{[0.25, 0.5, 1, 2].map((v) => <option key={v} value={v}>{v}×</option>)}</select>
-                <span class="mtl-time">{fmt(s.time, 3)} / {fmt(study.duration, 3)} s{s.computing ? ' ' + t('motion.study.computing') : ''}</span>
+                <span class="mtl-time">{s.time.toFixed(2)} / {study.duration.toFixed(2)} s</span>{s.computing ? <span class="mtl-time mtl-busy">{t('motion.study.computing')}</span> : null}
                 {s.computing || s.exporting ? <button class="btn" onClick={() => store.cancel()}>{t('motion.study.cancel')}</button> : null}
               </div>
               {compact ? <details class="mtl-more"><summary class="btn">{t('motion.study.more')}</summary><div class="mtl-secondary">{secondary}</div></details> : secondary}
@@ -161,7 +161,7 @@ export function MotionTimeline({ store, hasClip, embedded = false }: { store: Mo
                 <div class="mtl-row" key={d.mate} data-track={d.mate}>
                   <span class="mtl-label">
                     <span class="mtl-name">{store.label(d.mate)}</span>
-                    <button class="btn mtl-key" onClick={() => store.addKey(d.mate)} title={t('motion.study.keyTip')}>{t('motion.study.key', { time: fmt(s.time, 3), value: fmt(s.values[d.mate] ?? 0) + unit })}</button>
+                    <button class="btn mtl-key" onClick={() => store.addKey(d.mate)} title={t('motion.study.keyTip')}>{t('motion.study.key', { time: s.time.toFixed(2), value: (s.values[d.mate] ?? 0).toFixed(1) + unit })}</button>
                   </span>
                   <div class="mtl-lane" onDblClick={(ev) => { if ((ev.target as HTMLElement).closest('.mtl-hit')) return; store.addKeyAt(d.mate, timeAt(ev.currentTarget as HTMLElement, ev.clientX)); }}>
                     {track?.keys.map((k, i) => {

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { Icon, kindForMin, numberAttrs } from '@kit/ui';
 import { t } from './i18n';
-import { defaultDrive, SCREW_AXES, SCREW_DRIVES, SCREW_HEADS, SCREW_SIZE_LIST, screwIssue, type ScrewParams } from './screw';
+import { defaultDrive, headsFor, SCREW_AXES, SCREW_DRIVES, SCREW_SIZE_LIST, screwIssue, type ScrewParams } from './screw';
 import { HelpButton } from './HelpButton';
 
 export interface ScrewWizardProps {
@@ -64,9 +64,9 @@ export function ScrewWizard(p: ScrewWizardProps): JSX.Element {
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec-fields prop-body">
-        {sel('size', t('screw.size'), SCREW_SIZE_LIST, (v) => v, (v) => change({ size: v }))}
+        {sel('size', t('screw.size'), SCREW_SIZE_LIST, (v) => v, (v) => { const heads = headsFor(v); change(heads.includes(draft.head) || !heads.length ? { size: v } : { size: v, head: heads[0], drive: defaultDrive(heads[0]) }); })}
         <Num name="length" label={t('screw.length')} unit="mm" min={0.5} step={0.5} value={draft.length} hintText={t('screw.lengthTip')} onChange={(v) => change({ length: v })} />
-        {sel('head', t('screw.head'), SCREW_HEADS, (v) => t('screw.head.' + v), (v) => change({ head: v as ScrewParams['head'], drive: defaultDrive(v as ScrewParams['head']) }))}
+        {sel('head', t('screw.head'), headsFor(draft.size), (v) => t('screw.head.' + v), (v) => change({ head: v as ScrewParams['head'], drive: defaultDrive(v as ScrewParams['head']) }))}
         {draft.head === 'hex' ? null : sel('drive', t('screw.drive'), SCREW_DRIVES, (v) => t('screw.drive.' + v), (v) => change({ drive: v as ScrewParams['drive'] }))}
         {approx ? <div class="thread-hint" data-testid="screw-approx">{t('screw.driveApprox')}</div> : null}
         <div class="thread-hint" title={t('screw.positionTip')}>{t('screw.position')}</div>

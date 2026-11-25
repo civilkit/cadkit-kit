@@ -262,6 +262,9 @@ describe('typing a variable name with no field focused', () => {
   });
   it('a letter the tool reads as its own command still goes to the tool', () => {
     expect(seedsField('m', 'polygon')).toBe(false);
+    expect(seedsField('x', 'mirror')).toBe(false);   // Mirror's line step reads X and Y itself (the origin's axes)
+    expect(seedsField('Y', 'mirror')).toBe(false);
+    expect(seedsField('w', 'mirror')).toBe(true);
     expect(seedsField('a', 'line')).toBe(false);
     expect(seedsField('r', 'dimension', ['h', 'v', 'a', 'r'])).toBe(false);
     expect(seedsField('d', 'circle', ['r'])).toBe(true);

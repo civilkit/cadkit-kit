@@ -205,7 +205,7 @@ describe('smart dimension', () => {
 
   it('a line asks for its length; Enter commits the measured value', () => {
     const o = dim([ent('e1')]);
-    expect(o.fields).toEqual([{ id: 'value', label: 'app.sketch.field.distance', value: Math.hypot(10, 2), locked: false, unit: 'length', keys: ['h', 'v', 'a', 'r'] }]);
+    expect(o.fields).toEqual([{ id: 'value', label: 'app.sketch.field.distance', value: Math.hypot(10, 2), locked: false, unit: 'length', keys: ['h', 'v', 'a', 'r', 'l'] }]);
     expect(o.preview).toEqual([{ kind: 'line', a: { x: 0, y: 0 }, b: { x: 10, y: 2 } }]);
     expect(o.draft.constraints).toEqual([]);
     const done = dimensionTool.step(o.state, key('Enter'), o.draft, DEFAULT_SETTINGS);

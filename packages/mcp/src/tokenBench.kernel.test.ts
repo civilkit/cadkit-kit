@@ -1,3 +1,4 @@
+// @vitest-environment node
 // Runs the token-cost benchmark (bench/mcpBench.ts) and prints the numbers; CK_BENCH_OUT writes them as JSON.
 // The baseline is the fixed task through the tools before this branch (BASELINE, measured at commit 45b32348); the task now runs through the new tools.
 import { writeFileSync } from 'node:fs';

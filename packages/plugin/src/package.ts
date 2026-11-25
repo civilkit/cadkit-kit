@@ -1,9 +1,11 @@
 // Plugin packages: a folder, a zip or a GitHub tag with `plugin.json` and the script files it names. Inspecting a package never runs it: it
 // checks the manifest, the file list, sizes and hashes, and says what installing would do. Nothing here touches the DOM or the kernel.
+import { tooBigMessage } from './zip';
 import { parseManifest, safePath, type PluginManifest } from './manifest';
 
-/** Largest package, one file, and file count: a generator is a few kilobytes of script. */
-export const MAX_PACKAGE_BYTES = 1024 * 1024;
+/** Largest package, one file, and file count. The package cap is 8 MB, the same as a wasm package: real SolidCraft plugins ship many files and data tables, and a 1 MB cap
+ *  refused working ones from the Hub. One script file stays at 200 KB (the script runner has its own source limit). */
+export const MAX_PACKAGE_BYTES = 8 * 1024 * 1024;
 export const MAX_FILE_BYTES = 200 * 1024;
 export const MAX_SCRIPT_CHARS = 40000;   // the script runner's own limit (MAX_SOURCE in @kit/script)
 export const MAX_FILES = 64;
@@ -173,9 +175,10 @@ export async function fetchZipUrl(url: string, fetcher: Fetcher, unzip: (bytes: 
   if (!/\.zip$/i.test(u.pathname)) return { error: 'the address must end in .zip' };
   let r;
   try { r = await fetcher(u.href); } catch (e) { return { error: `could not reach ${u.host}: ${(e as Error).message} (the site may not allow reading from other pages)` }; }
+  if (r.status === 413) return { error: `This plugin is bigger than CivilKit can install (the limit is ${WASM_MAX_PACKAGE_BYTES / 1024 / 1024} MB).` };
   if (!r.ok) return { error: `${u.host}: HTTP ${r.status}` };
   const bytes = new Uint8Array(await r.arrayBuffer());
-  if (bytes.length > WASM_MAX_PACKAGE_BYTES) return { error: `the file is larger than ${WASM_MAX_PACKAGE_BYTES / 1024 / 1024} MB` };
+  if (bytes.length > WASM_MAX_PACKAGE_BYTES) return { error: tooBigMessage(bytes) };
   const files = await unzip(bytes);
   if (!(files instanceof Map)) return files;
   return { files, warnings: [`this package came from ${u.host} and is not pinned to a tag or commit: check the package hash against the one the author published`] };

@@ -22,13 +22,13 @@
  */
 import type { DraftConstraint, SketchDraft } from '../types';
 import { entityShape } from '../select';
-import { angleSpec, lineEnds } from './constraints';
+import { angleSpec, curveLength, lineEnds } from './constraints';
 import { entityOf, entityPoints, pruneDangling, ptOf, withConstraint, withEntity, withPoint } from './edit-draft';
 import type { FieldSpec, Pt, PreviewShape, Tool, ToolEnv, ToolOutput, ToolSettings } from './types';
 
 export const MAX_COPIES = 99;
 const TRANSFORMABLE = new Set(['line', 'circle', 'arc', 'ellipse', 'point', 'spline', 'cvspline', 'text']);
-const DIMS = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'raddiff', 'angle']);
+const DIMS = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'raddiff', 'arclength', 'angle']);
 const rad = (d: number) => (d * Math.PI) / 180;
 
 export type Xform =
@@ -85,6 +85,7 @@ export function measure(d: SketchDraft, c: DraftConstraint, old: SketchDraft): n
       else if (e?.type === 'arc') { const cc = pt(String(e.c)), p1 = pt(String(e.p1)); r = cc && p1 ? Math.hypot(p1.x - cc.x, p1.y - cc.y) : undefined; }
       return r === undefined ? undefined : c.type === 'diameter' ? r * 2 : r;
     }
+    case 'arclength': return curveLength(d, refs[0]);
     case 'raddiff': {   // the gap between two concentric circles or arcs: the larger radius minus the smaller
       const rr = (id: string) => { const e = entityOf(d, id); if (e?.type === 'circle') return Number(e.r); const cc = e?.type === 'arc' ? pt(String(e.c)) : null, p1 = e?.type === 'arc' ? pt(String(e.p1)) : null; return cc && p1 ? Math.hypot(p1.x - cc.x, p1.y - cc.y) : undefined; };
       const r0 = rr(refs[0]), r1 = rr(refs[1]);

@@ -30,7 +30,7 @@ export function createNameCounter(start = 1) {
   };
 }
 
-export type DropKind = 'part' | 'step' | 'sldprt' | 'skp' | 'dxf' | 'svg' | 'stl' | 'obj' | 'glb' | '3mf' | 'fcstd' | 'f3d' | 'solidcraft' | 'unknown';
+export type DropKind = 'part' | 'step' | 'sldprt' | 'skp' | 'dxf' | 'svg' | 'stl' | 'obj' | 'glb' | '3mf' | 'fcstd' | 'f3d' | 'ipt' | 'solidcraft' | 'ifc' | '3dm' | 'dwg' | 'rvt' | 'unknown';
 export function dropKind(fileName: string): DropKind {
   const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
   if (ext === 'ckpart' || ext === 'ckpart' || ext === 'json' || isCompressedName(fileName)) return 'part';
@@ -39,5 +39,5 @@ export function dropKind(fileName: string): DropKind {
 }
 
 /** Picker lists, from the shared kinds table. */
-export const OPEN_ACCEPT = acceptFor('part', 'step', 'stl', 'obj', 'glb', '3mf', 'sldprt', 'skp', 'dxf', 'svg', 'fcstd', 'f3d', 'solidcraft');
-export const IMPORT_ACCEPT = acceptFor('step', 'stl', 'obj', 'glb', '3mf', 'sldprt', 'skp', 'f3d');
+export const OPEN_ACCEPT = acceptFor('part', 'step', 'stl', 'obj', 'glb', '3mf', 'sldprt', 'f3d', 'ipt', 'skp', 'dxf', 'svg', 'fcstd', 'solidcraft', 'ifc', '3dm', 'dwg', 'rvt');
+export const IMPORT_ACCEPT = acceptFor('step', 'stl', 'obj', 'glb', '3mf', 'sldprt', 'f3d', 'ipt', 'skp', 'ifc', '3dm', 'dwg', 'rvt');

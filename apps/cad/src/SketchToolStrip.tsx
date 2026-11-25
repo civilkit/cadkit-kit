@@ -20,7 +20,7 @@ export const PALETTE_SLOTS: Record<ToolGroup, string[][]> = {
     ['horizontal', 'vertical'], ['coincident', 'midpoint', 'fix'], ['equal', 'parallel', 'perpendicular', 'collinear'],
     ['tangent', 'concentric', 'symmetric'],
   ],
-  edit: [['trim', 'extend', 'split', 'break'], ['fillet', 'chamfer'], ['offset', 'mirror', 'pattern-linear', 'pattern-circular'], ['project', 'construction'], ['move', 'copy', 'rotate', 'scale']],
+  edit: [['trim', 'extend', 'split', 'break'], ['fillet', 'chamfer'], ['offset'], ['mirror'], ['pattern-linear', 'pattern-circular'], ['project', 'convert-edges', 'construction'], ['move', 'copy', 'rotate', 'scale']],
 };
 
 export interface PaletteSlot { id: string; tools: ToolEntry[] }
@@ -82,7 +82,7 @@ export function SketchRailSections(p: { active: string | null; onPick(id: string
   );
   const slotCell = (sl: PaletteSlot) => <Slot key={sl.id} id={sl.id} variant="rail" side="right" labels={p.labels} items={sl.tools.map((x) => toItem(x, p.active, p.onPick))} />;
   const edit = slotsFor('edit', tools);
-  const isRef = (sl: PaletteSlot) => sl.tools.some((x) => x.id === 'project' || x.id === 'construction');
+  const isRef = (sl: PaletteSlot) => sl.tools.some((x) => x.id === 'project' || x.id === 'convert-edges' || x.id === 'construction');
   const parts: Array<[string, string, PaletteSlot[]]> = [
     ['draw', t('app.sketch.group.draw'), slotsFor('draw', tools)],
     ['dimension', t('app.sketch.group.dimension'), slotsFor('dimension', tools)],
@@ -142,7 +142,7 @@ export function sketchRibbonGroups(p: {
   const c = p.controls;
   const cell = (sl: PaletteSlot) => ({ key: 'sk-' + sl.id, node: <Slot id={sl.id} variant="ribbon" side="bottom" labels={p.labels} items={sl.tools.map((x) => toItem(x, p.active, p.onPick))} /> });
   const edit = slotsFor('edit', tools);
-  const isRef = (sl: PaletteSlot) => sl.tools.some((x) => x.id === 'project' || x.id === 'construction');
+  const isRef = (sl: PaletteSlot) => sl.tools.some((x) => x.id === 'project' || x.id === 'convert-edges' || x.id === 'construction');
   const node = (key: string, el: preact.JSX.Element) => ({ key, node: el });
   /** A big ribbon tile (icon over label), the same shape as Select and the drawing tools. */
   const tile = (id: string, icon: string, label: string, tip: string, run: () => void, pressed?: () => boolean) =>
@@ -151,6 +151,7 @@ export function sketchRibbonGroups(p: {
     { id: 'SketchSelect', pinned: true, entries: [{ key: 'sk-select', node: <Slot id="sketch-select" variant="ribbon" side="bottom" labels={p.labels} items={[{ id: 'select', label: t('app.sketch.select'), pressed: () => p.active === null, run: () => p.onPick(null) }]} /> },
       { key: 'sk-help', node: <HelpButton topic={p.active ? 'sketch:' + p.active : 'sketch'} /> }] },
     { id: 'Finish', pinned: true, entries: c ? [node('sk-finish', <SketchFinish onOk={c.onOk} onCancel={c.onCancel} />)] : [] },
+    { id: 'Construction', pinned: true, entries: c ? [node('sk-construction', <SketchConstruction construction={c.construction} onConstruction={c.onConstruction} onToggleSelected={c.onToggleSelected} />)] : [] },
     { id: 'Make', entries: c ? [
       c.onExtrude ? tile('sketch-extrude', 'add-extrude', t('cmd.add-extrude'), t('app.sketch.extrude.tip'), c.onExtrude) : null,
       c.onRevolve ? tile('sketch-revolve', 'add-revolve', t('cmd.add-revolve'), t('app.sketch.revolve.tip'), c.onRevolve) : null,
@@ -164,7 +165,7 @@ export function sketchRibbonGroups(p: {
     { id: 'Dimension', entries: slotsFor('dimension', tools).map(cell) },
     { id: 'Constrain', entries: slotsFor('constrain', tools).map(cell) },
     { id: 'Modify', entries: edit.filter((sl) => !isRef(sl)).map(cell) },
-    { id: 'Reference', entries: [...edit.filter(isRef).map(cell), ...(c ? [node('sk-construction', <SketchConstruction construction={c.construction} onConstruction={c.onConstruction} onToggleSelected={c.onToggleSelected} />)] : [])] },
+    { id: 'Reference', entries: [...edit.filter(isRef).map(cell), ...(c?.onPlugins ? [tile('sketch-plugins', 'add-plugin', t('cmd.add-plugin'), t('tip.sketch-plugins'), c.onPlugins)] : []) ] },
     { id: 'Status', pinned: 'end', entries: c ? [node('sk-status', <SketchStatus status={c.status} busy={c.busy} prefs={c.prefs} onPrefs={c.onPrefs} onFullyDefine={c.onFullyDefine} list={c.list} showFree={c.showFree} onShowFree={c.onShowFree} showConstraints={c.showConstraints} onShowConstraints={c.onShowConstraints} onLookNormal={c.onLookNormal} lookChip={c.lookChip} onReport={c.onReport} reportOpen={c.reportOpen} />)] : [] },
   ];
   return groups.filter((g) => g.entries.length);

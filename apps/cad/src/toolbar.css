@@ -20,7 +20,7 @@
 .slot { position: relative; flex: none; display: flex; }
 .slot-btn { position: relative; display: flex; align-items: center; justify-content: center; font: inherit; color: var(--text); cursor: pointer; touch-action: manipulation; -webkit-touch-callout: none; }
 .slot-btn:disabled { opacity: .38; cursor: default; }
-.slot-btn[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.slot-btn[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .slot-btn[aria-pressed="true"] .icon { --accent: currentColor; }
 .slot-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .slot-btn svg { flex: none; }
@@ -110,7 +110,7 @@
 }
 
 /* the active tool: after the cell rules above so it is not overridden by their transparent background */
-.slot .slot-btn[aria-pressed="true"], .slot .slot-btn[aria-pressed="true"]:hover:not(:disabled) { background: var(--accent); color: #fff; border-color: var(--accent); }
+.slot .slot-btn[aria-pressed="true"], .slot .slot-btn[aria-pressed="true"]:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 
 /* phones: a strip above the tool palette (last in the file so it beats the width rules above) */
 @media (max-width: 640px) {

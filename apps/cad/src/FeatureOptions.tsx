@@ -3,7 +3,7 @@
 // into the generic FeatureEditor through its `options` prop, so sketch, axis, edges and faces keep their pick buttons and
 // the shape list. Only fields the kernel really reads are offered.
 import { cutFromPatch, nextBodyName, opChoiceOf, opChoices, opPatch, targetBodiesOf, targetBodyOf, targetPatch } from './extrudeOp';
-import { isValidFrame, makeIndependentPlanePatch } from './frozenPose';
+import { isValidFrame, makeIndependentConnectorPatch, makeIndependentPlanePatch } from './frozenPose';
 import { usedBodyNames } from './bodyOps';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
@@ -15,7 +15,8 @@ import {
   CHAMFER_TYPES, FILLET_PROFILES, chamferTypeOf, endAllowsDraft, endNeedsDepth, endAllowsTwist, endAllowsEndScale, endScaleOf, patchEndScale, endNeedsObject, endOf, endsFor, filletFullRound, filletProfileOf, filletVariable, FULL_ROUND_FACES, managedPaths, patchFilletFullRound, patchTwist, patchTwistCentre, twistCentreOf, twistOf,
   PRESS_CONTINUES, TAPER_TYPES, patchContinue, patchTaperAngle, patchTaperScale, patchTaperType, pressContinueEnabled, pressContinueOf, pressHasContinue, scaleTaperAngle, taperAngleOf, taperScaleOf, taperTypeOf, type PressContinue, type TaperType,
   objectRefChoices, objectRefPatch, objectRefValue, patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, patchStart,
-  planeBaseChoices, planeBasePatch, planeBaseValue, radiiOf, startAllowed, startOf,
+  planeAxisChoices, planeAxisPatch, planeAxisValue, planeBaseChoices, planeBasePatch, planeBaseValue, planeNeeds, radiiOf, startAllowed, startOf,
+  CONNECTOR_ROTATE_PRESETS, connectorAnchorChoices, connectorAnchorPatch, connectorAnchorValue, connectorOffsetOf, connectorRotateZOf, patchConnectorOffset, patchConnectorRotateZ,
   bothWaysOf, cutMissOffers, endHasBothWays, patchBothWays,
   type ChamferType, type CutBodySide, type EndCondition, type FilletProfile, type FullRoundFace, type StartCondition,
 } from './optionRules';
@@ -43,8 +44,8 @@ import {
   radiusInvalid, radiusStart, radiusStartPatch, radiusVaries, sameInput, sweepPathChoices, sweepPathPatch, sweepPathValue, type BlendSpan, sidesInForce, sidesOf, spanIsPoint, spanOf, spanPatch, sweepFrameOf, sweepFramePatch, toleranceInvalid, upChoiceOf, upComponentPatch, upIsZero, upPatch, varyPatch, vecPatch,
 } from './procSurfaceRules';
 import {
-  CONTINUITIES, DEFAULT_PATCH_TOLERANCE, FAIRINGS, MAX_STOPS, PATCHES, continuitiesFor, patchChoice, patchOf, THICKEN_AXES, addStop, alongOf, centreLineOf, centreLinePatch, connectorPatch, connectorsOf, continuityOf, curveEntities, fairingOf, guidesPatch, knitIds, loftGuides, loftProfiles, move, nextFree, patchStop, patchThickenAxis, patchThickenVariable, pathOf, pathPatch, removeAt, removeStop, replaceAt, stopsOf, thickenAxisOf, thickenVariable,
-  sketchInfos, surfaceInfos, sweepGuides, sweepGuidesPatch, tensionOf, tensionPatch, toggleKnit, type CurveRef, type SketchInfo,
+  CONTINUITIES, DEFAULT_PATCH_TOLERANCE, FAIRINGS, MAX_STOPS, PATCHES, continuitiesFor, patchChoice, patchOf, THICKEN_AXES, addStop, alongOf, centreLineOf, centreLinePatch, connectorPatch, connectorsOf, continuityOf, curveEntities, fairingOf, guidesPatch, knitIds, loftGuides, loftProfiles, move, nextFree, patchStop, patchThickenAxis, patchThickenVariable, pathOf, pathPatch, removeAt, sweepTwistable, removeStop, replaceAt, stopsOf, thickenAxisOf, thickenVariable,
+  sketchInfos, surfaceInfos, sweepGuides, sweepGuidesPatch, tensionOf, tensionPatch, toggleKnit, loftCondition, loftConditionPatch, LOFT_COND_TYPES, LOFT_COND_LIVE, type LoftCond, type CurveRef, type SketchInfo,
 } from './surfaceRules';
 
 type Wire = Record<string, unknown>;
@@ -620,9 +621,8 @@ function FilletOptions(p: { eff: Wire; change: Change; actions?: ThinActions; pi
   const { eff, change } = p;
   if (filletFullRound(eff)) {
     return (
-      <Section id="fillet" title={t('opt.section.fillet')}>
+      <Section id="fillet" title={t('opt.section.fillet')} help={t('opt.fillet.fullRoundNote')}>
         <Check name="filletType" label={t('opt.fillet.fullRound')} value onChange={(v) => change(patchFilletFullRound(eff, v))} />
-        <div class="fedit-note" data-note="fullRound">{t('opt.fillet.fullRoundNote')}</div>
         {FULL_ROUND_FACES.map((k: FullRoundFace) => <FaceField key={k} name={k} label={t('opt.fillet.' + k)} value={eff[k]} picking={p.pickingPath === k} onPick={p.onPick} />)}
       </Section>
     );
@@ -724,20 +724,18 @@ function LoftOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
   const connectors = connectorsOf(eff, profiles.length);
   return (
     <>
-      <Section id="loftProfiles" title={t('opt.loft.profiles')}>
+      <Section id="loftProfiles" title={t('opt.loft.profiles')} help={t('opt.loft.pointHint')}>
         <SketchList name="sketches" label={t('opt.loft.profilesNote')} ids={profiles} list={profileChoices} min={2} addLabel={t('opt.loft.addProfile')} onChange={(ids) => change({ sketches: ids })} />
         {!surface && autoOrder ? <div class="fedit-note fedit-warn" role="alert" data-note="loftOrder">{t('opt.loft.loftOrder')}<button type="button" data-act="auto-order" onClick={() => change({ sketches: autoOrder })}>{t('opt.loft.autoOrder')}</button></div> : null}
-        {issue ? <div class="fedit-note fedit-warn" role="alert" data-note={issue}>{t('opt.loft.' + issue)}</div> : <div class="fedit-note" data-note="pointHint">{t('opt.loft.pointHint')}</div>}
+        {issue ? <div class="fedit-note fedit-warn" role="alert" data-note={issue}>{t('opt.loft.' + issue)}</div> : null}
       </Section>
       <Section id="loftGuides" title={t('opt.loft.guides')}>
         <SketchList name="guides" label={t('opt.loft.guidesNote')} ids={guides} list={guideChoices} min={0} addLabel={t('opt.loft.addGuide')} onChange={(ids) => change(guidesPatch(ids))} />
       </Section>
-      <Section id="loftCentre" title={t('opt.loft.centreLine')}>
+      <Section id="loftCentre" title={t('opt.loft.centreLine')} help={t('opt.loft.centreNote')}>
         <SketchSelect name="centreLine" value={centre} list={centreChoices} blank={t('opt.loft.centreNone')} onChange={(id) => change(centreLinePatch(id))} />
-        <div class="fedit-note" data-note="centreLineNote">{t('opt.loft.centreNote')}</div>
       </Section>
-      <Section id="loftConnectors" title={t('opt.loft.connectors')}>
-        <div class="fedit-note" data-note="connectorsNote">{t('opt.loft.connectorsNote')}</div>
+      <Section id="loftConnectors" title={t('opt.loft.connectors')} help={t('opt.loft.connectorsNote')}>
         {profiles.map((id, i) => (
           <label class="fedit-fld" data-path={'connectors.' + i} key={id + ':' + i}>
             <span class="fedit-fld-label">{t('opt.loft.connector', { name: all.find((s) => s.id === id)?.name ?? id })}</span>
@@ -746,13 +744,49 @@ function LoftOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
           </label>
         ))}
       </Section>
+      {profiles.length >= 3 ? (
+        <Section id="loftRails" title={t('opt.loft.rails')} help={t('opt.loft.railsNote')}>
+          <label class="fedit-fld" data-path="railSmoothing">
+            <span class="fedit-fld-label">{t('opt.loft.railsMode')}</span>
+            <select value={eff.railSmoothing === 'local' || eff.railSmoothing === 'auto' ? eff.railSmoothing : 'natural'} aria-label={t('opt.loft.railsMode')} onChange={(e) => change({ railSmoothing: (e.currentTarget as HTMLSelectElement).value })}>
+              {['natural', 'local', 'auto'].map((v) => <option key={v} value={v}>{t('opt.loft.rails.' + v)}</option>)}
+            </select>
+          </label>
+        </Section>
+      ) : null}
+      <Section id="loftConditions" title={t('opt.loft.conditions')} help={t('opt.loft.conditionsNote')}>
+        {profiles.length >= 2 ? (
+          <>
+            {guides.length || centre || profiles.some(isPoint) ? <div class="fedit-note fedit-warn" role="alert" data-note="conditionsPlain">{t('opt.loft.conditionsPlain')}</div> : null}
+            {[0, profiles.length - 1].map((i) => {
+              const c = loftCondition(eff, profiles.length, i);
+              const set = (patch: Partial<LoftCond>) => change(loftConditionPatch(eff, profiles.length, i, { ...c, ...patch }));
+              const name = all.find((s) => s.id === profiles[i])?.name ?? profiles[i];
+              return (
+                <div key={i} data-path={'conditions.' + i}>
+                  <label class="fedit-fld" data-path={'conditions.' + i + '.type'}>
+                    <span class="fedit-fld-label">{t(i === 0 ? 'opt.loft.condStart' : 'opt.loft.condEnd', { name })}</span>
+                    <select value={c.type} aria-label={t(i === 0 ? 'opt.loft.condStart' : 'opt.loft.condEnd', { name })} onChange={(e) => set({ type: (e.currentTarget as HTMLSelectElement).value as LoftCond['type'] })}>
+                      {LOFT_COND_TYPES.map((v) => <option key={v} value={v} disabled={!LOFT_COND_LIVE.includes(v)}>{t('opt.loft.cond.' + v) + (LOFT_COND_LIVE.includes(v) ? '' : ' ' + t('opt.loft.condSoon'))}</option>)}
+                    </select>
+                  </label>
+                  {c.type === 'directional' ? (
+                    <>
+                      <Num name={'conditions.' + i + '.angle'} label={t('opt.loft.condAngle')} value={c.angle} unit="°" plain onChange={(v) => { const a = Number(v); if (Number.isFinite(a) && a > 0 && a < 180) set({ angle: a }); }} />
+                      <Num name={'conditions.' + i + '.weight'} label={t('opt.loft.condWeight')} value={c.weight} unit="" plain onChange={(v) => { const w = Number(v); if (Number.isFinite(w) && w > 0) set({ weight: w }); }} />
+                    </>
+                  ) : null}
+                </div>
+              );
+            })}
+          </>
+        ) : null}
+      </Section>
       <Section id="loftOptions" title={t('opt.section.options')}>
         <Check name="surface" label={t('opt.loft.surface')} value={surface} onChange={(v) => change({ surface: v ? true : null })} />
         {!surface ? <Select name="op" label={t('opt.op')} value={opChoiceOf(eff.op)} options={opChoices().map((c) => [c, t('opt.op.' + c)] as [string, string])} onChange={(v) => change(opPatch(v as 'new' | 'add' | 'cut', eff, otherBodyNames(p.doc, eff)))} /> : null}
         {!surface && opChoiceOf(eff.op) === 'new' ? <BodyNameField eff={eff} change={change} /> : null}
         {!surface ? <BodyTarget eff={eff} change={change} doc={p.doc} /> : null}
-        <Num name="startNormal" label={t('opt.loft.startTension')} value={tensionOf(eff, 'startNormal')} unit="" plain onChange={(v) => change(tensionPatch('startNormal', Number(v)))} />
-        <Num name="endNormal" label={t('opt.loft.endTension')} value={tensionOf(eff, 'endNormal')} unit="" plain onChange={(v) => change(tensionPatch('endNormal', Number(v)))} />
       </Section>
     </>
   );
@@ -766,11 +800,10 @@ function ThickenOptions(p: { eff: Wire; change: Change }): JSX.Element {
   const axes: Array<[string, string]> = THICKEN_AXES.map(([k]): [string, string] => [k, t('opt.thicken.axis.' + k)]);
   if (axis === 'custom') axes.unshift(['custom', alongOf(eff).join(', ')]);
   return (
-    <Section id="thickness" title={t('opt.section.thickness')}>
+    <Section id="thickness" title={t('opt.section.thickness')} help={variable ? t('opt.thicken.stopsNote') : undefined}>
       <Check name="thicknessAt" label={t('opt.thicken.variable')} value={variable} onChange={(v) => change(patchThickenVariable(eff, v))} />
       {variable ? <>
         <Select name="along" label={t('opt.thicken.along')} value={axis} options={axes} onChange={(v) => change(patchThickenAxis(eff, v))} />
-        <div class="fedit-note" data-note="stopsNote">{t('opt.thicken.stopsNote')}</div>
         {stops.map(([s, th], i) => (
           <div class="fedit-fld" data-path={'stop.' + i} key={i}>
             <Num name={'stop' + i + 's'} label={t('opt.thicken.stopAt')} value={s} unit="mm" plain onChange={(v) => change(patchStop(eff, i, 0, Number(v)))} />
@@ -827,7 +860,7 @@ function SweepOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JS
         </div>
       </Section>
       <Section id="sweepOptions" title={t('opt.section.options')}>
-        {!guides.length ? <Num name="twist" label={t('opt.sweep.twist')} value={typeof eff.twist === 'number' ? eff.twist : 0} unit="°" onChange={(v) => change({ twist: Number(v) ? v : null })} /> : null}
+        {!guides.length && (sweepTwistable(p.doc, eff) || (typeof eff.twist === 'number' && eff.twist !== 0)) ? <Num name="twist" label={t('opt.sweep.twist')} value={typeof eff.twist === 'number' ? eff.twist : 0} unit="°" onChange={(v) => change({ twist: Number(v) ? v : null })} /> : null}
         <Select name="op" label={t('opt.op')} value={opChoiceOf(eff.op)} options={opChoices().map((c) => [c, t('opt.op.' + c)] as [string, string])} onChange={(v) => change(opPatch(v as 'new' | 'add' | 'cut', eff, otherBodyNames(p.doc, eff)))} />
         {opChoiceOf(eff.op) === 'new' ? <BodyNameField eff={eff} change={change} /> : null}
         <BodyTarget eff={eff} change={change} doc={p.doc} />
@@ -1055,10 +1088,12 @@ function TrimOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
     const l = all.filter((s) => s.id !== except).map((s): [string, string] => [s.id, s.name]);
     return cur && !l.some(([id]) => id === cur) ? [[cur, cur], ...l] : l;
   };
+  const planePick = planeBaseChoices(p.doc, String(eff.id ?? ''), eff.plane);
   return (
     <Section id="trim" title={t('opt.section.trim')}>
       <Select name="surface" label={t('opt.trim.surface')} value={target} options={opts(target, tool)} onChange={(v) => change({ surface: v })} />
-      <Select name="toolSurface" label={t('opt.trim.tool')} value={tool} options={[['', t('opt.trim.toolPlane')], ...opts(tool, target)]} onChange={(v) => change(v ? { toolSurface: v, plane: null } : { toolSurface: null })} />
+      <Select name="toolSurface" label={t('opt.trim.tool')} value={tool} options={[['', t('opt.trim.toolPlane')], ...opts(tool, target)]} onChange={(v) => change(v ? { toolSurface: v, plane: null } : { toolSurface: null, plane: planeBasePatch(planePick[0]?.[0] ?? 'std:top').base })} />
+      {!tool ? <Select name="plane" label={t('opt.trim.plane')} value={planeBaseValue(eff.plane)} options={planePick} onChange={(v) => change({ plane: planeBasePatch(v).base })} /> : null}
       <Check name="flip" label={t('opt.trim.flip')} value={eff.flip} onChange={(v) => change({ flip: v })} />
       <Check name="mutual" label={t('opt.trim.mutual')} value={eff.mutual} onChange={(v) => change({ mutual: v })} />
     </Section>
@@ -1070,9 +1105,17 @@ function TrimOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
 function PlaneOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
   const choices = planeBaseChoices(p.doc, String(p.eff.id ?? ''), p.eff.base);
   const frozen = isValidFrame(p.eff.frozenFrame) && p.eff.mode !== 'frame' ? p.eff.frozenFrame : null;
+  const need = planeNeeds(p.eff.mode), selfId = String(p.eff.id ?? '');
+  const axisVal = planeAxisValue(p.eff.axis);
+  const base2Set = !!(p.eff.base2 as { kind?: string; id?: string } | null | undefined)?.id;   // a Midplane with no second plane says so, it does not show Front
   return (
     <Section id="planeBase" title={t('opt.plane.base')}>
       <Select name="base" label={t('opt.plane.base')} value={planeBaseValue(p.eff.base)} options={choices} onChange={(v) => p.change({ ...planeBasePatch(v), ...(frozen ? { frozenFrame: null } : {}) })} />
+      {need.axis ? <Select name="axis" label={t('opt.plane.axis')} value={axisVal} options={axisVal ? planeAxisChoices(p.doc, selfId, p.eff.axis) : [['', t('opt.plane.axis.none')], ...planeAxisChoices(p.doc, selfId, p.eff.axis)]} onChange={(v) => p.change(planeAxisPatch(v))} /> : null}
+      {need.angle ? <Num name="angle" label={t('opt.plane.angle')} value={p.eff.angle ?? ''} unit="°" onChange={(v) => p.change({ angle: v })} /> : null}
+      {need.base2 ? <Select name="base2" label={t('opt.plane.base2')} value={base2Set ? planeBaseValue(p.eff.base2) : ''} options={base2Set ? planeBaseChoices(p.doc, selfId, p.eff.base2) : [['', t('opt.plane.base2.none')], ...planeBaseChoices(p.doc, selfId, p.eff.base2)]} onChange={(v) => p.change({ base2: v ? planeBasePatch(v).base : null })} /> : null}
+      {need.offset ? <Num name="offset" label={t('opt.plane.offset')} value={p.eff.offset ?? 0} unit="mm" onChange={(v) => p.change({ offset: v })} /> : null}
+      {need.flip ? <Check name="flip" label={t('opt.plane.flip')} value={p.eff.flip} onChange={(v) => p.change({ flip: v ? true : null })} /> : null}
       {frozen ? (
         <>
           <div class="fedit-note fedit-warn" role="status" data-note="detached">{t('opt.plane.detachedNote')}</div>
@@ -1097,6 +1140,53 @@ function SketchReattachOptions(p: { eff: Wire; change: Change; doc: PartDoc | nu
   );
 }
 
+/** Mate Connector options: anchor (plane/connector selector + face pick), local offset, Z flip, Z rotation (0/90/180/270 presets or custom angle), and Reattach when holding a frozenFrame. */
+function ConnectorOptions(p: { eff: Wire; change: Change; doc: PartDoc | null } & PickArgs): JSX.Element {
+  const { eff, change, doc } = p;
+  const choices = connectorAnchorChoices(doc, String(eff.id ?? ''), eff.anchor);
+  const anchorVal = connectorAnchorValue(eff.anchor);
+  const frozen = isValidFrame(eff.frozenFrame) && anchorVal !== 'frame' ? eff.frozenFrame : null;
+  const picking = p.pickingPath === 'anchor';
+  const off = connectorOffsetOf(eff);
+  const rz = connectorRotateZOf(eff);
+  return (
+    <>
+      <Section id="connectorAnchor" title={t('opt.connector.anchor')}>
+        <label class={'fedit-fld ref' + (picking ? ' picking' : '')} data-path="anchor">
+          <span class="fedit-fld-label">{t('opt.connector.anchor')}</span>
+          <span class="fedit-ref">
+            <select value={anchorVal} onChange={(e) => {
+              const patch = connectorAnchorPatch((e.currentTarget as HTMLSelectElement).value);
+              if (patch) change({ ...patch, ...(frozen ? { frozenFrame: null } : {}) });
+            }}>
+              {choices.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            {p.onPick ? <button type="button" class={'fedit-pick' + (picking ? ' on' : '')} aria-pressed={picking} onClick={() => p.onPick!('anchor')}>{picking ? t('ui.editor.pickDone') : t('ui.editor.pick', undefined, 'Pick')}</button> : null}
+          </span>
+        </label>
+        {frozen ? (
+          <>
+            <div class="fedit-note fedit-warn" role="status" data-note="detached">{t('opt.connector.detachedNote')}</div>
+            <button type="button" class="fedit-pick" data-act="make-independent" onClick={() => change(makeIndependentConnectorPatch(frozen))}>{t('opt.plane.makeIndependent')}</button>
+          </>
+        ) : null}
+      </Section>
+      <Section id="connectorTransform" title={t('opt.connector.transform')}>
+        {([0, 1, 2] as const).map((i) => (
+          <Num key={i} name={`offset.${i}`} label={t('opt.connector.offsetAxis', { axis: ['X', 'Y', 'Z'][i] })} value={off[i]} unit="mm" onChange={(v) => change(patchConnectorOffset(eff, i, v))} />
+        ))}
+        <Check name="flip" label={t('opt.connector.flip')} value={eff.flip} onChange={(v) => change({ flip: v ? true : null })} />
+        <Num name="rotateZ" label={t('opt.connector.rotateZ')} value={rz} unit="°" onChange={(v) => change(patchConnectorRotateZ(v))} />
+        <div class="fedit-seg" role="group" aria-label={t('opt.connector.rotateZ')}>
+          {CONNECTOR_ROTATE_PRESETS.map((deg) => (
+            <button key={deg} type="button" class={'fedit-seg-btn' + (Number(rz) === deg ? ' on' : '')} aria-pressed={Number(rz) === deg} data-rotate-z={deg} onClick={() => change(patchConnectorRotateZ(deg))}>{deg}°</button>
+          ))}
+        </div>
+      </Section>
+    </>
+  );
+}
+
 // ---- curves: project curve, edit curve, freeform ----
 
 /** A list of face names: shown as text, set with Pick (the viewport selection fills it and keeps following it until Done). */
@@ -1117,7 +1207,9 @@ function ProjectCurveOptions(p: { eff: Wire; change: Change; doc: PartDoc | null
   const { eff, change } = p;
   const cur = sourceValue(eff);
   const choices = sourceChoices(p.doc, String(eff.id ?? ''), eff);
-  const exact = proceduralOn(eff);
+  // the Wrap method wraps the sketch round one face: Keep exact (the kernel answers invalidValue) and the projection Direction (ignored) do not apply
+  const wrapping = eff.method === 'wrap';
+  const exact = !wrapping && proceduralOn(eff);
   const along = projectAlongOf(eff);
   // keep exact takes several curves in chain order (`curves`, like Offset curve and Composite curve); the spline projection one sketch or curve
   return (
@@ -1127,7 +1219,7 @@ function ProjectCurveOptions(p: { eff: Wire; change: Change; doc: PartDoc | null
       {exact ? null : <Select name="source" label={t('opt.projectCurve.source')} value={cur} options={cur ? choices : [['', t('opt.none')], ...choices]} onChange={(v) => { if (v) change(sourcePatch(v)); }} />}
       <FacesField eff={eff} label={t('opt.projectCurve.faces')} pickingPath={p.pickingPath} onPick={p.onPick} />
       {faceList(eff).length || exact ? null : <div class="fedit-hint-line" data-note="allFaces">{t('opt.projectCurve.allFaces')}</div>}
-      <Check name="procedural" label={t('opt.projectCurve.procedural')} value={exact} onChange={(v) => change(proceduralPatch(v))} />
+      {wrapping ? null : <Check name="procedural" label={t('opt.projectCurve.procedural')} value={exact} onChange={(v) => change(proceduralPatch(v))} />}
       {proceduralNeedsOneFace(eff) ? <div class="fedit-note fedit-warn" role="alert" data-note="oneFace">{t('opt.projectCurve.oneFace')}</div> : null}
       {exact ? (
         <>
@@ -1139,7 +1231,7 @@ function ProjectCurveOptions(p: { eff: Wire; change: Change; doc: PartDoc | null
         </>
       ) : (
         <>
-          <Select name="direction" label={t('opt.projectCurve.direction')} value={directionOf(eff)} options={PROJECT_DIRECTIONS.map((d): [string, string] => [d, t('opt.projectCurve.direction.' + d)])} onChange={(v) => change({ direction: v === 'both' ? null : v })} />
+          {wrapping ? null : <Select name="direction" label={t('opt.projectCurve.direction')} value={directionOf(eff)} options={PROJECT_DIRECTIONS.map((d): [string, string] => [d, t('opt.projectCurve.direction.' + d)])} onChange={(v) => change({ direction: v === 'both' ? null : v })} />}
           <Num name="degree" label={t('opt.curve.degree')} value={eff.degree ?? 3} unit="" plain onChange={(v) => change({ degree: v })} />
           {degreeOutOfRange(eff.degree) ? <div class="fedit-note fedit-warn" role="alert" data-note="degree">{t('opt.curve.degreeRange', { min: String(DEGREE_RANGE.min), max: String(DEGREE_RANGE.max) })}</div> : null}
           <Num name="tolerance" label={t('opt.projectCurve.tolerance')} value={eff.tolerance ?? 0.001} unit="mm" plain onChange={(v) => change({ tolerance: v })} />
@@ -1540,6 +1632,7 @@ function optionsForType(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null, act
     case 'sheetRules': case 'baseFlange': case 'contourFlange': case 'edgeFlange': case 'hem': case 'fold': case 'sheetConvert': case 'sheetCut': case 'sheetCorner':
       return sheetOptionsFor(type, { ...common, doc, pickingPath: a.pickingPath, onPick: a.onPickRequest });
     case 'plane': return { hide, node: <PlaneOptions {...common} doc={doc} /> };
+    case 'connector': return { hide, node: <ConnectorOptions {...common} doc={doc} pickingPath={a.pickingPath} onPick={a.onPickRequest} /> };
     case 'trimSurface': return { hide, node: <TrimOptions {...common} doc={doc} /> };
     case 'projectCurve': return { hide, node: <ProjectCurveOptions {...common} doc={doc} pickingPath={a.pickingPath} onPick={a.onPickRequest} /> };
     case 'editCurve': return { hide, node: <EditCurveOptions {...common} doc={doc} /> };

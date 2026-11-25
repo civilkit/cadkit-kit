@@ -356,6 +356,17 @@ describe('loft centre line and connectors', () => {
     fireEvent.change(inp(1), { target: { value: '' } });
     expect(m.drafts.at(-1)).toMatchObject({ connectors: null });
   });
+  it('rail smoothing is offered from three profiles on: natural by default, choosing local or automatic sets it', () => {
+    const two = mountLoft(LOFT);
+    expect(two.q('railSmoothing')).toBeNull();
+    const three = mountLoft({ ...LOFT, sketches: ['S1', 'S2', 'S1'] });
+    const sel = three.container.querySelector('select[data-path="railSmoothing"], [data-path="railSmoothing"] select') as HTMLSelectElement;
+    expect(sel.value).toBe('natural');
+    fireEvent.change(sel, { target: { value: 'local' } });
+    expect(three.drafts.at(-1)).toMatchObject({ railSmoothing: 'local' });
+    fireEvent.change(sel, { target: { value: 'auto' } });
+    expect(three.drafts.at(-1)).toMatchObject({ railSmoothing: 'auto' });
+  });
 });
 
 describe('variable thicken', () => {
@@ -612,5 +623,136 @@ describe('frozen-pose reattach controls in FeatureOptions', () => {
     expect(m.container.querySelector('[data-note="detached"]')).not.toBeNull();
     fireEvent.change(m.sel('plane'), { target: { value: 'std:top' } });
     expect(m.drafts.at(-1)).toMatchObject({ plane: { kind: 'std', id: 'top' }, frozenFrame: null });
+  });
+  it('ConnectorOptions edits anchor, offset, flip, rotateZ presets, and detached frozenFrame reattach / make-independent', () => {
+    const m = mount({ type: 'connector', id: 'C1', anchor: { kind: 'face', id: 'F2.C1' }, offset: [1, 2, 3], flip: false, rotateZ: 0 });
+    fireEvent.click(m.box('flip'));
+    expect(m.drafts.at(-1)).toMatchObject({ flip: true });
+    fireEvent.click(m.container.querySelector('button[data-rotate-z="90"]')!);
+    expect(m.drafts.at(-1)).toMatchObject({ rotateZ: 90 });
+    fireEvent.click(m.container.querySelector('button[data-rotate-z="0"]')!);
+    expect(m.drafts.at(-1)).toMatchObject({ rotateZ: null });
+    fireEvent.change(m.sel('anchor'), { target: { value: 'std:top' } });
+    expect(m.drafts.at(-1)).toMatchObject({ anchor: { kind: 'std', id: 'top' } });
+    cleanup();
+
+    const m2 = mount({ type: 'connector', id: 'C2', anchor: { kind: 'face', id: 'F99.C1' }, frozenFrame: FR });
+    expect(m2.container.querySelector('[data-note="detached"]')).not.toBeNull();
+    fireEvent.click(m2.container.querySelector('[data-act="make-independent"]')!);
+    expect(m2.drafts.at(-1)).toMatchObject({ anchor: { kind: 'frame', origin: FR.o, xDir: FR.x, yDir: FR.y }, frozenFrame: null });
+  });
+});
+
+describe('wrap: what the kernel builds (audit)', () => {
+  it('Project curve with the Wrap method does not offer Keep exact or the projection direction', () => {
+    const proj = mount({ type: 'projectCurve', id: 'F5', sketch: 'F1', faces: ['F2.C1'], method: 'project' });
+    expect(proj.q('procedural')).not.toBeNull();
+    expect(proj.q('direction')).not.toBeNull();
+    cleanup();
+    const wrap = mount({ type: 'projectCurve', id: 'F5', sketch: 'F1', faces: ['F2.C1'], method: 'wrap', alongAxis: 0, around: 0, rotation: 0, flip: false });
+    expect(wrap.q('procedural')).toBeNull();
+    expect(wrap.q('direction')).toBeNull();
+    expect(wrap.q('source')).not.toBeNull();
+  });
+  it('the Wrap feature lists Automatic and Wrap, not the unbuilt Project method; a file that holds Project keeps it listed', () => {
+    const m = mount({ type: 'wrap', id: 'F6', sketch: 'F1', faces: ['F2.C1'], method: 'auto', op: 'add', depth: 1 });
+    expect(m.texts(m.sel('method'))).toEqual(['Automatic', 'Wrap (keep lengths)']);
+    cleanup();
+    const old = mount({ type: 'wrap', id: 'F6', sketch: 'F1', faces: ['F2.C1'], method: 'project', op: 'add', depth: 1 });
+    expect(old.texts(old.sel('method'))).toContain('Project');
+  });
+});
+
+describe('free-text Mode boxes the kernel cannot take (audit)', () => {
+  it('Delete face: Mode is a list of what the kernel does (Delete), not a text box that invites fill or heal', () => {
+    const m = mount({ type: 'deleteFace', id: 'F4', faces: ['F2.C1'], mode: 'delete' });
+    expect(m.texts(m.sel('mode'))).toEqual(['Delete']);
+  });
+  it('Press Pull Offset: Mode is a list; a translate a file holds stays visible', () => {
+    const m = mount({ type: 'moveFace', id: 'F4', faces: ['F2.C1'], mode: 'offset', distance: 2 });
+    expect(m.texts(m.sel('mode'))).toEqual(['Offset']);
+    cleanup();
+    const t = mount({ type: 'moveFace', id: 'F4', faces: ['F2.C1'], mode: 'translate', translate: [1, 0, 0] });
+    expect(t.texts(t.sel('mode'))).toContain('Translate');
+  });
+});
+
+describe('surface extrude and revolve end conditions (audit)', () => {
+  it('offer Blind and Mid plane only: the other ends silently build the Blind result', () => {
+    for (const type of ['surfaceExtrude', 'surfaceRevolve']) {
+      const m = mount({ type, id: 'F4', sketch: 'F1', end: 'blind', depth: 5, angle: 360 });
+      expect(m.texts(m.sel('end'))).toEqual(['Blind', 'Mid plane']);
+      cleanup();
+    }
+  });
+});
+
+describe('reference plane modes (the kernel reads: offset: base+offset+flip; angle: base+axis+angle+flip; perpendicular: base+axis+flip; mid: base+second plane)', () => {
+  const lineSketch = { type: 'sketch', id: 'SL', name: 'Line sketch', plane: { kind: 'std', id: 'front' }, points: [{ id: 'a', x: 0, y: 40 }, { id: 'b', x: 50, y: 40 }], entities: [{ id: 'l1', type: 'line', p1: 'a', p2: 'b' }, { id: 'c1', type: 'circle', c: 'a', r: 5 }], constraints: [] };
+  const AX = { type: 'axis', id: 'AX1', name: 'Hinge', refs: [] };
+  const doc = { features: [lineSketch, AX] } as never;
+  const mountPlane = (f: Wire) => mount({ type: 'plane', id: 'P9', base: { kind: 'std', id: 'top' }, ...f }, { options: (a: never) => optionsFor(a, doc) });
+  const has = (m: ReturnType<typeof mount>, ...paths: string[]) => paths.map((p) => m.container.querySelector(`[data-path="${p}"]`) !== null);
+
+  it('lists Offset, Angle, Perpendicular and Midplane as modes', () => {
+    const m = mountPlane({ mode: 'offset', offset: 10 });
+    expect(m.texts(m.sel('mode'))).toEqual(['Offset', 'Angle', 'Perpendicular', 'Midplane']);
+  });
+  it('Offset shows the offset and flip, and nothing of the other modes', () => {
+    const m = mountPlane({ mode: 'offset', offset: 10 });
+    expect(has(m, 'base', 'offset', 'flip', 'axis', 'angle', 'base2')).toEqual([true, true, true, false, false, false]);
+    expect(m.container.querySelectorAll('[data-path="offset"]').length).toBe(1);
+  });
+  it('Angle shows the axis, the angle, the offset and flip (the kernel moves the tilted plane along its normal by the offset)', () => {
+    const m = mountPlane({ mode: 'angle', axis: { kind: 'axis', axis: 'x' }, angle: 30 });
+    expect(has(m, 'base', 'axis', 'angle', 'flip', 'offset', 'base2')).toEqual([true, true, true, true, true, false]);
+    expect(m.texts(m.sel('axis'))).toEqual(['X axis', 'Y axis', 'Z axis', 'Line sketch: Line (0, 40) to (50, 40) (profile edge)', 'Hinge']);
+    expect(m.sel('axis').value).toBe('axis:x');
+    expect(m.num('angle').value).toBe('30');
+  });
+  it('a Midplane with no second plane shows a prompt, not Front Plane; choosing one writes it', () => {
+    const m = mountPlane({ mode: 'mid', base: { kind: 'std', id: 'top' } });
+    expect(m.sel('base2').value).toBe('');
+    expect(m.texts(m.sel('base2'))[0]).toBe('Choose the second plane...');
+    fireEvent.change(m.sel('base2'), { target: { value: 'std:front' } });
+    expect(m.drafts.at(-1)).toMatchObject({ base2: { kind: 'std', id: 'front' } });
+  });
+  it('Perpendicular shows the axis and flip, no angle or offset', () => {
+    const m = mountPlane({ mode: 'perpendicular', axis: { kind: 'axis', axis: 'y' } });
+    expect(has(m, 'axis', 'flip', 'angle', 'offset', 'base2')).toEqual([true, true, false, false, false]);
+  });
+  it('Midplane shows the second plane and no offset, flip or axis', () => {
+    const m = mountPlane({ mode: 'mid', base2: { kind: 'std', id: 'front' } });
+    expect(has(m, 'base2', 'offset', 'flip', 'axis', 'angle')).toEqual([true, false, false, false, false]);
+    expect(m.sel('base2').value).toBe('std:front');
+  });
+  it('choosing an axis, an angle or a second plane puts it in the draft as the kernel reads it', () => {
+    const a = mountPlane({ mode: 'angle', axis: { kind: 'axis', axis: 'x' }, angle: 30 });
+    fireEvent.change(a.sel('axis'), { target: { value: 'sketchLine:SL:l1' } });
+    expect(a.drafts.at(-1)).toMatchObject({ axis: { kind: 'sketchLine', sketch: 'SL', entity: 'l1' } });
+    fireEvent.change(a.sel('axis'), { target: { value: 'feature:AX1' } });
+    expect(a.drafts.at(-1)).toMatchObject({ axis: { kind: 'feature', id: 'AX1' } });
+    cleanup();
+    const m = mountPlane({ mode: 'mid', base2: { kind: 'std', id: 'front' } });
+    fireEvent.change(m.sel('base2'), { target: { value: 'std:right' } });
+    expect(m.drafts.at(-1)).toMatchObject({ base2: { kind: 'std', id: 'right' } });
+  });
+  it('switching Mode brings what the mode needs: Angle an axis and 30 degrees, Perpendicular an axis, Midplane a second plane that is not the base', () => {
+    const a = mountPlane({ mode: 'offset', offset: 10 });
+    fireEvent.change(a.sel('mode'), { target: { value: 'angle' } });
+    expect(a.drafts.at(-1)).toMatchObject({ mode: 'angle', axis: { kind: 'axis', axis: 'x' }, angle: 30 });
+    cleanup();
+    const p = mountPlane({ mode: 'offset', offset: 10 });
+    fireEvent.change(p.sel('mode'), { target: { value: 'perpendicular' } });
+    expect(p.drafts.at(-1)).toMatchObject({ mode: 'perpendicular', axis: { kind: 'axis', axis: 'x' } });
+    expect(p.drafts.at(-1)).not.toHaveProperty('angle');
+    cleanup();
+    const m = mountPlane({ mode: 'offset', offset: 10 });
+    fireEvent.change(m.sel('mode'), { target: { value: 'mid' } });
+    expect(m.drafts.at(-1)).toMatchObject({ mode: 'mid', base2: { kind: 'std', id: 'front' } });
+    cleanup();
+    const keep = mountPlane({ mode: 'offset', axis: { kind: 'axis', axis: 'y' }, angle: 10 });
+    fireEvent.change(keep.sel('mode'), { target: { value: 'angle' } });
+    expect(keep.drafts.at(-1)).toEqual({ mode: 'angle' });   // what is set is kept: the draft changes only the mode
   });
 });

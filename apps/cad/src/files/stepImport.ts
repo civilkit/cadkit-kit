@@ -4,17 +4,36 @@ import type { Session, ViewBody } from '@ck/session';
 import { meshFromBody } from '@ck/mesh';
 import { toViewSurfaces, withSurfaces } from '@kit/viewdata';
 import { parseParts, type ImportPart } from './importReport';
+import { stepViewLook, type StepViewLook } from './stepAttrs';
 
 /** `parts`: what became of each part of the file (solid / surface body / refused, with reasons; see importReport.ts). The parts that
  *  came in as surface bodies are shown with the solid (`view.surfaces`) and counted in `faces`. */
 export type StepImportResult =
-  | { ok: true; view: ViewBody; faces: number; edges: number; parts: ImportPart[] }
+  | { ok: true; view: ViewBody; faces: number; edges: number; parts: ImportPart[]; look?: StepViewLook; f3d?: F3dCounts }
   | { ok: false; code: string; message: string };
 
 export async function importStepView(session: Pick<Session, 'importStep'>, text: string, name: string): Promise<StepImportResult> {
   let rep;
   try { rep = await session.importStep(text, name); } catch (e) { return { ok: false, code: 'trap', message: (e as Error).message }; }
   return viewOfImport(rep);
+}
+
+/** What a Fusion 360 file brought in, from the kernel's `import` block: bodies that came in as closed solids, as surface bodies, refused ones, and the kernel's report in plain English (summary line first). */
+export interface F3dCounts { bodies: number; solids: number; surfaces: number; refused: number; report: string[] }
+
+/** A Fusion 360 .f3d / .f3z file (or one .smb blob), its bytes, as a view-only body, like STEP. */
+export async function importF3dView(session: Pick<Session, 'importF3d'>, bytes: Uint8Array, name: string): Promise<StepImportResult> {
+  let rep;
+  try { rep = await session.importF3d(base64Of(bytes), name); } catch (e) { return { ok: false, code: 'trap', message: (e as Error).message }; }
+  if (rep.errors.length) {
+    const [, err] = rep.errors[0];
+    const m = err.params && typeof (err.params as { message?: unknown }).message === 'string' ? (err.params as { message: string }).message : '';
+    return { ok: false, code: err.code, message: m ? `${err.code}: ${m}` : err.code };
+  }
+  const r = viewOfImport(rep);
+  const i = (rep as { import?: { bodies?: number; solids?: number; surfaces?: number; refused?: number; report?: unknown } }).import ?? {};
+  if (r.ok) r.f3d = { bodies: i.bodies ?? 0, solids: i.solids ?? 0, surfaces: i.surfaces ?? 0, refused: i.refused ?? 0, report: Array.isArray(i.report) ? i.report.filter((x): x is string => typeof x === 'string') : [] };
+  return r;
 }
 
 /** A SolidWorks .SLDPRT file (its bytes) as a view-only body, like STEP. */
@@ -35,7 +54,7 @@ export function viewOfImport(rep: Awaited<ReturnType<Session['importStep']>>): S
     const [where, err] = rep.errors[0];
     return { ok: false, code: err.code, message: `${where}: ${err.code}` };
   }
-  const body = rep.body as { faces?: unknown[]; edges?: Array<{ key?: string; pts: number[][] }>; box?: { min: number[]; max: number[] } } | null | undefined;
+  const body = rep.body as { faces?: unknown[]; edges?: Array<{ key?: string; pts: number[][] }>; box?: { min: number[]; max: number[] }; faceBody?: unknown; bodyNames?: unknown } | null | undefined;
   const surfaces = toViewSurfaces((rep as { surfaces?: unknown }).surfaces);
   const surfaceFaces = countSurfaceFaces((rep as { surfaces?: unknown }).surfaces);
   if ((!body || !body.faces?.length) && !surfaces.length) return { ok: false, code: 'empty', message: 'no solid in the file' };
@@ -48,7 +67,8 @@ export function viewOfImport(rep: Awaited<ReturnType<Session['importStep']>>): S
   };
   const view = (withSurfaces(solid as never, surfaces) ?? solid) as ViewBody;
   const parts = parseParts((rep as { import?: { parts?: unknown } }).import?.parts);
-  return { ok: true, view, faces: solidFaces + surfaceFaces, edges: view.edges.length, parts };
+  const look = stepViewLook(body, solid.mesh.faceIds ?? [], parts);
+  return { ok: true, view, faces: solidFaces + surfaceFaces, edges: view.edges.length, parts, ...(look ? { look } : {}) };
 }
 
 /** Faces of the surface bodies of a reply (`surfaces: [[id, body], ..]`). */

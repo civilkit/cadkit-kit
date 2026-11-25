@@ -1,3 +1,4 @@
+// @vitest-environment node
 // The chat route of the daemon, with a FAKE `claude` executable (a small node script that prints canned stream-json). No real
 // Claude Code process, no model and no network is involved.
 import { afterEach, describe, expect, it } from 'vitest';
@@ -38,7 +39,7 @@ process.stdin.on('end', () => {
   w({ type: 'system', subtype: 'status', status: 'requesting', session_id: SID });
   if (prompt.includes('login')) { w({ type: 'result', subtype: 'success', is_error: true, result: 'Invalid API key - Please run /login', session_id: SID }); return; }
   if (prompt.includes('maxturns')) { w({ type: 'result', subtype: 'error_max_turns', is_error: true, terminal_reason: 'max_turns', errors: ['Reached maximum number of turns (1)'], session_id: SID }); return; }
-  if (prompt.includes('slow')) { process.on('SIGTERM', () => { fs.writeFileSync(out + '/terminated', '1'); process.exit(143); }); setInterval(() => {}, 1000); return; }
+  if (prompt.includes('slow')) { fs.writeFileSync(out + '/slow.pid', String(process.pid)); process.on('SIGTERM', () => { fs.writeFileSync(out + '/terminated', '1'); process.exit(143); }); setInterval(() => {}, 1000); return; }
   const se = (event) => w({ type: 'stream_event', event, session_id: SID });
   se({ type: 'message_start', message: { id: 'm1', role: 'assistant', content: [] } });
   se({ type: 'content_block_delta', index: 0, delta: { type: 'signature_delta', signature: 'abc' } });
@@ -156,8 +157,13 @@ describe('POST /bridge/chat', () => {
     const reader = r.body!.getReader();
     await reader.read();                                          // the session event: it is running
     ac.abort();
-    for (let i = 0; i < 50 && !existsSync(join(dir, 'terminated')); i++) await new Promise((x) => setTimeout(x, 100));
-    expect(existsSync(join(dir, 'terminated'))).toBe(true);
+    // POSIX: the child's SIGTERM handler leaves a marker. Windows ends a child hard (no signal handlers run), so there the child is checked to be gone.
+    const gone = () => {
+      if (process.platform !== 'win32') return existsSync(join(dir, 'terminated'));
+      try { process.kill(Number(readFileSync(join(dir, 'slow.pid'), 'utf8')), 0); return false; } catch (e) { return (e as NodeJS.ErrnoException).code === 'ESRCH'; }
+    };
+    for (let i = 0; i < 50 && !gone(); i++) await new Promise((x) => setTimeout(x, 100));
+    expect(gone()).toBe(true);
     // and the next turn can start (not "busy")
     const next = await post({ text: 'again' });
     expect((await next.text())).toContain('done');

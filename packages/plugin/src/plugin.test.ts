@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contextOf, effectiveValues, builtinRegistry, caseManifest, checkDefs, checkParams, defaultsOf, engineOk, formModel, parseManifest, PluginRegistry, toJsonSchema, type ParamDef } from './index';
+import { contextOf, effectiveValues, builtinRegistry, caseManifest, generateCase, checkDefs, checkParams, defaultsOf, engineOk, formModel, parseManifest, PluginRegistry, toJsonSchema, type ParamDef } from './index';
 import { toolName } from '../../plugin-tools/src';
 
 const defs: ParamDef[] = [
@@ -149,5 +149,16 @@ describe('Spring plugin and dependent parameters', () => {
     expect(await script({}, ['Spring', 'Spring 2'])).toContain('name: "Spring 3"');
     expect(await script({ name: 'Valve' }, ['Spring'])).toContain('name: "Valve"');
     expect(await script({ name: '  ' }, [])).toContain('name: "Spring"');
+  });
+});
+
+describe('case wizard names (#70)', () => {
+  it('picks free names when Base and Lid are already used', () => {
+    const v = defaultsOf(caseManifest.contributes.generators[0].params);
+    const taken = ['Base', 'Lid'];
+    const uniqueName = (b: string): string => { let n = b, i = 2; while (taken.includes(n)) n = `${b} ${i++}`; return n; };
+    const text = generateCase(v, { used: taken, uniqueName });
+    expect(text).toContain('names: ["Base 2", "Lid 2"]');
+    expect(generateCase(v, { used: [], uniqueName: (b: string) => b })).toContain('names: ["Base", "Lid"]');
   });
 });

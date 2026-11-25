@@ -72,7 +72,7 @@ export function KeyboardPrimer() {
 }
 
 /** Letter keys a tool reads itself while it has a shape in progress (they stay commands, they do not start a variable name). */
-const TOOL_LETTER_KEYS: Record<string, string> = { line: 'mat', polygon: 'm', offset: 'f' };
+const TOOL_LETTER_KEYS: Record<string, string> = { line: 'mat', polygon: 'm', offset: 'f', mirror: 'xy' };
 
 /** With a tool busy and no field focused, does this key start typing into the first field? Digits and the sign/point always do; a letter or underscore does too (a variable name:
  *  `var1`, `w`), unless the tool keeps that letter as its own command (`TOOL_LETTER_KEYS`) or the first field lists it in `keys`. */

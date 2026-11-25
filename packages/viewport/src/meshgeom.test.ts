@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { groupByFace, faceOfVertexIndex, edgeSegments, facesGeometry, namesBox, positionsBox } from './meshgeom';
+import { groupByFace, faceOfVertexIndex, edgeSegments, visibleEdges, facesGeometry, namesBox, positionsBox } from './meshgeom';
 
 const tri = (z: number) => [0, 0, z, 1, 0, z, 0, 1, z];
 const mesh = {
@@ -79,4 +79,13 @@ describe('positionsBox', () => {
     expect(positionsBox(new Float32Array([1, 2, 3, -4, 5, 0, 2, -1, 9]))).toEqual({ min: [-4, -1, 0], max: [2, 5, 9] });
   });
   it('is null for nothing', () => { expect(positionsBox(new Float32Array(0))).toBeNull(); });
+});
+
+describe('visibleEdges (the Tangent edges layer)', () => {
+  const edges = [{ key: 'crease', pts: [[0, 0, 0], [1, 0, 0]] }, { key: 'diagonal', gentle: true, pts: [[0, 0, 0], [1, 1, 0]] }, { key: 'join', smooth: true, gentle: true, pts: [[0, 0, 0], [0, 1, 0]] }];
+  it('with the layer on every edge is drawn', () => { expect(visibleEdges(edges, true).map((e) => e.key)).toEqual(['crease', 'diagonal', 'join']); });
+  it('with the layer off the gentle and smooth edges are left out, the creases stay (knurl: 8284 -> 6804 segments)', () => {
+    expect(visibleEdges(edges, false).map((e) => e.key)).toEqual(['crease']);
+    expect(edgeSegments(visibleEdges(edges, false)).length / 6).toBe(1);
+  });
 });

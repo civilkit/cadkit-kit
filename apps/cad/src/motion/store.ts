@@ -3,13 +3,14 @@
 // viewer access comes in through `MotionDeps`, handed over by the app on every redraw (`attach`), so the store is tested with a fake.
 import { signal } from '@preact/signals-core';
 import {
-  createPlayer, describeStop, FPS, firstIssue, isSweep, latestOnly, lerpPose, newStudyId, poseDeltas, poseRequestAt, rangeOf, readMotion, readStudies, solvedFrom, studyFrames, withKey, withoutKey, withoutStudy, withStudy,
-  NO_MOTION, type ContactReply, type DriverSetting, type Ease, type Frame, type KernelDriver, type MotionDoc, type Player, type Rigid, type Solved, type SolveReply, type Study, type StudyIssue, type SweepReply, type LoopMode,
+  clampTransformToContactSets, createPlayer, describeStop, detectContactSetCollisions, FPS, firstIssue, frameTime, isSweep, latestOnly, lerpPose, newContactSetId, newStudyId, poseDeltas, poseRequestAt, rangeOf, readContactSets, readMotion, readStopOnContact, readStudies, solvedFrom, studyFrames, toggleContactSetMember as toggleMember, withContactSet, withKey, withoutContactSet, withoutKey, withoutStudy, withStudy,
+  NO_MOTION, type BodyMeshMap, type ContactReply, type ContactSet, type DriverSetting, type Ease, type Frame, type KernelDriver, type MotionDoc, type Player, type Rigid, type Solved, type SolveReply, type Study, type StudyIssue, type SweepReply, type LoopMode,
 } from '@kit/motion';
 import { t } from '../i18n';
 import { exportClip, ClipError, browserBytes, browserDecode, browserSleep, type ClipFormat, type Recorder } from './exportClip';
 
 type Fail = { error: string; mate?: string } | null;
+export interface ActiveContactBadge { setId?: string; bodyA: string; bodyB: string; penetrationMm?: number }
 export interface MotionDeps {
   /** A string that changes when the document changes in a way that can change the drivers (mates, parts). */
   docKey: string;
@@ -20,6 +21,8 @@ export interface MotionDeps {
   solve(poses: Array<Record<string, number>>, opts?: { clearance?: number; contact?: boolean }): Promise<SolveReply | Fail>;
   sweep(req: { driver: string; from?: number; to: number; clearance?: number; hold?: Record<string, number> }): Promise<SweepReply | Fail>;
   components(): Array<{ id: string; place?: Frame }>;
+  /** Optional triangle meshes per body/component for continuous BVH contact set resolution. */
+  bodyMeshes?(): BodyMeshMap;
   nameOf(id: string): string;
   /** Select and frame these components (a contact, a stop). */
   show(ids: string[]): void;
@@ -47,6 +50,9 @@ export function createMotionStore() {
   const values = signal<Record<string, number>>({});
   const problem = signal<string | null>(null);
   const contact = signal<ContactReply | null>(null);
+  const stopOnContact = signal(false);
+  const activeContact = signal<ActiveContactBadge | null>(null);
+  const bodyMeshes = signal<BodyMeshMap | null>(null);
   // ---- drivers
   const drivers = signal<KernelDriver[] | null>(null);
   const clearance = signal(0);
@@ -74,6 +80,23 @@ export function createMotionStore() {
   const need = (): MotionDeps => { if (!deps) throw new Error('motion store: not attached'); return deps; };
   const studies = (): Study[] => readStudies(motion.value);
   const study = (): Study | null => { const all = studies(); return all.find((s) => s.id === studyId.value) ?? all[0] ?? null; };
+  const contactSets = (): ContactSet[] => readContactSets(motion.value);
+  const parts = (): string[] => {
+    if (!deps) return [];
+    const ids = new Set<string>();
+    for (const c of deps.components()) if (c.id) ids.add(c.id);
+    for (const f of deps.features) if (f.type === 'insertPart' && f.id) ids.add(f.id);
+    return [...ids];
+  };
+  const matchesContactSet = (a: string, b: string): ContactSet | null => {
+    const sets = contactSets();
+    const enabled = sets.filter((s) => s.enabled && s.memberIds.length >= 2);
+    if (enabled.length > 0) {
+      return enabled.find((s) => s.memberIds.includes(a) && s.memberIds.includes(b)) ?? null;
+    }
+    if (sets.length > 0) return null;
+    return { id: 'default', name: 'Default', enabled: true, memberIds: [a, b] };
+  };
   const studyKey = (): string => { const s = study(); return s ? JSON.stringify([s.duration, s.loop, s.clearance, s.tracks]) : ''; };
   const showPose = (p: ReadonlyMap<string, Rigid> | null) => { pose.value = p && p.size ? p : null; };
 
@@ -83,22 +106,26 @@ export function createMotionStore() {
     const r = await d.solve([], { contact: false });
     drivers.value = r && 'drivers' in r ? r.drivers : [];
   };
-  const reset = () => { pose.value = null; values.value = {}; problem.value = null; contact.value = null; };
+  const reset = () => { pose.value = null; values.value = {}; problem.value = null; contact.value = null; activeContact.value = null; };
 
   const save = (m: MotionDoc) => { motion.value = m; need().save(m); };
   const saveStudy = (s: Study) => { save({ ...motion.value, studies: withStudy(motion.value, s) } as MotionDoc); };
 
   const store = {
     // state
-    pose, values, problem, contact, drivers, clearance, finding, found, motion, studyId, time, playing, speed, ease, solved, computing, studyProblem, exporting, exported, selectedKey,
+    pose, values, problem, contact, stopOnContact, activeContact, bodyMeshes, drivers, clearance, finding, found, motion, studyId, time, playing, speed, ease, solved, computing, studyProblem, exporting, exported, selectedKey,
     /** The saved motion record is the app's copy plus what was saved here since. */
-    studies, study,
+    studies, study, contactSets, parts,
 
     /** Called on every redraw of the app: hands over the document and the services. Refreshes what depends on the document when it changed. */
     attach(d: MotionDeps) {
       deps = d;
       const mk = JSON.stringify(d.motion ?? null);
-      if (mk !== motionKey) { motionKey = mk; motion.value = readMotion(d.motion); }
+      if (mk !== motionKey) {
+        motionKey = mk;
+        motion.value = readMotion(d.motion);
+        stopOnContact.value = readStopOnContact(d.motion);
+      }
       if (d.docKey !== docKey) {
         const first = docKey === '';
         docKey = d.docKey;
@@ -118,6 +145,41 @@ export function createMotionStore() {
     refreshDrivers,
     set: showPose,
     reset,
+    setBodyMeshes(m: BodyMeshMap | null) { bodyMeshes.value = m; },
+
+    // ---- contact sets
+    addContactSet(init?: Partial<ContactSet>): ContactSet {
+      const all = contactSets();
+      const id = init?.id ?? newContactSetId(all);
+      const next: ContactSet = {
+        id,
+        name: init?.name ?? t('motion.contactSets.setName', { n: id.replace(/^cs/, '') }),
+        enabled: init?.enabled ?? true,
+        memberIds: init?.memberIds ? [...init.memberIds] : [],
+        ...(init?.clearanceMm !== undefined ? { clearanceMm: init.clearanceMm } : {}),
+      };
+      save({ ...motion.value, contactSets: withContactSet(motion.value, next) } as MotionDoc);
+      return next;
+    },
+    removeContactSet(id: string) {
+      save({ ...motion.value, contactSets: withoutContactSet(motion.value, id) } as MotionDoc);
+      if (activeContact.value?.setId === id) activeContact.value = null;
+    },
+    setContactSetEnabled(id: string, enabled: boolean) {
+      const s = contactSets().find((x) => x.id === id);
+      if (!s) return;
+      save({ ...motion.value, contactSets: withContactSet(motion.value, { ...s, enabled }) } as MotionDoc);
+      if (!enabled && activeContact.value?.setId === id) activeContact.value = null;
+    },
+    toggleContactSetMember(id: string, memberId: string) {
+      const s = contactSets().find((x) => x.id === id);
+      if (!s) return;
+      save({ ...motion.value, contactSets: withContactSet(motion.value, toggleMember(s, memberId)) } as MotionDoc);
+    },
+    setStopOnContact(on: boolean) {
+      stopOnContact.value = on;
+      save({ ...motion.value, stopOnContact: on } as MotionDoc);
+    },
 
     // ---- sliders
     drive: latestOnly(async (v: Record<string, number>) => {
@@ -126,10 +188,79 @@ export function createMotionStore() {
       if (!r || !('poses' in r)) { problem.value = 'noKernel'; return; }
       const p = r.poses[0];
       if (!p) return;
-      if (!p.ok) { problem.value = p.error ?? 'error'; contact.value = null; return; }
+      if (!p.ok) { problem.value = p.error ?? 'error'; contact.value = null; activeContact.value = null; return; }
       problem.value = null;
-      contact.value = p.contact ?? null;
-      showPose(poseDeltas(d.components(), p));
+
+      let nextDeltas = poseDeltas(d.components(), p);
+      const meshes = bodyMeshes.value ?? d.bodyMeshes?.() ?? null;
+      const enabledSets = contactSets().filter((s) => s.enabled && s.memberIds.length >= 2);
+
+      if (meshes && enabledSets.length > 0) {
+        const prevMap = pose.value ?? new Map<string, Rigid>();
+        const prevXfs: Record<string, Rigid> = {};
+        const nextXfs: Record<string, Rigid> = {};
+        for (const id of parts()) {
+          prevXfs[id] = prevMap.get(id) ?? { r: [1, 0, 0, 0, 1, 0, 0, 0, 1], t: [0, 0, 0] };
+          nextXfs[id] = nextDeltas.get(id) ?? { r: [1, 0, 0, 0, 1, 0, 0, 0, 1], t: [0, 0, 0] };
+        }
+        if (stopOnContact.value) {
+          let clampedAny = false;
+          const clampedDeltas = new Map(nextDeltas);
+          for (const [id, targetRig] of nextDeltas) {
+            const startRig = prevXfs[id] ?? { r: [1, 0, 0, 0, 1, 0, 0, 0, 1], t: [0, 0, 0] };
+            const res = clampTransformToContactSets(id, startRig, targetRig, enabledSets, meshes, prevXfs);
+            if (res.clamped && res.contact) {
+              clampedDeltas.set(id, res.clampedTransform);
+              activeContact.value = { setId: res.contact.setId, bodyA: res.contact.bodyA, bodyB: res.contact.bodyB, penetrationMm: res.contact.penetrationMm };
+              contact.value = { a: res.contact.bodyA, b: res.contact.bodyB, kind: 'contact', distance: 0, at: res.contact.contactPoint };
+              clampedAny = true;
+            }
+          }
+          if (clampedAny) {
+            showPose(clampedDeltas);
+            return;
+          }
+          activeContact.value = null;
+        } else {
+          const hits = detectContactSetCollisions(enabledSets, meshes, nextXfs);
+          if (hits.length > 0) {
+            activeContact.value = { setId: hits[0].setId, bodyA: hits[0].bodyA, bodyB: hits[0].bodyB, penetrationMm: hits[0].penetrationMm };
+            contact.value = { a: hits[0].bodyA, b: hits[0].bodyB, kind: 'contact', distance: 0, at: hits[0].contactPoint };
+            showPose(nextDeltas);
+            return;
+          }
+          activeContact.value = null;
+        }
+      }
+
+      if (p.contact) {
+        const matched = matchesContactSet(p.contact.a, p.contact.b);
+        if (matched) {
+          contact.value = p.contact;
+          activeContact.value = { setId: matched.id, bodyA: p.contact.a, bodyB: p.contact.b };
+          if (stopOnContact.value) {
+            const mates = Object.keys(v);
+            if (mates.length === 1) {
+              const mate = mates[0];
+              const sw = await d.sweep({ driver: mate, from: 0, to: v[mate], clearance: clearance.value });
+              if (isSweep(sw) && sw.stop.reason === 'contact') {
+                values.value = { ...values.value, [mate]: sw.reached };
+                const clampedSolve = await d.solve([{ [mate]: sw.reached }], { clearance: clearance.value });
+                if (clampedSolve && 'poses' in clampedSolve && clampedSolve.poses[0]?.ok) {
+                  nextDeltas = poseDeltas(d.components(), clampedSolve.poses[0]);
+                }
+              }
+            }
+          }
+        } else {
+          contact.value = null;
+          activeContact.value = null;
+        }
+      } else {
+        contact.value = null;
+        activeContact.value = null;
+      }
+      showPose(nextDeltas);
     }),
     setValue(mate: string, x: number) {
       if (!Number.isFinite(x)) return;
@@ -276,11 +407,42 @@ export function createMotionStore() {
           frames: sv.deltas.length, duration: s.duration, loop: s.loop,
           // between two solved frames the pose is blended, so the motion is smooth at the display's rate, not stepped at the frame rate of the solve
           show: (_i, tm, pos) => {
-            const lo = Math.floor(pos);
-            showPose(lerpPose(sv.deltas[lo], sv.deltas[Math.min(lo + 1, sv.deltas.length - 1)], pos - lo));
-            time.value = +tm.toFixed(3);
+            let effPos = pos;
+            let effTm = tm;
+            if (stopOnContact.value) {
+              let hitFrame = -1;
+              let hitInfo: { setId?: string; bodyA: string; bodyB: string; distance: number } | null = null;
+              for (let k = 0; k <= Math.min(sv.contacts.length - 1, Math.ceil(pos)); k++) {
+                const c = sv.contacts[k];
+                if (c) {
+                  const matched = matchesContactSet(c.a, c.b);
+                  if (matched) {
+                    hitFrame = k;
+                    hitInfo = { setId: matched.id, bodyA: c.a, bodyB: c.b, distance: c.distance };
+                    break;
+                  }
+                }
+              }
+              if (hitFrame >= 0 && hitInfo) {
+                const safeFrame = Math.max(0, hitFrame - 1);
+                effPos = Math.min(pos, safeFrame);
+                effTm = frameTime(safeFrame, sv.deltas.length, s.duration);
+                activeContact.value = { setId: hitInfo.setId, bodyA: hitInfo.bodyA, bodyB: hitInfo.bodyB };
+                contact.value = { a: hitInfo.bodyA, b: hitInfo.bodyB, kind: 'contact', distance: hitInfo.distance, at: [0, 0, 0] };
+                if (player?.playing) {
+                  player.pause();
+                  playing.value = false;
+                }
+              } else {
+                activeContact.value = null;
+                contact.value = null;
+              }
+            }
+            const lo = Math.floor(effPos);
+            showPose(lerpPose(sv.deltas[lo], sv.deltas[Math.min(lo + 1, sv.deltas.length - 1)], effPos - lo));
+            time.value = +effTm.toFixed(3);
             // the sliders (and so the next Key) follow the playhead: what is shown is what gets keyed
-            values.value = { ...values.value, ...poseRequestAt(s, tm) };
+            values.value = { ...values.value, ...poseRequestAt(s, effTm) };
           },
           onEnd: () => { playing.value = false; },
           schedule: (cb) => { const id = requestAnimationFrame(cb); return () => cancelAnimationFrame(id); },
