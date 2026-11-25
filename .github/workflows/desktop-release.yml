@@ -38,11 +38,11 @@ jobs:
         with:
           repository: civilkit/cadkit-kernel
           ref: ${{ inputs.kernel_ref || 'main' }}
-          path: rebuild
+          path: kernel
 
       - name: Record kernel commit
         id: kernel-meta
-        run: echo "commit=$(git -C rebuild rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        run: echo "commit=$(git -C kernel rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v4
         with:
@@ -58,7 +58,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y wabt
 
       - name: Build kernel WASM
-        working-directory: rebuild
+        working-directory: kernel
         run: cargo build -p ck-wasm --target wasm32-unknown-unknown --profile fast
 
       - name: Install web dependencies
@@ -69,8 +69,8 @@ jobs:
         working-directory: kit
         env:
           PAGES_OUT: dist-pages-civilkit/cad
-          WASM_SRC: ${{ github.workspace }}/rebuild/target/wasm32-unknown-unknown/fast/ck_wasm.wasm
-          CK_REBUILD: ${{ github.workspace }}/rebuild
+          WASM_SRC: ${{ github.workspace }}/kernel/target/wasm32-unknown-unknown/fast/ck_wasm.wasm
+          CK_REBUILD: ${{ github.workspace }}/kernel
         run: npm run build:pages
 
       - uses: actions/upload-artifact@v4
@@ -120,7 +120,7 @@ jobs:
         with:
           repository: civilkit/cadkit-kernel
           ref: ${{ needs.web.outputs.kernel_commit }}
-          path: rebuild
+          path: kernel
 
       - uses: actions/setup-node@v4
         with:
