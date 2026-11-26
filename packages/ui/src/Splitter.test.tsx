@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, render, screen, fireEvent, cleanup } from '@testing-library/preact';
-import { Splitter, CornerGrip, resolveDrag } from './Splitter';
+import { Splitter, CornerGrip, resolveDrag, type SplitterProps } from './Splitter';
 
 afterEach(cleanup);
 
@@ -140,5 +140,30 @@ describe('CornerGrip', () => {
     pointer.move(g, { clientX: 900, clientY: 900, pointerId: 1 });
     pointer.up(g, { pointerId: 1 });
     expect(onCommit).toHaveBeenCalledWith(500, 700);
+  });
+});
+
+describe('the page never stays in the resize state', () => {
+  const props: SplitterProps = { orientation: 'vertical', value: 300, min: 100, max: 600, grow: 1, def: 300, label: 'x', onCommit: () => {} };
+  afterEach(() => { document.documentElement.removeAttribute('data-resizing'); });
+  it('a pointer release anywhere in the window ends it, even when the divider never sees the release', () => {
+    const { container } = render(<Splitter {...props} />);
+    fireEvent(container.querySelector('[role=separator]')!, new Event('pointerdown', { bubbles: true }));
+    expect(document.documentElement.getAttribute('data-resizing')).toBe('vertical');
+    fireEvent(window, new Event('pointerup'));
+    expect(document.documentElement.hasAttribute('data-resizing')).toBe(false);
+  });
+  it('the divider disappearing in the middle of a drag (a panel that folds) clears it', () => {
+    const { container, unmount } = render(<Splitter {...props} />);
+    fireEvent(container.querySelector('[role=separator]')!, new Event('pointerdown', { bubbles: true }));
+    expect(document.documentElement.hasAttribute('data-resizing')).toBe(true);
+    unmount();
+    expect(document.documentElement.hasAttribute('data-resizing')).toBe(false);
+  });
+  it('the window losing focus mid-drag clears it', () => {
+    const { container } = render(<Splitter {...props} />);
+    fireEvent(container.querySelector('[role=separator]')!, new Event('pointerdown', { bubbles: true }));
+    fireEvent(window, new Event('blur'));
+    expect(document.documentElement.hasAttribute('data-resizing')).toBe(false);
   });
 });

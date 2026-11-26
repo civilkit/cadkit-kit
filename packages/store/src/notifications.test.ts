@@ -85,7 +85,7 @@ describe('createNotifications', () => {
   it('counts unread messages and unread errors until they are marked read or cleared', () => {
     const a = createNotifications();
     a.notify('i'); a.notify('boom', 'error'); a.notify('boom', 'error');
-    expect(a.unread.value).toBe(2); expect(a.unreadErrors.value).toBe(1);
+    expect(a.unread.value).toBe(1); expect(a.unreadErrors.value).toBe(1);   // an info message does not count: the Alerts counter is for warnings and errors
     a.markRead(); expect(a.unread.value).toBe(0); expect(a.unreadErrors.value).toBe(0);
     a.notify('boom', 'error'); expect(a.unreadErrors.value).toBe(1);   // the folded entry is unread again
     a.clearHistory(); expect(a.history.value).toEqual([]); expect(a.unread.value).toBe(0);

@@ -3,7 +3,7 @@
 // back to the airfoil wizard. Reopening a built marine propeller (the record is kept on its hub sketch) works like the airfoil one. See docs/propellers.md.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon, kindForMin, numberAttrs } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs , ProblemSlot, PanelHint } from '@kit/ui';
 import { t } from './i18n';
 import { MARINE_PRESETS, freeShaftZ, marineReadout, sameMarine, validateMarine, type MarineIssue, type MarineParams } from './marineData';
 import { Seg } from './ThreadEditor';
@@ -88,6 +88,7 @@ export function MarineWizard(p: MarineWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-propeller" size={22} class="fedit-icon" />
         <div class="fedit-title">{title}</div>
+        <ProblemSlot />
         <HelpButton topic="wizard:marine" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
@@ -171,7 +172,7 @@ export function MarineWizard(p: MarineWizardProps): JSX.Element {
             {issues.map((i, k) => <div key={i.code + k} class={'thread-fit ' + (i.level === 'error' ? 'bad' : 'warn')} role={i.level === 'error' ? 'alert' : 'status'} data-issue={i.code} data-severity={i.level}>{marineIssueText(i)}</div>)}
           </div>
           {dup ? <div class="thread-fit warn" role="status" data-testid="marine-dup">{t('marine.duplicate')}</div> : null}
-          {p.hint ? <div class="fedit-hint" role="alert" data-testid="marine-hint">{p.hint}</div> : null}
+          <PanelHint hint={p.hint} testid="marine-hint" />
           <div class="thread-hint" data-testid="marine-notes">{t('marine.help.build')}</div>
           <div class="thread-hint">{t('marine.help.limits')}</div>
           <div class="thread-hint">{t('prop.help.geometry')}</div>

@@ -62,7 +62,7 @@ To move the hole later, double-click its sketch in the feature tree, change the 
 1. Press `E` to choose **Edge** selection.
 2. Click one of the four short edges of the plate, the ones that run across its thickness.
 3. On the **Home** tab, in the **Modify** group, click **Fillet**, or press `Shift+F`.
-4. The **Fillet** editor opens with a small radius (about 0.5 mm for this plate). Change **Radius** to `5`. Leave **Tangent chain** on.
+4. The **Fillet** editor opens with a small radius (about 0.5 mm for this plate). Change **Radius** to `5`. Leave **Follow tangent edges** on.
 5. Click **Confirm**.
 
 The corner is now rounded. If you picked the wrong edge, click **Undo** in the **Edit** group, or press `Ctrl+Z`, and try again.

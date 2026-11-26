@@ -11,6 +11,8 @@ A plugin adds a **generator**: a form that builds a part for you, such as a case
 
 **Back to the list** and **Cancel** leave the model untouched.
 
+**In a sketch.** The **Plugins** tile in the **Reference** group of the sketch tab opens a plugin form on the open sketch. While the form is open, the curves it would add (the hexagons of Honeycomb, for example) show in the sketch in amber and update as you change a value; arcs preview as chords. **Add** draws them as one undo step; **Back** or **Cancel** clears the preview. Plugins see the curves you picked: Honeycomb fills only the selected outline.
+
 ## Change or move a generated part
 
 Right-click its folder in the tree:
@@ -25,6 +27,8 @@ Right-click its folder in the tree:
 Installed plugins are **off by default**. In **Plugins**, switch on **Allow plugins from other people**, then add one from a packed zip file, from
 `github:owner/repo@tag`, or from a link to a zip. The app shows what the package contains, its hash and anything it could not check, and installs
 only after you confirm. Use a tag or a commit, not a branch, so the package cannot change later. Remove a plugin from the same panel.
+
+A SolidCraft plugin zip installs the same way. It is converted in your browser at install time, and its form is built from its parameters (dropdowns, a SolidCraft-style layout) with a live preview. A field that asks for a selection is picked in the 3D view like any other pick. If an installed plugin asks for one, a **Plugins** tab appears in the ribbon; the Woodwork **Cut list** runs from it, shows a table and offers a CSV download. Files a plugin saves are offered as downloads, never written to disk.
 
 A plugin with compiled code runs in a sandbox: it cannot reach the network, your files or your document, and it is stopped if it runs too long. Only
 install plugins from people you trust; the sandbox limits what a plugin can do, not whether its geometry is any good.

@@ -4,6 +4,19 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.8.19 - 2026-11-26
+
+- **A pattern of holes rebuilds far faster.** A hole feature with a linear pattern of 50 copies on a 600 by 500 mm plate went from about 2.6 seconds to about 28 milliseconds in a native test, with identical volume, faces and names in 14 comparison cases (grids, rows, overlapping copies, circular and boss patterns). The browser build is faster too, but we have no before and after number for it.
+- **A boss on a chamfered spline edge builds.** Sketching on the converted edges of a chamfered free-form top and extruding a boss from it used to fail with an open-edge error; it now builds, and the hint for the remaining case says what to change.
+- **Rounds on a free-form outline up to 24.9 mm on a 25 mm part.** A part drawn from a closed spline with tight bends takes fillets from 1 mm up to 24.9 mm on the top rim (and the equal-distance chamfer too); the tips get a crease rather than a smooth blend. Rounds up to about 15 mm rebuild in a few seconds, but a round near the top of that range (24.9 mm on the 25 mm part) is slow: in our measurements the rebuild took about 100 seconds and the mesh export about as long, and a speed-up is planned for the next version.
+- **A D shape (a spline closed by a line) rounds at its corners.** Pick the rim and the two vertical corner edges in one fillet for a smooth sphere corner.
+- **The problem flyout is on every wizard and editor panel.** When a panel's values are refused, the alert icon next to the panel title opens one sentence for the cause and one for what to do, beside the panel; Hole and cut refusals read in plain words without machine-style numbers.
+- **Resizing a panel can no longer leave the page stuck.** After dragging a panel divider and releasing the mouse outside the window, or folding the panel mid-drag, the resize cursor and the click shield are cleared, so the viewport stays clickable.
+- **The Section control sits beside the Display button** instead of over the view cube and navigation buttons while an editor is open, and the sketch ribbon's Construction control is the same icon-over-label tile as the other tools.
+- **The editor card clears the left panel's fold handle**, so the handle stays reachable.
+- **Smaller fixes.** A drafted hole of half a degree is no longer reported as an exact cylinder by the plugin read; a failure is no longer mislabelled when the file name contains "cancel" or "network"; the Alerts counter counts warnings and errors only; the What's new card closes on Escape only when nothing else has focus.
+- **"How to" links on What's new, and new guide pages.** Every highlight links to the part of the guide that explains it, and the guide has a new Motion studies page (including contact sets) and step-by-step sections for the features that were thin or missing, checked against the live app.
+
 ## 0.8.18 - 2026-11-26
 
 - **A fillet or chamfer on an extruded closed spline works.** Pick the rim of a part drawn from a smooth closed spline (one pick takes the whole rim, with "Follow tangent edges" on or off) and round it or chamfer it on the top, the bottom or both rims. On a 25 mm thick free-form outline every size we tried from 0.5 to 24.9 mm builds as a round, and the equal-distance chamfer builds at every size too (both rims at once up to the point where the two legs would meet in the wall, which is refused with the reason). Where the outline has a tight tip the round has a crease there, not a smooth blend, and a size within about 2 percent of the tip's own radius is refused by name. A chamfer with two distances or an angle on a spline is not supported yet.
@@ -20,6 +33,7 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 - **More Fusion 360 designs verify.** In our test set of 96 designs the number whose rebuilt result matches the stored one rose from 17 to 28 (gear-tooth patterns, tapered extrudes and rational splines).
 - **One message for a dimension the sketch already fixes.** It becomes a reference dimension with a single note and no "clashes, replace?" question; the dimension box shows readable labels, and the pills and glyphs stay on the geometry after the window or a panel changes size.
 - **The sketch ribbon fits better at laptop width.** The Status group folds into a badge and one menu, and the tools of the Draw and Modify groups stay on screen longer; very narrow windows still hide some tools behind the arrow.
+- **Known limits of the free-form fillet and chamfer.** A chamfer with a size just under the radius of a tight tip (about 90 percent of it) can build a result that the mesh check flags as open, and a few rounds and chamfers on very tight outlines can take up to 40 seconds before an answer comes back; the next version addresses both. A chamfer with two distances or an angle on a spline rim is not supported yet.
 
 ## 0.8.17 - 2026-11-25
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 // @ts-expect-error plain .mjs module without types
-import { esc, firstSentence, inline, parseChangelog, renderPage, PAGE_DIR } from './make_whats_new.mjs';
+import { esc, firstSentence, howTo, inline, parseChangelog, renderPage, PAGE_DIR } from './make_whats_new.mjs';
 // @ts-expect-error plain .mjs module without types
 import { scanText } from './pages_leakcheck.mjs';
 
@@ -43,5 +43,22 @@ describe("What's new page", () => {
     // the suite header and footer link to the public repository; nothing else may match
     const hits = (scanText(page) as Array<{ id: string; context: string }>).filter((h) => !/github\.com\/internal-org\/civilkit-/.test(h.context));
     expect(hits.map((h) => h.id)).toEqual([]);
+  });
+});
+
+describe('the How to line of a highlight', () => {
+  it('links the guide section, escaped, and is absent without a guide', () => {
+    expect(howTo({ id: 'a', guide: '/docs/cad/modelling/curves.html#wrap-onto-a-cylinder', guideText: 'Wrap <onto> a cylinder' })).toBe('<p class="howto">How to: <a href="/docs/cad/modelling/curves.html#wrap-onto-a-cylinder">Wrap &lt;onto&gt; a cylinder</a></p>');
+    expect(howTo({ id: 'a', guide: '/docs/cad/x.html' })).toContain('>User guide</a>');
+    expect(howTo({ id: 'a' })).toBe('');
+  });
+  it('ignores a link that is not a path inside /docs/', () => {
+    for (const g of ['https://example.com/x', '//example.com/docs/', 'javascript:alert(1)', '/docs/cad/x" onclick="y', '/other/x', 42]) expect(howTo({ guide: g, guideText: 't' }), String(g)).toBe('');
+  });
+  it('renders on the page for a highlight that has one and keeps the page working for one that has none', () => {
+    const hl = { '9.9.9': [{ id: 'with', title: 'With guide', blurb: 'b', guide: '/docs/cad/a/b.html#c', guideText: 'The thing' }, { id: 'without', title: 'Without', blurb: 'b' }] };
+    const out: string = renderPage('# Changelog\n\n## 9.9.9 - 2026-01-01\n\n- **T.** One.\n', hl);
+    expect(out).toContain('How to: <a href="/docs/cad/a/b.html#c">The thing</a>');
+    expect(out.match(/class="howto"/g)?.length).toBe(1);
   });
 });

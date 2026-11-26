@@ -3,7 +3,7 @@
 // Rules: fasteners.ts.
 import { useEffect, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
-import { Icon, kindForMin, numberAttrs } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs , ProblemSlot, PanelHint } from '@kit/ui';
 import { t } from './i18n';
 import {
   CLEARANCE_LIMIT, FASTENER_AXES, FASTENER_THREADS, INSERT_SIZE_NAMES, NUT_TYPES, STANDOFF_ENDS, STANDOFF_KINDS, STANDOFF_SIZE_NAMES, insertDefaults, insertIssue, insertSummary, nutIssue,
@@ -73,13 +73,14 @@ function Frame(p: { id: 'nut' | 'standoff' | 'insert'; icon: string; title: stri
       <div class="fedit-head">
         <Icon name={p.icon} size={22} class="fedit-icon" />
         <div class="fedit-title">{p.title}</div>
+        <ProblemSlot />
         <HelpButton topic={`wizard:${p.id}`} />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec-fields prop-body">
         {p.children}
         {issue ? <div class="thread-fit bad" role="alert" data-issue={issue.code}>{p.issueText}</div> : null}
-        {p.hint ? <div class="fedit-hint" role="alert" data-testid={`${id}-hint`}>{p.hint}</div> : null}
+        <PanelHint hint={p.hint} testid={`${id}-hint`} />
       </div>
       <div class="prop-nav">
         <button type="button" class="fedit-card-btn" data-testid={`${id}-cancel`} onClick={p.onCancel}>{t('ui.cancel', undefined, 'Cancel')}</button>

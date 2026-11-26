@@ -32,6 +32,8 @@ STEP (`.step`, `.stp`) is the best way to bring a solid from another CAD program
 - **Colours** and names are ignored, and assembly structure is not read: parts placed by transforms in an assembly file are not positioned.
 - **Limits**: a file with only surfaces or open shells and no solid is refused ("noSolid"). Unusual entities are refused with a message that names the code (`parse`, `noSolid`, `unsupported`, `badEntity`, `topology`).
 
+A STEP file of 8,000,000 characters or more opens as a mesh-only preview instead of the exact import. The preview is view only (triangles, no editable solids), with a progress overlay and Cancel. An assembly tree lists the products and their bodies with triangle counts, an eye to hide each, a **Filter parts** box and **Show all**. Faces the mesher cannot do are left as holes in the preview. Smaller files import exactly.
+
 If STEP refuses a file, try exporting it again from the source program, choosing a solid (not surface) output, a standard application protocol and millimetres. The kernel book has the full list of what is read: [STEP](/docs/cad/kernel/io/step.html).
 
 ### Recognise features (beta)

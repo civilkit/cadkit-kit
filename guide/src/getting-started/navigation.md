@@ -72,7 +72,7 @@ The number keys jump to the standard views. They work when the focus is not in a
 
 The same commands are in the **Views** group of the **View** tab, and in command search. The **Views** button shows the view you used last.
 
-The standard views follow the camera's up axis, not the names of the reference planes. By default Y is up. With Z up, **Top** looks down onto the XY plane. See below to change it.
+The standard views follow the camera's up axis, not the names of the reference planes. New parts start Z up: **Top** is the ground plane (XY), and **Front** (XZ) and **Right** (YZ) stand upright when you sketch on them. A saved setting is kept, and parts made before this change open Y up. A part saved after you switch the axis reopens with that axis. See below to change it.
 
 ## Perspective and parallel projection
 
@@ -84,7 +84,7 @@ Open **Settings** and choose the **Navigation** tab (or click **Up axis** on the
 
 | Setting | Choices | What it does |
 | --- | --- | --- |
-| **Up axis** | **Y up (SolidWorks style)** (default), **Z up (Onshape, Fusion, Blender style)** | Which axis points up on screen. It turns the camera, the ground grid and the view cube. |
+| **Up axis** | **Z up (Onshape, Fusion, Blender style)** (default for new parts), **Y up (SolidWorks style)** | Which axis points up on screen. It turns the camera, the ground grid and the view cube. |
 | **Orbit mode** | **Turntable (no roll)** (default), **Trackball (free rotation)** | Turntable keeps the up axis upright and stops just short of the poles. Trackball rotates freely and can roll or go over the pole. |
 | **Orbit around** | **Model centre** (default), **Point under the cursor**, **Selection** | The point the camera turns about. With **Point under the cursor** the pivot is the point of the model under the pointer when you start the drag. With **Selection** it is the middle of the selected faces or edges. |
 

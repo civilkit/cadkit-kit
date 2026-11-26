@@ -19,7 +19,7 @@ If an edit would break the model, it is not applied: "This edit was not applied;
 | a face or edge it uses no longer exists | The feature was built on a face or edge that is gone. Pick it again, or undo the change that removed it. |
 | the combine failed | Two bodies could not be joined. Make sure they overlap in a volume, not just along a face, or nudge one by a small amount. |
 | the rounding failed / does not fit | Use a smaller radius, fewer edges at once, or round them in a different order. |
-| the rounding runs off the faces beside it | The radius is wider than the faces next to it. Use a smaller radius, keep **Tangent chain** on, or round fewer edges. |
+| the rounding runs off the faces beside it | The radius is wider than the faces next to it. Use a smaller radius, keep **Follow tangent edges** on, or round fewer edges. |
 | the radius is too large for these edges | Use a smaller radius. |
 | this edge or corner shape cannot be rounded yet | Round fewer edges at once, use a chamfer instead, or leave the rounding to the end. |
 | the corner needs exactly three edges | A corner chamfer needs a corner with exactly three edges. Pick another corner, or chamfer the edges. |

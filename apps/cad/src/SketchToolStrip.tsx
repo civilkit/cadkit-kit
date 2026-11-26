@@ -151,7 +151,11 @@ export function sketchRibbonGroups(p: {
     { id: 'SketchSelect', pinned: true, entries: [{ key: 'sk-select', node: <Slot id="sketch-select" variant="ribbon" side="bottom" labels={p.labels} items={[{ id: 'select', label: t('app.sketch.select'), pressed: () => p.active === null, run: () => p.onPick(null) }]} /> },
       { key: 'sk-help', node: <HelpButton topic={p.active ? 'sketch:' + p.active : 'sketch'} /> }] },
     { id: 'Finish', pinned: true, entries: c ? [node('sk-finish', <SketchFinish onOk={c.onOk} onCancel={c.onCancel} />)] : [] },
-    { id: 'Construction', pinned: true, entries: c ? [node('sk-construction', <SketchConstruction construction={c.construction} onConstruction={c.onConstruction} onToggleSelected={c.onToggleSelected} />)] : [] },
+    // the same big tile (icon over label) as Select and the drawing tools, not a boxed text button beside them
+    { id: 'Construction', pinned: true, entries: c ? [
+      tile('sketch-construction', 'sketch-construction', t('app.sketch.constructionMode'), t('app.sketch.constructionMode.tip'), c.onConstruction, () => c.construction),
+      ...(c.onToggleSelected ? [tile('sketch-make-construction', 'sketch-make-construction', t('app.sketch.toggleConstruction'), t('app.sketch.toggleConstruction.tip'), c.onToggleSelected)] : []),
+    ] : [] },
     { id: 'Make', entries: c ? [
       c.onExtrude ? tile('sketch-extrude', 'add-extrude', t('cmd.add-extrude'), t('app.sketch.extrude.tip'), c.onExtrude) : null,
       c.onRevolve ? tile('sketch-revolve', 'add-revolve', t('cmd.add-revolve'), t('app.sketch.revolve.tip'), c.onRevolve) : null,

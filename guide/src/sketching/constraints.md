@@ -53,7 +53,7 @@ The **Dimension** tool (`D`) is a smart dimension: you click what to measure and
 | Two points | **Distance** between them | Press `H` for the **Horizontal distance**, `V` for the **Vertical distance**, or `A` for the aligned distance (the default). |
 | A point and a line | **Point to line**: the distance to the (infinite) line | |
 | A circle | **Diameter** | Press `R` to dimension the **Radius** instead. |
-| An arc | **Radius** | |
+| An arc | **Radius** | Press `L` to dimension the **arc length** instead: type 25 and the arc is solved to 25 mm long. The label sits across the arc's chord with a ⌒ in front. |
 | Two lines | **Angle** between them, in degrees | The angle at the point where they meet. |
 | An edge of the part | The edge is projected into the sketch first, then measured like a line, arc or circle | Click a point or circle of the sketch and then the part's outer edge to dimension its position from that edge. |
 
@@ -94,6 +94,8 @@ A reference dimension measures but does not constrain. It shows in italic bracke
 The **Display** menu has a **Reference dimensions** switch.
 
 ## How defined is the sketch
+
+Two commands in the **...** menu at the end of the **Status** group help you see what can still move. **Show freedom** (a switch) colours in amber the points and circle radii that are not fully defined, says in which direction each can move, and offers chips that pin them; it refreshes when you apply a chip. **Show constraints** (`Shift+C`; the menu entry reads **Hide constraints** while they are shown, which is the default) draws every relation glyph and dimension, and pointing at a point or line lists what is attached to it.
 
 The **Status** group of the **Editing** tab shows a chip with the state of the sketch. The chip always shows its short text (such as `2 DOF`); hover it for the longer hint.
 

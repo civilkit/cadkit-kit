@@ -4,7 +4,7 @@
 // confirm, Escape / the cross cancel. A draft value of null means "remove this field" (see holeData.ts).
 import { useRef, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
-import { EditorSection as Section, ExprInput, Icon } from '@kit/ui';
+import { EditorSection as Section, ExprInput, Icon , ProblemSlot, PanelHint } from '@kit/ui';
 import { t } from './i18n';
 import { HoleThreadOptions, HoleThreadPick, threadOptionsSummary, useHoleThread, type HoleThreadApi } from './HoleThreadSection';
 import { canThreadHole, capLength, threadCfgOf, threadMaxLength, type HoleThread } from './holeThread';
@@ -116,6 +116,7 @@ export function HoleEditor(p: HoleEditorProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-hole" size={22} class="fedit-icon" />
         <div class="fedit-title">{title}</div>
+        <ProblemSlot />
         <HelpButton topic="feature:hole" />
         <button type="button" class="fedit-confirm" onClick={confirm} title={t('ui.editor.confirm', undefined, 'Confirm')} aria-label={t('ui.editor.confirm', undefined, 'Confirm')}><Icon name="check" size={20} /></button>
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
@@ -168,7 +169,7 @@ export function HoleEditor(p: HoleEditorProps): JSX.Element {
       </Section>
 
       {thread && !p.threads ? <Section id="thread" title={t('hole.section.thread')}><div class="hole-thread-slot" data-slot="thread">{thread}</div></Section> : null}
-      {p.hint ? <div class="fedit-hint" role="alert">{p.hint}</div> : null}
+      <PanelHint hint={p.hint} />
       {p.fix ? (
         <div class="fedit-fix">
           <p class="fedit-fix-note">{p.fix.note}</p>

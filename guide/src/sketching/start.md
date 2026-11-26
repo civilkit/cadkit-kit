@@ -53,6 +53,8 @@ If the ribbon is off, the sketch controls sit in a small bar at the top of the v
 | Keep the sketch and revolve it | Click **Revolve** in the **Make** group. The sketch needs a construction line for the axis; if it has none, CivilKit CAD says "Draw a construction line for the axis." Draw one with the **Centreline** tool. |
 | Throw away this session of editing | Click the cross in the **Finish** group (**Cancel sketch**). |
 
+On a sketch with shapes in it, the red X says that cancelling throws away what was drawn since the sketch was opened and that Undo cannot bring it back; click it a second time within five seconds to cancel, or click the green tick to keep the sketch.
+
 `Esc` steps out in stages. While a tool is in the middle of a shape, `Esc` abandons that shape. With a tool chosen but idle, `Esc` returns to the **Select** tool. With nothing chosen and nothing selected, `Esc` cancels the whole sketch, discarding what you did since you entered it. If that is not what you want, use `Ctrl+Z` to undo steps inside the sketch instead.
 
 Undo inside a sketch (`Ctrl+Z`) steps back through the sketch's own edits.

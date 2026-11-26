@@ -6,7 +6,7 @@
 // kernel's (threadDiameterMismatch with a one-click "Use M8", threadModelFallback).
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { EditorSection as Section, Icon } from '@kit/ui';
+import { EditorSection as Section, Icon , ProblemSlot, PanelHint } from '@kit/ui';
 import type { FeatureWarning } from '@kit/store';
 import { t } from './i18n';
 import { ClearanceRow, HandRow, LengthRow, ModelRow, ReadoutCard, Select, Seg, SizeChips, SizePicker, fmt, stdLabel } from './ThreadControls';
@@ -132,6 +132,7 @@ export function ThreadEditor(p: ThreadEditorProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-thread" size={22} class="fedit-icon" />
         <div class="fedit-title">{title}</div>
+        <ProblemSlot />
         <HelpButton topic="feature:thread" />
         <button type="button" class="fedit-confirm" onClick={confirm} title={t('ui.editor.confirm', undefined, 'Confirm')} aria-label={t('ui.editor.confirm', undefined, 'Confirm')}><Icon name="check" size={20} /></button>
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
@@ -199,7 +200,7 @@ export function ThreadEditor(p: ThreadEditorProps): JSX.Element {
       </Section>
 
       {warns.map((w, i) => <div key={i} class="fedit-warn" role="status" data-warning={w.code}>{w.hint}</div>)}
-      {p.hint ? <div class="fedit-hint" role="alert">{p.hint}</div> : null}
+      <PanelHint hint={p.hint} />
     </div>
   );
 }

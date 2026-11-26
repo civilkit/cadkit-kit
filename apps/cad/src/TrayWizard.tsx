@@ -3,7 +3,7 @@
 // the whole record (the app previews it live in the viewport, debounced by the controller); Add tray commits the features as one tree folder, Escape / the cross cancels. Rules: tray.ts.
 import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon } from '@kit/ui';
+import { Icon , ProblemSlot, PanelHint } from '@kit/ui';
 import { t } from './i18n';
 import { PRINTERS, TRAY_ENDS, TRAY_KINDS, drawerFit, fillDrawerLength, trayIssue, traySummary, withChange, type TrayParams } from './tray';
 
@@ -58,6 +58,7 @@ export function TrayWizard(p: TrayWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-tray" size={22} class="fedit-icon" />
         <div class="fedit-title">{t('tray.title')}</div>
+        <ProblemSlot />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec-fields prop-body">
@@ -167,7 +168,7 @@ export function TrayWizard(p: TrayWizardProps): JSX.Element {
         <Num name="y" label={t('tray.y')} unit="mm" step={0.5} value={draft.origin[1]} hintText={t('tray.positionTip')} onChange={(v) => at(1, v)} />
         <Num name="z" label={t('tray.z')} unit="mm" step={0.5} value={draft.origin[2]} hintText={t('tray.positionTip')} onChange={(v) => at(2, v)} />
         {issue ? <div class="thread-fit bad" role="alert" data-issue={issue.code}>{issue.code === 'kernel' ? issue.message : t('tray.issue.' + issue.code, issue.params, issue.message)}</div> : null}
-        {p.hint ? <div class="fedit-hint" role="alert" data-testid="tray-hint">{p.hint}</div> : null}
+        <PanelHint hint={p.hint} testid="tray-hint" />
       </div>
       <div class="prop-nav">
         <button type="button" class="fedit-card-btn" data-testid="tray-cancel" onClick={p.onCancel}>{t('ui.cancel', undefined, 'Cancel')}</button>

@@ -8,7 +8,7 @@ Every number field in the feature Editors accepts three kinds of input:
 
 - A plain number, such as `12.5`.
 - A variable name, such as `width`.
-- An expression that starts with `=`, such as `=width*2+3`.
+- An expression, such as `=width*2+3`. The leading `=` is optional: `20+20`, `1in` (a unit: mm, cm, m, in, deg) and `w/2` (with `w` a variable) are worked out too.
 
 A number stays a number. Anything else is stored as an expression and re-evaluated whenever a variable changes.
 
@@ -17,6 +17,7 @@ A number stays a number. Anything else is stored as an expression and re-evaluat
 While the text is an expression:
 
 - The field shows a blue **fx** badge. The evaluated value shows under the field (for example `= 6 mm`).
+- A name that does not exist says "Unknown variable" right there.
 - A bad expression shows its error and is **not applied**. The model keeps the last good value.
 - Variable names, the functions and `pi` complete as you type. Use the arrow keys with Enter or Tab, or click.
 - Click **fx** to keep the current value as a plain number and break the link.

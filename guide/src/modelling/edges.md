@@ -25,7 +25,7 @@ A fillet rounds the sharp edge between two faces with a smooth arc.
 2. Choose **Home > Modify > Fillet** (Shift+F). **Chamfer** (Shift+B) shares the same button and is in its list: click the small triangle on the button.
 3. The Editor opens with a small radius, so the first preview shows only a slight rounding. Type the radius you want, then confirm with the tick or Enter.
 
-![A plate with three edges around its top corner selected and the Fillet editor open showing Variable radius, Radius, Profile and Tangent chain.](../img/fillet-editor.png)
+![A plate with three edges around its top corner selected and the Fillet editor open showing Variable radius, Radius, Profile and Follow tangent edges.](../img/fillet-editor.png)
 
 A new fillet starts with a small radius: about 5% of the smallest dimension of the body, rounded to a tidy value (a 40 x 25 x 10 mm body gives 0.5 mm). Change it to the size you need. A new chamfer starts with the same small distance.
 
@@ -33,11 +33,12 @@ A new fillet starts with a small radius: about 5% of the smallest dimension of t
 |---|---|---|
 | Edges | The list of edges. Use selection fills it from the model and keeps following the selection until you click Done. | The selected edges |
 | Radius | Constant radius in mm. For the Chordal profile it is labelled Chord width. | About 5% of the smallest dimension |
+| Full round | Rolls a ball tangent to three planar faces between the two sides and removes the centre face. | Off |
 | Variable radius | Gives each edge a Start radius and an End radius that blend along it. The start is the end of the edge nearer where you picked it. These two fields take plain numbers, not expressions. | Off |
 | Profile | The cross-section of the round (see below). | Circular |
 | Conic ratio (0 to 1) | Fullness of a conic round. Shown for Conic. | 0.5 |
 | Shape (0.1 to 1) | Shape of a curvature-continuous round. Shown for Curvature continuous (G2). | 0.5 |
-| Tangent chain | Also rounds the edges that continue the selected ones smoothly. | On |
+| Follow tangent edges | Also rounds the edges that continue the selected ones smoothly. | On |
 
 **Profiles.**
 
@@ -46,19 +47,29 @@ A new fillet starts with a small radius: about 5% of the smallest dimension of t
 - **Chordal** is sized by the width of the chord rather than the radius.
 - **Curvature continuous (G2)** blends into both faces without a visible change in curvature, controlled by Shape.
 
-**Tangent chain.** With it on, selecting one edge of a rounded outline rounds the whole outline: edges that meet at a vertex and continue each other within 1 degree, and the other arcs of a ring split into arcs. The extra edges are lit before you run the command, and the Editor says "N more edge(s) added through the tangent chain". Face selections are not chained. The choice is remembered in your browser. Switching it in the Editor re-applies it to the feature's edge list.
+**Follow tangent edges.** With it on, selecting one edge of a rounded outline rounds the whole outline: edges that meet at a vertex and continue each other within 1 degree, and the other arcs of a ring split into arcs. The extra edges are lit before you run the command, and the whole run counts as one item in the edge list, shown with its edge count (for example `A|B (3 edges)`); clicking any edge of the run removes the whole run, and the Editor says "N more edge(s) added through the tangent edges". Face selections are not chained. The choice is remembered in your browser. Switching it in the Editor re-applies it to the feature's edge list.
 
 **Variable radius rules.** Edges that meet at a corner of a variable fillet need the same radius where they meet. A radius of 0 at one end is built as a very small radius.
 
 **Corners.** Where three rounded edges meet at a convex corner, the kernel adds a spherical patch. If edges meeting at a corner have different radii they end in a mitre, and the feature shows a warning.
 
+**Rounds wider than the face beside them.** A round or chamfer bigger than the wall beside its edge now builds when one of its two contacts stays on its face; the feature carries a warning (a *blendRanOffFace* note in the tree and the Diagnostics tab) listing the faces it ran off. If both contacts run off the face it is still refused with "the rounding runs off the faces beside it". Rounds or chamfers that are wider together than the face between them (the top and bottom edges of a plate, or two rounds meeting along one face) also build now: they meet in a sharp crease, and the warning in the tree names the narrowest wall. A larger round followed by a smaller one on the same rim works; the opposite order is still refused with its reason.
+
+**An overhang.** Where one block overhangs another, the four edges at the corner get a rounded patch (Fillet) or a mitred one (Chamfer). It works for the two-lines pick, any subset of them, and **Select all connected**. A corner that cannot be joined up still returns the stepped body.
+
 **Twisted extrudes.** A fillet rounds the edges of an extrude with a Twist set (the helical gear and screw shapes) up to about 30 degrees of twist, and a ring of four edges, such as the top of a twisted square, up to about 45 degrees. A chamfer on twisted faces, and rings at 60 degrees and more, are still refused with the reason; reduce the twist or round before twisting.
 
-Not offered: the corner (vertex) chamfer type and the full-round fillet between three faces.
+**Free-form (spline) rims.** The rim of a part drawn from a smooth closed spline can be rounded or chamfered too. Pick the rim (one pick takes the whole rim, with Follow tangent edges on or off) and round or chamfer the top rim, the bottom rim or both. Sizes from a fraction of a millimetre up to the thickness of the part build; a size that cannot fit is refused with the reason (the red alert icon beside the editor title says, for example, "Set the radius to 9.55 mm or less", and a **Use the largest size (9.55 mm)** button sets it for you), and with both rims at once the two legs must not meet in the wall. Where the outline has a tight tip the round shows a crease there rather than a smooth blend. Rims that mix a spline with a line or an arc (a D shape, a circle with a flat) work too: for a smooth corner where the rim meets a vertical edge, pick the rim and the vertical edges together in one feature. Rounding the rim and then the vertical edges in two separate features is refused. Not supported yet: a chamfer with two distances or an angle on a spline rim. A chamfer just under the radius of a tight tip can build a result the mesh check flags as open, and a few rounds on very tight outlines can take up to 40 seconds. (Before 0.8.18 a round on a closed free-form rim was refused at once, with the reason.)
+
+**Full round.** Tick **Full round** in the Fillet editor to roll a ball tangent to three planar faces between the two sides, which removes the centre face. Not offered: the corner (vertex) chamfer type.
 
 **Handle.** With an edge selected, a yellow dot appears beside it. Drag it outward for a new fillet, or inward for a chamfer, and release to make the feature. With an edge next to an existing fillet or chamfer, drag the dot to change its size in place. Hold Shift for fine movement, Ctrl for whole millimetres, or type a number while dragging (a minus sign makes a chamfer) and press Enter. Esc cancels. You can switch handles off in the workspace settings.
 
 See [fillet](/docs/cad/kernel/format/features-edits.html#fillet) in the kernel book.
+
+### Fillet the junction after a boss
+
+After an Extrude or Revolve that adds material to a body, a prompt offers to fillet the edges where the new boss meets the body. Accept it to open the Fillet editor with those edges picked. The command **Select junction edges** (command search) picks them for any feature: it says so if the feature has none, or asks you to select a feature in the tree. While a feature panel is open, a **Section** chip over the view clips the part with a plane so you can see inside as you edit.
 
 ## Chamfer
 
@@ -70,7 +81,7 @@ A chamfer cuts a flat bevel along an edge. Select edges exactly as for Fillet an
 | Distance (Distance 1) | The leg of the bevel, in mm. Same default as a fillet radius. | About 5% of the smallest dimension |
 | Distance 2 | The second leg. Shown for Two distances. | Same as Distance 1 |
 | Angle | The angle between the bevel and the first face, in degrees. Shown for Distance and angle. | 45 |
-| Tangent chain | As for Fillet. | On |
+| Follow tangent edges | As for Fillet. | On |
 
 For Two distances and Distance and angle, Distance 1 is measured on the first face of each picked edge. If the legs end up on the wrong faces, swap the two values. See [chamfer](/docs/cad/kernel/format/features-edits.html#chamfer).
 
@@ -87,6 +98,8 @@ Shell hollows the body to a wall thickness and removes the faces you selected, l
 | Wall thickness | Thickness of the walls in mm. | The larger of 1 mm and 2% of the smallest dimension, rounded to 0.1 |
 | Grow outward | Builds the walls outward from the existing surface instead of inward. | Off |
 
+Shell works on a block with rounded corners and keeps the rounds on the inner and outer walls; a round that the inward offset makes vanish is left as a clean mitre. A body can also be opened at the wall of a through hole: the hole's wall counts as one face. Other curved faces say what is not supported. With **Press Pull** (see [Moving things](transforms.md)), an offset of a wall beside two rounds carries the rounds with it.
+
 With the shell selected, an arrow on the inner wall changes the thickness when you drag it.
 
 A wall that is too thick for the part fails with "the wall is thicker than the part allows". The Editor offers **Use suggested thickness (N mm)**, the largest wall that works. Walls also fail where a tight inside curve is smaller than the wall: use a thinner wall, or round the curve first. See [shell](/docs/cad/kernel/format/features-edits.html#shell).
@@ -102,6 +115,7 @@ Draft tilts faces by an angle about a neutral plane. Use it on the walls of a mo
 |---|---|---|
 | Faces | The faces to tilt. | The selected faces |
 | Angle | Draft angle in degrees. | 3 |
+| Flip | Leans the faces the other way, so a part gets wider at the top instead of narrower. Needs two or more side faces. | Off |
 | Neutral plane | The plane that stays fixed, and whose normal is the pull direction. Pick sets it from a selected face. | The plane of the first sketch in the part |
 
 Faces keep their names when drafted, so later features still find them. A face parallel to the neutral plane cannot be drafted. An angle that turns an edge over fails with the kernel's message "edge &lt;faces&gt; turns over", naming the two faces that meet at the edge: use a smaller angle. Faces that continue a drafted face smoothly are drafted with it. See [draft](/docs/cad/kernel/format/features-edits.html#draft).
@@ -169,7 +183,7 @@ A fillet, chamfer or shell the kernel refuses still opens its Editor as a draft,
 
 | Message | What to do |
 |---|---|
-| "the rounding runs off the faces beside it" | The radius is wider than the neighbouring faces. Use a smaller radius, keep Tangent chain on so the round runs on through corners, or round fewer edges at once. |
+| "the rounding runs off the faces beside it" | The radius is wider than the neighbouring faces. Use a smaller radius, keep Follow tangent edges on so the round runs on through corners, or round fewer edges at once. |
 | "the radius is too large for these edges" | Use a smaller radius. |
 | "the rounding could not be built" | Try a smaller radius, fewer edges at once, or a different order. |
 | "this edge or corner shape cannot be rounded yet" | Try fewer edges, a chamfer instead, or leave the rounding to the end of the history. |

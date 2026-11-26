@@ -10,7 +10,7 @@ A hole is drilled at the points of a sketch. There are two ways to start.
 
 1. Select one flat face of the body. Face mode (Q) makes this easy.
 2. Choose **Home > Create > Hole** (Shift+H).
-3. A new sketch opens on that face with the Point tool active and the hint "Place the hole centres with the Point tool or use Corner holes, then confirm the sketch". Click to place one point per hole.
+3. A new sketch opens on that face with the Point tool active and the hint "Click the hole centres (they snap to circle centres and edge midpoints), or press Tab to type X and Y; or use Corner holes. Then confirm the sketch". Click to place one point per hole.
 4. Confirm the sketch with the tick. The hole is added and the Hole editor opens on it.
 
 If you confirm a sketch with no point, the hint appears again and no hole is made. Cancelling the sketch adds nothing.
@@ -39,7 +39,9 @@ The card refuses an inset of 0 or less, or of half the plate or more, and counts
 
 ## The Hole editor
 
-Double-click the hole in the feature tree to reopen it. The Editor has five sections.
+A counterbore or countersink wider than the face it sits on, or a cut that would remove the whole body, is refused with a plain sentence and advice, and the body is kept. Make the head smaller and the hole builds.
+
+Double-click the hole in the feature tree to reopen it. The Editor has the sections Type, Size, End and Options (Counterbore and Countersink add their own fields to Type).
 
 | Control | What it does | Default |
 |---|---|---|
@@ -56,7 +58,7 @@ Double-click the hole in the feature tree to reopen it. The Editor has five sect
 | Flip direction | Drills the other way. | Off |
 | Threaded | Adds a thread to the wall (see below). Simple holes only. | Off |
 
-A new hole starts with the type, size and fit of the last hole you confirmed. A custom diameter is not remembered. Number fields take expressions and variables. See [Equations and variables](equations.md).
+A new hole starts with the type, size and fit of the last hole you confirmed. A plain diameter you type is remembered for the next hole. With nothing selected, **Hole** shows the bar "Hole: pick the flat face (or a plane) the hole centres go on" with a **Cancel** button and the three origin planes in the view; click a face or a plane and opens the centre sketch there; type the centres, set the diameter, and choose **Blind** or **Through**. Number fields take expressions and variables. See [Equations and variables](equations.md).
 
 ### Sizes and fits
 

@@ -174,6 +174,7 @@ With no selection, Loft takes the unused closed sketches drawn since the last so
 | Auto-order | Appears when the profiles do not follow each other along the loft. One click sorts them. | |
 | Guide curves | Open sketches the loft follows along its length. Add guide adds one. | None |
 | Make a surface (not a solid) | Builds a sheet instead of a solid. Profiles may then be open curves, all of one kind. | Off |
+| Rail smoothing | Shown with three or more profiles (labelled **Between sections**). **Natural** runs one smooth curve through all the profiles and can swell past the widest one. **Local** keeps each section between its two profiles and never swells, but works only on a plain loft (no guide curves, centre line or point end). **Automatic** uses Natural unless it swells, then Local. | Natural |
 | Operation, Body name | As for Extrude. Hidden for a surface. | Add |
 | End conditions | One drop-down for the first profile and one for the last. **Free** lets the loft settle by itself. **Directional** steers it: the **Angle** is measured from the profile plane (90° leaves straight out along the profile's normal) and the **Weight** says how far it holds that direction before it turns (1 is neutral, more holds it longer). Tangent to a face and Curvature are listed but not available yet. Only for a plain loft: not with guide curves, a centre line or a point end. A file made with the old Start and End tension opens as Directional at 90° with that weight. | Free |
 
@@ -182,6 +183,10 @@ With no selection, Loft takes the unused closed sketches drawn since the last so
 **Order.** If the profiles do not run in order along the loft it would fold back on itself. Use **Auto-order**. A loft can only use sketches that come before it in the tree. If you pick a later sketch, the loft moves to just after it and the app says "Loft moved after ...".
 
 Each profile must be one closed region. Profiles with holes make a hollow loft; they need the same number of holes. See [loft](/docs/cad/kernel/format/features-solids.html#loft) in the kernel book.
+
+## Primitives menu
+
+On the **Home** tab, the **Create** group's **Primitives** button lists **Box**, **Cylinder**, **Sphere**, **Cone**, **Torus**, **Boss** and **Slot**. Choose one, then click a face or plane to place it; its sizes are picked for you and edited in the Editor. **Press Pull** and **Combine** are in **Features > Modify** and act on faces you pick: Combine joins the bodies under the picked faces.
 
 ## Sphere
 
@@ -239,15 +244,15 @@ A dome raises a spherical cap on a flat face bounded by one circle. Pick that fa
 
 ## Wrap
 
-Wrap lays lettering or closed shapes from a flat sketch onto a cylinder and cuts or raises them there, so a name on a mug follows the curve. Draw the sketch (or the text) on a plane beside the cylinder, pick the round face, and choose **Wrap** (**Home > Create > Pipe > Wrap**).
+Wrap lays lettering or closed shapes from a flat sketch onto a cylinder and cuts or raises them there, so a name on a mug follows the curve. Draw the sketch (or the text) on a plane beside the cylinder, pick the round face, and choose **Wrap** (**Home > Create > Pipe > Wrap**: the **Pipe** button's list holds Pipe, Coil, Bounding solid and Wrap). Wrap is greyed out until a round face is selected. With only the face selected, the editor picks the last sketch itself and shows it in **Profile sketch** (change it with **Pick**). The editor has the sections Profile, Faces, Operation and Other.
 
-- **Operation:** Cut material engraves, Add material raises. **Depth** is how far.
-- **Method:** Automatic chooses for you; Wrap keeps the lengths of the sketch along the surface; Project drops the sketch straight onto the face.
-- **Along the axis, Around, Rotation:** slide the shape up the cylinder, turn it round the cylinder, and spin it on the surface. Each takes a number or an expression.
-- **Taper** slopes the walls.
+- **Operation:** **Cut material** engraves, **Add material** raises. It starts on Cut material. **Depth** is how far (about 0.6 mm for 5 mm text).
+- **Method:** **Automatic** chooses for you; **Wrap (keep lengths)** keeps the lengths of the sketch along the surface. There is no separate Project entry in this list.
+- **Along the axis (mm), Around (degrees), Rotation (degrees):** slide the shape along the cylinder, turn it round the cylinder, and spin it on the surface. All start at 0. Each takes a number or an expression.
+- **Taper** (degrees) slopes the walls. **Flip direction** mirrors the shape round the cylinder. **tolerance** (0.001 by default) is under Other.
 
 A shape wider than one turn of the cylinder is refused, as is one that runs off the face; the message says which shape and by how much. Wrap works on cylinder faces for now; cone and free-form faces come later.
 
 ## Split face
 
-Split face cuts flat faces in two without cutting the body: the solid and its volume stay, and each cut adds a face. Pick the faces and choose **Features > Modify > Split face**. It starts with the plane across the middle of the longest side; in the Editor change the plane and **Offset**, or cut by the lines of a sketch instead. Round faces are not supported, and a plane that misses every picked face is refused.
+Split face cuts flat faces in two without cutting the body: the solid and its volume stay, and each cut adds a face. Pick the faces and choose **Features > Modify > Split face**. It starts with the plane across the middle of the longest side; in the Editor change the plane and **Offset**, or cut by the lines of a sketch instead. To make a step, select one of the two halves in face mode and use **Move face** or Press Pull: that half rises or sinks with a wall built along the split line. Round faces are not supported, and a plane that misses every picked face is refused.

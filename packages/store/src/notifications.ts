@@ -62,7 +62,7 @@ export function createNotifications(now: () => number = Date.now): Notifications
   const notices = signal<Notice[]>([]);
   const history = signal<Notice[]>([]);
   const readUpTo = signal(0);
-  const unreadList = computed(() => history.value.filter((n) => n.id > readUpTo.value));
+  const unreadList = computed(() => history.value.filter((n) => n.id > readUpTo.value && n.level !== 'info' && n.level !== 'success'));   // the Alerts counter is for warnings and errors, not for "Saved"
   const unread = computed(() => unreadList.value.length);
   const unreadErrors = computed(() => unreadList.value.filter((n) => n.level === 'error').length);
 

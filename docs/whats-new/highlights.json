@@ -1,622 +1,876 @@
 {
+  "0.8.19": [
+    {
+      "id": "pattern-speed",
+      "title": "Patterns of holes rebuild much faster",
+      "blurb": "A hole with a linear pattern of 50 copies on a large plate used to take seconds to rebuild and now takes a small fraction of that, with the same result.",
+      "guide": "/docs/cad/modelling/patterns.html#linear-pattern",
+      "guideText": "Linear pattern"
+    },
+    {
+      "id": "blob-rounds",
+      "title": "Big rounds on a free-form outline",
+      "blurb": "A part drawn from a closed spline with tight bends takes a fillet from a millimetre up to almost its full thickness on the top rim. Tight tips get a crease. Rounds up to about 15 mm rebuild in a few seconds; the very largest sizes are slow (around a minute or more) until a planned speed-up.",
+      "guide": "/docs/cad/modelling/edges.html#fillet",
+      "guideText": "Fillet"
+    },
+    {
+      "id": "d-shape-corner",
+      "title": "Round a D shape and its corners together",
+      "blurb": "Pick the rim of a shape made of a spline and a straight line, together with its vertical corner edges, and one fillet gives a smooth sphere corner.",
+      "guide": "/docs/cad/modelling/edges.html#fillet",
+      "guideText": "Fillet"
+    },
+    {
+      "id": "problem-flyout",
+      "title": "A refusal explains itself beside the panel",
+      "blurb": "When an editor or wizard refuses its values, the alert icon opens one sentence for the cause and one for what to do, right beside the panel, with a button for the largest size that works.",
+      "guide": "/docs/cad/analysis/checks.html#in-a-feature-editor",
+      "guideText": "In a feature editor"
+    }
+  ],
   "0.8.18": [
     {
       "id": "spline-fillet",
       "title": "Fillet and chamfer a free-form outline",
-      "blurb": "Pick the rim of a part drawn from a smooth closed spline and round it or chamfer it, top, bottom or both rims: one pick takes the whole rim, and sizes from a fraction of a millimetre up to the thickness of the part build. Tight tips get a crease rather than a smooth blend, and a size that cannot fit is refused with the reason."
+      "blurb": "Pick the rim of a part drawn from a smooth closed spline and round it or chamfer it, top, bottom or both rims: one pick takes the whole rim, and sizes from a fraction of a millimetre up to the thickness of the part build. Tight tips get a crease rather than a smooth blend, and a size that cannot fit is refused with the reason.",
+      "guide": "/docs/cad/modelling/edges.html#fillet",
+      "guideText": "Fillet"
     },
     {
       "id": "motion-drag",
       "title": "Drag a part to move the mechanism",
-      "blurb": "On the Motion tab, grab a part in the 3D view and drag it: the hinge or slide follows your cursor, and Auto key records the move on the timeline at the current time."
+      "blurb": "On the Motion tab, grab a part in the 3D view and drag it: the hinge or slide follows your cursor, and Auto key records the move on the timeline at the current time.",
+      "guide": "/docs/cad/assemblies/motion.html#drag-a-part",
+      "guideText": "Drag a part"
     },
     {
       "id": "offset-preview",
       "title": "Offset previews as you move",
-      "blurb": "Pick a circle, a line or an arc, press Enter and move: the new outline follows the pointer before you click, and typing a distance makes it exact."
+      "blurb": "Pick a circle, a line or an arc, press Enter and move: the new outline follows the pointer before you click, and typing a distance makes it exact.",
+      "guide": "/docs/cad/sketching/offset-reference.html#offset",
+      "guideText": "Offset"
     },
     {
       "id": "whats-new-callout",
       "title": "What's new, right where the version is",
-      "blurb": "After an update a small card rises from the version link in the status bar and points to the notes. Escape or the X closes it for good."
+      "blurb": "After an update a small card rises from the version link in the status bar and points to the notes. Escape or the X closes it for good.",
+      "guide": "/docs/cad/getting-started/interface.html#the-status-bar",
+      "guideText": "The status bar"
     },
     {
       "id": "cancel-sketch",
       "title": "Cancelling a sketch warns first",
-      "blurb": "The red X on a sketch with shapes in it says that cancelling throws away what was drawn, and a second click confirms."
+      "blurb": "The red X on a sketch with shapes in it says that cancelling throws away what was drawn, and a second click confirms.",
+      "guide": "/docs/cad/sketching/start.html#finish-or-cancel",
+      "guideText": "Finish or cancel"
     }
   ],
   "0.8.17": [
     {
       "id": "arc-length",
       "title": "Dimension an arc by its length",
-      "blurb": "Pick the Dimension tool, click an arc and press L: the box switches from the radius to the arc length. Type 25 and the arc is re-solved to 25 mm, with the label drawn across its chord."
+      "blurb": "Pick the Dimension tool, click an arc and press L: the box switches from the radius to the arc length. Type 25 and the arc is re-solved to 25 mm, with the label drawn across its chord.",
+      "guide": "/docs/cad/sketching/constraints.html#dimensions",
+      "guideText": "Dimensions"
     },
     {
       "id": "expression-fields",
       "title": "Type a sum, a unit or a variable",
-      "blurb": "In the Extrude Depth box type 20+20, 1in or w/2 and the value is worked out and shown under the box. A name that does not exist says so right there."
+      "blurb": "In the Extrude Depth box type 20+20, 1in or w/2 and the value is worked out and shown under the box. A name that does not exist says so right there.",
+      "guide": "/docs/cad/modelling/equations.html#typing-a-formula-in-a-field",
+      "guideText": "Typing a formula in a field"
     },
     {
       "id": "delete-cleanup",
       "title": "Delete takes its leftovers",
-      "blurb": "Delete a circle in a sketch and its centre point and the dimensions on that point go with it, instead of a stray point with its labels staying behind."
+      "blurb": "Delete a circle in a sketch and its centre point and the dimensions on that point go with it, instead of a stray point with its labels staying behind.",
+      "guide": "/docs/cad/sketching/tools.html#what-the-edit-tools-do-to-constraints",
+      "guideText": "What the edit tools do to constraints"
     },
     {
       "id": "ring-round-refusal",
       "title": "A round on a free-form rim is refused at once",
-      "blurb": "Rounding the rim of a part drawn from a closed spline now says straight away that a smooth closed free-form rim cannot be rounded yet, instead of working for tens of seconds first."
+      "blurb": "Rounding the rim of a part drawn from a closed spline now says straight away that a smooth closed free-form rim cannot be rounded yet, instead of working for tens of seconds first.",
+      "guide": "/docs/cad/modelling/edges.html#fillet",
+      "guideText": "Fillet"
     }
   ],
   "0.8.16": [
     {
       "id": "plane-name",
       "title": "Planes name themselves",
-      "blurb": "An angled plane is now named after what it is, like \"Plane 30 deg, 40 away, from Top\", and the name follows when you change its angle or offset. A sketch on that plane carries the same name, so the feature tree is easy to read."
+      "blurb": "An angled plane is now named after what it is, like \"Plane 30 deg, 40 away, from Top\", and the name follows when you change its angle or offset. A sketch on that plane carries the same name, so the feature tree is easy to read.",
+      "guide": "/docs/cad/modelling/reference-geometry.html#create-one",
+      "guideText": "Create one"
     },
     {
       "id": "draft-flip",
       "title": "Flip a draft",
-      "blurb": "Select two or more side faces, use Features > Draft, and tick Flip to lean the faces the other way, so the part gets wider at the top instead of narrower."
+      "blurb": "Select two or more side faces, use Features > Draft, and tick Flip to lean the faces the other way, so the part gets wider at the top instead of narrower.",
+      "guide": "/docs/cad/modelling/edges.html#draft",
+      "guideText": "Draft"
     },
     {
       "id": "counterbore-guard",
       "title": "A counterbore that is too wide is refused",
-      "blurb": "A counterbore or countersink wider than the whole face it sits on, or a cut that would remove the entire body, is now refused with a clear message and advice instead of silently giving a bad result. Make the head smaller and the hole builds."
+      "blurb": "A counterbore or countersink wider than the whole face it sits on, or a cut that would remove the entire body, is now refused with a clear message and advice instead of silently giving a bad result. Make the head smaller and the hole builds.",
+      "guide": "/docs/cad/modelling/holes.html#the-hole-editor",
+      "guideText": "The Hole editor"
     },
     {
       "id": "gear-limits",
       "title": "Gear editor shows its limits",
-      "blurb": "The Gear editor now says how far Pressure angle (up to 26 degrees) and Root fillet (up to 0.5 x module) can go, because larger values made an invalid gear. If you type a value above the limit, it is set to the limit and the note under the field says so."
+      "blurb": "The Gear editor now says how far Pressure angle (up to 26 degrees) and Root fillet (up to 0.5 x module) can go, because larger values made an invalid gear. If you type a value above the limit, it is set to the limit and the note under the field says so.",
+      "guide": "/docs/cad/library/wizards.html#parameters",
+      "guideText": "Parameters"
     }
   ],
   "0.8.15": [
     {
       "id": "loft-no-twist",
       "title": "Lofts go straight",
-      "blurb": "Lofting a circle to a rectangle on a parallel plane no longer twists the shape. The sides now run straight up from the circle to the rectangle's corners."
+      "blurb": "Lofting a circle to a rectangle on a parallel plane no longer twists the shape. The sides now run straight up from the circle to the rectangle's corners.",
+      "guide": "/docs/cad/modelling/solids.html#loft",
+      "guideText": "Loft"
     },
     {
       "id": "plane-offset",
       "title": "Offset for angled planes",
-      "blurb": "Angle planes now have an Offset field. Tilt a plane 30 degrees about an axis, type 40 mm, and it slides along its own tilted normal. Sketch on it and extrude, and the solid sits exactly there."
+      "blurb": "Angle planes now have an Offset field. Tilt a plane 30 degrees about an axis, type 40 mm, and it slides along its own tilted normal. Sketch on it and extrude, and the solid sits exactly there.",
+      "guide": "/docs/cad/modelling/reference-geometry.html#the-plane-editor",
+      "guideText": "The Plane editor"
     },
     {
       "id": "construction-dash",
       "title": "Construction lines keep their dashes",
-      "blurb": "A construction line is still drawn dashed when you select it or point at it, so it never looks like a normal line. It turns orange as before."
+      "blurb": "A construction line is still drawn dashed when you select it or point at it, so it never looks like a normal line. It turns orange as before.",
+      "guide": "/docs/cad/sketching/offset-reference.html#construction-geometry",
+      "guideText": "Construction geometry"
     },
     {
       "id": "case-names",
       "title": "A second case gets its own names",
-      "blurb": "Run the Case wizard when a Base and a Lid already exist: the new bodies are named Base 2 and Lid 2 instead of failing with a name clash."
+      "blurb": "Run the Case wizard when a Base and a Lid already exist: the new bodies are named Base 2 and Lid 2 instead of failing with a name clash.",
+      "guide": "/docs/cad/library/wizards.html#make-a-case",
+      "guideText": "Make a case"
     }
   ],
   "0.8.14": [
     {
       "id": "sketch-mirror",
       "title": "Mirror in the sketch",
-      "blurb": "Draw half a shape, select its lines, press Mirror and click a construction line, or press X or Y to mirror about an origin axis. The other half appears, tied to the first by symmetric constraints. Construction lines are now a clear teal dash, their buttons stay in view on narrow windows, and Mirror has its own ribbon button with a prompt over the view."
+      "blurb": "Draw half a shape, select its lines, press Mirror and click a construction line, or press X or Y to mirror about an origin axis. The other half appears, tied to the first by symmetric constraints. Construction lines are now a clear teal dash, their buttons stay in view on narrow windows, and Mirror has its own ribbon button with a prompt over the view.",
+      "guide": "/docs/cad/sketching/tools.html#modify",
+      "guideText": "Modify"
     },
     {
       "id": "tangent-edges",
       "title": "Switch off the lines inside smooth surfaces",
-      "blurb": "Display > Show > Tangent edges now works: switch it off and the lines inside smooth surfaces (the diagonals across knurl facets, fillet blends) disappear, while creases and outlines stay."
+      "blurb": "Display > Show > Tangent edges now works: switch it off and the lines inside smooth surfaces (the diagonals across knurl facets, fillet blends) disappear, while creases and outlines stay.",
+      "guide": "/docs/cad/getting-started/interface.html#the-display-menu",
+      "guideText": "The Display menu"
     }
   ],
   "0.8.13": [
     {
       "id": "plane-modes",
       "title": "Make a plane at an angle and cut along it",
-      "blurb": "In the Plane editor, the Angle mode turns a base plane about an axis by an angle you type: here the Top plane about the X axis by 30 degrees. Sketch on the new plane and extrude as a cut, through all both ways, to make a slanted opening."
+      "blurb": "In the Plane editor, the Angle mode turns a base plane about an axis by an angle you type: here the Top plane about the X axis by 30 degrees. Sketch on the new plane and extrude as a cut, through all both ways, to make a slanted opening.",
+      "guide": "/docs/cad/modelling/reference-geometry.html#the-plane-editor",
+      "guideText": "The Plane editor"
     },
     {
       "id": "plane-midperp",
       "title": "Midplane and Perpendicular reference planes",
-      "blurb": "The Plane editor's Mode list also has Midplane, which needs a base plane and a second plane and sits between them, and Perpendicular, which needs a base plane and an axis (with a Flip direction box). Each mode shows only the fields it needs."
+      "blurb": "The Plane editor's Mode list also has Midplane, which needs a base plane and a second plane and sits between them, and Perpendicular, which needs a base plane and an axis (with a Flip direction box). Each mode shows only the fields it needs.",
+      "guide": "/docs/cad/modelling/reference-geometry.html#the-plane-editor",
+      "guideText": "The Plane editor"
     },
     {
       "id": "hollow-pipe",
       "title": "Make a hollow pipe",
-      "blurb": "The Pipe feature has a Wall field. Leave it blank for a solid pipe, or type a wall thickness and the pipe becomes a tube you can look along."
+      "blurb": "The Pipe feature has a Wall field. Leave it blank for a solid pipe, or type a wall thickness and the pipe becomes a tube you can look along.",
+      "guide": "/docs/cad/modelling/solids.html#pipe",
+      "guideText": "Pipe"
     }
   ],
   "0.8.12": [
     {
       "id": "plugin-sketch-preview",
       "title": "Plugins show a live preview in your sketch",
-      "blurb": "Plugins that draw into an open sketch now show a live preview. While the plugin form is open, the curves it would add (the Honeycomb hexagons, for example) appear in the sketch in amber and update when you change a value. Press Add to draw them, and one undo removes them all."
+      "blurb": "Plugins that draw into an open sketch now show a live preview. While the plugin form is open, the curves it would add (the Honeycomb hexagons, for example) appear in the sketch in amber and update when you change a value. Press Add to draw them, and one undo removes them all.",
+      "guide": "/docs/cad/modelling/plugins.html#use-a-generator",
+      "guideText": "Use a generator"
     },
     {
       "id": "herringbone-gears",
       "title": "Herringbone gears with 40 or 48 teeth build",
-      "blurb": "The Gear generator's Herringbone type now builds gears with 40 or 48 teeth as well as small ones. Choose Features > Gear, pick Herringbone, set a wide face and the teeth you want, and confirm: the two helical halves meet in a V."
+      "blurb": "The Gear generator's Herringbone type now builds gears with 40 or 48 teeth as well as small ones. Choose Features > Gear, pick Herringbone, set a wide face and the teeth you want, and confirm: the two helical halves meet in a V.",
+      "guide": "/docs/cad/library/wizards.html#parameters",
+      "guideText": "Parameters"
     }
   ],
   "0.8.11": [
     {
       "id": "lofted-bottle",
       "title": "Round, hollow and finish a lofted bottle",
-      "blurb": "A bottle built from three lofts, a stem and a rounded base now regenerates in about 10 seconds: the 5 mm base round builds, the 2 mm shell opened at the top no longer hangs, and a rim round after the shell works. Lofts from a rounded rectangle to a circle no longer twist."
+      "blurb": "A bottle built from three lofts, a stem and a rounded base now regenerates in about 10 seconds: the 5 mm base round builds, the 2 mm shell opened at the top no longer hangs, and a rim round after the shell works. Lofts from a rounded rectangle to a circle no longer twist.",
+      "guide": "/docs/cad/modelling/solids.html#loft",
+      "guideText": "Loft"
     }
   ],
   "0.8.10": [
     {
       "id": "loft-end-conditions",
       "title": "Control how a loft leaves its first and last profile",
-      "blurb": "The Loft editor has an End conditions section: set Directional with an angle for the first or the last profile. Angle 90 leaves straight out, below 90 the sides bow outward, above 90 the body necks in."
+      "blurb": "The Loft editor has an End conditions section: set Directional with an angle for the first or the last profile. Angle 90 leaves straight out, below 90 the sides bow outward, above 90 the body necks in.",
+      "guide": "/docs/cad/modelling/solids.html#loft",
+      "guideText": "Loft"
     },
     {
       "id": "rail-smoothing",
       "title": "Choose how a loft runs through three or more profiles",
-      "blurb": "The Loft editor has a Rail smoothing choice. Natural (the default) runs one smooth curve through all the profiles and can swell past the widest one; Local keeps each section between its two profiles; Automatic chooses for you."
+      "blurb": "The Loft editor has a Rail smoothing choice. Natural (the default) runs one smooth curve through all the profiles and can swell past the widest one; Local keeps each section between its two profiles; Automatic chooses for you.",
+      "guide": "/docs/cad/modelling/solids.html#loft",
+      "guideText": "Loft"
     },
     {
       "id": "wrap-text",
       "title": "Wrap text or shapes onto a cylinder",
-      "blurb": "Pick the round face of a cylinder (a mug, a bottle) and a sketch of lettering or closed shapes, and Wrap engraves it into the face or raises it from it. Set the depth, slide it along the axis, turn it around."
+      "blurb": "Pick the round face of a cylinder (a mug, a bottle) and a sketch of lettering or closed shapes, and Wrap engraves it into the face or raises it from it. Set the depth, slide it along the axis, turn it around.",
+      "guide": "/docs/cad/modelling/solids.html#wrap",
+      "guideText": "Wrap"
     },
     {
       "id": "wrap-curve",
       "title": "Wrap a curve around a cylinder",
-      "blurb": "In Project curve, the Wrap method lays a curve you drew flat around a cylindrical face and keeps its length. Turn it around the cylinder and slide it along the axis."
+      "blurb": "In Project curve, the Wrap method lays a curve you drew flat around a cylindrical face and keeps its length. Turn it around the cylinder and slide it along the axis.",
+      "guide": "/docs/cad/modelling/curves.html#wrap-onto-a-cylinder",
+      "guideText": "Wrap onto a cylinder"
     },
     {
       "id": "gears-join",
       "title": "The Gears generator builds the whole gear again",
-      "blurb": "Plugins can join or cut against several bodies at once, so the Gears generator makes a full toothed gear beside its block."
+      "blurb": "Plugins can join or cut against several bodies at once, so the Gears generator makes a full toothed gear beside its block.",
+      "guide": "/docs/cad/library/wizards.html#gears",
+      "guideText": "Gears"
     }
   ],
   "0.8.9": [
     {
       "id": "rounds-past-face",
       "title": "Rounds and chamfers larger than their face",
-      "blurb": "A round or chamfer bigger than the wall beside its edge now builds when one of its two contacts stays on its face, with a blendRanOffFace warning; if both contacts run off it is still refused, with its message."
+      "blurb": "A round or chamfer bigger than the wall beside its edge now builds when one of its two contacts stays on its face, with a blendRanOffFace warning; if both contacts run off it is still refused, with its message.",
+      "guide": "/docs/cad/modelling/edges.html#fillet",
+      "guideText": "Fillet"
     },
     {
       "id": "keyboard-shortcuts",
       "title": "Rebind the keyboard shortcuts",
-      "blurb": "The shortcuts sheet (?) is now an editor: choose a CadKit, SolidWorks, Fusion 360 or FreeCAD set, click a key and press the new one, with a prompt when it is already in use, then unbind, reset, export or import."
+      "blurb": "The shortcuts sheet (?) is now an editor: choose a CadKit, SolidWorks, Fusion 360 or FreeCAD set, click a key and press the new one, with a prompt when it is already in use, then unbind, reset, export or import.",
+      "guide": "/docs/cad/reference/commands.html#shortcut-conventions",
+      "guideText": "Shortcut conventions"
     }
   ],
   "0.8.8": [
     {
       "id": "print-plate",
       "title": "Lay a part out on a printer bed",
-      "blurb": "Export > Print Plate / Send to Slicer lays every body flat and packs them on the bed of your printer (Bambu X1C and others); Export Plate writes the .3mf, and the desktop app opens it in your slicer."
+      "blurb": "Export > Print Plate / Send to Slicer lays every body flat and packs them on the bed of your printer (Bambu X1C and others); Export Plate writes the .3mf, and the desktop app opens it in your slicer.",
+      "guide": "/docs/cad/files/export.html#print-plate",
+      "guideText": "Print plate"
     },
     {
       "id": "frozen-pose",
       "title": "Delete a feature without breaking what hangs on it",
-      "blurb": "Delete a plane or face that a sketch depends on and choose Keep dependents in place: they hold their last position, marked with a warning, until you reattach them to a live plane."
+      "blurb": "Delete a plane or face that a sketch depends on and choose Keep dependents in place: they hold their last position, marked with a warning, until you reattach them to a live plane.",
+      "guide": "/docs/cad/modelling/history.html#delete",
+      "guideText": "Delete"
     },
     {
       "id": "html-viewer",
       "title": "Share a part as one HTML file",
-      "blurb": "Export standalone HTML viewer writes a single file that opens in any browser, offline, with orbit, a tick box for each body and a section plane you drag."
+      "blurb": "Export standalone HTML viewer writes a single file that opens in any browser, offline, with orbit, a tick box for each body and a section plane you drag.",
+      "guide": "/docs/cad/files/export.html#standalone-html-viewer",
+      "guideText": "Standalone HTML viewer"
     },
     {
       "id": "perp-snap",
       "title": "Perpendicular to a circle, and a snap to a line's extension",
-      "blurb": "Perpendicular now takes a line and a circle, which puts the line through the centre; a new line snaps to the straight-on continuation of an existing one, with a dashed guide."
+      "blurb": "Perpendicular now takes a line and a circle, which puts the line through the centre; a new line snaps to the straight-on continuation of an existing one, with a dashed guide.",
+      "guide": "/docs/cad/sketching/tools.html#snaps-and-inferred-constraints",
+      "guideText": "Snaps and inferred constraints"
     },
     {
       "id": "solidworks-open",
       "title": "Open a SolidWorks part with its feature history",
-      "blurb": "Import a .SLDPRT file and it opens as a part: the feature history is rebuilt in the tree, you can turn it around, and Mass properties gives its volume, area and mass with Errors 0."
+      "blurb": "Import a .SLDPRT file and it opens as a part: the feature history is rebuilt in the tree, you can turn it around, and Mass properties gives its volume, area and mass with Errors 0.",
+      "guide": "/docs/cad/files/import.html#solidworks-parts",
+      "guideText": "SolidWorks parts"
     },
     {
       "id": "step-round-trip",
       "title": "STEP out and back in, with the same volume",
-      "blurb": "Export STEP writes the Marine propeller; importing that file again gives a solid with the same volume, area and mass, and Errors 0 in the status bar."
+      "blurb": "Export STEP writes the Marine propeller; importing that file again gives a solid with the same volume, area and mass, and Errors 0 in the status bar.",
+      "guide": "/docs/cad/files/export.html#step",
+      "guideText": "STEP"
     },
     {
       "id": "shell-offset-rounds",
       "title": "Shell and offset a part with rounded corners",
-      "blurb": "Shell hollows a block that has rounded corners and keeps the rounds; Press Pull then offsets a wall beside two of them and the rounds travel with it, valid at every step."
+      "blurb": "Shell hollows a block that has rounded corners and keeps the rounds; Press Pull then offsets a wall beside two of them and the rounds travel with it, valid at every step.",
+      "guide": "/docs/cad/modelling/edges.html#shell",
+      "guideText": "Shell"
     }
   ],
   "0.8.7": [
     {
       "id": "decimate-scan",
       "title": "Thin a big scan before converting it",
-      "blurb": "Tick Reduce the triangles first in Convert mesh to solid and a scan is thinned to a fraction, never moving the surface by more than the deviation you set."
+      "blurb": "Tick Reduce the triangles first in Convert mesh to solid and a scan is thinned to a fraction, never moving the surface by more than the deviation you set.",
+      "guide": "/docs/cad/files/import.html#convert-a-mesh-to-a-solid-preview",
+      "guideText": "Convert a mesh to a solid (preview)"
     },
     {
       "id": "image-trace",
       "title": "Trace over an image in the sketcher",
-      "blurb": "The Image button puts a photo or scanned drawing on the sketch plane; Calibrate sets its true size from two points a known distance apart."
+      "blurb": "The Image button puts a photo or scanned drawing on the sketch plane; Calibrate sets its true size from two points a known distance apart.",
+      "guide": "/docs/cad/sketching/tools.html#an-image-to-trace",
+      "guideText": "An image to trace"
     }
   ],
   "0.8.6": [
     {
       "id": "motion-studies",
       "title": "Motion studies",
-      "blurb": "A Motion tab drives a hinge door with a slider, Find limits says where the swing stops and why, and a two-key study in the timeline plays the door open."
+      "blurb": "A Motion tab drives a hinge door with a slider, Find limits says where the swing stops and why, and a two-key study in the timeline plays the door open.",
+      "guide": "/docs/cad/assemblies/motion.html#make-a-study",
+      "guideText": "Make a study"
     }
   ],
   "0.8.5": [
     {
       "id": "mesh-to-solid",
       "title": "Convert mesh to solid (preview)",
-      "blurb": "Turn an imported STL, OBJ, GLB or 3MF mesh into a solid you can see before keeping it; flat areas become faces, round areas become cylinders, cones and spheres, and gaps are marked and can be closed."
+      "blurb": "Turn an imported STL, OBJ, GLB or 3MF mesh into a solid you can see before keeping it; flat areas become faces, round areas become cylinders, cones and spheres, and gaps are marked and can be closed.",
+      "guide": "/docs/cad/files/import.html#convert-a-mesh-to-a-solid-preview",
+      "guideText": "Convert a mesh to a solid (preview)"
     },
     {
       "id": "surface-sweep",
       "title": "Sweep a surface along a curve",
-      "blurb": "Offset curve copies a curve inward, Sweep surface runs a circle along it to make a tube, and Cap the ends closes the tube into a shell."
+      "blurb": "Offset curve copies a curve inward, Sweep surface runs a circle along it to make a tube, and Cap the ends closes the tube into a shell.",
+      "guide": "/docs/cad/modelling/surfaces.html#sweep-surface",
+      "guideText": "Sweep surface"
     },
     {
       "id": "surface-knit",
       "title": "Knit surfaces into a solid",
-      "blurb": "Close a surface wall with two Planar surfaces, then Knit with Make a solid sews the three surface bodies into one solid with a volume."
+      "blurb": "Close a surface wall with two Planar surfaces, then Knit with Make a solid sews the three surface bodies into one solid with a volume.",
+      "guide": "/docs/cad/modelling/surfaces.html#trim-knit-thicken",
+      "guideText": "Trim, knit, thicken"
     },
     {
       "id": "groove-along-curve",
       "title": "Cut a groove along a curve on a face",
-      "blurb": "Composite curve joins a line and an arc into one curve, Project curve lays it on a face of the block, and Sweep with Cut runs a small circle along it to cut a groove."
+      "blurb": "Composite curve joins a line and an arc into one curve, Project curve lays it on a face of the block, and Sweep with Cut runs a small circle along it to cut a groove.",
+      "guide": "/docs/cad/modelling/solids.html#sweep",
+      "guideText": "Sweep"
     },
     {
       "id": "pipe-along-path",
       "title": "One path from several pieces",
-      "blurb": "Composite curve joins a line, a tangent arc and a second line into one path, so a single Sweep can run a circle along all of it and make a pipe."
+      "blurb": "Composite curve joins a line, a tangent arc and a second line into one path, so a single Sweep can run a circle along all of it and make a pipe.",
+      "guide": "/docs/cad/modelling/curves.html#composite-curve",
+      "guideText": "Composite curve"
     },
     {
       "id": "cross-rounds",
       "title": "Rounds that meet across a face",
-      "blurb": "Fillets and chamfers wider together than the face between them now build and meet in a sharp crease, with a warning in the tree that says why."
+      "blurb": "Fillets and chamfers wider together than the face between them now build and meet in a sharp crease, with a warning in the tree that says why.",
+      "guide": "/docs/cad/modelling/edges.html#fillet",
+      "guideText": "Fillet"
     },
     {
       "id": "step-surfaces",
       "title": "Export STEP with surfaces",
-      "blurb": "Open surface bodies are written to STEP as their own models next to the solids, and an empty export explains itself."
+      "blurb": "Open surface bodies are written to STEP as their own models next to the solids, and an empty export explains itself.",
+      "guide": "/docs/cad/files/export.html#step",
+      "guideText": "STEP"
     }
   ],
   "0.8.4": [
     {
       "id": "show-freedom",
       "title": "Show freedom: see what can still move in a sketch",
-      "blurb": "Amber marks the points and radii that are not fully defined, says in which direction they can move and offers chips that pin them; Show constraints draws every glyph and dimension and lists what is attached on hover."
+      "blurb": "Amber marks the points and radii that are not fully defined, says in which direction they can move and offers chips that pin them; Show constraints draws every glyph and dimension and lists what is attached on hover.",
+      "guide": "/docs/cad/sketching/constraints.html#how-defined-is-the-sketch",
+      "guideText": "How defined is the sketch"
     },
     {
       "id": "hole-tool",
       "title": "A Hole tool that starts from a face",
-      "blurb": "Pick the flat face, type the centres, set a diameter that is remembered for the next hole, and choose Blind or Through."
+      "blurb": "Pick the flat face, type the centres, set a diameter that is remembered for the next hole, and choose Blind or Through.",
+      "guide": "/docs/cad/modelling/holes.html#make-a-hole",
+      "guideText": "Make a hole"
     },
     {
       "id": "typed-point",
       "title": "Type a first point as x,y",
-      "blurb": "Start a circle, line, point, rectangle or arc by typing its position; the point is dimensioned from the origin and expressions stay linked to variables."
+      "blurb": "Start a circle, line, point, rectangle or arc by typing its position; the point is dimensioned from the origin and expressions stay linked to variables.",
+      "guide": "/docs/cad/sketching/tools.html#typing-values-while-you-draw",
+      "guideText": "Typing values while you draw"
     },
     {
       "id": "junction-fillet",
       "title": "Fillet the junction after a boss",
-      "blurb": "After a new boss a prompt offers to fillet the edges where it meets the body, and a Section control clips the part while you edit."
+      "blurb": "After a new boss a prompt offers to fillet the edges where it meets the body, and a Section control clips the part while you edit.",
+      "guide": "/docs/cad/modelling/edges.html#fillet-the-junction-after-a-boss",
+      "guideText": "Fillet the junction after a boss"
     }
   ],
   "0.8.3": [
     {
       "id": "fillet-overhang",
       "title": "Fillet and Chamfer round the corners of an overhang",
-      "blurb": "Where one block overhangs another, the four edges at the corner now get a rounded or mitred patch, for the two-lines pick, any subset and Select all connected, where the result used to be stepped or refused."
+      "blurb": "Where one block overhangs another, the four edges at the corner now get a rounded or mitred patch, for the two-lines pick, any subset and Select all connected, where the result used to be stepped or refused.",
+      "guide": "/docs/cad/modelling/edges.html#fillet",
+      "guideText": "Fillet"
     },
     {
       "id": "chain-run",
       "title": "Tangent chain picks a whole run",
-      "blurb": "With Tangent chain on, picking one edge selects and lights its whole run as one item with its edge count, and clicking any edge of it removes the run."
+      "blurb": "With Tangent chain on, picking one edge selects and lights its whole run as one item with its edge count, and clicking any edge of it removes the run.",
+      "guide": "/docs/cad/modelling/edges.html#fillet",
+      "guideText": "Fillet"
     },
     {
       "id": "selection-list",
       "title": "One scrolling list for your selection",
-      "blurb": "The Selection tray and the editors' edge and corner fields share one list that scrolls in its own box, fills on hover and has Clear."
+      "blurb": "The Selection tray and the editors' edge and corner fields share one list that scrolls in its own box, fills on hover and has Clear.",
+      "guide": "/docs/cad/getting-started/selection.html#the-selection-list",
+      "guideText": "The selection list"
     },
     {
       "id": "step-preview",
       "title": "A large STEP file opens as a quick preview",
-      "blurb": "A STEP file of 8,000,000 characters or more opens as a mesh-only preview with an assembly tree and hide toggles, instead of waiting for the exact import."
+      "blurb": "A STEP file of 8,000,000 characters or more opens as a mesh-only preview with an assembly tree and hide toggles, instead of waiting for the exact import.",
+      "guide": "/docs/cad/files/import.html#step",
+      "guideText": "STEP"
     },
     {
       "id": "plugin-zip",
       "title": "Install a plugin from its own zip",
-      "blurb": "A SolidCraft plugin zip installs in the app, with a form built from its parameters, a live preview, picks from the viewport, a Plugins ribbon tab and a Cut list you can download."
+      "blurb": "A SolidCraft plugin zip installs in the app, with a form built from its parameters, a live preview, picks from the viewport, a Plugins ribbon tab and a Cut list you can download.",
+      "guide": "/docs/cad/modelling/plugins.html#install-a-plugin-made-by-someone-else",
+      "guideText": "Install a plugin made by someone else"
     }
   ],
   "0.8.2": [
     {
       "id": "extrude-end-scale",
       "title": "Extrude can taper the whole outline",
-      "blurb": "In the Extrude editor, End scale scales the outline to a factor at the far end, so 0.5 ends at half size. It works on any profile, holes included, and with blind, mid-plane and flip ends."
+      "blurb": "In the Extrude editor, End scale scales the outline to a factor at the far end, so 0.5 ends at half size. It works on any profile, holes included, and with blind, mid-plane and flip ends.",
+      "guide": "/docs/cad/modelling/solids.html#extrude",
+      "guideText": "Extrude"
     },
     {
       "id": "press-pull-straight",
       "title": "Press Pull continues a face straight, with a taper",
-      "blurb": "Pick a flat face, choose Continue: Straight and a distance: a positive one adds a piece, a negative one cuts one. Add a Draft angle or an End scale and the panel shows the wall angle it makes."
+      "blurb": "Pick a flat face, choose Continue: Straight and a distance: a positive one adds a piece, a negative one cuts one. Add a Draft angle or an End scale and the panel shows the wall angle it makes.",
+      "guide": "/docs/cad/modelling/transforms.html#continue-offset-or-straight",
+      "guideText": "Continue: Offset or Straight"
     },
     {
       "id": "heat-set-seat",
       "title": "Heat-set seat on a hole",
-      "blurb": "Pick a round hole and choose Heat-set seat: the insert panel opens with the insert at the hole's mouth, along its axis, in the size whose hole is nearest."
+      "blurb": "Pick a round hole and choose Heat-set seat: the insert panel opens with the insert at the hole's mouth, along its axis, in the size whose hole is nearest.",
+      "guide": "/docs/cad/modelling/holes.html#heat-set-seat-on-a-hole",
+      "guideText": "Heat-set seat on a hole"
     },
     {
       "id": "alerts",
       "title": "Messages appear once, in one tidy stack",
-      "blurb": "Messages stack at the bottom right, wrap long text with Show more and Copy, stay long enough to read and pause while you hover. The status bar shows an Alerts count; click it for the last 50."
+      "blurb": "Messages stack at the bottom right, wrap long text with Show more and Copy, stay long enough to read and pause while you hover. The status bar shows an Alerts count; click it for the last 50.",
+      "guide": "/docs/cad/getting-started/settings.html#messages",
+      "guideText": "Messages"
     },
     {
       "id": "split-face-step",
       "title": "Moving one piece of a split face makes a step",
-      "blurb": "Split a face in two, pick one half and use Move Face: that half rises or sinks with a wall along the split line, and picking it no longer shows the size box that moves the whole extrude."
+      "blurb": "Split a face in two, pick one half and use Move Face: that half rises or sinks with a wall along the split line, and picking it no longer shows the size box that moves the whole extrude.",
+      "guide": "/docs/cad/modelling/solids.html#split-face",
+      "guideText": "Split face"
     }
   ],
   "0.8.1": [
     {
       "id": "z-up-default",
       "title": "Z up is the default, with upright Front and Right planes",
-      "blurb": "New parts start Z up, the way 3D printing and most newer CAD work. In a Z-up view, Front and Right stand upright when you sketch on them and Top is the ground plane; the plane names and the tree follow. Parts you already have open as they did, and Settings switches back to Y up."
+      "blurb": "New parts start Z up, the way 3D printing and most newer CAD work. In a Z-up view, Front and Right stand upright when you sketch on them and Top is the ground plane; the plane names and the tree follow. Parts you already have open as they did, and Settings switches back to Y up.",
+      "guide": "/docs/cad/getting-started/navigation.html#up-axis-orbit-mode-and-orbit-centre",
+      "guideText": "Up axis, orbit mode and orbit centre"
     },
     {
       "id": "recognise-features",
       "title": "Recognise features rebuilds an imported STEP as editable steps",
-      "blurb": "After you import a STEP file, Recognise features (beta) reads its holes, fillets and outline, rebuilds it step by step and checks that the volume matches the file. Open it as a new part and the steps sit in one From STEP folder, with the file's exact body (Original (STEP)) beside it so you can switch either off and compare."
+      "blurb": "After you import a STEP file, Recognise features (beta) reads its holes, fillets and outline, rebuilds it step by step and checks that the volume matches the file. Open it as a new part and the steps sit in one From STEP folder, with the file's exact body (Original (STEP)) beside it so you can switch either off and compare.",
+      "guide": "/docs/cad/files/import.html#recognise-features-beta",
+      "guideText": "Recognise features (beta)"
     },
     {
       "id": "teardrop-hole",
       "title": "Teardrop holes for 3D printing",
-      "blurb": "Pick a round hole, choose Teardrop hole, and CadKit adds a peak above it so a horizontal hole prints without support. You set which way is up and the overhang angle, can cut the tip flat, and apply it to every hole of a pattern at once, in one folder you can switch off."
+      "blurb": "Pick a round hole, choose Teardrop hole, and CadKit adds a peak above it so a horizontal hole prints without support. You set which way is up and the overhang angle, can cut the tip flat, and apply it to every hole of a pattern at once, in one folder you can switch off.",
+      "guide": "/docs/cad/modelling/holes.html#teardrop-holes-for-3d-printing",
+      "guideText": "Teardrop holes for 3D printing"
     }
   ],
   "0.8.0": [
     {
       "id": "editor-card",
       "title": "A feature edits in a card over the model",
-      "blurb": "On a wide window, open a feature and its editor appears as a floating card with labelled fields, dropdowns and sections, while the left panel keeps the tree. The raw column of field names on the right is off by default; Settings brings it back. Phones and narrow tablets keep their single panel."
+      "blurb": "On a wide window, open a feature and its editor appears as a floating card with labelled fields, dropdowns and sections, while the left panel keeps the tree. The raw column of field names on the right is off by default; Settings brings it back. Phones and narrow tablets keep their single panel.",
+      "guide": "/docs/cad/getting-started/interface.html#the-inspector-panel",
+      "guideText": "The inspector panel"
     },
     {
       "id": "plugins",
       "title": "Plugins: generators you can add",
-      "blurb": "Features > Plugins adds a form-driven generator (a case, a spring) in one undo step, edits it later with Edit parameters, and moves the whole thing with Move folder. Compiled plugins use SolidCraft's plugin format, so SolidCraft plugins (tried with its Woodwork cabinets) run here once packed; switch on \"Allow plugins from other people\" to install them from a zip or a GitHub address, and they run in a sandbox. Doors and drawers do not swing yet; checked in Chrome and Safari so far."
+      "blurb": "Features > Plugins adds a form-driven generator (a case, a spring) in one undo step, edits it later with Edit parameters, and moves the whole thing with Move folder. Compiled plugins use SolidCraft's plugin format, so SolidCraft plugins (tried with its Woodwork cabinets) run here once packed; switch on \"Allow plugins from other people\" to install them from a zip or a GitHub address, and they run in a sandbox. Doors and drawers do not swing yet; checked in Chrome and Safari so far.",
+      "guide": "/docs/cad/modelling/plugins.html#use-a-generator",
+      "guideText": "Use a generator"
     },
     {
       "id": "sketch-ribbon-pinned",
       "title": "The Sketch tab keeps Select and Finish in view",
-      "blurb": "Select and Finish stay pinned at the left of the Sketch ribbon while the tools scroll, Import DXF and Import SVG are in a new Import group inside a sketch, and the scroll arrows no longer cover tools."
+      "blurb": "Select and Finish stay pinned at the left of the Sketch ribbon while the tools scroll, Import DXF and Import SVG are in a new Import group inside a sketch, and the scroll arrows no longer cover tools.",
+      "guide": "/docs/cad/getting-started/interface.html#the-ribbon",
+      "guideText": "The ribbon"
     },
     {
       "id": "solidworks-history-2",
       "title": "More SolidWorks parts open with their history",
-      "blurb": "Drafted boss faces, fillets round a closed curve and bosses closed by a chord now rebuild as features, so more parts open editable instead of as one imported body. A feature the kernel cannot read back still ends the history there."
+      "blurb": "Drafted boss faces, fillets round a closed curve and bosses closed by a chord now rebuild as features, so more parts open editable instead of as one imported body. A feature the kernel cannot read back still ends the history there.",
+      "guide": "/docs/cad/files/import.html#solidworks-parts",
+      "guideText": "SolidWorks parts"
     }
   ],
   "0.7.4": [
     {
       "id": "text-on-path",
       "title": "Text along a curve",
-      "blurb": "Draw a construction line, arc or spline where lettering should run, tick Along a curve and pick it. The letters follow the curve, move with it, and can be centred, slid along or put on the other side."
+      "blurb": "Draw a construction line, arc or spline where lettering should run, tick Along a curve and pick it. The letters follow the curve, move with it, and can be centred, slid along or put on the other side.",
+      "guide": "/docs/cad/sketching/text.html#text-along-a-curve",
+      "guideText": "Text along a curve"
     },
     {
       "id": "tray-wizard",
       "title": "Trays, bins and baseplates",
-      "blurb": "The Tray wizard makes a Gridfinity tray or bin on a grid you choose, with the foot, scoops and magnets; set Make to Baseplate for the plate its foot seats in."
+      "blurb": "The Tray wizard makes a Gridfinity tray or bin on a grid you choose, with the foot, scoops and magnets; set Make to Baseplate for the plate its foot seats in.",
+      "guide": "/docs/cad/library/wizards.html#make-a-tray-or-bin",
+      "guideText": "Make a tray or bin"
     },
     {
       "id": "tablet-layout-2",
       "title": "An iPad-style layout, round two",
-      "blurb": "Fold the left panel with one tap on its edge, keep Undo and Redo in a card beside the tool column, and the tools can always be brought back. Made for an iPad-style screen; not yet tried on a real iPad."
+      "blurb": "Fold the left panel with one tap on its edge, keep Undo and Redo in a card beside the tool column, and the tools can always be brought back. Made for an iPad-style screen; not yet tried on a real iPad.",
+      "guide": "/docs/cad/getting-started/interface.html#folding-the-left-panel",
+      "guideText": "Folding the left panel"
     }
   ],
   "0.7.3": [
     {
       "id": "create-menu",
       "title": "A Create menu with the shapes",
-      "blurb": "Box, Cylinder, Sphere, Cone, Torus, Boss and Slot are on the ribbon: pick one, click a face or plane, and it is placed. Press Pull pushes or pulls picked faces, and Combine joins the bodies under faces you pick."
+      "blurb": "Box, Cylinder, Sphere, Cone, Torus, Boss and Slot are on the ribbon: pick one, click a face or plane, and it is placed. Press Pull pushes or pulls picked faces, and Combine joins the bodies under faces you pick.",
+      "guide": "/docs/cad/modelling/solids.html#primitives-menu",
+      "guideText": "Primitives menu"
     },
     {
       "id": "solids-from-numbers",
       "title": "Rings, tubes and springs from numbers",
-      "blurb": "Torus, Pipe, Coil and Bounding solid need no sketch. Set the radii, the wall, the pitch and the turns in the Editor, and the shape follows as you type."
+      "blurb": "Torus, Pipe, Coil and Bounding solid need no sketch. Set the radii, the wall, the pitch and the turns in the Editor, and the shape follows as you type.",
+      "guide": "/docs/cad/modelling/solids.html#torus",
+      "guideText": "Torus"
     },
     {
       "id": "dome-split-offset",
       "title": "Dome, Split face and Offset surface",
-      "blurb": "Raise a dome (or cut a dimple) on a round flat face, split a flat face in two along a plane without cutting the body, or make a new surface a set distance from faces."
+      "blurb": "Raise a dome (or cut a dimple) on a round flat face, split a flat face in two along a plane without cutting the body, or make a new surface a set distance from faces.",
+      "guide": "/docs/cad/modelling/solids.html#dome",
+      "guideText": "Dome"
     },
     {
       "id": "twisted-fillet",
       "title": "Fillets on a twisted extrude",
-      "blurb": "Round the top edges of a twisted extrude: a 40 mm square twisted 30 degrees takes a 2 mm fillet all the way round, where before the fillet was refused."
+      "blurb": "Round the top edges of a twisted extrude: a 40 mm square twisted 30 degrees takes a 2 mm fillet all the way round, where before the fillet was refused.",
+      "guide": "/docs/cad/modelling/edges.html#fillet",
+      "guideText": "Fillet"
     }
   ],
   "0.7.2": [
     {
       "id": "tablet-layout",
       "title": "A layout made for iPad",
-      "blurb": "In portrait the canvas gets two thirds of the screen, the panel tabs are icons, and the sketch ribbon is one row you swipe across, with an arrow and a fade at the edge that still hides tools."
+      "blurb": "In portrait the canvas gets two thirds of the screen, the panel tabs are icons, and the sketch ribbon is one row you swipe across, with an arrow and a fade at the edge that still hides tools.",
+      "guide": "/docs/cad/getting-started/interface.html#on-an-ipad",
+      "guideText": "On an iPad"
     },
     {
       "id": "ipad-keyboard",
       "title": "The keyboard follows the pen",
-      "blurb": "Lift the pen or a finger after drawing a circle and the radius field opens with the keyboard up. Every field that can go negative has a plus/minus key, and pen strokes and a resting palm are handled."
+      "blurb": "Lift the pen or a finger after drawing a circle and the radius field opens with the keyboard up. Every field that can go negative has a plus/minus key, and pen strokes and a resting palm are handled.",
+      "guide": "/docs/cad/getting-started/interface.html#on-an-ipad",
+      "guideText": "On an iPad"
     },
     {
       "id": "auto-update",
       "title": "Updates apply themselves",
-      "blurb": "When you come back to the installed app and a newer version is out, it reloads itself if nothing is unsaved and shows what it updated to. A setting in Settings turns this off."
+      "blurb": "When you come back to the installed app and a newer version is out, it reloads itself if nothing is unsaved and shows what it updated to. A setting in Settings turns this off.",
+      "guide": "/docs/cad/reference/pwa.html#updates",
+      "guideText": "Updates"
     }
   ],
   "0.7.1": [
     {
       "id": "case-edges",
       "title": "Round the edges of a case",
-      "blurb": "The Case wizard has a Round the edges setting: Side edges, Top edges or both, each with its own radius. The case now stands upright on the Top plane, and the wizard no longer leaves the construction sketches drawn in the view."
+      "blurb": "The Case wizard has a Round the edges setting: Side edges, Top edges or both, each with its own radius. The case now stands upright on the Top plane, and the wizard no longer leaves the construction sketches drawn in the view.",
+      "guide": "/docs/cad/library/wizards.html#make-a-case",
+      "guideText": "Make a case"
     }
   ],
   "0.7.0": [
     {
       "id": "fasten-hole",
       "title": "Right-click a hole to add a bolt",
-      "blurb": "Select a hole wall, right-click and choose Add fastener to hole. The size comes from the hole, the length from the material, with an optional washer and nut and a checkbox for all identical holes on the same plane. Everything goes in as separate bodies in one undo step."
+      "blurb": "Select a hole wall, right-click and choose Add fastener to hole. The size comes from the hole, the length from the material, with an optional washer and nut and a checkbox for all identical holes on the same plane. Everything goes in as separate bodies in one undo step.",
+      "guide": "/docs/cad/library/wizards.html#adding-a-bolt-to-a-hole",
+      "guideText": "Adding a bolt to a hole"
     },
     {
       "id": "case-wizard",
       "title": "A Case wizard: a box with a lipped lid in one step",
-      "blurb": "On the Features tab, Case takes the outside size, wall thickness, corner radius, lid height and the lip (tongue height, width and clearance) and makes the Base and the Lid, with the tongue on one half and a groove on the other."
+      "blurb": "On the Features tab, Case takes the outside size, wall thickness, corner radius, lid height and the lip (tongue height, width and clearance) and makes the Base and the Lid, with the tongue on one half and a groove on the other.",
+      "guide": "/docs/cad/library/wizards.html#make-a-case",
+      "guideText": "Make a case"
     },
     {
       "id": "two-part-case",
       "title": "Split body and Lip joint",
-      "blurb": "Cut a body at a plane into two named bodies, or add a tongue and a groove with a clearance along the cut. The guide builds a two-part case with the volumes checked."
+      "blurb": "Cut a body at a plane into two named bodies, or add a tongue and a groove with a clearance along the cut. The guide builds a two-part case with the volumes checked.",
+      "guide": "/docs/cad/modelling/cases-and-moulds.html#split-body",
+      "guideText": "Split body"
     },
     {
       "id": "rib-options",
       "title": "Rib with fillet, draft and one-sided thickness",
-      "blurb": "The Rib editor gains a fillet on the free edge, a draft angle, a choice of side and the bodies it extends to. A rib no longer fills a bore its line runs through."
+      "blurb": "The Rib editor gains a fillet on the free edge, a draft angle, a choice of side and the bodies it extends to. A rib no longer fills a bore its line runs through.",
+      "guide": "/docs/cad/modelling/edges.html#rib-and-lip",
+      "guideText": "Rib and lip"
     },
     {
       "id": "fastener-wizards",
       "title": "Nut, Standoff and Heat-set insert wizards",
-      "blurb": "Parametric hex nuts (ISO 4032, 4035, 4033), round and hex standoffs, and heat-set inserts, each with a live preview, from the Features tab. The dimensions are marked unverified until checked against the standards."
+      "blurb": "Parametric hex nuts (ISO 4032, 4035, 4033), round and hex standoffs, and heat-set inserts, each with a live preview, from the Features tab. The dimensions are marked unverified until checked against the standards.",
+      "guide": "/docs/cad/library/wizards.html#nuts",
+      "guideText": "Nuts"
     },
     {
       "id": "pattern-axes",
       "title": "Patterns in any direction, about any axis",
-      "blurb": "A linear pattern can run along any direction vector or edge, and a circular pattern about any axis, with a point on the axis, so a bolt circle does not have to sit on the origin."
+      "blurb": "A linear pattern can run along any direction vector or edge, and a circular pattern about any axis, with a point on the axis, so a bolt circle does not have to sit on the origin.",
+      "guide": "/docs/cad/modelling/patterns.html#circular-pattern",
+      "guideText": "Circular pattern"
     },
     {
       "id": "assistant-readback",
       "title": "The assistant can measure and check the part",
-      "blurb": "The Chat and the MCP server can now read distances, clearances, overlaps, wall thickness, draft and manufacturing checks, so an assistant can verify what it built. The injection moulding check also finds undercuts."
+      "blurb": "The Chat and the MCP server can now read distances, clearances, overlaps, wall thickness, draft and manufacturing checks, so an assistant can verify what it built. The injection moulding check also finds undercuts.",
+      "guide": "/docs/cad/automation/chat.html#use-it",
+      "guideText": "Use it"
     },
     {
       "id": "script-helpers",
       "title": "Script helpers for draft, lip, scale, split and more",
-      "blurb": "Typed script methods for draft, move face, lip and groove, scale, split, delete body and face, helix, axis, sphere and move body, and sweeps that follow guide curves."
+      "blurb": "Typed script methods for draft, move face, lip and groove, scale, split, delete body and face, helix, axis, sphere and move body, and sweeps that follow guide curves.",
+      "guide": "/docs/cad/automation/scripting.html#features",
+      "guideText": "Features"
     }
   ],
   "0.6.5": [
     {
       "id": "mesh-import",
       "title": "Open OBJ, GLB and 3MF files",
-      "blurb": "Drop or open an .obj, .glb or .3mf file and it is added as a reference mesh, with colours and (for GLB and 3MF) the unit taken from the file. A notice lists what was not read, such as textures and the separate parts of a multi-part file."
+      "blurb": "Drop or open an .obj, .glb or .3mf file and it is added as a reference mesh, with colours and (for GLB and 3MF) the unit taken from the file. A notice lists what was not read, such as textures and the separate parts of a multi-part file.",
+      "guide": "/docs/cad/files/import.html#mesh-files-stl-obj-glb-and-3mf-a-model-to-sketch-on",
+      "guideText": "Mesh files: STL, OBJ, GLB and 3MF (a model to sketch on)"
     },
     {
       "id": "rounded-rectangle",
       "title": "A Rounded rectangle sketch tool",
-      "blurb": "Click two corners and the four corners come out rounded. The corner field sets the radius, and a typed radius becomes a dimension on each corner arc; the last radius is kept for the next rectangle. Add spline point inserts a free point on an existing spline."
+      "blurb": "Click two corners and the four corners come out rounded. The corner field sets the radius, and a typed radius becomes a dimension on each corner arc; the last radius is kept for the next rectangle. Add spline point inserts a free point on an existing spline.",
+      "guide": "/docs/cad/sketching/tools.html#draw",
+      "guideText": "Draw"
     }
   ],
   "0.6.4": [
     {
       "id": "spring-wizard",
       "title": "A Spring wizard for compression springs",
-      "blurb": "On the Features tab, next to Screw and Washer, Spring takes the outside diameter, wire diameter, free length and turns and adds the coil, shows the pitch and the gap between turns and previews it first. Left or right hand, along any axis; a spring() call does the same from a script. The ends are plain wire ends for now."
+      "blurb": "On the Features tab, next to Screw and Washer, Spring takes the outside diameter, wire diameter, free length and turns and adds the coil, shows the pitch and the gap between turns and previews it first. Left or right hand, along any axis; a spring() call does the same from a script. The ends are plain wire ends for now.",
+      "guide": "/docs/cad/library/wizards.html#springs",
+      "guideText": "Springs"
     },
     {
       "id": "chute-readback",
       "title": "Slotted sheet metal parts from SolidWorks read back in full",
-      "blurb": "A folded sheet with slots cut through it, such as a chute, no longer stops at an imported remainder with the slots missing. If the sheet cut cannot take a cut, it is applied as a plain cut and the feature row says so."
+      "blurb": "A folded sheet with slots cut through it, such as a chute, no longer stops at an imported remainder with the slots missing. If the sheet cut cannot take a cut, it is applied as a plain cut and the feature row says so.",
+      "guide": "/docs/cad/modelling/sheet-metal.html#solidworks-sheet-metal-parts",
+      "guideText": "SolidWorks sheet-metal parts"
     },
     {
       "id": "propeller-position",
       "title": "A second propeller no longer lands on the first",
-      "blurb": "The Marine propeller wizard has a Position along the shaft setting, starts a new propeller behind the ones already in the part, and warns before inserting an identical one at the same place."
+      "blurb": "The Marine propeller wizard has a Position along the shaft setting, starts a new propeller behind the ones already in the part, and warns before inserting an identical one at the same place.",
+      "guide": "/docs/cad/library/wizards.html#marine-propeller",
+      "guideText": "Marine propeller"
     }
   ],
   "0.6.3": [
     {
       "id": "chat-panel",
       "title": "Chat: ask for a change in words",
-      "blurb": "The new Chat panel runs the Claude Code you already have on your own computer. Describe a part or a change, watch it build in the open document, and undo the whole edit in one step. It is off until you start the local service and link the app."
+      "blurb": "The new Chat panel runs the Claude Code you already have on your own computer. Describe a part or a change, watch it build in the open document, and undo the whole edit in one step. It is off until you start the local service and link the app.",
+      "guide": "/docs/cad/automation/chat.html#open-it",
+      "guideText": "Open it"
     },
     {
       "id": "tabs-menus-sketch-bar",
       "title": "Document tabs, right-click menus and a one-row sketch bar",
-      "blurb": "Open parts are tabs in the top bar. Right-click a feature, a plane, a tab or an open sketch for the commands you expect there, and the sketch bar now stays on one row."
+      "blurb": "Open parts are tabs in the top bar. Right-click a feature, a plane, a tab or an open sketch for the commands you expect there, and the sketch bar now stays on one row.",
+      "guide": "/docs/cad/getting-started/interface.html#document-tabs",
+      "guideText": "Document tabs"
     },
     {
       "id": "sketch-guides",
       "title": "Midpoint guides and value boxes that grow with a formula",
-      "blurb": "While you draw, the pointer also lines up with the middle of an existing line, and with two midpoints it lands where their dotted guides cross. The length, angle and radius boxes widen as you type a formula such as =width*2+wall."
+      "blurb": "While you draw, the pointer also lines up with the middle of an existing line, and with two midpoints it lands where their dotted guides cross. The length, angle and radius boxes widen as you type a formula such as =width*2+wall.",
+      "guide": "/docs/cad/sketching/tools.html#snaps-and-inferred-constraints",
+      "guideText": "Snaps and inferred constraints"
     }
   ],
   "0.6.1": [
     {
       "id": "surface-controls",
       "title": "Roughness, metalness, clear coat and wood grain",
-      "blurb": "The Display menu's Surface group sets how a part catches the light, and draws a wood grain with the ring spacing, contrast and colour you choose."
+      "blurb": "The Display menu's Surface group sets how a part catches the light, and draws a wood grain with the ring spacing, contrast and colour you choose.",
+      "guide": "/docs/cad/assemblies/appearance.html#surface-controls",
+      "guideText": "Surface controls"
     },
     {
       "id": "poly-haven-textures",
       "title": "Textures from Poly Haven",
-      "blurb": "Pick a wood texture from the free Poly Haven library in the Display menu and the part is drawn with it, with roughness, a size slider and the author credited. Online libraries are off until you allow them."
+      "blurb": "Pick a wood texture from the free Poly Haven library in the Display menu and the part is drawn with it, with roughness, a size slider and the author credited. Online libraries are off until you allow them.",
+      "guide": "/docs/cad/assemblies/appearance.html#textures-from-poly-haven",
+      "guideText": "Textures from Poly Haven"
     },
     {
       "id": "mass-display",
       "title": "Choose the mass unit and digits",
-      "blurb": "Settings > General > Mass display shows a mass in grams, kilograms, pounds or ounces with 3 to 6 digits, everywhere a mass appears."
+      "blurb": "Settings > General > Mass display shows a mass in grams, kilograms, pounds or ounces with 3 to 6 digits, everywhere a mass appears.",
+      "guide": "/docs/cad/analysis/measure.html#mass-properties",
+      "guideText": "Mass properties"
     }
   ],
   "0.6.0": [
     {
       "id": "fold-across-window",
       "title": "A fold can cross a window",
-      "blurb": "A fold line through a window or hole of a sheet metal part now bends the part and cuts the window through the bend."
+      "blurb": "A fold line through a window or hole of a sheet metal part now bends the part and cuts the window through the bend.",
+      "guide": "/docs/cad/modelling/sheet-metal.html#hem-and-fold",
+      "guideText": "Hem and fold"
     },
     {
       "id": "delete-both",
       "title": "Delete both",
-      "blurb": "Delete something others use and the notice names what depends on it, with a Delete both button that removes them together in one step."
+      "blurb": "Delete something others use and the notice names what depends on it, with a Delete both button that removes them together in one step.",
+      "guide": "/docs/cad/modelling/history.html#delete",
+      "guideText": "Delete"
     },
     {
       "id": "bom-text",
       "title": "The BOM as plain text",
-      "blurb": "Copy as text and Save as text give the bill of materials as aligned columns, ready for an e-mail, next to Save CSV."
+      "blurb": "Copy as text and Save as text give the bill of materials as aligned columns, ready for an e-mail, next to Save CSV.",
+      "guide": "/docs/cad/assemblies/assemblies.html#bill-of-materials",
+      "guideText": "Bill of materials"
     },
     {
       "id": "wood-materials",
       "title": "More woods and panels",
-      "blurb": "Birch, cedar, cherry, Douglas fir, eucalyptus, maple, teak and walnut join the Material list, each with its own colour, density and source."
+      "blurb": "Birch, cedar, cherry, Douglas fir, eucalyptus, maple, teak and walnut join the Material list, each with its own colour, density and source.",
+      "guide": "/docs/cad/assemblies/appearance.html#woods-and-panels",
+      "guideText": "Woods and panels"
     },
     {
       "id": "washer-wizard",
       "title": "A Washer wizard",
-      "blurb": "Pick a flat or spring washer size from ISO 7089, ISO 7093-1 or DIN 127 B, or type your own, and it lands in the tree as one folder."
+      "blurb": "Pick a flat or spring washer size from ISO 7089, ISO 7093-1 or DIN 127 B, or type your own, and it lands in the tree as one folder.",
+      "guide": "/docs/cad/library/wizards.html#washers",
+      "guideText": "Washers"
     }
   ],
   "0.5.0": [
     {
       "id": "sheet-metal-tab",
       "title": "A Sheet metal tab",
-      "blurb": "Convert a solid to sheet, add edge flanges, hems and corner reliefs, cut across bends and round or chamfer corners. Edge flange, Hem and Corner open with their pick list ready: tap the edges or corners in the model, tap again to take one out."
+      "blurb": "Convert a solid to sheet, add edge flanges, hems and corner reliefs, cut across bends and round or chamfer corners. Edge flange, Hem and Corner open with their pick list ready: tap the edges or corners in the model, tap again to take one out.",
+      "guide": "/docs/cad/modelling/sheet-metal.html#the-sheet-metal-tab",
+      "guideText": "The Sheet metal tab"
     },
     {
       "id": "sheet-flange-shapes",
       "title": "Flanges on part of an edge, with shaped legs",
-      "blurb": "An edge flange can cover the whole edge, a start and length along it, or the span between two points you pick, with shaped legs, holes and relief. Bases with rounded corners take flanges too."
+      "blurb": "An edge flange can cover the whole edge, a start and length along it, or the span between two points you pick, with shaped legs, holes and relief. Bases with rounded corners take flanges too.",
+      "guide": "/docs/cad/modelling/sheet-metal.html#edge-flange",
+      "guideText": "Edge flange"
     },
     {
       "id": "solidworks-sheet-metal",
       "title": "SolidWorks sheet metal opens as editable sheet metal",
-      "blurb": "Open an SLDPRT sheet metal part and its flanges come back as editable Edge flange features, with partial-width and sketched-profile flanges, leg rounds, slots and holes."
+      "blurb": "Open an SLDPRT sheet metal part and its flanges come back as editable Edge flange features, with partial-width and sketched-profile flanges, leg rounds, slots and holes.",
+      "guide": "/docs/cad/modelling/sheet-metal.html#solidworks-sheet-metal-parts",
+      "guideText": "SolidWorks sheet-metal parts"
     },
     {
       "id": "arc-slot",
       "title": "Arc slot",
-      "blurb": "A curved slot in the sketch tools: pick the centre, the start of the slot and its end, then set the radius and width."
+      "blurb": "A curved slot in the sketch tools: pick the centre, the start of the slot and its end, then set the radius and width.",
+      "guide": "/docs/cad/sketching/tools.html#draw",
+      "guideText": "Draw"
     },
     {
       "id": "dimension-to-edge",
       "title": "Dimension to the part's own edge",
-      "blurb": "With the Dimension tool, click an outer edge of the part to set how far a slot or hole sits from it."
+      "blurb": "With the Dimension tool, click an outer edge of the part to set how far a slot or hole sits from it.",
+      "guide": "/docs/cad/sketching/constraints.html#dimensions",
+      "guideText": "Dimensions"
     },
     {
       "id": "library",
       "title": "Library",
-      "blurb": "Samples is now Library: every library in one picker, a Manage libraries list, pictures on saved parts, and Insert into this part on each card."
+      "blurb": "Samples is now Library: every library in one picker, a Manage libraries list, pictures on saved parts, and Insert into this part on each card.",
+      "guide": "/docs/cad/library/library.html#the-library-picker",
+      "guideText": "The Library picker"
     },
     {
       "id": "library-filter",
       "title": "One filter for the Library",
-      "blurb": "A category menu and tags with counts narrow the Library cards, and Clear brings everything back."
+      "blurb": "A category menu and tags with counts narrow the Library cards, and Clear brings everything back.",
+      "guide": "/docs/cad/library/library.html#the-filter-bar",
+      "guideText": "The filter bar"
     }
   ]
 }

@@ -2,7 +2,7 @@
 // Every change goes to onChange with the whole value record (the app previews it live); Add commits one undo step, Escape / the cross cancels.
 // Nothing here knows what a particular plugin does: fields, groups, units, "auto" for optional values and errors all come from the definitions.
 import type { JSX } from 'preact';
-import { Icon, kindForMin, numberAttrs, textAttrs } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs, textAttrs , ProblemSlot, PanelHint } from '@kit/ui';
 import { checkParams, defaultsOf, formModel, type FormField, type ParamDef, type PluginManager, type PluginRegistry, type ReadResult, type SelItem, type Values } from '@kit/plugin';
 import { PluginManage } from './PluginManage';
 import { t } from './i18n';
@@ -208,6 +208,7 @@ export function PluginPanel(p: PluginPanelProps): JSX.Element {
     <div class="fedit-head">
       <Icon name="add-plugin" size={22} class="fedit-icon" />
       <div class="fedit-title">{kicker ? <div class="fedit-kicker">{kicker}</div> : null}{title}</div>
+      <ProblemSlot />
       <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')} data-testid="plugin-close"><Icon name="close" size={20} /></button>
     </div>
   );
@@ -265,7 +266,7 @@ export function PluginPanel(p: PluginPanelProps): JSX.Element {
         <button type="button" class="fedit-card-btn" data-testid="plugin-reset" onClick={() => p.onChange(defaultsOf(decl.params))}>{t('plugin.reset')}</button>
         {p.busy ? <div class="thread-hint" data-testid="plugin-busy">{t('plugin.working')}</div> : null}
         {p.note && !p.busy ? <div class="thread-hint" data-testid="plugin-note">{p.note}</div> : null}
-        {p.hint ? <div class="fedit-hint" role="alert" data-testid="plugin-hint">{p.hint}</div> : null}
+        <PanelHint hint={p.hint} testid="plugin-hint" />
         {decl.effect === 'read' && p.readResult ? <ReadView r={p.readResult} /> : null}
       </div>
       <div class="prop-nav">

@@ -3,7 +3,7 @@
 // replaces it when the panel reopened one), Escape / the cross cancels. Rules and the cut list: frameLib.ts.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon, numberAttrs, textAttrs } from '@kit/ui';
+import { Icon, numberAttrs, textAttrs , ProblemSlot, PanelHint } from '@kit/ui';
 import { t } from '../i18n';
 import { clearStoredLibrary, exampleLibrary, importLibraryText, storedLibrary } from './frameUserLib';
 import { CATALOGUE_REGIONS, FITTINGS, HW_PLACES, bom, defaultHardware, loadRegion, onRegionLoaded, profileById, profileGroups, profileMaterial, regionLoaded, regionOf, regionOfId, type Corner, type FrameParams, type FrameReport, type HwPlace, type Region } from './frameLib';
@@ -164,6 +164,7 @@ export function FramePanel(p: FramePanelProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-frame" size={22} class="fedit-icon" />
         <div class="fedit-title">{t(p.edit ? 'frame.titleEdit' : 'frame.title')}</div>
+        <ProblemSlot />
         <HelpButton topic="feature:frame" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
@@ -239,7 +240,7 @@ export function FramePanel(p: FramePanelProps): JSX.Element {
             </label>
             <div class="thread-hint" data-testid="frame-note">{t('frame.note')}</div>
             {hwBlock()}
-            {p.hint ? <div class="fedit-hint" role="alert" data-testid="frame-hint">{p.hint}</div> : null}
+            <PanelHint hint={p.hint} testid="frame-hint" />
           </>
         )}
       </div>

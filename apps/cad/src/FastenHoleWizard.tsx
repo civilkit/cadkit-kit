@@ -4,7 +4,7 @@
 // Add fasteners commits them as one folder and one undo step, Escape / the cross cancels.
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon } from '@kit/ui';
+import { Icon , ProblemSlot, PanelHint } from '@kit/ui';
 import { t } from './i18n';
 import type { FastenHole } from './fastenHole';
 import {
@@ -78,6 +78,7 @@ export function FastenHoleWizard(p: FastenHoleWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="fasten-hole" size={22} class="fedit-icon" />
         <div class="fedit-title">{t('fasten.title')}</div>
+        <ProblemSlot />
         <HelpButton topic="wizard:fasten" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
@@ -130,7 +131,7 @@ export function FastenHoleWizard(p: FastenHoleWizardProps): JSX.Element {
         {nPat > 0 ? check('pattern', t(nPat === 1 ? 'fasten.scope.pattern1' : 'fasten.scope.pattern', { count: nPat }), scope.pattern, (v) => setScope({ ...scope, pattern: v })) : null}
         <div class="thread-hint" data-testid="fasten-count" data-count={count}>{count > 1 ? t('fasten.scope.total', { count }) : t('fasten.scope.one')}</div>
         {issue ? <div class="thread-fit bad" role="alert" data-issue={issue.code}>{t('fasten.issue.' + issue.code, { ...issue.params, message: issue.message }, issue.message)}</div> : null}
-        {p.hint ? <div class="fedit-hint" role="alert" data-testid="fasten-hint">{p.hint}</div> : null}
+        <PanelHint hint={p.hint} testid="fasten-hint" />
       </div>
       <div class="prop-nav">
         <button type="button" class="fedit-card-btn" data-testid="fasten-cancel" onClick={p.onCancel}>{t('ui.cancel', undefined, 'Cancel')}</button>

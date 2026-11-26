@@ -17,6 +17,8 @@ Choose the **Export** button in the top bar (or press **Ctrl+E**) to open the li
 | Export 3MF (3D printing) | `<part>.3mf` | A solid on screen |
 | Export glTF (GLB) | `<part>.glb` | A solid on screen |
 | Export STEP | `<part>.step` | A solid on screen |
+| Export standalone HTML viewer | `<part>.html` | A solid on screen |
+| Print Plate / Send to Slicer | `<part>.3mf` | A solid on screen |
 | Export sketch as DXF | `<part>-<sketch>.dxf` | A sketch being edited, or selected in the feature tree |
 | Export 3 views as DXF | `<part>-views.dxf` | A solid on screen |
 
@@ -29,6 +31,16 @@ What is exported is the model as built: hiding a body or a component, changing t
 ## STEP
 
 Use STEP to hand an exact solid to another CAD program. **Export STEP** writes the kernel's exact surfaces, not triangles. It can take a moment on a large part, with the busy overlay showing. The exported file imports back to the same volume. STEP carries no colours or feature history.
+
+Open surface bodies are written to STEP as their own named models next to the solids. A part with nothing to export shows a message saying so instead of writing an empty file.
+
+## Standalone HTML viewer
+
+**Export standalone HTML viewer** writes one `.html` file that opens in any browser, offline, with no other files. The viewer orbits, pans and zooms, has a tick box for each body to show or hide it, and a section plane you drag to clip the model. Send the file by e-mail to share a part with someone who has no CAD.
+
+## Print plate
+
+**Print Plate / Send to Slicer** lays every body flat and packs them on a printer bed. The dialog is titled **Print Plate & Send to Slicer**. Choose a **Printer bed** preset (Bambu X1C / P1S 256 x 256, Bambu A1 Mini 180 x 180, Prusa MK4 250 x 210, Voron 350, Creality K1 Max 300 x 300, or Custom; the **Width (mm)** and **Depth (mm)** fields are always there), the **Part spacing (mm)** (4 to start) and whether **Allow 90° Z-rotation** (on to start). Each body under **Bodies on plate** has an include box and a **Lay flat** toggle with a **Fits** tag; the top-down preview shows how many bodies fit, and bodies that do not fit are marked **Overflow** and left out. **Export Plate (.3mf)** writes a `.3mf` of the plate. A line under the preview says, for example, "1 of 1 bodies fit · 3% bed used"; **Close** leaves the dialog. In the [desktop app](../getting-started/desktop.md), **Send to Slicer** opens it in an installed slicer (Bambu Studio, OrcaSlicer, PrusaSlicer or UltiMaker Cura).
 
 ## STL and OBJ
 

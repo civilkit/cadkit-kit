@@ -42,7 +42,7 @@ export default {
     await k.clickEl(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Select' && b.getBoundingClientRect().width > 0)`, 'left', 400);
     await esc();
     await clickMm(10, 12);
-    await k.step(() => page.eval(`document.querySelector('[data-action="sketch-make-construction"]').click(); 0`), 300);
+    await k.step(() => page.eval(`document.querySelector('[data-slot="sketch-make-construction"] button').click(); 0`), 300);
     await k.settle();
     await k.hop(700, 900);
     await k.step(async () => { await page.mouse('mousePressed', 700, 900); await page.mouse('mouseReleased', 700, 900); await k.sleep(600); }, 300);   // nothing selected: the construction line shows its own look

@@ -182,15 +182,15 @@ describe('sketchRibbonGroups (the contextual Sketch tab)', () => {
   });
   it('Extrude, Revolve, Construction and Look normal each appear exactly once, and work', async () => {
     const { c, container } = await draw();
-    for (const a of ['sketch-construction', 'look-normal']) expect(container.querySelectorAll(`[data-action="${a}"]`).length, a).toBe(1);
-    for (const a of ['sketch-extrude', 'sketch-revolve']) expect(container.querySelectorAll(`[data-slot="${a}"] button`).length, a).toBe(1);
+    expect(container.querySelectorAll('[data-action="look-normal"]').length).toBe(1);
+    for (const a of ['sketch-construction', 'sketch-extrude', 'sketch-revolve']) expect(container.querySelectorAll(`[data-slot="${a}"] button`).length, a).toBe(1);
     expect(container.querySelectorAll('[data-action="look-normal-chip"]').length).toBe(0);
     expect(container.querySelector('[data-action="look-normal"]')!.getAttribute('aria-label')).toMatch(/^Look normal: /);
     expect(container.querySelector('.look-hint')).not.toBeNull();
     fireEvent.click(container.querySelector('[data-slot="sketch-extrude"] button')!); expect(c.onExtrude).toHaveBeenCalled();
     fireEvent.click(container.querySelector('[data-slot="sketch-revolve"] button')!); expect(c.onRevolve).toHaveBeenCalled();
-    fireEvent.click(container.querySelector('[data-action="sketch-construction"]')!); expect(c.onConstruction).toHaveBeenCalled();
-    fireEvent.click(container.querySelector('[data-action="sketch-make-construction"]')!); expect(c.onToggleSelected).toHaveBeenCalled();
+    fireEvent.click(container.querySelector('[data-slot="sketch-construction"] button')!); expect(c.onConstruction).toHaveBeenCalled();
+    fireEvent.click(container.querySelector('[data-slot="sketch-make-construction"] button')!); expect(c.onToggleSelected).toHaveBeenCalled();
     fireEvent.click(container.querySelector('[data-action="look-normal"]')!); expect(c.onLookNormal).toHaveBeenCalled();
   });
   it('a hole sketch (no Extrude / Revolve handlers) has no Make group', async () => {

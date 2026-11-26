@@ -9,7 +9,7 @@ This chapter covers three ways of building a sketch from geometry that already e
 1. Choose **Offset**.
 2. Click a line, arc, circle or spline. For lines and arcs, CivilKit CAD selects the whole chain of lines and arcs connected end to end with it (with no branches). Click the chain again to unselect it. `Shift`-click toggles a single entity, which must stay connected to the rest.
 3. Press `Enter`.
-4. Move the pointer to the side you want. The distance from the chain to the pointer is the offset distance, and the side the pointer is on is the direction. Or type digits: the one field, `dist`, takes them, and `Enter` (or `Tab`) locks the value. Then click on the side. `F` flips the side.
+4. Move the pointer to the side you want. The new outline follows the pointer as a preview before you click, and the status line says what to do next. The distance from the chain to the pointer is the offset distance, and the side the pointer is on is the direction. Or type digits: the one field, `dist`, takes them, and `Enter` (or `Tab`) locks the value. Then click on the side. `F` flips the side.
 5. Click to place the copy.
 
 `Esc` drops a typed value first, then the selection.

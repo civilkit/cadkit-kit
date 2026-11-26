@@ -4,7 +4,7 @@
 //   node tools/make_whats_new.mjs --check    fail if the file on disk differs from what would be written now
 //
 // Inputs: CHANGELOG.md ("## 0.5.0 - 2026-11-10" starts a release; its entries are "- **Title.** text") and docs/whats-new/highlights.json
-// (per version: id, title and blurb of each highlight). The page lists every release, newest first: the highlights of that version with a
+// (per version: id, title and blurb of each highlight, and optionally guide and guideText: a /docs/cad/ path to the user guide section that explains how to do it, and its link text, shown as a "How to" line). The page lists every release, newest first: the highlights of that version with a
 // short clip each when the clip files exist (apps/cad/public/whats-new/clips/<id>.webm and .mp4, poster posters/<id>.png), then one line
 // per changelog entry (its title and first sentence; the full text is in CHANGELOG.md) under "All changes". The page looks right without any clip. Highlights for the coming release go under the key
 // "Unreleased"; they stay off the page until tools/release.mjs gives the release its version (rename the key then).
@@ -21,6 +21,14 @@ const TITLE = "What's new in CivilKit CAD: release notes with short clips";
 const DESCRIPTION = 'Release notes for every CivilKit CAD version, with short looping clips: sheet metal, SolidWorks import, sketch tools, libraries and more.';
 
 export const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+/** The "How to" line of a highlight: a link to the part of the user guide that covers it. h.guide is a site path ("/docs/cad/<page>/#<anchor>");
+ *  h.guideText is the link text (default "User guide"). Anything but a path inside /docs/ is ignored, and a highlight without a guide has no line. */
+export function howTo(h) {
+  const g = h?.guide;
+  if (typeof g !== 'string' || !/^\/docs\/[^\s"'<>\\]*$/.test(g) || g.startsWith('//')) return '';
+  const text = typeof h.guideText === 'string' && h.guideText.trim() ? h.guideText.trim() : 'User guide';
+  return `<p class="howto">How to: <a href="${esc(g)}">${esc(text)}</a></p>`;
+}
 export const anchor = (v) => `v${v.replace(/\./g, '-')}`;
 
 /** The releases of CHANGELOG.md, newest first: { version, date, entries: [text] } (a "### Changed" style subheading is ignored, its bullets count). */
@@ -96,7 +104,7 @@ export function renderPage(changelog, highlights) {
   const nav = releases.map((r) => `<li><a href="#${anchor(r.version)}">${esc(r.version)}</a></li>`).join('');
   const sections = releases.map((r) => {
     const hs = highlights[r.version] ?? [];
-    const cards = hs.map((h) => { const clip = clipHtml(h); return clip ? `<article class="card"><figure class="clip" style="margin:0">${clip}<h3>${esc(h.title)}</h3><figcaption><p>${inline(h.blurb)}</p></figcaption></figure></article>` : `<article class="card"><h3>${esc(h.title)}</h3><p>${inline(h.blurb)}</p></article>`; }).join('\n');
+    const cards = hs.map((h) => { const clip = clipHtml(h); return clip ? `<article class="card"><figure class="clip" style="margin:0">${clip}<h3>${esc(h.title)}</h3><figcaption><p>${inline(h.blurb)}</p>${howTo(h)}</figcaption></figure></article>` : `<article class="card"><h3>${esc(h.title)}</h3><p>${inline(h.blurb)}</p>${howTo(h)}</article>`; }).join('\n');
     const all = r.entries.map((e) => {
       const m = /^\*\*(.+?)\*\*\s*(.*)$/s.exec(e);
       return m ? `<li><strong>${inline(m[1])}</strong> ${inline(firstSentence(m[2]))}</li>` : `<li>${inline(firstSentence(e))}</li>`;
@@ -131,7 +139,7 @@ ${all}
 <meta name="twitter:image" content="https://civilkit.io/assets/og-civilkit.jpg">
 ${siteHeadLinks()}
 <link rel="stylesheet" href="zoom/video-zoom.css">
-<style>.cards.news .frame{display:block;position:relative}.cards.news video.clip{height:auto;aspect-ratio:16/9;object-fit:contain}.cards.news video.clip.portrait{aspect-ratio:auto;width:auto;max-width:100%;max-height:min(70vh,640px);margin:0 auto}.cards.news .frame:has(.portrait){text-align:center}</style>
+<style>.cards.news .howto{margin:.4em 0 0;font-size:.95em}.cards.news .frame{display:block;position:relative}.cards.news video.clip{height:auto;aspect-ratio:16/9;object-fit:contain}.cards.news video.clip.portrait{aspect-ratio:auto;width:auto;max-width:100%;max-height:min(70vh,640px);margin:0 auto}.cards.news .frame:has(.portrait){text-align:center}</style>
 </head>
 <body>
 ${siteHeader('news')}

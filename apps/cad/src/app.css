@@ -38,7 +38,7 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .tree-wrap.tabbed { display: flex; flex-direction: column; overflow: hidden; }
 .ptab-body { flex: 1 1 0; min-height: 0; overflow: auto; }
 .ptabs { flex: none; background: var(--panel); display: flex; gap: 2px; padding: 8px; justify-content: space-between; }
-.ptabs .pt { flex: 1; border: 0; border-radius: 8px; padding: 7px 5px; min-width: 0; flex: 0 1 auto; background: none; color: var(--text-2); cursor: pointer; font: 600 10px system-ui; text-transform: uppercase; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ptabs .pt { flex: 1; border: 0; border-radius: 8px; padding: 7px 10px; min-width: 0; flex: 0 1 auto; background: none; color: var(--text-2); cursor: pointer; font: 600 10px system-ui; text-transform: uppercase; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ptabs .pt[aria-selected="true"] { background: var(--chip); color: var(--text); }
 .ptabs .pt { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .ptabs .pt:hover { color: var(--text); }
@@ -2271,3 +2271,18 @@ label.set-row:has(> input[type="checkbox"]:first-child) { justify-content: flex-
   .fedit-problem-btn { width: 44px; height: 44px; }
   .fedit-problem-close { width: 44px; height: 44px; font-size: 26px; top: 0; right: 0; }
 }
+
+/* the Section control sits in the top row beside the Display button (to its left), never under it where it covered the view cube and the navigation buttons */
+.display-menu .section-bar { position: absolute; top: 0; right: calc(100% + 8px); margin: 0; align-self: auto; width: max-content; max-width: calc(100vw - 420px); flex-wrap: nowrap; }   /* one row on a desktop */
+
+/* on a tablet the open Section bar wraps to two rows: the navigation buttons step down below it instead of being covered */
+/* narrower than a desktop the open Section bar wraps to two rows: the whole navigation cluster (cube, arrows, Fit, Switch, More: all hang on --vn-top) steps down together */
+#app:not([data-layout="desktop"]) #vp:has(.section-bar.open) { --vn-top: calc(60px + 44px); }
+#app:not([data-layout="desktop"]) .display-menu .section-bar { flex-wrap: wrap; max-width: min(560px, calc(100vw - 150px)); }
+/* a phone has no room beside Display for it: Section is a tablet and desktop control */
+#app[data-layout="phone"] .section-bar { display: none; }
+
+/* the selected panel tab keeps its whole icon and label (the others give way); the Construction tile is as wide as its word */
+.ptabs .pt[aria-selected="true"] { flex: 0 0 auto; overflow: visible; }
+.ptabs .pt:not([aria-selected="true"]) { padding-left: 7px; padding-right: 7px; }
+.slot.ribbon[data-slot="sketch-construction"] .slot-btn.has-label { width: auto; min-width: 56px; padding-left: 8px; padding-right: 8px; }

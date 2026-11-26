@@ -27,14 +27,17 @@ All tools are on the **Editing** tab of the ribbon while a sketch is open, in th
 
 Most tools show small fields beside the pointer while you draw, labelled with short names such as `len`, `ang`, `w`, `h`, `rad`, `dia`. Each tool's fields are listed in its entry below, in the order `Tab` visits them: Line `len`, `ang`; Rectangle and Centre rectangle `w`, `h`; Rounded rectangle `w`, `h`, `corner`; Circle `rad`, `dia` (either one ends the circle); Ellipse `major`, `ang`, then `minor`; Slot `len`, `ang`, then `w`. Type digits (or `.` or `-`) and the first field takes them; letters are not typed into fields, and with no field on screen `D` switches to the Dimension tool. Press `Tab` to lock the value as a driving dimension and move to the next field, or `Enter` to lock it. A value you type but do not lock only previews. `Esc` clears typed values first, then the shape. A field also accepts an expression or a variable name, such as `=width/2`.
 
+**A first point.** While Circle, Line, Point, Rectangle, Centre rectangle, Centre arc or Ellipse waits for its first point, type a digit, a minus sign or a point to open a position box and type `x,y`. The point is dimensioned from the origin; an expression or a variable name typed there stays linked to the variable.
+
 The setting **Values beside the pointer** chooses whether the fields show dimensions only (the default), dimensions and positions, or nothing. See [Units and settings](../getting-started/settings.md).
 
-In a field that holds a plain number, **ArrowUp** and **ArrowDown** change it by 1 (**Shift** by 10, **Alt** by 0.1) and the preview follows. A formula or a variable name in the field is left alone.
+In a field that holds a plain number, **ArrowUp** and **ArrowDown** change it by 1 (**Shift** by 10, **Alt** by 0.1) and the preview follows. A formula or a variable name in the field is left alone. The length, angle and radius boxes widen as you type a formula such as `=width*2+wall` so it stays readable.
 
 ## Snaps and inferred constraints
 
 As you move the pointer, CivilKit CAD snaps to existing points and curves and shows a marker and a name: **endpoint**, **centre**, **origin**, **midpoint**, **quadrant**, **intersection**, **perpendicular**, **tangent**, **on curve**, **extension**, **aligned** and **grid**. The same markers appear for model geometry: **model endpoint**, **model midpoint**, **model centre**, **model quadrant**, **model crossing**, **mid-extent**, **body centre** and **mid of extrusion**.
 
+- Move the pointer near the middle of an existing line and a dotted guide shows from it; with two midpoints the pointer lands where their guides cross. The **Midpoints** switch in the Snaps menu turns this off.
 - Move the pointer along the straight-on continuation of a line past its end, or along the tangent continuation of an arc past its end, and it snaps to that **extension**: a dashed guide runs from the end to the pointer and a box-and-plus marker shows the spot. With **Add constraints from snaps** and **Auto-constrain from guides** on, a point placed on a line's extension is made to lie on that line.
 - Hold `Alt` while you click to turn snapping off for that click.
 - With **Infer constraints while drawing** on (the default), the tools add horizontal, vertical, coincident and tangent constraints as you draw. Hold `Shift` at a click to turn that off for the click. A snap to a guide places only the point, unless **Add constraints from snaps** and **Auto-constrain from guides** are on.
@@ -87,7 +90,7 @@ With the **Select** tool:
 | <a id="tool-fillet"></a>**Fillet** | Click two lines that meet at a corner (or click the corner), then type or accept a radius to replace the corner with a tangent arc. A radius you type before picking is applied as soon as you pick the corner and is kept as a dimension. |
 | <a id="tool-chamfer"></a>**Chamfer** | The same picks as the fillet. The distance is the length cut from the corner along both lines. |
 | <a id="tool-offset"></a>**Offset** (`O`) | Click a line, arc, circle or spline. For lines and arcs, the whole connected chain is selected. Press `Enter`, then move the pointer to the side you want. The pointer's distance is the offset distance, or type digits for the single field, `dist`, and press `Enter` to lock it. `F` flips the side. Click to place. See [Offsets and references](offset-reference.md). |
-| <a id="tool-mirror"></a>**Mirror** | Click the entities to mirror (click again to unselect), press `Enter`, then click the mirror line. The source geometry stays. |
+| <a id="tool-mirror"></a>**Mirror** | Click the entities to mirror (click again to unselect), press `Enter` (or the Next button), then click a construction line as the mirror line, or press `X` or `Y` to mirror about an origin axis. The other half is tied to the first by symmetric constraints. The source geometry stays. |
 | <a id="tool-pattern-linear"></a>**Linear pattern** | Select entities, press `Enter`. A panel opens with the same groups as the Linear pattern feature: see [Patterns](#patterns) below. |
 | <a id="tool-pattern-circular"></a>**Circular pattern** | Select entities, press `Enter`, click the centre. A panel opens with the count and the angle: see [Patterns](#patterns) below. |
 | <a id="tool-move"></a><a id="tool-copy"></a><a id="tool-rotate"></a><a id="tool-scale"></a>**Move**, **Copy**, **Rotate**, **Scale** | Select entities first (or click them in the tool), press `Enter`, click a base point (the centre for **Rotate**), then move the pointer and click, or type the values. The fields, in order, are `dx`, `dy` and `copies` for Copy; `dx` and `dy` for Move; `ang` and `copies` for Rotate; `factor` and `copies` for Scale. Type digits for the first field and press `Tab` to lock it and move on. Copy, Rotate and Scale take a number of copies (at most 99); with 0 copies, Rotate and Scale change the selected geometry in place. |
@@ -115,6 +118,7 @@ The **Circular pattern** panel has the `Count` (the first one included), the ang
 
 - **Trim** and **Extend** bind the new end to the curve it stops at. A length dimension or equal constraint on a trimmed line is dropped, because its length changed. Horizontal, vertical, parallel and perpendicular constraints stay.
 - **Fillet** and **Chamfer** replace the corner point; a dimension or coincident constraint on that point goes with it. The fillet arc is tangent to both lines.
+- **Delete** on a shape also removes what only existed for it: deleting a circle takes its centre point and the dimensions on that point with it.
 - **Offset** keeps the copy parametric: each copied line gets a parallel constraint and a distance dimension; each copied arc or circle shares the centre of its source and keeps a radius difference.
 - **Mirror** ties each copied point to its source with a symmetric constraint, and the radius of a copied circle to the source radius.
 - **Patterns** write the spacings or the step angle as visible dimensions. The copies follow those, not later changes to the shape of the source.

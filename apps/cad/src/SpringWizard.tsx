@@ -3,7 +3,7 @@
 // controller); Add spring commits the features as one tree folder, Escape / the cross cancels. Rules: spring.ts.
 import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon, kindForMin, numberAttrs } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs , ProblemSlot, PanelHint } from '@kit/ui';
 import { t } from './i18n';
 import { EXTENSION_DEFAULTS, TORSION_DEFAULTS, springIssue, springSummary, DEFAULT_SPRING, SPRING_AXES, SPRING_ENDS, SPRING_HANDS, SPRING_KINDS, type SpringParams } from './spring';
 import { HelpButton } from './HelpButton';
@@ -64,6 +64,7 @@ export function SpringWizard(p: SpringWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-spring" size={22} class="fedit-icon" />
         <div class="fedit-title">{t('spring.title')}</div>
+        <ProblemSlot />
         <HelpButton topic="wizard:spring" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
@@ -113,7 +114,7 @@ export function SpringWizard(p: SpringWizardProps): JSX.Element {
           </select>
         </label>
         {issue ? <div class="thread-fit bad" role="alert" data-issue={issue.code}>{issue.code === 'kernel' ? issue.message : t('spring.issue.' + issue.code, issue.params, issue.message)}</div> : null}
-        {p.hint ? <div class="fedit-hint" role="alert" data-testid="spring-hint">{p.hint}</div> : null}
+        <PanelHint hint={p.hint} testid="spring-hint" />
       </div>
       <div class="prop-nav">
         <button type="button" class="fedit-card-btn" data-testid="spring-cancel" onClick={p.onCancel}>{t('ui.cancel', undefined, 'Cancel')}</button>

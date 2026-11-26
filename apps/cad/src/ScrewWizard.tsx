@@ -3,7 +3,7 @@
 // by the controller); Add screw commits the features, Escape / the cross cancels. Rules: screw.ts.
 import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon, kindForMin, numberAttrs } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs , ProblemSlot, PanelHint } from '@kit/ui';
 import { t } from './i18n';
 import { defaultDrive, headsFor, SCREW_AXES, SCREW_DRIVES, SCREW_SIZE_LIST, screwIssue, type ScrewParams } from './screw';
 import { HelpButton } from './HelpButton';
@@ -60,6 +60,7 @@ export function ScrewWizard(p: ScrewWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-screw" size={22} class="fedit-icon" />
         <div class="fedit-title">{t('screw.title')}</div>
+        <ProblemSlot />
         <HelpButton topic="wizard:screw" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
@@ -75,7 +76,7 @@ export function ScrewWizard(p: ScrewWizardProps): JSX.Element {
         <Num name="z" label={t('screw.z')} unit="mm" step={0.5} value={draft.origin[2]} hintText={t('screw.positionTip')} onChange={(v) => at(2, v)} />
         {sel('axis', t('screw.axis'), SCREW_AXES, (v) => t('screw.axis.' + v), (v) => change({ axis: v as ScrewParams['axis'] }))}
         {issue ? <div class="thread-fit bad" role="alert" data-issue={issue.code}>{issue.code === 'kernel' ? issue.message : t('screw.issue.' + issue.code, issue.params, issue.message)}</div> : null}
-        {p.hint ? <div class="fedit-hint" role="alert" data-testid="screw-hint">{p.hint}</div> : null}
+        <PanelHint hint={p.hint} testid="screw-hint" />
       </div>
       <div class="prop-nav">
         <button type="button" class="fedit-card-btn" data-testid="screw-cancel" onClick={p.onCancel}>{t('ui.cancel', undefined, 'Cancel')}</button>

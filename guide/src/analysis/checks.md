@@ -54,6 +54,8 @@ When the kernel refused an edit that you just made, the card describes that edit
 
 ## In a feature editor
 
+When an edit is refused, the editor title turns red and a small alert icon beside it opens the reason: one sentence for the cause and one for what to do, with the details folded away (hover or focus it with a mouse, tap it on a touch screen). The same refusal is not shown again as a pop-up message, and edge chips read like "Plate edge 1" rather than an id.
+
 While an editor is open, the live preview is checked as you type. If the preview has a problem the saved model did not have, the editor shows a short card under the fields with the sentence, the advice, **Cancel edit**, **Select F14**, a folded list of consequences and **Copy all errors**. The **Confirm** button is greyed with the tooltip "This change breaks the model (F14). Cancel or adjust." Hold **Shift** while you press Confirm to try the edit anyway: the kernel still refuses it if it breaks, so Shift cannot put a broken model into the file, it only shows you the refusal. The Gear, Thread and Hole editors show just the one-line summary as a hint.
 
 ## What to try
@@ -67,7 +69,7 @@ The advice shown for common errors:
 | A face or edge it uses no longer exists | A feature was built on a face or edge that has gone. Pick it again, or undo the change that removed it. |
 | The combine failed | Make sure the two bodies overlap in a volume, not only along a face, or nudge one by a small amount. |
 | The fill boundary is not valid | The edges around the hole no longer form one closed loop. Make a smaller change, or pick the edges again. |
-| The rounding failed (fillet or chamfer) | Use a smaller radius, round fewer edges at once, change the order, or round last. With Tangent chain on, the rounding runs around corners. |
+| The rounding failed (fillet or chamfer) | Use a smaller radius, round fewer edges at once, change the order, or round last. With Follow tangent edges on, the rounding runs around corners. |
 | The wall is thicker than the part allows (shell) | Use a thinner wall. |
 | The shell could not be made | Try a smaller thickness or open a different face. |
 | The sketch is not a closed outline | Close the gaps in the sketch. See [When a sketch will not solve](../sketching/troubleshooting.md). |

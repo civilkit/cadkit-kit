@@ -43,3 +43,15 @@ describe('edgeInfo', () => {
     expect(e.circle).toEqual({ center: [20, 15, 8], diameter: 6 });
   });
 });
+
+describe('faceInfo: a slightly tapered wall is not an exact cylinder', () => {
+  it('a half-degree draft on a radius of 50 mm is not reported as a cylinder', () => {
+    const n = 64, r0 = 50, h = 8, k = Math.tan((0.5 * Math.PI) / 180);
+    const P = (i: number, z: number) => [(r0 + k * z) * Math.cos((i / n) * 2 * Math.PI), (r0 + k * z) * Math.sin((i / n) * 2 * Math.PI), z];
+    const t: number[] = [];
+    for (let i = 0; i < n; i++) { const a = P(i, 0), b = P(i + 1, 0), c = P(i + 1, h), d = P(i, h); t.push(...a, ...b, ...c, ...a, ...c, ...d); }
+    const f = faceInfo(t, t.length / 9)!;
+    expect(f.cylinder).toBeUndefined();
+    expect(f.exact).toBe(false);
+  });
+});

@@ -4,7 +4,7 @@
 // The features are regenerated from the record by gearData.gearOps (see docs/gears.md).
 import { useRef, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
-import { Icon, kindForMin, numberAttrs } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs , ProblemSlot, PanelHint } from '@kit/ui';
 import { t } from './i18n';
 import { GEAR_TYPES, centreDistance, gearGeom, gearModule, gearReadout, keySize, type GearParams, type GearType } from './gearData';
 import { Seg } from './ThreadEditor';
@@ -107,12 +107,13 @@ export function GearEditor(p: GearEditorProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-gear" size={22} class="fedit-icon" />
         <div class="fedit-title">{title}</div>
+        <ProblemSlot />
         <HelpButton topic="wizard:gear" />
         <button type="button" class="fedit-confirm" onClick={confirm} title={t('ui.editor.confirm', undefined, 'Confirm')} aria-label={t('ui.editor.confirm', undefined, 'Confirm')}><Icon name="check" size={20} /></button>
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       {/* a refused build is said at the top, under the title: at the foot of a long form it was never seen */}
-      {p.hint ? <div class="fedit-hint fedit-hint-top" role="alert">{p.hint}</div> : null}
+      <PanelHint hint={p.hint} cls="fedit-hint fedit-hint-top" />
 
       <Section id="gear" title={t('gear.section.gear')}>
         <Seg name="type" label={t('gear.type')} value={draft.type}

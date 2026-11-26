@@ -86,7 +86,7 @@ export function faceInfo(tris: ArrayLike<number>, count: number): FaceInfo | nul
       const fit = fitCircle(verts.map((p): [number, number] => [dot(p, u), dot(p, v)]));
       if (fit && fit.r > 0) {
         const spread = Math.max(...verts.map((p) => Math.abs(Math.hypot(dot(p, u) - fit.c[0], dot(p, v) - fit.c[1]) - fit.r)));
-        if (spread < 1e-3 * Math.max(1, fit.r)) {
+        if (spread < Math.min(1e-3 * Math.max(1, fit.r), 0.005)) {   // vertices lie on the true surface: a cone of even half a degree shows as a radius that changes along the axis (0.035 mm over 8 mm), so no relative slack on big radii
           const along = dot(centroid as V3, axis);   // the origin sits level with the face's centre along the axis
           const origin: V3 = [u[0] * fit.c[0] + v[0] * fit.c[1] + axis[0] * along, u[1] * fit.c[0] + v[1] * fit.c[1] + axis[1] * along, u[2] * fit.c[0] + v[2] * fit.c[1] + axis[2] * along];
           out.cylinder = { origin: round3(origin), axis: round3(axis), radius: r4(fit.r) };

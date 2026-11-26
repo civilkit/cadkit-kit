@@ -92,7 +92,7 @@ Commands read the selection when you run them. Greyed commands tell you what the
 | **Linear pattern**, **Circular pattern**, **Mirror** | The feature selected in the tree, or else the last feature. |
 | **Measure** | One or two faces, edges or corners. |
 
-With **Tangent chain** on in a fillet or chamfer, edges that continue the selected edges smoothly are rounded too, and the editor says how many were added.
+With **Follow tangent edges** on in a fillet or chamfer, edges that continue the selected edges smoothly are rounded too, and the editor says how many were added.
 
 The right-click menu changes with the selection. With a face selected it offers **Sketch on selected face**, **Hole**, **Shell**, **Fillet**, **Chamfer**, the patterns and the select-more commands. With edges it offers **Fillet**, **Chamfer** and the select-more commands. With a body it offers **Select body**, **Move body**, the patterns and **Shell**.
 

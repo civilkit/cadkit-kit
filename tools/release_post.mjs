@@ -92,6 +92,8 @@ export function buildPost({ changelog, highlights, version, from, mac = false, m
   if (title.length > TITLE_MAX) title = title.slice(0, TITLE_MAX - 1).replace(/\s+\S*$/, '') + '…';
 
   const link = (v) => `${NEWS}#${anchor(v)}`;
+  // " · [How to: <text>](<site>/docs/cad/...)" when the highlight names the guide section that explains it
+  const guideLink = (h) => (typeof h.guide === 'string' && /^\/docs\/[^\s()<>]*$/.test(h.guide) ? ` · [How to: ${plain(h.guideText || 'user guide')}](${SITE.replace(/\/cad\/?$/, '')}${h.guide})` : '');
   const span = releases.length > 1 ? `${releases[releases.length - 1].version} to ${releases[0].version}` : version;
   const intro = from
     ? `CivilKit CAD is a parametric CAD that runs in the browser: open it at ${SITE}. This is what changed in the releases from ${span}.`
@@ -103,7 +105,7 @@ export function buildPost({ changelog, highlights, version, from, mac = false, m
     for (const h of hl) {
       const clip = clipIds.has(h.id) ? 'Clip' : 'Details';
       const ver = from ? ` (${h.version})` : '';
-      out.push(`- **${h.title.trim()}**${ver}: ${sentence(h.blurb ?? '')} [${clip} on the What's new page](${link(h.version)})`);
+      out.push(`- **${h.title.trim()}**${ver}: ${sentence(h.blurb ?? '')} [${clip} on the What's new page](${link(h.version)})${guideLink(h)}`);
     }
     out.push('');
   }

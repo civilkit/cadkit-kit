@@ -74,7 +74,7 @@ describe('a reference plane that lacks an input its mode needs', () => {
 describe('adviceOf for blendUnsupported', () => {
   const root = (params?: Record<string, unknown>) => ({ code: 'blendUnsupported', params } as never);
   it('shows the kernel hint when there is one, else the general line', () => {
-    expect(adviceOf(root({ hint: 'close the profile with a short straight line or an arc' }))).toBe('close the profile with a short straight line or an arc');
+    expect(adviceOf(root({ hint: 'close the profile with a short straight line or an arc' }))).toBe('Close the profile with a short straight line or an arc');
     expect(adviceOf(root())).toMatch(/Use a chamfer/);
   });
 });
@@ -89,5 +89,22 @@ describe('userReason (a raw exception as a plain clause)', () => {
     expect(userReason('The file has no solids.')).toBe('the file has no solids');
     expect(userReason('at foo (bar.js:12:3) TypeError: x is not a function')).toBe('the file could not be read');
     expect(userReason(new Error('Failed to fetch'))).toMatch(/connection/);
+  });
+});
+
+describe('userReason classifies the error, not the file name', () => {
+  it('a part named network.step or cancel.ckpart does not read as a network failure or a cancel', async () => {
+    const { userReason: ur } = await import('./userError');
+    expect(ur('Unexpected token } in JSON of network.ckpart')).toMatch(/damaged/);
+    expect(ur('Could not read cancel.step: Unexpected end of file')).toMatch(/damaged/);
+    expect(ur('Failed to fetch')).toMatch(/connection/);
+  });
+});
+
+describe('plainEnough numbers', () => {
+  it('machine-style numbers keep a kernel detail out of the sentence', async () => {
+    const { plainEnough } = await import('./diagnosticsText');
+    expect(plainEnough('the countersink (head diameter 0.0000 mm) removes the whole part')).toBe(false);
+    expect(plainEnough('the offset reverses at 3 mm')).toBe(true);
   });
 });

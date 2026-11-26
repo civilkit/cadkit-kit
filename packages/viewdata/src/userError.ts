@@ -13,7 +13,8 @@ const RULES: Array<[RegExp, string]> = [
 ];
 
 export function userReason(raw: unknown): string {
-  const s = (typeof raw === 'string' ? raw : raw instanceof Error ? raw.message : '').trim();
+  // classify on the error, not on the file name inside it (a part called "network.step" is not a network failure)
+  const s = (typeof raw === 'string' ? raw : raw instanceof Error ? raw.message : '').replace(/[^\s"'`:]*\.(step|stp|ckpart|stl|dxf|dwg|svg|iges|igs|skp|ipt|f3d|fcstd|zip|json|obj|3mf|png|jpe?g)\b/gi, ' ').trim();
   if (!s) return t('err.reason.unknown');
   for (const [re, key] of RULES) if (re.test(s)) return t(key);
   const one = s.replace(/[.\s]+$/, '');

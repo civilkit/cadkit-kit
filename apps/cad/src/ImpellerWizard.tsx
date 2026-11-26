@@ -2,7 +2,7 @@
 // the whole parameter record (the app previews it live, debounced by the controller); Create / Apply commits it, Escape / the cross cancels. Reopening a built impeller (the record is kept on its hub sketch) works like the marine family's. See docs/impellers.md.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon, kindForMin, numberAttrs } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs , ProblemSlot, PanelHint } from '@kit/ui';
 import { t } from './i18n';
 import { IMPELLER_PRESETS, impellerReadout, validateImpeller, type ImpellerIssue, type ImpellerParams } from './impellerData';
 import { HelpButton } from './HelpButton';
@@ -78,6 +78,7 @@ export function ImpellerWizard(p: ImpellerWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-propeller" size={22} class="fedit-icon" />
         <div class="fedit-title">{title}</div>
+        <ProblemSlot />
         <HelpButton topic="wizard:impeller" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
@@ -136,7 +137,7 @@ export function ImpellerWizard(p: ImpellerWizardProps): JSX.Element {
             {issues.length === 0 ? <div class="thread-fit ok" role="status">{t('prop.issues.none')}</div> : null}
             {issues.map((i, k) => <div key={i.code + k} class={'thread-fit ' + (i.level === 'error' ? 'bad' : 'warn')} role={i.level === 'error' ? 'alert' : 'status'} data-issue={i.code} data-severity={i.level}>{impellerIssueText(i)}</div>)}
           </div>
-          {p.hint ? <div class="fedit-hint" role="alert" data-testid="impeller-hint">{p.hint}</div> : null}
+          <PanelHint hint={p.hint} testid="impeller-hint" />
           <div class="thread-hint" data-testid="impeller-notes">{t('impeller.help.build')}</div>
           <div class="thread-hint">{t('impeller.help.limits')}</div>
           {p.edit ? <div class="thread-hint">{t('prop.help.edit')}</div> : null}

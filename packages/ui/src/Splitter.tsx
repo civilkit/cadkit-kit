@@ -1,5 +1,19 @@
 import type { JSX } from 'preact';
-import { useRef } from 'preact/hooks';
+import { useEffect, useRef } from 'preact/hooks';
+
+/** The resize cursor and the click shield live on <html data-resizing>. Whatever ends a drag, the page must not stay in that state (it did: the divider unmounted mid-drag
+ *  when a panel folded, or the button went up outside the window, and the page kept the resize cursor with the viewport unclickable until a reload). */
+const RESIZING = 'data-resizing';
+const clearResizing = (): void => { try { document.documentElement.removeAttribute(RESIZING); } catch { /* no document */ } };
+function useResizeSafety(active: () => boolean): void {
+  useEffect(() => {
+    const done = () => { if (active()) clearResizing(); };
+    window.addEventListener('pointerup', done, true);
+    window.addEventListener('pointercancel', done, true);
+    window.addEventListener('blur', done);
+    return () => { window.removeEventListener('pointerup', done, true); window.removeEventListener('pointercancel', done, true); window.removeEventListener('blur', done); if (active()) clearResizing(); };
+  }, []);
+}
 
 /** What a drag or key press asks for: a size in px, or 0 for "collapse the panel". */
 export interface DragLimits { min: number; max: number; collapsible?: boolean }
@@ -44,6 +58,7 @@ const STEP = 16, BIG = 64;
 export function Splitter(p: SplitterProps): JSX.Element {
   const drag = useRef<{ id: number; from: number; start: number; last: number } | null>(null);
   const maxNow = () => (typeof p.max === 'function' ? p.max() : p.max);
+  useResizeSafety(() => drag.current !== null || document.documentElement.hasAttribute(RESIZING));
   const lim = (): DragLimits => ({ min: p.min, max: maxNow(), collapsible: p.collapsible });
   const vert = p.orientation === 'vertical';
   const pos = (e: { clientX: number; clientY: number }) => (vert ? e.clientX : e.clientY);
@@ -96,7 +111,7 @@ export function Splitter(p: SplitterProps): JSX.Element {
     <div role="separator" tabIndex={0} class={'splitter ' + (vert ? 'sp-v ' : 'sp-h ') + (p.value === 0 ? 'sp-collapsed ' : '') + (p.class ?? '')}
       aria-orientation={vert ? 'vertical' : 'horizontal'} aria-label={p.label}
       aria-valuenow={Math.round(p.value)} aria-valuemin={p.min} aria-valuemax={Math.round(maxNow())}
-      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={(e) => end(e, false)} onPointerCancel={(e) => end(e, true)}
+      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={(e) => end(e, false)} onPointerCancel={(e) => end(e, true)} onLostPointerCapture={(e) => { if (drag.current && drag.current.id === e.pointerId) end(e, false); }}
       onKeyDown={onKey} onDblClick={reset} />
   );
 }
@@ -107,6 +122,7 @@ export function CornerGrip(p: {
   onLive?(w: number, h: number): void; onCommit(w: number, h: number): void; onReset?(): void; label: string;
 }): JSX.Element {
   const drag = useRef<{ id: number; x: number; y: number; w: number; h: number; lw: number; lh: number } | null>(null);
+  useResizeSafety(() => drag.current !== null || document.documentElement.hasAttribute(RESIZING));
   const clampWH = (w: number, h: number): [number, number] => { const m = p.max(); return [Math.min(Math.max(p.min[0], m[0]), Math.max(p.min[0], w)), Math.min(Math.max(p.min[1], m[1]), Math.max(p.min[1], h))]; };
   return (
     <div class="splitter sp-corner" role="separator" tabIndex={0} aria-label={p.label}

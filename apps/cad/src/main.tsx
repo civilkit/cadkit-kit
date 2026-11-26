@@ -32,7 +32,7 @@ import {
   errorText, PanelBoundary, BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, NotificationHistory, VarsContext, Sheet, BottomNav,
   type HistoryFilter, type SheetSnap, ToolTray, SPLIT_FRACTION, BROWSE_FRACTION,
 } from '@kit/ui';
-import { setIconSet, SignKey, OverlayHost, type IconSet } from '@kit/ui';
+import { setIconSet, SignKey, OverlayHost, ProblemsContext, type Problem, type IconSet } from '@kit/ui';
 import { navHidden, railMode, restoreHandles, undoRedoVisible } from './chromeModel';
 import { createWebPlatform, fileText } from '@kit/platform';
 import { Controller, type ViewEdge, type ViewSink } from './controller';
@@ -5265,6 +5265,8 @@ function App() {
     feature: frameEditor ? 'frame' : editingFeature?.type ? String(editingFeature.type) : null,
     sketching: !!sketching, tool: sketchToolId,
   });
+  // what is wrong with the open editor, for every panel with a header (feature editors, wizards, gear, hole, thread...): one alert icon and flyout
+  const editorProblems: Problem[] = previewDiag ? previewDiag.d.roots.map((r) => { const m = composeMessage({ ...previewDiag.d, roots: [r] }, 'preview'); return { id: r.id + ':' + r.code, cause: m.cause, action: (r === previewDiag.d.roots[0] ? (diagFixes() as { message?: string }).message : undefined) ?? m.action, details: `${r.code} \u00b7 ${r.label && r.label !== r.id ? r.label : t('diag.summary.editor.thing')}` }; }) : previewHint && !neutralHint(previewHint) ? [{ id: 'hint', cause: previewHint }] : [];
   const featureEditor = propEditor ? propEditor : impellerEditor ? impellerEditor : knurlEditor ? knurlEditor : screwEditor ? screwEditor : washerEditor ? washerEditor : fastenEditor ? fastenEditor : springEditor ? springEditor : caseEditor ? caseEditor : pluginEditor ? pluginEditor : trayEditor ? trayEditor : fastenerEditor ? fastenerEditor : bearingEditor ? bearingEditor : frameEditor ? frameEditor : sk3dEditor ? sk3dEditor : meshSolid.panel ? meshSolid.panel : meshEditor ? meshEditor : gearRec ? (
     <GearEditor key={editingId} params={gearRec.params} name={String(editingFeature?.name ?? '').replace(/ profile$/, '')} onDraft={onGearDraft} onConfirm={onGearConfirm} onCancel={onCancel} hint={previewHint} />
   ) : editingFeature?.type === 'thread' ? (
@@ -5316,7 +5318,7 @@ function App() {
       onChipHover={(r) => { const k = r ? refEdgeKey(r, controller.shownEdges()) : null; viewport?.setHover(k, true); }}
       edgeRuns={editingFeature?.type === 'fillet' || editingFeature?.type === 'chamfer' ? (edges) => edgeRuns(edges, beforeRef.current?.id === editingId ? beforeRef.current.edges : null, tangentChainOn()) : undefined}
       hint={openCard ? null : previewHint}
-      problems={previewDiag ? previewDiag.d.roots.map((r) => { const m = composeMessage({ ...previewDiag.d, roots: [r] }, 'preview'); return { id: r.id + ':' + r.code, cause: m.cause, action: (r === previewDiag.d.roots[0] ? (diagFixes() as { message?: string }).message : undefined) ?? m.action, details: `${r.code} \u00b7 ${r.label && r.label !== r.id ? r.label : t('diag.summary.editor.thing')}` }; }) : previewHint && !neutralHint(previewHint) ? [{ id: 'hint', cause: previewHint }] : []}
+      problems={editorProblems}
       checking={previewIsChecking}
       openProblems={problemPoke}
       hintTone={previewHint && neutralHint(previewHint) ? 'neutral' : undefined}
@@ -5802,8 +5804,10 @@ function App() {
     onCloseOthers={(keep) => void (async () => { for (const tb of [...tabSet.tabs]) if (tb.id !== keep && !tabDirty(tb)) await closeTab(tb.id); })()}
     onNew={() => void (async () => { if (await addTab()) await load(JSON.stringify(blankPart(files.names.next())), { file: null }); })()}
   />;
+  const problemsCtx = { problems: editorProblems, checking: previewIsChecking, openSignal: problemPoke, isNeutralHint: neutralHint };
   return (
     <VarsContext.Provider value={scopeOf(doc)}>
+    <ProblemsContext.Provider value={problemsCtx}>
     <div id="app" style={layoutStyle(ws)} data-layout={layout.value} data-narrow={narrowTablet.value ? '1' : undefined} data-sketching={sketching ? '1' : undefined} data-tray={phone && tray ? '1' : undefined} data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={rightMode} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed} data-railmode={railKind} data-nav={sideHidden ? 'hidden' : 'open'}>
       {phone ? phoneBar : <div class="topbar">
         <Tip label={sideHidden ? t('app.nav.show') : t('app.nav.hide')} keys="[" side="bottom"><button class={'rb-btn tb-icon tb-nav' + (sideHidden ? ' nav-off' : '')} data-testid="nav-toggle" aria-label={sideHidden ? t('app.nav.show') : t('app.nav.hide')} aria-expanded={!sideHidden} onClick={toggleLeftPanel}><Icon name="panel-left" size={18} /></button></Tip>
@@ -5838,7 +5842,7 @@ function App() {
         {ws.leftPanel === 'floating' ? left : null}
         {rightMode === 'floating' ? right : null}
         {lay.floating}
-        {editorCard && editingNow ? <div class="editor-card" data-testid="editor-card" style={{ left: ws.leftPanel === 'floating' ? ws.floatWidth + 28 : 12 }}>{editor}</div> : null}
+        {editorCard && editingNow ? <div class="editor-card" data-testid="editor-card" style={{ left: ws.leftPanel === 'floating' && !ws.leftCollapsed ? ws.floatWidth + 82 : ws.leftCollapsed ? 60 : 12 }}>{editor}</div> : null}
         {!sketching ? <SelectionList selection={store.selection.value} model={controller.selModel()} onClear={() => store.select([])}
           onRemove={(n) => store.select(store.selection.value.filter((x) => x !== n))} onHover={(n) => viewport?.setHover(n, true)}
           onBodyName={bodyNameOf} onReveal={(n) => rev.show(n)} canReveal={(n) => rev.canShow(n)} hidden={!!pickingPath} /> : null}
@@ -5993,7 +5997,7 @@ function App() {
       <WhatsNewCallout />
       <div class="status-wrap">
         <HoverScope>{(hv) => (
-        <StatusBar help={<HelpButton topic="guide" />} links={siteLinks()} alerts={{ total: store.alerts.history.value.length, unread: store.alerts.unread.value, unreadErrors: store.alerts.unreadErrors.value, open: alertsOpen, onToggle: toggleAlerts }} hover={hoverLabel(hv)} busy={store.busy.value}
+        <StatusBar help={<HelpButton topic="guide" />} links={siteLinks()} alerts={{ total: store.alerts.history.value.filter((n) => n.level === 'warning' || n.level === 'error').length, unread: store.alerts.unread.value, unreadErrors: store.alerts.unreadErrors.value, open: alertsOpen, onToggle: toggleAlerts }} hover={hoverLabel(hv)} busy={store.busy.value}
           sketch={sketching ? <><SketchReadout snapOn={sketchPrefs.snapOn} gridOn={sketchPrefs.gridSnap} gridBase={sketchPrefs.gridSpacing}
             onSnap={(on) => updatePrefs({ snapOn: on })} onGrid={(on) => updatePrefs({ gridSnap: on })} onSpacing={(mm) => updatePrefs({ gridSpacing: mm })} onZoom={(pct) => viewport?.setSketchZoom(uppForPercent(pct))} />
             {sketchControls && !chrome.bar ? <SketchNotes hint={sketchControls.hint} selected={sketchControls.selected} onClearSelection={sketchControls.onClearSelection} /> : null}</> : <ModelReadout />}
@@ -6117,6 +6121,7 @@ function App() {
         iconSet={iconSet} onIconSet={(v) => { setIconSetState(v); chooseIconSet(v); }}
         theme={theme} onTheme={(v) => { setTheme(v); applyTheme(v); write('cad.theme', v); viewport?.refreshTheme(); }} /> : null}
     </div>
+    </ProblemsContext.Provider>
     </VarsContext.Provider>
   );
 }

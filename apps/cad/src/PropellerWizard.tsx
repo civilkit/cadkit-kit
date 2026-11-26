@@ -3,7 +3,7 @@
 // The same panel reopens on a built propeller (the record is kept on its hub sketch) for the "edit propeller" round trip. See docs/propellers.md.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon, kindForMin, numberAttrs } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs , ProblemSlot, PanelHint } from '@kit/ui';
 import { t } from './i18n';
 import {
   AIRFOIL_KINDS, PROP_PRESETS, TWIST_MODES, airfoilShape, propReadout, threePoint, validateProp,
@@ -152,6 +152,7 @@ export function PropellerWizard(p: PropellerWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-propeller" size={22} class="fedit-icon" />
         <div class="fedit-title">{title}</div>
+        <ProblemSlot />
         <HelpButton topic="wizard:propeller" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
@@ -236,7 +237,7 @@ export function PropellerWizard(p: PropellerWizardProps): JSX.Element {
             {issues.length === 0 ? <div class="thread-fit ok" role="status">{t('prop.issues.none')}</div> : null}
             {issues.map((i, k) => <div key={i.code + k} class={'thread-fit ' + (i.severity === 'error' ? 'bad' : 'warn')} role={i.severity === 'error' ? 'alert' : 'status'} data-issue={i.code} data-severity={i.severity}>{issueText(i)}</div>)}
           </div>
-          {p.hint ? <div class="fedit-hint" role="alert" data-testid="prop-hint">{p.hint}</div> : null}
+          <PanelHint hint={p.hint} testid="prop-hint" />
           <div class="thread-hint" data-testid="prop-nofillet">{t('prop.help.noFillet')}</div>
           <div class="thread-hint">{t('prop.help.variables')}</div>
           <div class="thread-hint">{t('prop.help.geometry')}</div>

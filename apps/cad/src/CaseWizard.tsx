@@ -3,7 +3,7 @@
 // previews it live in the viewport, debounced by the controller); Add case commits the features as one tree folder, Escape / the cross cancels. Rules: case.ts.
 import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon, kindForMin, numberAttrs, textAttrs } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs, textAttrs , ProblemSlot, PanelHint } from '@kit/ui';
 import { t } from './i18n';
 import { CASE_ROUNDS, CASE_TONGUE_SIDES, caseIssue, caseSummary, roundsSide, roundsTop, withChange, type CaseParams } from './case';
 import { HelpButton } from './HelpButton';
@@ -63,6 +63,7 @@ export function CaseWizard(p: CaseWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-case" size={22} class="fedit-icon" />
         <div class="fedit-title">{t('case.title')}</div>
+        <ProblemSlot />
         <HelpButton topic="wizard:case" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
@@ -100,7 +101,7 @@ export function CaseWizard(p: CaseWizardProps): JSX.Element {
         <Num name="y" label={t('case.y')} unit="mm" step={0.5} value={draft.origin[1]} hintText={t('case.positionTip')} onChange={(v) => at(1, v)} />
         <Num name="z" label={t('case.z')} unit="mm" step={0.5} value={draft.origin[2]} hintText={t('case.positionTip')} onChange={(v) => at(2, v)} />
         {issue ? <div class="thread-fit bad" role="alert" data-issue={issue.code}>{issue.code === 'kernel' ? issue.message : t('case.issue.' + issue.code, issue.params, issue.message)}</div> : null}
-        {p.hint ? <div class="fedit-hint" role="alert" data-testid="case-hint">{p.hint}</div> : null}
+        <PanelHint hint={p.hint} testid="case-hint" />
       </div>
       <div class="prop-nav">
         <button type="button" class="fedit-card-btn" data-testid="case-cancel" onClick={p.onCancel}>{t('ui.cancel', undefined, 'Cancel')}</button>

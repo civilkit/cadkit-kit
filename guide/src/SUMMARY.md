@@ -45,6 +45,7 @@
 # Assemblies and appearance
 
 - [Assemblies and mates](assemblies/assemblies.md)
+- [Motion studies](assemblies/motion.md)
 - [Materials and appearance](assemblies/appearance.md)
 
 # Files

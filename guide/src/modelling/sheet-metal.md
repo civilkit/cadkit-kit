@@ -64,6 +64,8 @@ A part has one base flange, and it is its first body feature. If the part has no
 
 You can also pick the free end of a flange, to add a second flange or a hem on it (a double fold): click the edge at the tip of the flange.
 
+**Part of an edge, and shaped legs.** The **Width** field chooses the whole edge, a **Start** and **length** along the picked edge, or **Between two points** (typed, or picked in the view with **Pick two points**). **Shape** is Rectangle or **Sketch outline**: pick a sketch, or press **New sketch** to get a sketch on a plane through the flange with the default leg drawn as a rectangle; circles inside the outline become holes. **Holes** lists circles by centre and radius, or ticks the circles of a sketch. **Relief** (none, the rule's rectangle, or your own size) is for a flange that stops inside its edge. **Hem** has the same width and relief. A base with arcs in its outline takes flanges on its straight edges.
+
 A flange bends towards the face its edge was picked on: an edge on the top (cap) side bends the leg up, an edge on the bottom side bends it down. **Flip direction** reverses that.
 
 | Field | What it does | Default |
@@ -202,13 +204,15 @@ A SolidWorks sheet-metal part opens as editable sheet-metal features as far as t
 
 A feature the reader cannot follow stops the read there: the steps before it are editable, and the file's body stays as the imported remainder. That covers a mitre flange, a hem, a jog or a sketched bend, a flange on a curved edge, a leg with a hole made of other curves than a circle, and a bend cut through later. The flange heights and offsets in the file's dimensions are not used; the faces are.
 
+When a slot cut through a folded sheet cannot be applied as a Sheet cut, the reader applies it as an ordinary cut instead of stopping at the imported remainder, and the feature row carries a warning saying so. The part is then a plain solid, not one you can unfold.
+
 The part is then an ordinary sheet-metal part: the tab, the flat pattern, the bend table and the DXF work on it. See [Importing](../files/import.md).
 
 ## Known limits
 
 - There are no commands for a **jog**, a **mitre flange** or a **sketched bend**, and the SolidWorks reader stops at one.
 - A flange needs a straight edge of the base. You can pick an arc, but the kernel refuses it; on a base whose outline has arcs, only the straight edges take flanges.
-- The **Edge flange** editor sets a flange on the whole edge with a straight leg. The kernel also takes a partial width (`start` and `length`, or `from` and `to`), a shaped leg (`profile`), holes in the leg and a `relief` cut at the ends; no field here sets them.
+- The **Edge flange** editor sets a flange on the whole edge with a straight leg. The kernel also takes a partial width (`start` and `length`, or `from` and `to`), a shaped leg (`profile`), holes in the leg and a `relief` cut at the ends. The editor's Width, Shape, Holes and Relief fields set them (see Edge flange above).
 - A hem on a neighbouring edge is refused, and so is a hem, flange or fold whose flat layout overlaps another. Give the corner a relief.
 - A corner of the panel inside a fold's bend zone, and a fold across the edge a flange hangs on, are refused. A fold line that crosses both arms of a U or V shape is refused too: the pieces would be joined twice, so move the line so that it crosses one arm, or fold each arm with its own line. (A hole in the bend zone is cut through the bend.)
 - The **Fold** editor has no control for which side stays; the kernel's `fixed` side is not in the form.

@@ -56,3 +56,17 @@ describe('placeBeside', () => {
     expect(placeBeside({ left: 290, top: 850, width: 290, height: 300 }, card, view)!.top).toBe(900 - 8 - 120);
   });
 });
+
+describe('Callout and Escape', () => {
+  it('Escape closes it when nothing else has the focus, not while a text box elsewhere has it', () => {
+    const anchor = document.createElement('a'); document.body.appendChild(anchor);
+    const box = document.createElement('input'); document.body.appendChild(box);
+    const onClose = vi.fn();
+    render(<Callout anchor={anchor} title="x" closeLabel="Close" onClose={onClose} />);
+    box.focus(); fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    box.blur(); fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    anchor.remove(); box.remove();
+  });
+});

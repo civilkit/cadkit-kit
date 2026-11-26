@@ -53,19 +53,22 @@ export function Callout(p: CalloutProps) {
   const [pos, setPos] = useState<{ left: number; top: number; side: CalloutSide; arrowLeft: number } | null>(null);
   const place = () => {
     const a = resolve(p.anchor), c = card.current;
-    if (!a || !c) { setPos(null); return; }
+    if (!a || !c) { setPos((v) => (v === null ? v : null)); return; }
     const r = a.getBoundingClientRect();
-    setPos(placeCallout({ left: r.left, top: r.top, width: r.width, height: r.height }, { width: c.offsetWidth, height: c.offsetHeight }, { width: window.innerWidth, height: window.innerHeight }, p.prefer));
+    const next = placeCallout({ left: r.left, top: r.top, width: r.width, height: r.height }, { width: c.offsetWidth, height: c.offsetHeight }, { width: window.innerWidth, height: window.innerHeight }, p.prefer);
+    setPos((v) => (v && v.left === next.left && v.top === next.top && v.side === next.side && v.arrowLeft === next.arrowLeft ? v : next));   // an unchanged place is no re-render
   };
   useLayoutEffect(place, [p.anchor, p.prefer]);
   useEffect(() => {
-    // the anchor may appear a moment later (a status bar item that loads), and the window may move under it
+    // the anchor may appear a moment later (a status bar item that loads): poll only until it exists; after that the place follows the window (resize, scroll)
     const again = () => place();
     window.addEventListener('resize', again);
-    const timer = setInterval(again, 500);
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') p.onClose(); };
+    window.addEventListener('scroll', again, true);
+    const timer = resolve(p.anchor) ? null : setInterval(() => { place(); if (resolve(p.anchor) && timer) clearInterval(timer); }, 500);
+    // Escape closes it only when it has the focus, or nothing does (an Escape meant for an open editor or a text box is not ours)
+    const esc = (e: KeyboardEvent) => { const ae = document.activeElement; if (e.key === 'Escape' && (!ae || ae === document.body || card.current?.contains(ae))) p.onClose(); };
     window.addEventListener('keydown', esc);
-    return () => { window.removeEventListener('resize', again); clearInterval(timer); window.removeEventListener('keydown', esc); };
+    return () => { window.removeEventListener('resize', again); window.removeEventListener('scroll', again, true); if (timer) clearInterval(timer); window.removeEventListener('keydown', esc); };
   }, [p.anchor, p.onClose]);
   // without an anchor the card is still rendered, hidden: the timer above places it as soon as the anchor exists (a status bar item that loads late)
   return (

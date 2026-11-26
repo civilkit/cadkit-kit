@@ -21,7 +21,7 @@ export function SectionBar(p: SectionBarProps): JSX.Element {
   const sk = p.sketchPlane;
   const onSketch = !!sk && s.on && s.plane === sk.plane && (sk.plane !== 'face' || s.faceId === sk.faceId);
   return (
-    <div class="section-bar" role="toolbar" aria-label={t('inspect.section')} data-testid="section-bar">
+    <div class={'section-bar' + (s.on ? ' open' : '')} role="toolbar" aria-label={t('inspect.section')} data-testid="section-bar">
       <button class="btn" aria-pressed={s.on} title={t('section.toggle.tip')} onClick={p.onToggle}>{t('section.toggle')}</button>
       {s.on ? <>
         {std.map((k) => <button key={k} class="btn" aria-pressed={s.plane === k && !onSketch} onClick={() => p.onPlane(k)}>{t('inspect.section.' + k)}</button>)}

@@ -5,7 +5,7 @@
 // Rules: bearing.ts.
 import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon, kindForMin, numberAttrs, textAttrs } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs, textAttrs , ProblemSlot, PanelHint } from '@kit/ui';
 import { t } from './i18n';
 import { bearingIssue, bearingNumbers, bearingSeat, BEARING_AXES, BEARING_SEALS, findBearings, SEAT_FITS, withPreset, type BearingParams } from './bearing';
 import { bearingPreset } from '@kit/script';
@@ -76,6 +76,7 @@ export function BearingWizard(p: BearingWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-bearing" size={22} class="fedit-icon" />
         <div class="fedit-title">{t('bearing.title')}</div>
+        <ProblemSlot />
         <HelpButton topic="wizard:bearing" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
@@ -126,7 +127,7 @@ export function BearingWizard(p: BearingWizardProps): JSX.Element {
         </label>
         {draft.placedOn ? null : <div class="thread-hint" data-testid="bearing-seat-note">{t('bearing.seat.needFace')}</div>}
         {issue ? <div class="thread-fit bad" role="alert" data-issue={issue.code}>{issue.code === 'model' ? issue.message : t('bearing.issue.' + issue.code, issue.params, issue.message)}</div> : null}
-        {p.hint ? <div class="fedit-hint" role="alert" data-testid="bearing-hint">{p.hint}</div> : null}
+        <PanelHint hint={p.hint} testid="bearing-hint" />
       </div>
       <div class="prop-nav">
         <button type="button" class="fedit-card-btn" data-testid="bearing-cancel" onClick={p.onCancel}>{t('ui.cancel', undefined, 'Cancel')}</button>

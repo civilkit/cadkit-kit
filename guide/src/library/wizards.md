@@ -50,11 +50,11 @@ Bevel and worm gears are not built by the Gear command. The sample list includes
 | Module | Tooth size in mm. | 2 | 0.1 or more. |
 | Diametral pitch | Teeth per inch, when sizing is by pitch. | 12.7 | 0.5 or more. |
 | Teeth | Number of teeth. | 20 | 6 or more. For a rack it is the number of teeth along it, 1 or more. |
-| Pressure angle | Flank angle. | 20 deg | 10 to 30. |
+| Pressure angle | Flank angle. | 20 deg | 10 to 26. A larger value is set to 26 with a note, because it built an invalid gear. |
 | Face width | Thickness of the gear. For a herringbone, the total. | 10 mm | 0.1 or more. |
 | Helix angle | Tooth twist (helical and herringbone). | 15 deg | 1 to 45. A herringbone starts at 30 and warns outside 15 to 45. |
 | Hand | Helical: **Right** or **Left**. Herringbone: **Apex leading** or **Apex trailing**. | Right | A mating gear takes the opposite hand. |
-| Centre groove | Herringbone: width of the groove between the two chevrons. 0 means none. | About 3 x module when you switch to herringbone | The groove leaves a web at the root, so the two halves stay joined. |
+| Centre groove | Herringbone: width of the groove between the two chevrons. 0 means none. | The smaller of 3 x module and a quarter of the face width when you switch to herringbone | The groove leaves a web at the root, so the two halves stay joined. |
 | Rim thickness | Ring gear: radial thickness beyond the tooth roots. | 0, meaning 2.5 x module | 0 or more. |
 | Bore diameter | Shaft hole through the gear. | 8 mm | 0 means no bore. |
 | Keyway | Cuts a keyway in the bore. | Off | Needs a bore. |
@@ -62,7 +62,7 @@ Bevel and worm gears are not built by the Gear command. The sample list includes
 | Hub diameter and length | Optional boss on the gear. | 0 (no hub) | Length is measured from the front face. For a herringbone, the hub is centred on the mid plane. |
 | Addendum | Tooth height above the pitch circle, as a multiple of the module. | 1 | 0.2 or more. |
 | Dedendum | Tooth depth below the pitch circle, as a multiple of the module. | 1.25 | 0.2 or more. |
-| Root fillet | Radius at the tooth root, as a multiple of the module. | 0.3 | 0 to 0.6. 0 gives a sharp root. |
+| Root fillet | Radius at the tooth root, as a multiple of the module. | 0.3 | 0 to 0.5. 0 gives a sharp root. A larger value is set to 0.5 with a note. |
 | Profile shift | Shifts the cutter. Positive thickens the tooth and raises the tip. | 0 | -1 to 1.5. |
 | Backlash | Tooth thickness removed at the pitch circle by this gear, in mm. | 0 | 0 or more. |
 
@@ -179,6 +179,7 @@ Choose **Marine** under **Family** on the **Size** step. The wizard has the same
 | Bore diameter | Shaft hole. | 20 mm | Must leave a wall (under 90 % of the hub). |
 | Blades | Number of blades. | 3 | 2 to 6. |
 | Rotation | **Right-hand** or **Left-hand**. Left is the mirror of right. | Right-hand | |
+| Position along the shaft | Where the middle of the hub sits on the Z axis, in mm (Marine propeller). A new propeller starts behind the ones already in the part, one hub length apart. If an identical propeller already sits at that position the panel warns that it would overlap and the button becomes **Insert anyway**. | Behind the last | |
 
 #### Blade step
 
@@ -469,7 +470,7 @@ In the Script tab: `gridTray({ widthUnits: 1, lengthUnits: 4, heightUnits: 4, sc
 
 ## Make a case
 
-**Case** makes a closed box with a lipped lid in one step: the outside size, the wall, where the lid starts and the lip, and you get two bodies, a base and a lid, in one tree folder named *Case* (the next one *Case 2*). It does what takes several steps by hand and needs no selected face, which the **Shell** command does: two cups, each an outline extruded as its own body and shelled open on one face, a ring-shaped tongue on the rim of one and a matching groove in the rim of the other, and the lid placed on top of the base. Start it from **Features > Create**, command search, or the Catalog. The preview shows the base and the lid as you change the fields; **Add case** keeps them as one undo step, and **Escape** or the cross cancels.
+**Case** makes a closed box with a lipped lid in one step: the outside size, the wall, where the lid starts and the lip, and you get two bodies, a base and a lid, in one tree folder named *Case* (the next one *Case 2*, with its bodies named *Base 2* and *Lid 2* when a Base and a Lid already exist). It does what takes several steps by hand and needs no selected face, which the **Shell** command does: two cups, each an outline extruded as its own body and shelled open on one face, a ring-shaped tongue on the rim of one and a matching groove in the rim of the other, and the lid placed on top of the base. Start it from **Features > Create**, command search, or the Catalog. The preview shows the base and the lid as you change the fields; **Add case** keeps them as one undo step, and **Escape** or the cross cancels.
 
 | Field | What it does | Default |
 | --- | --- | --- |

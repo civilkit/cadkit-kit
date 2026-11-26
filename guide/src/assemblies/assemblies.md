@@ -97,7 +97,7 @@ Five more kinds are listed but cannot be used yet: Profile centre, Path, Linear 
 
 ### Drive and the test slider
 
-Gear, Screw and Rack and pinion have a **Drive** field in degrees (it may exceed 360). Leave it empty and the coupling stays free. Under the field a **Test drive** slider previews the motion: every change runs the mate as a preview, **Cancel** drops it and **Apply** keeps the value. A Drive removes one degree of freedom from the assembly, because the coupling now has a fixed angle. Hinge has no Drive.
+Gear, Screw and Rack and pinion have a **Drive** field in degrees (it may exceed 360). Leave it empty and the coupling stays free. Under the field a **Test drive** slider previews the motion: every change runs the mate as a preview, **Cancel** drops it and **Apply** keeps the value. A Drive removes one degree of freedom from the assembly, because the coupling now has a fixed angle. Hinge has no Drive. To move a hinge or a slide, find where it stops and record a motion, use the **Motion** tab: see [Motion studies](motion.md).
 
 ### Degrees of freedom
 
@@ -158,6 +158,7 @@ Three sample assemblies are in the Library picker (titles starting "Assembly:"):
 
 ## Next
 
+- [Motion studies](motion.md): drive a mate, drag a part, find limits, record a clip.
 - [Materials and appearance](appearance.md): colour and finish of components.
 - [Measure and inspect](../analysis/measure.md)
 - [Saving and opening](../files/files.md)

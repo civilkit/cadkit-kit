@@ -52,6 +52,8 @@ Select one or more features and press **Delete** or **Backspace**, or click its 
 
 If a feature you did not select still uses the one you are deleting (a sketch used by an extrude, a seed used by a pattern), the delete is refused and the notice names what uses it, with a **Delete both** button that removes them together. You can also select them all first. Deleting is one undo step, and one Undo brings everything back.
 
+When the thing you delete is a plane or a face that a sketch or a reference plane hangs on, the notice also offers **Keep dependents in place**. They hold their last position, marked with a warning, so later features keep building. To repair them, open the sketch or plane and attach it to a live plane or face.
+
 ## Reorder
 
 Drag a row onto another row to move it there. A feature travels with the sketches tucked under it. A move is refused, with a short message, when it would put a feature before one it uses, for example before its own sketch. A Loft that you point at a later sketch is moved for you, and the app says "Loft moved after ...".

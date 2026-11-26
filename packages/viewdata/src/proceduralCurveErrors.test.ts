@@ -38,8 +38,10 @@ describe('curve, fill and procedural surface refusals of the kernel', () => {
     const hint = 'make the counterbore narrower than the face it sits on';
     for (const code of ['holeCboreInvalid', 'holeCskDiameter', 'cutRemovedBody']) {
       expect(reasonOf({ code } as never)).toBe(diagStrings['diag.reason.' + code]);
-      expect(adviceOf({ code, params: { hint } } as never)).toBe(hint);
-      expect(adviceOf({ code } as never)).toBe('');   // no hint: no invented advice
+      const got = adviceOf({ code, params: { hint } } as never);
+      expect(got).toMatch(/^[A-Z]/);   // a sentence: the kernel's hint starts in lower case
+      expect(got.toLowerCase()).toBe(hint);
+      expect(adviceOf({ code } as never)).toBe(diagStrings['diag.advice.' + code + '.fallback']);   // no hint: our one plain line
     }
   });
   it('a refused expression (a decimal comma, an unknown name) says what is accepted', () => {

@@ -1,6 +1,6 @@
 # Text
 
-Lettering on a part, such as dial numerals, captions, nameplates and part numbers, is a text item in a sketch. This chapter covers placing and editing text, choosing a font and adding your own, laying text along a circle, and turning it into an engraving or a raised emboss. It also says plainly what CivilKit CAD cannot do with text yet: wrap it onto a curved face.
+Lettering on a part, such as dial numerals, captions, nameplates and part numbers, is a text item in a sketch. This chapter covers placing and editing text, choosing a font and adding your own, laying text along a circle, and turning it into an engraving or a raised emboss. It also says plainly what CivilKit CAD cannot do with text yet, and points to Wrap for lettering on a cylinder.
 
 ## How text works
 

@@ -7,7 +7,7 @@ export const doc = () => ({ ...newDoc('Dashes', []), upAxis: 'z' });
 const TID = (id) => `document.querySelector('[data-testid="${id}"]')`;
 const SLOT = (s) => `(document.querySelector('.slot[data-slot="${s}"] .slot-btn') || document.querySelector('.slot[data-slot="${s}"]'))`;
 const SEL = `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Select' && b.getBoundingClientRect().width > 0)`;
-const CONS = `document.querySelector('[data-action="sketch-construction"]')`;
+const CONS = `document.querySelector('[data-slot="sketch-construction"] button')`;
 
 export default {
   id: 'construction-dash',

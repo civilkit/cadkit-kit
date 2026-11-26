@@ -4,7 +4,7 @@
 // Opened with no usable cylinder it waits for one: the face the user selects in the viewport (`face`, read against `edges`) becomes the target.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon, kindForMin, numberAttrs } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs , ProblemSlot, PanelHint } from '@kit/ui';
 import { t } from './i18n';
 import { Check } from './ThreadControls';
 import { KNURL_METHODS, KNURL_PATTERNS, KNURL_PROFILES, cosmeticByDefault, knurlAnchor, knurlHasMethod, knurlIssue, knurlTarget, suggestCount, suggestDepth, type KnurlParams } from './knurl';
@@ -99,6 +99,7 @@ export function KnurlWizard(p: KnurlWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-knurl" size={22} class="fedit-icon" />
         <div class="fedit-title">{t(p.edit ? 'knurl.titleEdit' : 'knurl.title')}</div>
+        <ProblemSlot />
         <HelpButton topic="wizard:knurl" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
@@ -140,7 +141,7 @@ export function KnurlWizard(p: KnurlWizardProps): JSX.Element {
             {p.scriptNote ? <div class="thread-hint" data-testid="knurl-script-note">{t('knurl.scriptNote')}</div> : null}
             {p.refusal ? <div class="thread-fit bad" role="alert" data-testid="knurl-refusal">{p.refusal}</div> : null}
             {issue ? <div class="thread-fit bad" role="alert" data-issue={issue.code}>{issue.code === 'kernel' ? issue.message : t('knurl.issue.' + issue.code, issue.params, issue.message)}</div> : null}
-            {p.hint ? <div class="fedit-hint" role="alert" data-testid="knurl-hint">{p.hint}</div> : null}
+            <PanelHint hint={p.hint} testid="knurl-hint" />
           </>
         )}
       </div>

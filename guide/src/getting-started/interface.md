@@ -28,6 +28,8 @@ The same app adapts to the screen. It chooses a layout from the window width and
 
 ## On an iPad
 
+In portrait the canvas gets about two thirds of the screen, only the tabbed left panel is docked (the selected feature's properties are in its Editor tab) and the panel tabs show icons. The sketch ribbon is one row you swipe sideways; an arrow and a fade at each edge show that more tools are hidden. The status bar drops its counts instead of clipping items.
+
 CivilKit CAD runs in Safari on an iPad, with a finger, the Apple Pencil, or both, and with or without a hardware keyboard.
 
 - **Install it.** Open the app in Safari, tap **Share**, then **Add to Home Screen**. It then opens full screen from its own icon and works offline once it has been opened online (see [Install as an app and work offline](../reference/pwa.md)).
@@ -204,6 +206,7 @@ The status bar runs along the bottom.
 | **Cached view** | Shown while the stored view of a part is on screen during a rebuild. |
 | Design check chip | The result of the last design check. See [Design checks](../analysis/design-checks.md). |
 | **Kernel** | Shown only when you use the local kernel service. Click it to open the kernel settings. |
+| Version link | The app version. After an update a small card rises from it and links to What's new; press Escape or the X to close it for good. |
 | **Last rebuild** | How long the last rebuild took. |
 | **Errors** | The number of failed features, in red when not zero. |
 | **Drawer** | Opens and closes the drawer. |
@@ -240,7 +243,7 @@ The **Display** button in the viewport opens a panel with these sections:
 - **Scene**: lighting presets **Studio**, **Flat**, **High contrast** and **Technical**, **Light strength**, and **Reflections**.
 - **Edge width** and **Silhouette outline**, and the **Background**.
 - **Surface analysis** options. See [Surfaces](../modelling/surfaces.md).
-- **Show**: switches for **Edges**, **Sketches**, **Curves**, **Planes**, **Axes**, **Grid**, **Relations**, **Overall size**, **Threads** and **Design issues**.
+- **Show**: switches for **Edges**, **Sketches**, **Curves**, **Planes**, **Axes**, **Grid**, **Relations**, **Overall size**, **Threads**, **Tangent edges** and **Design issues**. Switch **Tangent edges** off to hide the lines inside smooth surfaces (the diagonals across knurl facets, fillet blends) while creases and outlines stay; wireframe keeps every edge.
 - While a sketch is open, a **Sketch** section with **Dimensions**, **Relation glyphs**, **Reference dimensions**, **Colour by definition** and **Constraints panel**.
 
 These settings change only how the part looks. They are never written into the part's geometry.

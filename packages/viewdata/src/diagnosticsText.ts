@@ -52,7 +52,7 @@ export function plainify(text: string): string {
 /** Text a person can read: no internal ids, camelCase words, backticks or algorithm terms, and one short sentence. The kernel's `detail` mostly fails this and goes to Details. */
 export function plainEnough(text: string): boolean {
   const s = text.trim();
-  if (!s || s.length > 140) return false;
+  if (!s || s.length > 140 || /\d+\.\d{4,}|\de[-+]?\d/i.test(s)) return false;   // a number to 4 or more places (0.0000, 1e-5) is machine output
   if (/\bF\d+(\.[A-Za-z0-9~|]+)*|\b[PE]\d+\b|\bdocs\/|\.md\b|[a-z]\d+~\d+|edge#\d+|\.[BCSe]\d+|[`{}|]|\b[a-z]+[A-Z][A-Za-z]*\b|[A-Z]{2,}\.[A-Z]{2,}/.test(s)) return false;
   return !/\b(coedge|pcurve|tangent chain|torus|spine|spring|station|knot|weld|euler|manifold|seam|rim|degenerate|periodic|nurbs|kernel|engine|solver|wasm)\b/i.test(s);
 }
@@ -112,7 +112,8 @@ export function adviceOf(r: DiagRoot): string {
   const rawHint = typeof r.params?.hint === 'string' ? plainify(r.params.hint.trim()) : '';
   const hint = plainEnough(rawHint) ? rawHint : '';   // agent-style hints (ids, API words) stay in Details
   // blendUnsupported has a general line of its own, but a hint from the kernel names the actual way out (a ring round on a smooth closed spline), so that wins
-  const advice = (r.code === 'blendUnsupported' && !smoothRim(r) && hint) || own || hint || '';
+  const cap = (x: string): string => (x ? x.charAt(0).toUpperCase() + x.slice(1) : x);   // a kernel hint starts in lower case
+  const advice = cap((r.code === 'blendUnsupported' && !smoothRim(r) && hint) || own || hint || t('diag.advice.' + r.code + '.fallback', undefined, ''));   // the kernel's own plain hint first; ours only when it gave none
   const max = maxSizeOf(r.params);
   return max ? t('diag.advice.maxSize', { size: maxSizeText(max), param: paramWords(max.param) }) : advice;   // one sentence: the number is the way out
 }

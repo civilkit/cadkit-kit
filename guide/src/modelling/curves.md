@@ -17,6 +17,7 @@ Project curve takes a curve that lies flat (a sketch, or a curve feature you mad
 
 | Option | What it does | Default |
 |---|---|---|
+| Method | **Project (flat copy onto the face)** or **Wrap (keep lengths around a cylinder)**. It is the first control in the editor. | Project |
 | Project | The source: a sketch or an earlier curve. With none selected it takes the sketch selected in the tree, else the last sketch that holds a curve. | The last sketch with a curve |
 | Onto faces | The faces the curve lands on. | The picked faces, else every face |
 | Direction | **Both ways**, **Along the sketch normal** or **Against the sketch normal**. | Both ways |
@@ -26,7 +27,9 @@ Project curve takes a curve that lies flat (a sketch, or a curve feature you mad
 
 ### Wrap onto a cylinder
 
-Set **Method** to **Wrap** to lay a curve you drew flat around a cylinder instead of casting it straight down. Wrap keeps the curve's lengths: its sideways distance in the sketch becomes distance along the cylinder's surface, so a wiggly spline drawn on a flat sketch winds around the cylinder with the same shape and length. The curve may be open or closed and may go around more than once. The result is an ordinary 3D curve, so you can use it as a sweep path (for example to sweep a groove or a rib around a bottle).
+Open the Project curve editor and set **Method** to **Wrap (keep lengths around a cylinder)** to lay a curve you drew flat around a cylinder instead of casting it straight down. Wrap keeps the curve's lengths: its sideways distance in the sketch becomes distance along the cylinder's surface, so a wiggly spline drawn on a flat sketch winds around the cylinder with the same shape and length. The curve may be open or closed and may go around more than once. The result is an ordinary 3D curve, so you can use it as a sweep path (for example to sweep a groove or a rib around a bottle).
+
+Project curve first builds a straight projection, and the editor opens only if that works. If it cannot (for example the sketch lies beside a whole cylinder, or the projection would land in two pieces), nothing is added and a message says why, so you cannot reach Method that way: start from a projection that works (a flat face under the sketch), then change **Method** and **Onto faces** in the editor. The **Wrap** options replace Direction and Keep exact: **Along the axis** (mm), **Around** (degrees), **Rotation** (degrees) and **Flip direction**, all starting at 0 or off.
 
 Pick exactly one cylindrical face; a flat, cone or free-form face is refused with an explanation. Wrap adds these options: **Along the axis** (slides the curve along the cylinder), **Around** (turns it around the axis, in degrees), **Rotation** (turns it in the sketch, in degrees, about its middle) and **Flip direction** (mirrors it around the circumference). Direction, Keep exact and the other projection options are not used. If the curve winds so far that it cannot be fitted within the tolerance, the editor says it is too long: wrap it in shorter pieces or raise the fit tolerance a little.
 
