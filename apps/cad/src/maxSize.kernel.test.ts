@@ -51,7 +51,7 @@ async function refuseThenFix(doc: PartDoc, id: string, field: string, value: unk
 describe('the largest size that builds, end to end', { skip: !process.env.CK_WASM }, () => {
   it('shell: a wall too thick for the 10 mm box offers the largest that builds, and it builds', async () => {
     const { root, fix, good } = await refuseThenFix(boxDoc([{ type: 'shell', id: 'F9', faces: ['F2.C1'], thickness: 1 }]), 'F9', 'thickness', 12);
-    expect(adviceOf(root)).toMatch(/^The largest size that builds is \d+(\.\d+)? mm\./);
+    expect(adviceOf(root)).toMatch(/^Set the [a-z ]+ to \d+(\.\d+)? mm or less\./);
     expect(fix.path).toBe('thickness');
     expect(fix.value as number).toBeGreaterThan(9);
     expect(fix.value as number).toBeLessThan(10);

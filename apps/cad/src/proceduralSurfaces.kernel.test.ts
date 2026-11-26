@@ -244,7 +244,7 @@ describe('Sweep surface and Blend surface against the real kernel', { skip: !pro
     const root = rootOf(r);
     expect(root.code).toBe('blendSurfaceRadius');
     expect(root.params.maxRadius as number).toBeCloseTo(10, 3);
-    expect(adviceOf(root as never)).toMatch(/largest size that builds is 10 mm/);
+    expect(adviceOf(root as never)).toMatch(/^Set the radius to 10 mm or less\./);
   });
 
   it('Blend surface: the other side of both faces of a convex edge touches nothing (blendSurfaceNoContact), and a radius of 0 is invalidValue', async () => {

@@ -10,9 +10,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export const PRESET = { ribbon: 'off', leftPanel: 'docked', leftTabs: true, leftCollapsed: false, rightPanel: 'off', toolRail: true, sketchPalette: false, toolLabels: 'icons-and-text', selectionBar: true, commandBar: true, drawerOpen: false, handles: true, opacity: 0.62, blur: 14, lineWidth: 3 };
 
 /** Open a part (a ck-part document object) as the restored last session, with a layout, and wait until it has built. Off camera. */
-export async function openDoc(ctx, doc, { workspace = PRESET, name = doc.name } = {}) {
+export async function openDoc(ctx, doc, { workspace = PRESET, name = doc.name, extra = {} } = {}) {
   const { page, base, rec } = ctx;
-  const items = { 'cad.autosave.v1': JSON.stringify({ name, doc, savedAt: Date.now() }), 'cad.workspace': JSON.stringify(workspace) };
+  const items = { 'cad.autosave.v1': JSON.stringify({ name, doc, savedAt: Date.now() }), 'cad.workspace': JSON.stringify(workspace), ...extra };
   await page.send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.clear(); const it = ${JSON.stringify(items)}; for (const k in it) localStorage.setItem(k, it[k]); } catch {}` });
   await page.goto(base);
   const restore = doc.features.length > 0;   // an empty part has nothing to restore: the app opens on a new part

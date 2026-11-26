@@ -102,7 +102,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
   // Motion: drive a mechanism, key it over time, play it, export a clip (the timeline docks along the bottom of the view while this tab is open)
   Motion: [
     { id: 'Drive', entries: ['motion-drive', 'motion-find'] },
-    { id: 'Study', entries: ['motion-new-study', 'motion-key'] },
+    { id: 'Study', entries: ['motion-new-study', 'motion-key', 'motion-autokey'] },
     { id: 'Playback', entries: ['motion-play'] },
     { id: 'Clip', entries: ['motion-export'] },
   ],

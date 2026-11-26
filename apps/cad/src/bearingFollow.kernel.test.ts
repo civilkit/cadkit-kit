@@ -101,7 +101,7 @@ describe('bearings placed on the ends of a shaft follow the end faces', { skip: 
     // the message says what went away and what to do (not just "it cuts nothing")
     const d = diagnose((r.errors ?? []).map(([id, e]) => ({ id, code: e.code, params: e.params })), s.document.features as never);
     expect(d.roots[0].seat).toBe('fixed');
-    expect(summaryLine(d)).toMatch(/Bearing 608 seat: the bearing seat no longer touches the part, it was placed at a fixed position\./);
+    expect(summaryLine(d)).toMatch(/^Change not applied\. Your model is unchanged\. The bearing seat no longer touches the part, it was placed at a fixed position\./);
     expect(adviceOf(d.roots[0])).toMatch(/delete the bearing and add it again from the face/);
   }, 120000);
 

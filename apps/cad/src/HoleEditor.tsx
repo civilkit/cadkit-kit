@@ -9,7 +9,7 @@ import { t } from './i18n';
 import { HoleThreadOptions, HoleThreadPick, threadOptionsSummary, useHoleThread, type HoleThreadApi } from './HoleThreadSection';
 import { canThreadHole, capLength, threadCfgOf, threadMaxLength, type HoleThread } from './holeThread';
 import {
-  CUSTOM, DRILL_TIP_ANGLE, HOLE_ENDS, HOLE_FITS, HOLE_KINDS, ISO_SIZES, KERNEL_CUTS_CUSTOM_DIMS,
+  CUSTOM, DRILL_TIP_ANGLE, HOLE_ENDS, HOLE_FITS, HOLE_KINDS, ISO_SIZES,
   holeDiameter, kindOf, patchEnd, patchFit, patchKind, patchSize, saveHolePrefs, sizeChoice, type HoleEnd, type HoleFit, type HoleKind,
 } from './holeData';
 import { HelpButton } from './HelpButton';
@@ -131,7 +131,6 @@ export function HoleEditor(p: HoleEditorProps): JSX.Element {
           <Num name="cskDiameter" label={t('hole.cskDiameter')} value={eff.cskDiameter} unit="mm" onChange={(v) => change({ cskDiameter: v })} />
           <Num name="cskAngle" label={t('hole.cskAngle')} value={eff.cskAngle} unit="°" onChange={(v) => change({ cskAngle: v })} />
         </> : null}
-        {kind !== 'simple' && !KERNEL_CUTS_CUSTOM_DIMS ? <div class="fedit-shapes-note" data-note="dims">{t(kind === 'cbore' ? 'hole.note.cbore' : 'hole.note.csink')}</div> : null}
       </Section>
 
       <Section id="size" title={t('hole.section.size')} summary={threaded && th ? `${th.size} · ${th.standard}` : `${choice} · Ø ${dia === null ? '?' : fmt(dia)}`}>

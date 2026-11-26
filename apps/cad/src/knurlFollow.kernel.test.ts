@@ -101,7 +101,7 @@ describe('a knurl band cut from the end face follows it', { skip: !process.env.C
     expect(gone.ok).toBe(false);   // the band is past the end: the cut finds nothing
     const d = diagnose((gone.errors ?? []).map(([id, e]) => ({ id, code: e.code, params: e.params })), s.document.features as never);
     expect(d.roots[0].knurl).toBe('fixed');
-    expect(summaryLine(d)).toMatch(/the knurl band no longer touches the part, it was placed at fixed positions/);
+    expect(summaryLine(d)).toMatch(/The knurl band no longer touches the part, it was placed at fixed positions/);
     expect(adviceOf(d.roots[0])).toMatch(/Cut grooves/);
   }, 240000);
 

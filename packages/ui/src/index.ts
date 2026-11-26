@@ -28,3 +28,5 @@ export * from './expr';
 export { SignKey, numberAttrs, textAttrs, searchAttrs, flipSign, flipFocusedSign, kindForMin, wantsSign, type NumberKind } from './keypad';
 export { EditorSection, loadCollapsed, rememberCollapsed } from './EditorSection';
 export { ChipList, type ChipItem } from './ChipList';
+export { Callout, placeCallout, type CalloutProps, type CalloutSide } from './Callout';
+export { ProblemBadge, type Problem, type ProblemBadgeProps } from './ProblemBadge';

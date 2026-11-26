@@ -28,8 +28,8 @@ describe('what a plugin may read of the open document', () => {
   it('a picked edge carries a point on it, as SolidCraft\'s selection reference does, and a field that takes edges receives it', () => {
     const withEdges = [{ ...rows[0], edges: ['F1.E1', 'F1.E2'] }] as unknown as BodyRow[];
     const doc = pluginDocContext(withEdges, mesh as never, ['F1.E2'], [], {}, { edges: true, edgePoint: (k) => (k === 'F1.E2' ? [1, 2, 3] : undefined) });
-    expect(doc.selection).toEqual([{ type: 'edge', body: 'Rail', index: 1, point: [1, 2, 3] }]);
-    expect(selectionItems(doc.selection, { accept: ['edge'] })).toEqual([{ type: 'edge', body: 'Rail', index: 1, point: [1, 2, 3] }]);
+    expect(doc.selection).toEqual([{ type: 'edge', body: 'Rail', index: 1, point: [1, 2, 3], mid: [1, 2, 3] }]);
+    expect(selectionItems(doc.selection, { accept: ['edge'] })).toEqual([{ type: 'edge', body: 'Rail', index: 1, point: [1, 2, 3], mid: [1, 2, 3] }]);
     // no point known: the pick is still an edge reference
     expect(pluginDocContext(withEdges, mesh as never, ['F1.E1'], [], {}, { edges: true }).selection).toEqual([{ type: 'edge', body: 'Rail', index: 0 }]);
   });

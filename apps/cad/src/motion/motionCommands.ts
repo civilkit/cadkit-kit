@@ -9,6 +9,8 @@ export interface MotionActions {
   hasDrivers(): boolean;
   hasStudy(): boolean;
   isPlaying(): boolean;
+  isAutoKey(): boolean;
+  toggleAutoKey(): void;
   findLimits(): void;
   newStudy(): void;
   keyAll(): void;
@@ -22,6 +24,7 @@ export function motionCommands(a: MotionActions): Command[] {
     { id: 'motion-find', label: t('cmd.motion-find'), tab: 'Motion', group: 'Drive', enabled: a.hasDrivers, run: a.findLimits },
     { id: 'motion-new-study', label: t('cmd.motion-new-study'), tab: 'Motion', group: 'Study', enabled: a.hasDrivers, run: a.newStudy },
     { id: 'motion-key', label: t('cmd.motion-key'), tab: 'Motion', group: 'Study', enabled: a.hasStudy, run: a.keyAll },
+    { id: 'motion-autokey', label: t('cmd.motion-autokey'), tab: 'Motion', group: 'Study', enabled: a.hasStudy, pressed: a.isAutoKey, run: a.toggleAutoKey },
     { id: 'motion-play', label: t('cmd.motion-play'), tab: 'Motion', group: 'Playback', enabled: a.hasStudy, pressed: a.isPlaying, run: a.togglePlay },
     { id: 'motion-export', label: t('cmd.motion-export'), tab: 'Motion', group: 'Clip', enabled: a.hasStudy, run: a.exportClip },
   ];

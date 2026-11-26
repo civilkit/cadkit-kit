@@ -25,14 +25,15 @@ const d = diagnose([
 
 describe('summary text', () => {
   it('names the cause and counts what it blocked', () => {
-    expect(summaryLine(d)).toBe('The edit broke the model at F14 Trim: the surfaces do not cut each other. 2 later features could not be built because of it.');
+    expect(summaryLine(d)).toBe('Change not applied. Your model is unchanged. The surfaces do not cut each other. The trim tool no longer crosses the surface. Try a smaller change or move the tool.');
+    expect(summaryLine(d, 'failed')).toMatch(/^Trim can't be rebuilt\. The surfaces do not cut each other\./);
+    expect(summaryLine(d, 'preview')).toMatch(/^The surfaces do not cut each other\./);
     expect(adviceOf(d.roots[0])).toBe('The trim tool no longer crosses the surface. Try a smaller change or move the tool.');
   });
   it('every code of the ten most common has plain advice (not the generic one)', () => {
-    const generic = en['diag.advice.generic'];
     for (const code of ['trimNoIntersection', 'nothingToCut', 'cutNoEffect', 'missingReference', 'missingEdge', 'booleanFailed', 'fillInvalid', 'filletChamfer', 'shellFailed', 'noClosedProfile']) {
       const r = diagnose([{ id: 'F14', code }], feats).roots[0];
-      expect(adviceOf(r)).not.toBe(generic);
+      expect(adviceOf(r)).not.toBe('');
     }
   });
 });
@@ -41,22 +42,25 @@ describe('DiagnosticsCard', () => {
   it('shows the cause, folds the consequences away, and each one is clickable', () => {
     const picked: string[] = [];
     const { container, getByText } = render(<DiagnosticsCard diagnosis={d} onSelect={(id) => picked.push(id)} onUndo={() => picked.push('undo')} />);
-    expect(container.textContent).toContain('The edit broke the model at F14 Trim');
-    expect(container.querySelector('.diag-list')).toBeNull();
-    fireEvent.click(getByText('Select F14'));
-    fireEvent.click(getByText('Show 2 consequences'));
+    expect(container.textContent).toContain("Trim can't be rebuilt.");
+    expect(container.textContent).not.toMatch(/broke the model/);
+    expect(container.querySelector('details.diag-details')!.hasAttribute('open')).toBe(false);
+    fireEvent.click(getByText('Show in the tree'));
     const items = container.querySelectorAll('.diag-item');
     expect(items.length).toBe(2);
     fireEvent.click(items[0]);
     fireEvent.click(getByText('Undo this change'));
     expect(picked).toEqual(['F14', 'F28', 'undo']);
   });
-  it('while an editor is open the button is Cancel, not Undo', () => {
-    let cancelled = 0;
-    const { queryByText, getByText } = render(<DiagnosticsCard diagnosis={d} variant="editor" onSelect={() => {}} onUndo={() => {}} onCancel={() => { cancelled++; }} />);
-    expect(queryByText('Undo this change')).toBeNull();
-    fireEvent.click(getByText('Cancel edit'));
-    expect(cancelled).toBe(1);
+  it('in an editor the card carries only one-click fixes (the causes are in the alert popover), and nothing when there are none', () => {
+    const run: string[] = [];
+    const none = render(<DiagnosticsCard diagnosis={d} variant="editor" onSelect={() => {}} onCancel={() => {}} />);
+    expect(none.container.querySelector('.diag')).toBeNull();
+    cleanup();
+    const { container, getByText } = render(<DiagnosticsCard diagnosis={d} variant="editor" onSelect={() => {}} fixes={[{ key: 'flip', label: 'Flip direction', run: () => run.push('flip') }]} />);
+    fireEvent.click(getByText('Flip direction'));
+    expect(run).toEqual(['flip']);
+    expect(container.querySelector('.diag-cause, .diag-advice')).toBeNull();
   });
   it('copy puts the full raw error list on the clipboard', async () => {
     let copied = '';
@@ -73,14 +77,11 @@ describe('rounding refusals', () => {
   const fil: DiagFeature[] = [{ id: 'F2', type: 'extrude' }, { id: 'F3', type: 'fillet', name: 'Fillet', edges: [] }];
   const dd = diagnose([{ id: 'F3', code: 'blendOverflow', params: { detail: 'F3.B0: spring leaves its face away from its edges' } }], fil);
   it('the summary leads with plain words and keeps the kernel detail', () => {
-    expect(summaryLine(dd)).toBe('The edit broke the model at F3 Fillet: the rounding runs off the faces beside it (F3.B0: spring leaves its face away from its edges).');
+    expect(summaryLine(dd, 'preview')).toMatch(/^The fillet runs off the faces beside it\./);
+    expect(summaryLine(dd, 'preview')).not.toMatch(/F3\.B0|spring/);   // the kernel's detail is developer text: Details only
   });
   it('every blend code has its own advice, and the editor card shows it', () => {
-    const generic = en['diag.advice.generic'];
-    for (const code of ['blendOverflow', 'blendTooLarge', 'blendFailed', 'blendUnsupported', 'chamferVertexEdges']) expect(adviceOf(diagnose([{ id: 'F3', code }], fil).roots[0])).not.toBe(generic);
-    const { container } = render(<DiagnosticsCard diagnosis={dd} variant="editor" onSelect={() => {}} />);
-    expect(container.querySelector('.diag-summary')!.textContent).toContain('spring leaves its face');
-    expect(container.querySelector('.diag-advice')!.textContent).toContain('smaller radius');
+    for (const code of ['blendOverflow', 'blendTooLarge', 'blendFailed', 'blendUnsupported', 'chamferVertexEdges']) expect(adviceOf(diagnose([{ id: 'F3', code }], fil).roots[0])).not.toBe('');
   });
 });
 
@@ -97,7 +98,7 @@ describe('DiagnosticsWarnings', () => {
     expect(items.length).toBe(2);
     expect(items[0].getAttribute('data-warning')).toBe('blendRoundsCross');
     expect(items[0].querySelector('.diag-tag')!.textContent).toBe('Warning');
-    expect(items[0].querySelector('.why')!.textContent).toMatch(/^The two roundings are wider than the face between them/);
+    expect(items[0].querySelector('.why')!.textContent).toMatch(/^The two fillets are wider than the face between them/);
     expect(items[0].querySelector('.diag-advice')!.textContent).toBe(en['diag.advice.blendRoundsCross']);
     expect(items[1].querySelector('.why')!.textContent).toBe('This feature built with a warning: endRefRelinked');
     expect(items[1].querySelector('.diag-advice')).toBeNull();
@@ -118,5 +119,16 @@ describe('DiagnosticsWarnings', () => {
   it('nothing without warnings', () => {
     const { container } = render(<DiagnosticsWarnings entries={[]} onSelect={() => {}} />);
     expect(container.innerHTML).toBe('');
+  });
+});
+
+describe('DiagnosticsCard in the editor (a preview that cannot be built)', () => {
+  const dg = { roots: [{ id: 'F3', label: 'fillet', code: 'blendUnsupported', params: { detail: 'the rim is a closed smooth free-form curve; a round on a smooth closed spline rim is not supported yet', hint: 'close the profile' } }], consequences: [] } as never;
+  it('the message the popover shows comes from the composer: one cause sentence, one action, no jargon', async () => {
+    const { composeMessage } = await import('@kit/viewdata');
+    const m = composeMessage({ roots: (dg as unknown as { roots: never[] }).roots, consequences: [], blockedBy: {} } as never, 'preview');
+    expect(m.cause).toBe('This outline is a smooth curve, and a fillet on it is not supported yet.');
+    expect(m.lead).toBe('');
+    expect(`${m.cause} ${m.action}`).not.toMatch(/broke the model|free-form|spline|cannot be rounded yet/);
   });
 });

@@ -184,8 +184,9 @@ describe('feature commands against the real kernel', { skip: !process.env.CK_WAS
     const rej = w.controller.rejection()!;
     expect(rej).not.toBeNull();
     expect(rej.diagnosis.roots[0]).toMatchObject({ id: 'F3', code: 'blendOverflow' });
-    expect(rej.summary).toMatch(/F3 .*the rounding runs off the faces beside it \(F3\.B0: /);
-    expect(adviceOf(rej.diagnosis.roots[0])).toMatch(/smaller radius/);
+    expect(rej.summary).toMatch(/^Change not applied\. Your model is unchanged\. The fillet runs off the faces beside it\./);
+    expect(rej.summary).not.toMatch(/F3\.B0|spring/);   // the kernel's detail is developer text: Details only
+    expect(adviceOf(rej.diagnosis.roots[0])).toMatch(/^Set the radius to [\d.]+ mm or less\.$/);   // the kernel names the largest radius that builds
   });
 
   it('chamfer: same rule, adds a chamfer face', async () => {

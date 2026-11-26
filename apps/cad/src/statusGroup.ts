@@ -2,9 +2,9 @@ import type { SketchSolverStatus } from '@ck/part-model';
 import { t } from './i18n';
 
 /** Below this width the sketch ribbon's Status group folds into the badge plus one "..." menu. */
-export const STATUS_MENU_BELOW = 1400;   // the icon row took about 330 px: at laptop width the drawing and dimension tools were pushed off the ribbon (sketcher review UX-R1-1)
+export const STATUS_MENU_BELOW = 2300;   // the sketch ribbon's tools alone need about 1900 px: with the icon row open (330 px) they only fit from here up, so below it the group is a badge and a menu (UX-R1-1, UX-R2-6)
 /** From this width the Fully define button also shows its name beside its icon. */
-export const STATUS_LABEL_FROM = 1800;
+export const STATUS_LABEL_FROM = 2700;
 
 export type StatusMode = 'menu' | 'icons' | 'labelled';
 

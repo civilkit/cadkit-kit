@@ -227,7 +227,7 @@ describe('edge and face list fields', () => {
   it('shows the edges and faces of a feature as editable reference fields with a Use selection button', () => {
     const { container } = render(<FeatureEditor feature={FILLET} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} onPickRequest={() => {}} />);
     const fld = container.querySelector('[data-path="edges"]')!;
-    expect(fld.querySelector('.chip-text')!.textContent).toBe('A|B');
+    expect(fld.querySelector('.chip-text')!.textContent).toBe('Edge 1');
     expect(fld.querySelector('.fedit-pick')!.textContent).toBe('Use selection');
     const shell = render(<FeatureEditor feature={{ type: 'shell', id: 'F4', faces: ['F2.C1'], thickness: 1 }} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} />);
     expect((shell.container.querySelector('[data-path="faces"] input') as HTMLInputElement).value).toBe('F2.C1');
@@ -243,7 +243,7 @@ describe('edge and face list fields', () => {
     expect(asked).toEqual(['edges']);
     rerender(<FeatureEditor {...props} pickingPath="edges" picked={{ path: 'edges', value: EDGES }} />);
     expect(drafts.at(-1)).toEqual({ edges: EDGES });
-    expect([...container.querySelectorAll('[data-path="edges"] .chip-text')].map((c) => c.textContent)).toEqual(['A|B', 'A|C']);
+    expect([...container.querySelectorAll('[data-path="edges"] .chip-text')].map((c) => c.textContent)).toEqual(['Edge 1', 'Edge 2']);
     expect(container.querySelector('[data-path="edges"] .fedit-pick')!.textContent).toBe('Done');
     fireEvent.click(container.querySelector('.fedit-confirm')!);
     expect(confirms.at(-1)).toEqual({ edges: EDGES });
@@ -260,7 +260,7 @@ describe('edge and face list fields', () => {
     fireEvent.click(fld.querySelectorAll('.chip-x')[0]);
     expect(drafts.at(-1)).toEqual({ edges: [EDGES[1]] });
     expect(fld.querySelector('.fedit-count')!.textContent).toBe('1 edge');
-    expect([...fld.querySelectorAll('.chip-text')].map((c) => c.textContent)).toEqual(['A|C']);
+    expect([...fld.querySelectorAll('.chip-text')].map((c) => c.textContent)).toEqual(['Edge 1']);
   });
 
   it('edge runs show as one chip with their edge count, and its x takes the whole run out', () => {
@@ -270,7 +270,11 @@ describe('edge and face list fields', () => {
     const { container } = render(<FeatureEditor feature={feature} onDraft={(d) => drafts.push(d)} onConfirm={() => {}} onCancel={() => {}} onPickRequest={() => {}} pickingPath="edges" edgeRuns={() => [[0, 2], [1]]} />);
     const fld = container.querySelector('[data-path="edges"]')!;
     expect(fld.querySelector('.fedit-count')!.textContent).toBe('3 edges');   // the total that will be rounded
-    expect([...fld.querySelectorAll('.chip-text')].map((c) => c.textContent)).toEqual(['A|B (2 edges)', 'A|C']);
+    expect([...fld.querySelectorAll('.chip-text')].map((c) => c.textContent)).toEqual(['Edge 1 (2 edges)', 'Edge 2']);   // never the face ids
+    expect(fld.querySelector('.chip')!.getAttribute('title')).toBe('A|B');   // those are the tooltip
+    cleanup();
+    const named = render(<FeatureEditor feature={{ ...feature, edges: [{ faces: ['F2.C1', 'F2.S.e1'] }] }} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} onPickRequest={() => {}} pickingPath="edges" featureName={(id) => (id === 'F2' ? 'Extrude 1' : undefined)} />);
+    expect(named.container.querySelector('.chip-text')!.textContent).toBe('Extrude 1 edge 1');
     fireEvent.click(fld.querySelectorAll('.chip-x')[0]);
     expect(drafts.at(-1)).toEqual({ edges: [E3[1]] });
   });
@@ -302,14 +306,14 @@ describe('edge and face list fields', () => {
 });
 
 describe('FeatureEditor: look', () => {
-  it('uses dropdowns for operation and end condition, shows units, and marks an empty reference', () => {
+  it('uses dropdowns for operation and end condition, shows units, and does not paint an empty reference red', () => {
     const { container } = render(
       <FeatureEditor feature={{ type: 'extrude', id: 'F2', op: 'add', sketch: '', end: 'blind', depth: 5 }} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} />,
     );
     expect(container.querySelector('[data-path="op"] select')).toBeTruthy();
     expect(container.querySelector('[data-path="end"] select')).toBeTruthy();
     expect(container.querySelector('[data-path="depth"] .fedit-unit')!.textContent).toBe('mm');
-    expect(container.querySelector('[data-path="sketch"]')!.className).toContain('missing');
+    expect(container.querySelector('[data-path="sketch"]')!.className).not.toContain('missing');   // an empty reference is not an error: no red field
     expect(container.querySelector('.fedit-confirm')!.getAttribute('aria-label')).toBe('Confirm');
   });
   it('keeps an unknown current value selectable', () => {
@@ -423,3 +427,34 @@ describe('pipe wall (audit: the editor never offered it)', () => {
   });
 });
 
+
+describe('FeatureEditor problems in the title', () => {
+  const feature = { id: 'F3', type: 'fillet', radius: 2 };
+  const noop = { onDraft: () => {}, onConfirm: () => {}, onCancel: () => {} };
+  it('shows the alert icon only while there is a problem, with the cause in the popover', () => {
+    const ok = render(<FeatureEditor feature={feature} {...noop} />);
+    expect(ok.container.querySelector('[data-testid="problem-badge"]')).toBeNull();
+    cleanup();
+    const bad = render(<FeatureEditor feature={feature} {...noop} problems={[{ id: 'a', cause: 'This fillet cannot be built.', action: 'Use a smaller radius.' }]} />);
+    expect(bad.container.querySelector('.fedit-title.bad')).not.toBeNull();
+    fireEvent.mouseEnter(bad.container.querySelector('.fedit-problem')!);
+    expect(document.querySelector('[data-testid="problem-popover"]')!.textContent).toContain('This fillet cannot be built.');
+  });
+  it('a neutral hint is a note, not an alert', () => {
+    const r = render(<FeatureEditor feature={feature} {...noop} hint="Click edges to add them." hintTone="neutral" />);
+    expect(r.container.querySelector('.fedit-hint.neutral')).not.toBeNull();
+    expect(r.container.querySelector('[role="alert"]')).toBeNull();
+    expect(r.container.querySelector('[data-testid="problem-badge"]')).toBeNull();
+  });
+});
+
+describe('a click on the greyed confirm button', () => {
+  it('opens the problem popover instead of doing nothing', () => {
+    const confirms: unknown[] = [];
+    const r = render(<FeatureEditor feature={{ id: 'F3', type: 'fillet', radius: 2 }} onDraft={() => {}} onConfirm={(v) => confirms.push(v)} onCancel={() => {}} okBlocked="This can't be built yet." problems={[{ id: 'a', cause: 'The fillet is too wide.' }]} />);
+    expect(document.querySelector('[data-testid="problem-popover"]')).toBeNull();
+    fireEvent.click(r.container.querySelector('[data-testid="feature-ok"]')!);
+    expect(confirms).toEqual([]);
+    expect(document.querySelector('[data-testid="problem-popover"]')!.textContent).toContain('The fillet is too wide.');
+  });
+});

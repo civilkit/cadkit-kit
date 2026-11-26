@@ -4,7 +4,7 @@ export { sketchPolylines, selectedSketchPolylines, curvePolylines, planeOutlines
 export type { BodyMesh, FaceRange, Grouped } from './meshgeom';
 export type { Frame, Polyline, IdPolylines, IdQuad, SketchLayerItem, CurveLayerItem, PlaneLayerItem } from './layers';
 export { Viewport } from './viewport';
-export type { PickMode, PlacementHook } from './viewport';
+export type { PickMode, PlacementHook, PartDragHook } from './viewport';
 export { clipPlane, capFrame, kept, STD_SECTION_NORMAL, type SectionSpec, type StdSectionPlane } from './section';
 export type { MeasureMark } from './measureMarks';
 export { underlayPlacement, underlayCorners, underlayHeight, type UnderlayShape, type UnderlayFrame } from './underlay';

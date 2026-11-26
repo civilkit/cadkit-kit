@@ -7,3 +7,4 @@ export * from './errorSummary';
 export * from './diagnosticsText';
 export * from './taperLimit';
 export { diagStrings } from './strings';
+export * from './userError';

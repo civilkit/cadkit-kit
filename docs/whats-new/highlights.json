@@ -1,4 +1,31 @@
 {
+  "0.8.18": [
+    {
+      "id": "spline-fillet",
+      "title": "Fillet and chamfer a free-form outline",
+      "blurb": "Pick the rim of a part drawn from a smooth closed spline and round it or chamfer it, top, bottom or both rims: one pick takes the whole rim, and sizes from a fraction of a millimetre up to the thickness of the part build. Tight tips get a crease rather than a smooth blend, and a size that cannot fit is refused with the reason."
+    },
+    {
+      "id": "motion-drag",
+      "title": "Drag a part to move the mechanism",
+      "blurb": "On the Motion tab, grab a part in the 3D view and drag it: the hinge or slide follows your cursor, and Auto key records the move on the timeline at the current time."
+    },
+    {
+      "id": "offset-preview",
+      "title": "Offset previews as you move",
+      "blurb": "Pick a circle, a line or an arc, press Enter and move: the new outline follows the pointer before you click, and typing a distance makes it exact."
+    },
+    {
+      "id": "whats-new-callout",
+      "title": "What's new, right where the version is",
+      "blurb": "After an update a small card rises from the version link in the status bar and points to the notes. Escape or the X closes it for good."
+    },
+    {
+      "id": "cancel-sketch",
+      "title": "Cancelling a sketch warns first",
+      "blurb": "The red X on a sketch with shapes in it says that cancelling throws away what was drawn, and a second click confirms."
+    }
+  ],
   "0.8.17": [
     {
       "id": "arc-length",

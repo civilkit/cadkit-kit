@@ -70,6 +70,13 @@ export interface ViewBody {
   surfaces?: ViewSurface[];
 }
 
+/** A left-drag on the body that the app handles itself (see Viewport.setPartDragHook). `begin` answers true to take the drag. */
+export interface PartDragHook {
+  begin(face: string | null, point: [number, number, number], x: number, y: number): boolean;
+  move(x: number, y: number): void;
+  end(moved: boolean): void;
+}
+
 /** What the catalog wants from the pointer while a shape is armed (see Viewport.setPlacementHook). */
 export interface PlacementHook {
   move(x: number, y: number, mods: { alt: boolean }): void;
@@ -376,6 +383,9 @@ export class Viewport {
     window.addEventListener('pointerup', this.onRightUp, true);
     window.addEventListener('pointermove', this.onBoxMove);
     window.addEventListener('pointerup', this.onBoxUp, true);
+    this.dom.addEventListener('pointerdown', this.onPartDown, true);
+    window.addEventListener('pointermove', this.onPartMove);
+    window.addEventListener('pointerup', this.onPartUp, true);
     this.dom.addEventListener('pointerdown', this.onDown);
     this.dom.addEventListener('pointerup', this.onUp);
     this.dom.addEventListener('pointermove', this.onMove);
@@ -535,6 +545,56 @@ export class Viewport {
     }
     this.controls.enabled = true;
   }
+
+  private partDrag: PartDragHook | null = null;
+  private partDragging: { id: number; x0: number; y0: number; moved: boolean } | null = null;
+  /**
+   * Let the app take a left-drag that starts on the body (the Motion tab drags a part to move the mechanism). While a hook is set, a press
+   * on the body calls `begin` with the face under the pointer and the world point; when it answers true, orbiting is off for that drag, `move`
+   * follows the pointer once it has gone a few pixels and `end` says whether it moved (a press that did not move is still an ordinary click).
+   * null gives the left button back to orbiting and selecting.
+   */
+  setPartDragHook(hook: PartDragHook | null): void {
+    if (!hook && this.partDragging) this.finishPartDrag();
+    this.partDrag = hook;
+  }
+  /** The screen position (client pixels) of a world point; null behind the camera. */
+  screenOf(p: [number, number, number]): [number, number] | null {
+    const r = this.host.getBoundingClientRect();
+    const v = new THREE.Vector3(p[0], p[1], p[2]).project(this.camera);
+    if (v.z > 1 || v.z < -1) return null;
+    return [r.left + ((v.x + 1) / 2) * r.width, r.top + ((1 - v.y) / 2) * r.height];
+  }
+  private finishPartDrag(): void {
+    const d = this.partDragging;
+    if (!d) return;
+    this.partDragging = null;
+    this.controls.enabled = true;
+    try { this.dom.releasePointerCapture(d.id); } catch { /* not captured */ }
+    this.partDrag?.end(d.moved);
+    if (d.moved) this.suppressUp = true;
+  }
+  private onPartDown = (e: PointerEvent): void => {
+    if (!this.partDrag || this.touch.multi || e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (this.sketchEdit || this.placement || this.pickIntercept || this.boxMode || this.boxDrag) return;
+    const h = this.hit(e.clientX, e.clientY);
+    if (!h) return;
+    if (!this.partDrag.begin(this.nameAt(h), [h.point.x, h.point.y, h.point.z], e.clientX, e.clientY)) return;
+    this.partDragging = { id: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false };
+    this.controls.enabled = false;
+    try { this.dom.setPointerCapture(e.pointerId); } catch { /* synthetic events have no active pointer */ }
+  };
+  private onPartMove = (e: PointerEvent): void => {
+    const d = this.partDragging;
+    if (!d || e.pointerId !== d.id) return;
+    if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 4) return;
+    d.moved = true;
+    this.partDrag?.move(e.clientX, e.clientY);
+  };
+  private onPartUp = (e: PointerEvent): void => {
+    const d = this.partDragging;
+    if (d && e.pointerId === d.id) this.finishPartDrag();
+  };
 
   private onBoxDown = (e: PointerEvent): void => {
     if (this.touch.multi || e.button !== 0 || this.sketchEdit || this.placement || this.pickIntercept || !this.opts.onBoxSelect) return;
@@ -2599,6 +2659,7 @@ export class Viewport {
     if (s.x === 0 && s.y === 0) { if (this.camera.view?.enabled) this.camera.clearViewOffset(); }
     else this.camera.setViewOffset(w, h, -s.x, -s.y, w, h);
     this.requestRender();
+    this.scheduleSketchRefresh();   // the picture moved under the dimension pills and glyphs (a panel folded or docked): place them again, every frame of the slide
   }
 
   resize(): void {
@@ -2614,6 +2675,7 @@ export class Viewport {
     for (const m of this.edgeMats) m.resolution.set(w, h);
     this.hullSize();
     this.requestRender();
+    this.scheduleSketchRefresh();   // pills, glyphs and the grid are placed from the screen size: re-place them after a resize
   }
 
   dispose(): void {

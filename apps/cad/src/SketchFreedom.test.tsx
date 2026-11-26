@@ -57,7 +57,7 @@ describe('the ribbon buttons', () => {
   const status = { dof: 3, fullyDefined: false, conflicts: [], redundant: [], solved: true, state: 'under', residual: 0 } as SketchSolverStatus;
   it('Show freedom and Show constraints are toggles; Show freedom is offered only while under-defined', () => {
     // the Status group folds into a "..." menu below 1400 px; this test is about the buttons, so give it a wide window
-    const w0 = window.innerWidth; window.innerWidth = 1600;
+    const w0 = window.innerWidth; window.innerWidth = 2400;
     onTestFinished(() => { window.innerWidth = w0; });
     const onShowFree = vi.fn(), onShowConstraints = vi.fn();
     const props = { name: 'S', plane: 'Front', onOk: vi.fn(), onCancel: vi.fn(), construction: false, onConstruction: vi.fn(), onLookNormal: vi.fn(), status, busy: false, prefs: DEFAULT_SKETCH_PREFS, onPrefs: vi.fn(), onFullyDefine: vi.fn(), selected: 0, onClearSelection: vi.fn(), onShowFree, onShowConstraints, showConstraints: true };

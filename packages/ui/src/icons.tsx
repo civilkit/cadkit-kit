@@ -34,6 +34,10 @@ const FACE = {
 const plane = (d: string) => C(d);
 
 const ICONS: Record<string, string> = {
+  // ---- notices
+  alert: O(12, 12, 9) + P('M12 7.5v5.5') + D(12, 16.6, 1.1),
+  checking: P('M12 3.5a8.5 8.5 0 1 0 8.5 8.5'),
+  sparkle: P('M11 3.5l2 5.5 5.5 2-5.5 2-2 5.5-2-5.5-5.5-2 5.5-2z') + P('M18.5 15v4M16.5 17h4'),
   // ---- sketch: select and draw
   triball: O(12, 12, 8.5) + P('M12 12l-4.2 3.4M12 12l4.4 2.2M12 12V7') + AP(12, 12, 2) + D(7.8, 15.4, 1.5) + D(16.4, 14.2, 1.5) + D(12, 7, 1.5),
   select: P('M6 3.5l12 7-5.2 1.6L10.4 17.5z') + P('M13 13l4.5 5'),
@@ -338,6 +342,7 @@ const ICONS: Record<string, string> = {
   'motion-find': P('M4 12h16') + A('M7 8 4 12l3 4M17 8l3 4-3 4') + T('M12 5v14') + D(12, 12, 1.6),
   'motion-new-study': P('M4 6h16v12H4z') + T('M4 10h16') + A('M12 12.5v4M10 14.5h4'),
   'motion-key': P('M12 4 20 12 12 20 4 12z') + A('M12 9 15 12 12 15 9 12z'),
+  'motion-autokey': P('M12 4 20 12 12 20 4 12z') + A('M9.5 14 12 8.5 14.5 14M10.3 12.4h3.4'),
   'motion-play': P('M8 5v14l11-7z') + A('M3 20h18'),
   'motion-export': P('M5 14v5h14v-5') + A('M12 4v10M8.5 10.5 12 14l3.5-3.5'),
   'asm-interference': O(9.5, 12, 6.5) + A('M15 6.3a6.5 6.5 0 0 1 0 11.4a6.5 6.5 0 0 1 0-11.4z'),

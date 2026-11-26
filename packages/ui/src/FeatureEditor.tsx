@@ -7,6 +7,7 @@ import { Icon, featureIconName } from './icons';
 import { ExprInput } from './ExprInput';
 import { fmtNum, isExprValue } from './expr';
 import { textAttrs } from './keypad';
+import { ProblemBadge, type Problem } from './ProblemBadge';
 import { ChipList, type ChipItem } from './ChipList';
 
 export interface Section {
@@ -165,6 +166,15 @@ function edgeText(e: unknown): string {
   return '';
 }
 
+/** What an edge chip says: the feature it belongs to and its number ("Extrude 1 edge 2"), never the face ids (those are the tooltip). */
+function edgeChipName(e: unknown, index: number, featureName?: (id: string) => string | undefined): string {
+  const o = (e ?? {}) as { faces?: string[] };
+  if (!Array.isArray(o.faces)) return edgeText(e);   // a role (P2.tip), a panel edge or a point names the edge itself: keep it
+  const owner = typeof o.faces?.[0] === 'string' ? o.faces[0].split('.')[0] : '';
+  const name = owner && featureName ? featureName(owner) : undefined;
+  return name ? t('ui.editor.edgeChip.of', { name, n: String(index + 1) }, `${name} edge ${index + 1}`) : t('ui.editor.edgeChip', { n: String(index + 1) }, `Edge ${index + 1}`);
+}
+
 /** The text shown in a list field: edge refs by their two faces, everything else by name. */
 export function listText(path: string, value: unknown): string {
   if (!Array.isArray(value)) return '';
@@ -256,6 +266,16 @@ export function FeatureEditor(p: {
   hint?: string | null;
   /** Replaces the plain hint when the app has something richer to show (the failure card). */
   diag?: JSX.Element | null;
+  /** The display name of a feature by id (for chips: "Extrude 1 edge 2" instead of the face ids). */
+  featureName?: (id: string) => string | undefined;
+  /** What is wrong with the edit, one entry per cause: the alert icon beside the title lists them in a popover (hover, focus, or a tap). */
+  problems?: readonly Problem[];
+  /** Raised by the app when the user's confirm was refused: opens the problem popover. */
+  openProblems?: number;
+  /** The kernel is still answering: the icon shows a checking state, not the last answer. */
+  checking?: boolean;
+  /** `neutral`: the hint under the fields is guidance (nothing picked yet), not an error. */
+  hintTone?: 'neutral' | 'error';
   /** The draft breaks the model: Confirm is greyed with this tooltip and only applies while Shift is held. */
   okBlocked?: string | null;
   /** The closed shapes of the feature's sketch (extrude, revolve): checkboxes choose which ones are used. Fewer than two: no list.
@@ -270,6 +290,7 @@ export function FeatureEditor(p: {
 }): JSX.Element {
   const feature = p.feature;
   const [draft, setDraft] = useState<Record<string, unknown>>({});
+  const [problemPoke, setProblemPoke] = useState(0);   // a click on the greyed confirm button opens the problem popover
   const seenInject = useRef(p.inject?.seq ?? 0);
   const seenPicked = useRef<unknown>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
@@ -343,7 +364,7 @@ export function FeatureEditor(p: {
   }
 
   const confirm = (e?: { shiftKey?: boolean }): void => {
-    if (p.okBlocked && !e?.shiftKey) return;   // greyed: only Shift forces it
+    if (p.okBlocked && !e?.shiftKey) { setProblemPoke((n) => n + 1); return; }   // greyed: only Shift forces it; a click shows why instead
     p.onConfirm(draft);
   };
   const cancel = (): void => p.onCancel();
@@ -357,7 +378,8 @@ export function FeatureEditor(p: {
     <div class="fedit" data-feature={featureId} tabIndex={0} onKeyDown={onKey}>
       <div class="fedit-head">
         <Icon name={featureIconName(String(feature.type ?? ''), String((draft.op ?? feature.op) ?? ''))} size={22} class="fedit-icon" />
-        <div class="fedit-title">{title}</div>
+        <div class={'fedit-title' + (p.problems?.length ? ' bad' : '')} aria-describedby={p.problems?.length || p.checking ? 'fedit-problem' : undefined}>{title}</div>
+        <ProblemBadge openSignal={problemPoke + (p.openProblems ?? 0)} problems={p.problems ?? []} checking={p.checking} label={{ problems: (n) => t('ui.editor.problems', { count: n }), checking: t('ui.editor.checking', undefined, 'Checking...'), close: t('ui.editor.problemClose', undefined, 'Close'), details: t('ui.editor.problemDetails', undefined, 'Details'), announce: (n) => t('ui.editor.problemAnnounce', { count: n }) }} />
         {p.headExtra}
         <button type="button" data-testid="feature-ok" class={'fedit-confirm' + (p.okBlocked ? ' blocked' : '')} aria-disabled={p.okBlocked ? true : undefined} onClick={confirm} title={p.okBlocked ?? t('ui.editor.confirm', undefined, 'Confirm')} aria-label={t('ui.editor.confirm', undefined, 'Confirm')}><Icon name="check" size={20} /></button>
         <button type="button" data-testid="feature-cancel" class="fedit-cancel" onClick={cancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
@@ -380,7 +402,6 @@ export function FeatureEditor(p: {
                 const isList = f.kind === 'list';
                 const isGeom = GEOM_FIELDS.has(f.path);
                 const refText = isList ? listText(f.path, draft[f.path] ?? feature[f.path]) : isGeom ? geomText(draft[f.path] ?? feature[f.path]) : String(value);
-                const missing = (isRef || isList) && refText.trim() === '';
                 const isBool = !isRef && !isList && kindOf(f) === 'boolean';
                 const enumKey = ENUMS[`${feature.type}.${f.path}`] ? `${feature.type}.${f.path}` : f.path;
                 const enumList = ENUMS[enumKey];
@@ -394,7 +415,7 @@ export function FeatureEditor(p: {
                 const groups: number[][] = runs && runs.flat().length === items.length ? runs : items.map((_, i) => [i]);
                 const Tag = chips ? 'div' : 'label';
                 return (
-                  <Tag class={'fedit-fld' + (picking ? ' picking' : '') + (missing ? ' missing' : '') + (isBool ? ' bool' : '') + (isList || isRef ? ' ref' : '')} key={f.path} data-path={f.path}>
+                  <Tag class={'fedit-fld' + (picking ? ' picking' : '') + (isBool ? ' bool' : '') + (isList || isRef ? ' ref' : '')} key={f.path} data-path={f.path}>
                     {isBool ? (
                       <input type="checkbox" checked={Boolean(value)} onChange={(e) => apply(f.path, (e.currentTarget as HTMLInputElement).checked)} />
                     ) : null}
@@ -409,7 +430,7 @@ export function FeatureEditor(p: {
                             </span>
                             <ChipList
                               class="fedit-chip-list"
-                              items={groups.map((g): ChipItem => ({ key: String(g[0]), kind: 'edge', count: g.length, label: listText('edges', [items[g[0]]]) + (g.length > 1 ? ' ' + t('ui.editor.runEdges', { n: String(g.length) }) : '') }))}
+                              items={groups.map((g, gi): ChipItem => ({ key: String(g[0]), kind: 'edge', count: g.length, title: listText('edges', [items[g[0]]]), label: edgeChipName(items[g[0]], gi, p.featureName) + (g.length > 1 ? ' ' + t('ui.editor.runEdges', { n: String(g.length) }) : '') }))}
                               removeLabel={(c) => (c.count ?? 1) > 1 ? t('ui.editor.removeRun') : t('ui.editor.removeEdge')}
                               onRemove={(c) => { const g = groups.find((x) => String(x[0]) === c.key)!; apply(f.path, items.filter((_, j) => !g.includes(j))); }}
                               onHover={(c) => p.onChipHover?.(c ? items[Number(c.key)] : null)}
@@ -483,7 +504,7 @@ export function FeatureEditor(p: {
         </div>
       ) : null}
       {p.extra ?? null}
-      {p.diag ?? (p.hint ? <div class="fedit-hint" role="alert">{p.hint}</div> : null)}
+      {p.diag ?? (p.hint ? (p.hintTone === 'neutral' ? <div class="fedit-hint neutral" role="status">{p.hint}</div> : <div class="fedit-hint" role="alert">{p.hint}</div>) : null)}
     </div>
   );
 }

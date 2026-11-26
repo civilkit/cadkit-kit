@@ -1114,7 +1114,7 @@
   "diag.advice.cutNoEffect",
   "diag.advice.fillInvalid",
   "diag.advice.filletChamfer",
-  "diag.advice.generic",
+  "diag.advice.blendUnsupported",
   "diag.advice.loftFailed",
   "diag.advice.loftInvalidResult",
   "diag.advice.missingEdge",

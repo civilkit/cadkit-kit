@@ -1,8 +1,8 @@
 // Strings of the motion studies (docs/spec-motion-studies.md). Merged into the English catalogue.
 export const motionStrings: Record<string, string> = {
   'tab.Motion': 'Motion', 'group.Drive': 'Drive', 'group.Study': 'Study', 'group.Playback': 'Playback', 'group.Clip': 'Clip',
-  'cmd.motion-drive': 'Motion sliders', 'cmd.motion-find': 'Find limits', 'cmd.motion-new-study': 'New study', 'cmd.motion-key': 'Key the sliders', 'cmd.motion-play': 'Play / pause the study', 'cmd.motion-export': 'Export clip',
-  'rb.motion-drive': 'Sliders', 'rb.motion-find': 'Limits', 'rb.motion-new-study': 'New study', 'rb.motion-key': 'Key', 'rb.motion-play': 'Play', 'rb.motion-export': 'Export',
+  'cmd.motion-drive': 'Motion sliders', 'cmd.motion-find': 'Find limits', 'cmd.motion-new-study': 'New study', 'cmd.motion-key': 'Key the sliders', 'cmd.motion-autokey': 'Auto key (moving a slider sets a key at the scrub time)', 'cmd.motion-play': 'Play / pause the study', 'cmd.motion-export': 'Export clip',
+  'rb.motion-drive': 'Sliders', 'rb.motion-find': 'Limits', 'rb.motion-new-study': 'New study', 'rb.motion-key': 'Key', 'rb.motion-autokey': 'Auto key', 'rb.motion-play': 'Play', 'rb.motion-export': 'Export',
   'asm.sec.motion': 'Motion',
   'motion.title': 'Drive the mechanism', 'motion.loading': 'Looking for mates that can move...', 'motion.none': 'No mate can be driven yet. Add a hinge, slot, distance, angle, gear, screw or rack and pinion mate.',
   'motion.mate': 'Mate', 'motion.value': 'Value', 'motion.min': 'Min', 'motion.max': 'Max', 'motion.reset': 'Reset to the assembled pose',
@@ -19,7 +19,7 @@ export const motionStrings: Record<string, string> = {
   'motion.stop.contact': 'stopped, {a} would hit {b}.', 'motion.stop.near': 'stopped, {a} would come within the clearance of {b} ({gap} mm).',
   'motion.stop.jump': 'stopped, the mechanism would flip to another position ({part} jumps).', 'motion.stop.solver': 'stopped, the mates cannot all hold beyond this.',
   'motion.study.title': 'Studies', 'motion.study.new': 'New study', 'motion.study.delete': 'Delete', 'motion.study.pick': 'Study', 'motion.study.name': 'Study {n}',
-  'motion.study.none': 'A study is a motion over time. Make one, set the sliders where you want the mechanism at a moment, move the scrubber to that time and press Key.',
+  'motion.study.none': 'A study is a motion over time. Make one, move the scrubber to a time, then move the mechanism there (drag a part in the view, or use a slider) and Auto key sets the key. With Auto key off, set the sliders and press Key.',
   'motion.study.duration': 'Duration (s)', 'motion.study.loop': 'When it ends', 'motion.study.loop.once': 'Stop', 'motion.study.loop.loop': 'Start over', 'motion.study.loop.pingpong': 'Go back and forth',
   'motion.study.ease': 'New keys move', 'motion.study.ease.inOut': 'Smoothly', 'motion.study.ease.linear': 'At a steady rate',
   'motion.study.key': 'Key {value} at {time} s', 'motion.study.goto': 'Go', 'motion.study.go': 'Go to {time} s', 'motion.study.removeKey': 'Remove this key',

@@ -7,6 +7,7 @@ import {
   NO_MOTION, type BodyMeshMap, type ContactReply, type ContactSet, type DriverSetting, type Ease, type Frame, type KernelDriver, type MotionDoc, type Player, type Rigid, type Solved, type SolveReply, type Study, type StudyIssue, type SweepReply, type LoopMode,
 } from '@kit/motion';
 import { t } from '../i18n';
+import { dragStep, localOf, worldOf, type Projector, type V2, type V3 } from './dragSolve';
 import { exportClip, ClipError, browserBytes, browserDecode, browserSleep, type ClipFormat, type Recorder } from './exportClip';
 
 type Fail = { error: string; mate?: string } | null;
@@ -41,6 +42,8 @@ export interface MotionDeps {
 
 export interface Found { min: SweepReply | null; max: SweepReply | null }
 
+const frameMoved = (a: Frame, b: Frame): boolean => [a.o, a.x, a.y, a.z].some((v, k) => v.some((x, i) => Math.abs(x - [b.o, b.x, b.y, b.z][k]![i]!) > 1e-7));
+
 export function createMotionStore() {
   let deps: MotionDeps | null = null;
   let docKey = '';
@@ -72,6 +75,14 @@ export function createMotionStore() {
   const exported = signal<string | null>(null);
   /** The key picked in the timeline (a tap on its mark): what Delete, the arrow keys and the Delete key button act on. */
   const selectedKey = signal<{ mate: string; index: number } | null>(null);
+  /** Auto key (as in SolidWorks' Motion Study): with a study open, a slider moved at the scrub time sets the key there (and a start key at 0 the first time a slider is keyed after 0). Playing, seeking and Find limits never key. */
+  const autoKey = signal(true);
+  // ---- dragging a part in the view to move the mechanism (see dragSolve.ts)
+  const dragging = signal<string | null>(null);
+  const movable = signal<Set<string> | null>(null);   // the components some driver moves (null until known)
+  let grab: { comp: string; local: V3; locked: string | null; pointer: V2 | null; project: Projector | null; running: boolean; ending: boolean } | null = null;
+  const NUDGE = 0.5;   // degrees or mm: the small step the kernel is asked about to learn how the grabbed point moves
+  const MAX_STEP = { angle: 45, distance: 100 };   // never move a driver further than this in one pointer move
   let player: Player | null = null;
   let token = 0;
   let stopExport = false;
@@ -105,6 +116,27 @@ export function createMotionStore() {
     const d = need();
     const r = await d.solve([], { contact: false });
     drivers.value = r && 'drivers' in r ? r.drivers : [];
+    await findMovable();
+  };
+  /** Which components some driver moves: one solve with each driver nudged, and every component whose frame differs from the base pose. A drag only takes hold of these, so a left-drag on a fixed part still orbits. */
+  const findMovable = async () => {
+    const ds = drivers.value ?? [];
+    if (!ds.length) { movable.value = new Set(); return; }
+    // only the driver being tried is specified; the others stay free for the mechanism to settle (as the sliders do), else coupled drivers (a gear mate with its two hinges) conflict.
+    // One pose per request: the kernel works on one thing at a time, so a slider moved meanwhile waits for one pose, not for all of them.
+    const d = need();
+    const r0 = await d.solve([{}], { contact: false });
+    const p0 = r0 && 'poses' in r0 ? r0.poses[0] : null;
+    if (!p0?.ok) { movable.value = null; return; }
+    const at0 = new Map(p0.places.map((x) => [x.id, x.place]));
+    const out = new Set<string>();
+    for (const dr of ds) {
+      const r = await d.solve([{ [dr.mate]: dr.value + 5 }], { contact: false });
+      const pz = r && 'poses' in r ? r.poses[0] : null;
+      if (!pz?.ok) continue;
+      for (const x of pz.places) { const f0 = at0.get(x.id); if (f0 && frameMoved(f0, x.place)) out.add(x.id); }
+    }
+    movable.value = out;
   };
   const reset = () => { pose.value = null; values.value = {}; problem.value = null; contact.value = null; activeContact.value = null; };
 
@@ -113,7 +145,7 @@ export function createMotionStore() {
 
   const store = {
     // state
-    pose, values, problem, contact, stopOnContact, activeContact, bodyMeshes, drivers, clearance, finding, found, motion, studyId, time, playing, speed, ease, solved, computing, studyProblem, exporting, exported, selectedKey,
+    autoKey, dragging, movable, pose, values, problem, contact, stopOnContact, activeContact, bodyMeshes, drivers, clearance, finding, found, motion, studyId, time, playing, speed, ease, solved, computing, studyProblem, exporting, exported, selectedKey,
     /** The saved motion record is the app's copy plus what was saved here since. */
     studies, study, contactSets, parts,
 
@@ -264,9 +296,99 @@ export function createMotionStore() {
     }),
     setValue(mate: string, x: number) {
       if (!Number.isFinite(x)) return;
+      const before = values.value[mate] ?? 0;
       const next = { ...values.value, [mate]: x };
       values.value = next;
       void store.drive(next);
+      if (autoKey.value) store.keyFromSlider(mate, x, before);
+    },
+    setAutoKey(on: boolean) { autoKey.value = on; },
+    /** True when a drag may take hold of this component: some driver moves it (or it is not known yet). */
+    isMovable(comp: string): boolean { return movable.value ? movable.value.has(comp) : true; },
+    /** The component's frame now and with each driver nudged, from one solve: what a drag needs to know about how the grabbed part moves. */
+    async probeDrag(comp: string, only?: string): Promise<{ frames: Array<Frame | null>; drivers: Array<{ mate: string; step: number }> } | null> {
+      const d = need();
+      const ds = (drivers.value ?? []).filter((x) => !only || x.mate === only);   // once a driver is chosen only it is tried: fewer poses per step
+      if (!ds.length) return null;
+      const set = { ...values.value };   // what has been set (the pose on screen); the rest is free, exactly as drive() solves it
+      const poses = [set, ...ds.map((dr) => ({ ...set, [dr.mate]: (set[dr.mate] ?? dr.value) + NUDGE }))];
+      const r = await d.solve(poses, { clearance: clearance.value });
+      if (!r || !('poses' in r) || r.poses.length !== poses.length) return null;
+      return { frames: r.poses.map((p) => (p.ok ? p.places.find((x) => x.id === comp)?.place ?? null : null)), drivers: ds.map((dr) => ({ mate: dr.mate, step: NUDGE })) };
+    },
+    /** How far (pixels) the grabbed point would be from `pointer` with driver `mate` at `value`; null when that pose does not solve. Used to check a step really helps before taking it. */
+    async dragErrorAt(mate: string, value: number, pointer: V2, project: Projector): Promise<number | null> {
+      const g = grab;
+      if (!g) return null;
+      const d = need();
+      const r = await d.solve([{ ...values.value, [mate]: value }], { clearance: clearance.value });
+      const p = r && 'poses' in r ? r.poses[0] : null;
+      const f = p?.ok ? p.places.find((x) => x.id === g.comp)?.place : null;
+      const s = f ? project(worldOf(f, g.local)) : null;
+      return s ? Math.hypot(pointer[0] - s[0], pointer[1] - s[1]) : null;
+    },
+    /** Take hold of component `comp` at world point `hit` (where the pointer met it at the pose on screen). False when there is nothing to drive it. */
+    async beginDrag(comp: string, hit: V3): Promise<boolean> {
+      if (dragging.value) store.endDrag();
+      const probe = await store.probeDrag(comp);
+      const f0 = probe?.frames[0];
+      if (!probe || !f0) return false;
+      grab = { comp, local: localOf(f0, hit), locked: null, pointer: null, project: null, running: false, ending: false };
+      dragging.value = comp;
+      return true;
+    },
+    /** The pointer is now at `pointer` (pixels); `project` maps a world point to pixels. Moves are queued and only the latest is acted on; resolves when the part has caught up. */
+    async dragMove(pointer: V2, project: Projector): Promise<void> {
+      const g = grab;
+      if (!g) return;
+      g.pointer = pointer; g.project = project;
+      if (g.running) return;
+      g.running = true;
+      try {
+        // each pass: ask where the part is and how it would move, step towards the latest pointer; repeat until the part is at the cursor (or a pass cap)
+        for (let pass = 0; pass < 8 && grab === g && g.pointer; pass++) {
+          const at: V2 = g.pointer;
+          const probe = await store.probeDrag(g.comp, g.locked ?? undefined);
+          if (!probe || grab !== g) break;
+          const st = dragStep({ ...probe, local: g.local, pointer: at, project: g.project!, locked: g.locked });
+          if (!st) { if (g.pointer === at) break; continue; }
+          if (!g.locked && st.errorPx > 4) g.locked = st.mate;
+          const dr = drivers.value?.find((x) => x.mate === st.mate);
+          if (!dr) break;
+          const cap = MAX_STEP[dr.kind];
+          const r = rangeOf(dr, motion.value.drivers);
+          const from = values.value[st.mate] ?? dr.value;
+          const step = Math.max(-cap, Math.min(cap, st.delta));
+          // The step comes from a straight-line guess of how the point moves, which is wrong for a big turn: only take it if it really brings the point closer to the cursor, else try half of it (up to four times)
+          let taken = false;
+          for (let k = 0; k < 5 && grab === g; k++) {
+            const to = Math.max(r.min, Math.min(r.max, from + step / 2 ** k));
+            if (to === from) break;   // at its limit: no point asking again
+            const err = await store.dragErrorAt(st.mate, to, at, g.project!);
+            if (grab !== g) break;
+            if (err !== null && err < st.errorPx - 1e-6) { store.setValue(st.mate, to); taken = true; break; }
+          }
+          if (!taken) break;
+        }
+      } finally {
+        g.running = false;
+        if (g.ending && grab === g) { grab = null; dragging.value = null; }   // the drag ended while this move was being worked out: it has now caught up
+      }
+    },
+    /** Let go. A move still being worked out (a quick flick that ends at once) is finished first, so the part does not stay where it was. */
+    endDrag() {
+      if (grab?.running) { grab.ending = true; return; }
+      grab = null; dragging.value = null;
+    },
+    /** The auto key rule: a key at the scrub time for this slider; the first key of a slider after time 0 also gets a start key at 0 (the value it had before), so the motion begins where the mechanism was. */
+    keyFromSlider(mate: string, x: number, before: number) {
+      const s = study();
+      if (!s || playing.value) return;
+      const t = Math.max(0, Math.min(s.duration, time.value));
+      let next = s;
+      const hasTrack = s.tracks.some((tr) => tr.driver === mate);
+      if (!hasTrack && t > 0.5 / FPS) next = withKey(next, mate, 0, before, ease.value);
+      store.editStudy(withKey(next, mate, t, x, ease.value));
     },
     setClearance(c: number) { clearance.value = Number.isFinite(c) && c >= 0 ? c : 0; },
     setRange(mate: string, patch: Partial<DriverSetting>) {

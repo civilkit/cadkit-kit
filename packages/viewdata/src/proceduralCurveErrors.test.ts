@@ -27,19 +27,19 @@ describe('curve, fill and procedural surface refusals of the kernel', () => {
   });
   it('a pipe on a bad path says which case it is: the kernel\'s sweepPathInvalid message, then its hint', () => {
     const root = { code: 'sweepPathInvalid', params: { message: 'the path has 2 splines', supported: 'one spline, or lines and arcs', hint: 'use one spline or a compositeCurve' } } as never;
-    expect(reasonOf(root)).toBe('the path has 2 splines; use one spline or a compositeCurve');
+    expect(reasonOf(root)).toBe('the path has 2 splines; use one spline or a composite curve')   // the API word is said in words;
     expect(reasonOf({ code: 'sweepPathInvalid' } as never)).toBe(reasonOf({ code: 'sweepPathInvalid', params: {} } as never));   // no message: the plain phrase as before
   });
   it('a blend radius that does not fit says the largest radius that does', () => {
     const root = { code: 'blendSurfaceRadius', params: { radius: 12, maxRadius: 10 } } as never;
-    expect(adviceOf(root)).toBe('The largest size that builds is 10 mm. ' + diagStrings['diag.advice.blendSurfaceRadius']);
+    expect(adviceOf(root)).toBe('Set the radius to 10 mm or less.');
   });
   it('a counterbore, countersink or cut the kernel refuses says so and passes its hint on as the advice', () => {
     const hint = 'make the counterbore narrower than the face it sits on';
     for (const code of ['holeCboreInvalid', 'holeCskDiameter', 'cutRemovedBody']) {
       expect(reasonOf({ code } as never)).toBe(diagStrings['diag.reason.' + code]);
       expect(adviceOf({ code, params: { hint } } as never)).toBe(hint);
-      expect(adviceOf({ code } as never)).toBe(diagStrings['diag.advice.generic']);   // no hint: the generic line, as before
+      expect(adviceOf({ code } as never)).toBe('');   // no hint: no invented advice
     }
   });
   it('a refused expression (a decimal comma, an unknown name) says what is accepted', () => {

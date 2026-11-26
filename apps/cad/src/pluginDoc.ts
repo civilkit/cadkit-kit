@@ -6,7 +6,7 @@ import type { SelItem } from '@kit/plugin';
 
 export interface PluginDoc {
   bodies: Array<{ name: string; bbox: { min: number[]; max: number[] } | null; volume: number | null; feature?: string }>;
-  selection: Array<{ type: 'body' | 'face' | 'edge'; name?: string; body?: string; /** a face's place in its body's list */ index?: number; normal?: number[]; /** an edge pick: a point on it (plugin frame, mm) */ point?: number[] }>;
+  selection: Array<{ type: 'body' | 'face' | 'edge'; name?: string; body?: string; /** a face's place in its body's list */ index?: number; normal?: number[]; /** an edge pick: a point on it (plugin frame, mm) */ point?: number[]; /** the same point under the name some plugins read (SolidInserts: `mid`) */ mid?: number[] }>;
   parameters: Array<{ name: string; expression: string; value: number }>;
   /** what generators stored for the components they made, from the runs recorded in the document */
   components: Record<string, Record<string, unknown>>;
@@ -49,7 +49,7 @@ export function pluginDocContext(rows: readonly BodyRow[], mesh: SelMesh | null,
   for (const s of selection) {
     if (s.startsWith(BODY_PREFIX)) { const r = rows.find((x) => x.key === s); if (r) sel.push({ type: 'body', name: nameOf(r) }); continue; }
     const ei = owner.has(s) ? undefined : edgeOwner.get(s);
-    if (ei !== undefined && opts.edges) { { const point = opts.edgePoint?.(s); sel.push({ type: 'edge', body: nameOf(rows[ei]), index: rows[ei].edges.indexOf(s), ...(point ? { point } : {}) }); } continue; }
+    if (ei !== undefined && opts.edges) { { const point = opts.edgePoint?.(s); sel.push({ type: 'edge', body: nameOf(rows[ei]), index: rows[ei].edges.indexOf(s), ...(point ? { point, mid: point } : {}) }); } continue; }
     const i = owner.get(s);
     if (i === undefined) continue;   // a name that is not a face or edge of a body (a vertex, a sketch entity): not offered
     const normal = mesh ? planeNormal(mesh, s) : undefined;
@@ -99,7 +99,7 @@ export function selectionItems(sel: PluginDoc['selection'], d: { accept?: readon
     if (s.type === 'body' && s.name && d.accept?.includes('body')) pushBody(s.name);
     else if (s.type === 'face' && s.body && d.accept?.includes('face') && !d.asNames) out.push({ type: 'face', body: s.body, ...(s.index !== undefined && s.index >= 0 ? { index: s.index } : {}), ...(s.normal ? { normal: s.normal } : {}) });
     else if (s.type === 'face' && s.body && bodyOnlyFallback) pushBody(s.body);
-    else if (s.type === 'edge' && s.body && d.accept?.includes('edge') && !d.asNames) out.push({ type: 'edge', body: s.body, ...(s.index !== undefined && s.index >= 0 ? { index: s.index } : {}), ...(s.point ? { point: s.point } : {}) });
+    else if (s.type === 'edge' && s.body && d.accept?.includes('edge') && !d.asNames) out.push({ type: 'edge', body: s.body, ...(s.index !== undefined && s.index >= 0 ? { index: s.index } : {}), ...(s.point ? { point: s.point, mid: s.point } : {}) });
   }
   return d.maxItems !== undefined && out.length > d.maxItems ? out.slice(out.length - d.maxItems) : out;
 }

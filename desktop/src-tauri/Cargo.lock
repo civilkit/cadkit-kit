@@ -483,7 +483,7 @@ dependencies = [
 
 [[package]]
 name = "civilkit-cad"
-version = "0.8.17"
+version = "0.8.18"
 dependencies = [
  "ck-native",
  "getrandom 0.4.3",

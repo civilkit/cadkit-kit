@@ -100,6 +100,8 @@ export const en: Catalog = {
   'ui.editor.edgeCount.one': '1 edge',
   'ui.editor.clearEdges': 'Clear',
   'ui.editor.removeEdge': 'Remove this edge',
+  'ui.editor.problems': { one: 'This edit has a problem', other: 'This edit has {count} problems' }, 'ui.editor.checking': 'Checking...', 'ui.editor.problemClose': 'Close', 'ui.editor.problemDetails': 'Details', 'ui.editor.problemAnnounce': { one: '1 problem with this edit', other: '{count} problems with this edit' },
+  'ui.editor.edgeChip': 'Edge {n}', 'ui.editor.edgeChip.of': '{name} edge {n}',
   'ui.editor.runEdges': '({n} edges)',
   'ui.editor.removeRun': 'Remove this line (all its edges)',
   'ui.editor.pipeCutNote': 'Rolls a ball along the picked edges and leaves a surface body, not a solid. For a round hole use Hole, or a sketch and a cut.',

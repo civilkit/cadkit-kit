@@ -1119,7 +1119,7 @@ export class Interpreter {
       const tris = triOf.get(name) ?? [], flat: number[] = [];
       for (const t of tris) for (let v = 0; v < 3; v++) { const o = t * 9 + v * 3; flat.push(...this.toPluginFrame([m!.positions[o], m!.positions[o + 1], m!.positions[o + 2]])); }
       const f = faceInfo(flat, tris.length);
-      return f ? { index, name, exact: f.exact, area: f.area, centroid: f.centroid, ...(f.plane_normal ? { plane_normal: f.plane_normal } : {}), point: f.point, ...(f.cylinder ? { cylinder: f.cylinder } : {}) } : { index, name, exact: false };
+      return f ? { index, name, exact: f.exact, area: f.area, area_mm2: f.area_mm2, centroid: f.centroid, ...(f.plane_normal ? { plane_normal: f.plane_normal } : {}), point: f.point, ...(f.cylinder ? { cylinder: f.cylinder } : {}) } : { index, name, exact: false };
     });
     return { units: 'mm', body, faces };
   }

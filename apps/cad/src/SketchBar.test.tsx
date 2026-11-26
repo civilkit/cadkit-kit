@@ -8,7 +8,7 @@ import { SketchConstraintList } from './SketchConstraintList';
 import './i18n';
 
 // the Status group draws its icon row from this ribbon width up (it is the badge and one menu below it)
-beforeEach(() => { (window as unknown as { innerWidth: number }).innerWidth = 1600; });
+beforeEach(() => { (window as unknown as { innerWidth: number }).innerWidth = 2400; });
 afterEach(cleanup);
 const st = (over: Partial<SketchSolverStatus>): SketchSolverStatus => ({ dof: 3, fullyDefined: false, conflicts: [], redundant: [], solved: true, state: 'under', ...over } as SketchSolverStatus);
 const bar = (status: SketchSolverStatus | null, extra: Partial<Parameters<typeof SketchBar>[0]> = {}) => {

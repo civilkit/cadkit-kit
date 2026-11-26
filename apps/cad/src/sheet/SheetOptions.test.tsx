@@ -103,7 +103,7 @@ describe('panel picks and the new features', () => {
   });
   it('the chips of the edges field name role and ring picks', () => {
     const m = mount({ type: 'hem', id: 'H1', edges: ['P2.tip', { edge: 1, panel: 2 }, { faces: ['a', 'b'], at: [0, 0, 0] }], length: 10 });
-    expect([...m.container.querySelectorAll('.chip-text')].map((x) => x.textContent)).toEqual(['P2.tip', 'P2 edge 1', 'a|b']);
+    expect([...m.container.querySelectorAll('.chip-text')].map((x) => x.textContent)).toEqual(['P2.tip', 'P2 edge 1', 'Edge 3']);
   });
   it('a hem has the panel adder too, and a fold chooses its panel (Automatic removes it)', () => {
     setPanelCount(2);

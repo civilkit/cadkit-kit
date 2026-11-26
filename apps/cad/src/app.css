@@ -134,7 +134,6 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .fedit-fld.picking { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
 .fedit-fld input[type="text"], .fedit-fld input[type="number"], .fedit select { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; min-width: 0; width: 100%; background: var(--panel); color: inherit; box-sizing: border-box; text-overflow: ellipsis; }
 .fedit-fld input:focus, .fedit select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
-.fedit-fld.missing { background: var(--err-soft, rgba(220, 38, 38, .08)); border-radius: 6px; padding: 6px; margin: -6px; box-shadow: inset 0 0 0 1.5px var(--err); }
 .fedit-num { display: flex; align-items: center; gap: 6px; }
 .fedit-unit { color: var(--text-2); font-size: 12px; flex: none; }
 .fedit-ref { display: flex; gap: 6px; align-items: center; }
@@ -1045,6 +1044,14 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .diag p { margin: 0; line-height: 1.4; }
 .diag-summary { color: var(--err); font-weight: 600; font-size: 13px; }
 .diag-note { color: var(--text-2); font-size: 12px; }
+.diag-lead { margin: 0; font-weight: 600; font-size: 13px; color: var(--text); }
+.diag-lead-link { all: unset; cursor: pointer; font-weight: 600; font-size: 13px; color: var(--err); text-align: left; }
+.diag-lead-link:hover, .diag-lead-link:focus-visible { text-decoration: underline; }
+.diag-cause { font-weight: 600; font-size: 13px; }
+.diag-red .diag-cause { color: var(--err); }
+.diag-amber { border-left: 3px solid var(--warn, #b45309); background: color-mix(in srgb, var(--warn, #b45309) 7%, transparent); }
+.diag-details > summary { cursor: pointer; font-size: 12px; color: var(--text-2); }
+.diag-details[open] > summary { margin-bottom: 4px; }
 .diag-root { border: 1px solid color-mix(in srgb, var(--err) 40%, var(--line)); border-radius: 8px; padding: 8px 10px; background: color-mix(in srgb, var(--err) 6%, transparent); display: flex; flex-direction: column; gap: 6px; }
 .diag-root-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .diag-code { font: 11px ui-monospace, monospace; background: var(--chip); border-radius: 6px; padding: 1px 6px; }
@@ -2222,3 +2229,45 @@ label.set-row:has(> input[type="checkbox"]:first-child) { justify-content: flex-
 /* the step the Mirror tool is on, large enough to read: it was only small text in the status bar (#72) */
 .sketch-prompt { position: absolute; z-index: var(--z-hud); top: 56px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; padding: 6px 12px; border-radius: 8px; background: var(--panel); outline: 1px solid var(--accent); box-shadow: 0 4px 14px #0004; font: 13px system-ui, sans-serif; color: var(--text); pointer-events: auto; max-width: 80%; }
 .mtl-num { font-variant-numeric: tabular-nums; }
+
+/* a problem with the edit: one alert icon beside the title (count when several, checking while the kernel answers); its popover lists the causes */
+.fedit-title.bad { color: var(--err); }
+.fedit-problem { position: relative; display: inline-flex; align-items: center; flex: none; }
+.fedit-problem-btn { position: relative; display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: none; cursor: pointer; }
+.fedit-problem-btn.bad { color: var(--err); }
+.fedit-problem-btn.checking { color: var(--text-2); }
+.fedit-problem-btn.checking svg { animation: fedit-spin 0.9s linear infinite; }
+.fedit-problem-btn:hover, .fedit-problem-btn:focus-visible { background: var(--chip); }
+.fedit-problem-count { position: absolute; top: -2px; right: -2px; min-width: 15px; height: 15px; padding: 0 3px; box-sizing: border-box; border-radius: 8px; background: var(--err); color: #fff; font: 700 10px/15px system-ui, sans-serif; text-align: center; }
+.fedit-problem-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.fedit-problem-pop { position: fixed; max-height: min(60vh, 440px); overflow-y: auto; overscroll-behavior: contain; z-index: var(--z-dialog); width: min(340px, calc(100vw - 16px)); box-sizing: border-box; padding: 10px 12px; border-radius: 6px; background: var(--panel); color: var(--text); border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0, 0, 0, .35); font-size: 13px; line-height: 1.4; font-weight: 400; }
+.fedit-problem-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.fedit-problem-list p, .fedit-problem-checking { margin: 0; }
+.fedit-problem-cause { font-weight: 600; color: var(--err); }
+.fedit-problem-action { color: var(--text); margin-top: 2px !important; }
+.fedit-problem-details { margin-top: 4px; font-size: 12px; color: var(--text-2); }
+.fedit-problem-details summary { cursor: pointer; }
+.fedit-problem-close { position: absolute; top: 4px; right: 6px; width: 26px; height: 26px; border: 0; background: none; color: var(--text-2); font-size: 20px; line-height: 1; cursor: pointer; border-radius: 6px; }
+.fedit-problem-pop:has(.fedit-problem-close) .fedit-problem-list, .fedit-problem-pop:has(.fedit-problem-close) .fedit-problem-checking { padding-right: 24px; }
+.fedit-hint.neutral { color: var(--text-2); }
+@keyframes fedit-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .fedit-problem-btn.checking svg { animation: none; } }
+
+/* Callout: a card with an arrow at the control it is about (packages/ui Callout; "What's new" uses it) */
+.callout { position: fixed; z-index: var(--z-dialog); width: min(340px, calc(100vw - 16px)); box-sizing: border-box; padding: 14px 16px 12px; border-radius: 6px; background: var(--panel); color: var(--text); border: 1px solid var(--line); box-shadow: 0 8px 28px rgba(0, 0, 0, .35); }
+.callout-hidden { visibility: hidden; }
+.callout::after { content: ''; position: absolute; left: var(--arrow-left, 24px); width: 12px; height: 12px; margin-left: -6px; background: var(--panel); transform: rotate(45deg); }
+.callout-top::after { bottom: -7px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.callout-bottom::after { top: -7px; border-left: 1px solid var(--line); border-top: 1px solid var(--line); }
+.callout-title { margin: 0 28px 6px 0; font-size: 15px; font-weight: 700; display: flex; gap: 8px; align-items: center; }
+.callout-body { font-size: 13px; line-height: 1.5; color: var(--text-2); }
+.callout-body a { color: var(--accent); text-decoration: underline; }
+.callout-x { position: absolute; top: 6px; right: 8px; width: 28px; height: 28px; border: 0; background: none; color: var(--text-2); font-size: 22px; line-height: 1; cursor: pointer; border-radius: 6px; }
+.callout-x:hover, .callout-x:focus-visible { background: var(--chip); color: var(--text); }
+.callout-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+/* fingertip targets: the problem icon and its Close are at least 44 px on a touch screen */
+@media (pointer: coarse) {
+  .fedit-problem-btn { width: 44px; height: 44px; }
+  .fedit-problem-close { width: 44px; height: 44px; font-size: 26px; top: 0; right: 0; }
+}

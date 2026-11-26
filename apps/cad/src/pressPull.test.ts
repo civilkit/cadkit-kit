@@ -101,11 +101,13 @@ describe('Press Pull: taper', () => {
 describe('Press Pull: refusals read as sentences', () => {
   const feats = [{ id: 'F5', type: 'pressPull' }];
   const say = (code: string, params?: Record<string, unknown>) => { const d = diagnose([{ id: 'F5', code, params }], feats); return { reason: reasonOf(d.roots[0]), advice: adviceOf(d.roots[0]), line: summaryLine(d) }; };
-  it('invalidValue shows the kernel detail and its hint', () => {
-    expect(say('invalidValue', { field: 'taper.endScale', detail: 'endScale 0 is not above 0', hint: 'use an endScale above 0' }).line).toMatch(/F5 pressPull: endScale 0 is not above 0; use an endScale above 0\./);
+  it('invalidValue keeps API words out of the sentence', () => {
+    const l = say('invalidValue', { field: 'taper.endScale', detail: 'endScale 0 is not above 0', hint: 'use an endScale above 0' }).line;
+    expect(l).toMatch(/^Change not applied\./);
+    expect(l).not.toMatch(/endScale/);   // API words stay in Details
   });
   it('pressPullUnsupported shows the kernel detail, or says Straight needs a flat face', () => {
-    expect(say('pressPullUnsupported', { detail: 'F2.C1 is a cylinder, not flat' }).reason).toBe('F2.C1 is a cylinder, not flat');
+    expect(say('pressPullUnsupported', { detail: 'F2.C1 is a cylinder, not flat' }).reason).toBe('the picked face is a cylinder, not flat');   // the id becomes words, the finding stays
     expect(say('pressPullUnsupported').reason).toMatch(/cannot continue this face/);
     expect(say('pressPullUnsupported').advice).toMatch(/flat faces/);
   });
@@ -118,12 +120,12 @@ describe('Press Pull: refusals read as sentences', () => {
   it('draftTooLarge with maxSize (degrees) gives the largest angle', () => {
     const r = say('draftTooLarge', { maxSize: { param: 'draft', value: 44.5, unit: 'deg' } });
     expect(r.reason).toBe('the taper is too steep for this size');
-    expect(r.advice).toMatch(/^The largest size that builds is 44\.5°\. Use a smaller taper angle/);
+    expect(r.advice).toMatch(/^Set the [a-z ]+ to 44\.5° or less\.$/);
   });
   it('moveFaceFailed shows the detail and the largest distance', () => {
     const r = say('moveFaceFailed', { detail: 'the cut goes through the body', maxSize: { param: 'distance', value: 9.93, unit: 'mm' } });
     expect(r.reason).toBe('the cut goes through the body');
-    expect(r.advice).toMatch(/^The largest size that builds is 9\.93 mm\. The face cannot move that far/);
+    expect(r.advice).toMatch(/^Set the [a-z ]+ to 9\.93 mm or less\.$/);
   });
 });
 

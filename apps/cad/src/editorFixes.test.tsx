@@ -48,11 +48,11 @@ describe('editor fixes', () => {
     expect(editorFixes({ code: 'cutNoEffect' }, { type: 'extrude', op: 'cut' }, { flip: true }).fixes[0].value).toBe(false);
     expect(editorFixes({ code: 'cutNoEffect' }, { type: 'extrude', op: 'add' }).fixes).toEqual([]);
   });
-  it('the card shows the message and a button per fix', () => {
+  it('the card carries a button per fix', () => {
     const d = diagnose([{ id: 'F5', code: 'cutNoEffect' }], [{ id: 'F5', type: 'extrude' }]);
     const run = vi.fn();
     const { container } = render(<DiagnosticsCard diagnosis={d} variant="editor" onSelect={() => {}} message="The cut does not touch the body in this direction. Flip?" fixes={[{ key: 'flip', label: 'Flip direction', run }]} />);
-    expect(container.querySelector('.diag-advice')!.textContent).toBe('The cut does not touch the body in this direction. Flip?');
+    expect(container.querySelector('.diag-advice')).toBeNull();   // the sentence lives in the alert popover now; the card carries the button
     fireEvent.click(container.querySelector('[data-fix="flip"]')!);
     expect(run).toHaveBeenCalled();
   });
@@ -103,9 +103,9 @@ describe('the largest size that builds (kernel maxSize)', () => {
   });
   it('the refusal message says it', () => {
     const d = diagnose([{ id: 'F3', code: 'shellTooThick', params: max('thickness', 9.96) }], [{ id: 'F3', type: 'shell' }]);
-    expect(adviceOf(d.roots[0])).toMatch(/^The largest size that builds is 9\.96 mm\. /);
+    expect(adviceOf(d.roots[0])).toMatch(/^Set the thickness to 9\.96 mm or less\./);
     const a = diagnose([{ id: 'F3', code: 'draftTooLarge', params: max('angle', 44.5, 'deg') }], [{ id: 'F3', type: 'draft' }]);
-    expect(adviceOf(a.roots[0])).toMatch(/^The largest size that builds is 44\.5°\. /);
+    expect(adviceOf(a.roots[0])).toMatch(/^Set the [a-z ]+ to 44\.5° or less\./);
     const plain = diagnose([{ id: 'F3', code: 'shellTooThick' }], [{ id: 'F3', type: 'shell' }]);
     expect(adviceOf(plain.roots[0])).not.toMatch(/largest/);
   });
@@ -139,7 +139,7 @@ describe('the largest size that builds (kernel maxSize)', () => {
     const d = diagnose([{ id: 'F3', code: 'shellTooThick', params: max('thickness', 9.96) }], [{ id: 'F3', type: 'shell' }]);
     const run = vi.fn();
     const { container } = render(<DiagnosticsCard diagnosis={d} variant="editor" onSelect={() => {}} fixes={[{ key: 'maxSize', label: 'Use the largest size (9.96 mm)', run }]} />);
-    expect(container.querySelector('.diag-advice')!.textContent).toMatch(/largest size that builds is 9\.96 mm/);
+    expect(adviceOf(d.roots[0])).toMatch(/Set the thickness to 9\.96 mm or less/);   // said in the alert popover
     fireEvent.click(container.querySelector('[data-fix="maxSize"]')!);
     expect(run).toHaveBeenCalled();
   });

@@ -100,7 +100,7 @@ describe('Press Pull Straight in the app', { skip: !process.env.CK_WASM }, () =>
     const zero = await add({ distance: 0 });
     expect(zero.ok).toBe(false); expect(zero.hint).toMatch(/distance/i);
     const bad = await add({ taper: { type: 'scale', endScale: 0 } });
-    expect(bad.ok).toBe(false); expect(bad.hint).toMatch(/endScale/); expect(bad.hint).toMatch(/above 0|positive/i);
+    expect(bad.ok).toBe(false); expect(bad.hint).toMatch(/end scale/); expect(bad.hint).toMatch(/above 0|positive/i);
     const along = await add({ continue: 'along' });
     expect(along.ok).toBe(false); expect(along.hint).toMatch(/continue/i);
     const throughBody = await add({ distance: -30 });
@@ -121,7 +121,7 @@ describe('Press Pull Straight in the app', { skip: !process.env.CK_WASM }, () =>
     expect(wall.found).toBe(true); expect(wall.flat).toBe(false);
     const curved = await c.preview([{ op: 'add', feature: { type: 'pressPull', id: 'F3', faces: ['F2.S.e1'], continue: 'straight', distance: 3 } }] as never, 0);
     expect(curved.ok).toBe(false);
-    expect(curved.hint).toMatch(/F2\.S\.e1 is a cylinder face: .*needs a flat face \(move a curved face with moveFace\)/);
+    expect(curved.hint).toMatch(/The picked face is a cylinder face: .*needs a flat face \(move a curved face with move face\)/);
     expect(curved.diagnosis!.roots[0].code).toBe('pressPullUnsupported');
   }, 120000);
 });

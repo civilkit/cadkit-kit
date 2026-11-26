@@ -70,3 +70,24 @@ describe('a reference plane that lacks an input its mode needs', () => {
     expect(adviceOf(r)).toContain('axis that lies in the base plane');
   });
 });
+
+describe('adviceOf for blendUnsupported', () => {
+  const root = (params?: Record<string, unknown>) => ({ code: 'blendUnsupported', params } as never);
+  it('shows the kernel hint when there is one, else the general line', () => {
+    expect(adviceOf(root({ hint: 'close the profile with a short straight line or an arc' }))).toBe('close the profile with a short straight line or an arc');
+    expect(adviceOf(root())).toMatch(/Use a chamfer/);
+  });
+});
+
+import { userReason } from './userError';
+describe('userReason (a raw exception as a plain clause)', () => {
+  it('maps known failures, keeps plain text, and hides the rest', () => {
+    expect(userReason('RangeError: Array buffer allocation failed')).toMatch(/too big for the memory/);
+    expect(userReason('Unexpected end of file at 1048576')).toMatch(/damaged/);
+    expect(userReason('RuntimeError: unreachable')).toMatch(/something went wrong/);
+    expect(userReason('')).toBe('the file could not be read');
+    expect(userReason('The file has no solids.')).toBe('the file has no solids');
+    expect(userReason('at foo (bar.js:12:3) TypeError: x is not a function')).toBe('the file could not be read');
+    expect(userReason(new Error('Failed to fetch'))).toMatch(/connection/);
+  });
+});

@@ -520,6 +520,15 @@ export const offsetTool: Tool<OffsetState> = {
           if (eligible(e)) return view(state, draft, settings, undefined, highlight(draft, chainFor(draft, e)));
           const chain = referenceAt(env, ev.at);
           if (chain) return view(state, draft, settings, 'app.sketch.hint.offsetReference', chainCurves(chain).flatMap((c) => (c ? projectedShapes(c) : [])));
+          // a chain is picked: show where the offset would go as the pointer moves, and say what to do next (Enter, then a side)
+          if (state.selected.length) {
+            const item = itemOf(draft, state.selected);
+            if (typeof item !== 'string') {
+              const s = sideOf(item, ev.at);
+              const v = view({ ...state, phase: 'side', side: s.side, dist: s.dist }, draft, settings);
+              return { ...v, state, fields: [], hint: 'app.sketch.hint.offsetReady' };
+            }
+          }
           return view(state, draft, settings);
         }
         const item = itemOf(draft, state.selected);
@@ -543,7 +552,7 @@ export const offsetTool: Tool<OffsetState> = {
           }
           const chain = chainFor(draft, e);
           const same = chain.length === state.selected.length && chain.every((c) => state.selected.includes(c));
-          return view({ ...state, selected: same ? [] : chain }, draft, settings);
+          return view({ ...state, selected: same ? [] : chain }, draft, settings, same ? undefined : 'app.sketch.hint.offsetReady');
         }
         const item = itemOf(draft, state.selected);
         if (typeof item === 'string') return view(state, draft, settings, item);

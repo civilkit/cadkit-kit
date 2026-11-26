@@ -4,6 +4,23 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.8.18 - 2026-11-26
+
+- **A fillet or chamfer on an extruded closed spline works.** Pick the rim of a part drawn from a smooth closed spline (one pick takes the whole rim, with "Follow tangent edges" on or off) and round it or chamfer it on the top, the bottom or both rims. On a 25 mm thick free-form outline every size we tried from 0.5 to 24.9 mm builds as a round, and the equal-distance chamfer builds at every size too (both rims at once up to the point where the two legs would meet in the wall, which is refused with the reason). Where the outline has a tight tip the round has a crease there, not a smooth blend, and a size within about 2 percent of the tip's own radius is refused by name. A chamfer with two distances or an angle on a spline is not supported yet.
+- **Rims that mix a spline with a line or an arc round and chamfer too.** A D shape or a circle with a flat builds, and so does a corner where the rim meets a vertical edge: pick the rim and the vertical edges together for a smooth corner. A round on the rim alone at a sharp corner shows a mitre crease, and rounding the rim before the vertical edges in two separate features is refused.
+- **Drag a part to move the mechanism.** On the Motion tab, grab a part in the 3D view and drag it: the hinge or slide follows your cursor, and Auto key records the move on the timeline at the current time. New study now opens the sliders, and the new Auto key button turns that recording on or off. On mechanisms with slow solves, such as the gear train, the first drag can take several seconds to start while the kernel solves the first poses; later drags follow the cursor in steps of about a second.
+- **Offset previews as you move.** After you pick the lines or arcs and press Enter, the offset outline follows the pointer before you click, and the status line says what to do next.
+- **"What's new in CadKit" appears once after an update.** A small card rises from the version link in the status bar, with a link to the notes; Escape or the X closes it for good.
+- **Cancelling a sketch warns first.** The red X on a sketch with shapes in it says that cancelling throws away what was drawn and that Undo cannot bring it back; a second click within five seconds cancels.
+- **A refused edit says why in one place.** The editor title turns red and a small alert icon next to it opens the reason, one sentence for the cause and one for what to do, with the details folded away (hover or focus with a mouse, tap on a touch screen). The words "broke the model" and internal ids are gone, a refused edit no longer shows the same message again as a toast, and edge chips read "Plate edge 1" instead of an id.
+- **Shell opens a body at the wall of a through hole.** The hole's wall is treated as one face with its rims on planes; other curved faces still say what is not supported.
+- **Sheet metal can use a bend table.** The k-factor is read from a table by the inside radius over the thickness and by the bend angle, with linear interpolation; a bend outside the table is refused by name.
+- **A fillet or chamfer on an edge that a sketch split into pieces rounds the whole run.** Picking either piece works, with or without propagate, including on a thin-wall mirrored sketch.
+- **SolidWorks files read more exactly.** Arc and circle centres of sketches come from the stored index, so more sketches open with exact geometry, and an assembly shows its component tree with the mates (type, name, operands, suppressed flag) and a check that plane mates hold.
+- **More Fusion 360 designs verify.** In our test set of 96 designs the number whose rebuilt result matches the stored one rose from 17 to 28 (gear-tooth patterns, tapered extrudes and rational splines).
+- **One message for a dimension the sketch already fixes.** It becomes a reference dimension with a single note and no "clashes, replace?" question; the dimension box shows readable labels, and the pills and glyphs stay on the geometry after the window or a panel changes size.
+- **The sketch ribbon fits better at laptop width.** The Status group folds into a badge and one menu, and the tools of the Draw and Modify groups stay on screen longer; very narrow windows still hide some tools behind the arrow.
+
 ## 0.8.17 - 2026-11-25
 
 - **An arc can be dimensioned by its length.** With the Dimension tool, click an arc and press L: the box switches from the radius to the arc length, typing 25 makes the arc 25 mm long, and the label sits across the arc's chord with a "⌒" in front.

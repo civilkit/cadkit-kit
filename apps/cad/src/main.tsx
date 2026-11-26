@@ -8,6 +8,7 @@ import { Session, type EditOp } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
 import { signal, effect } from '@preact/signals-core';
 import { appVersion, loadAppVersion, versionLink } from './appVersion';
+import { WhatsNewCallout } from './WhatsNewCallout';
 import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@kit/i18n';
 import { BODY, createStore, meshPointName, MODE_FILTER, type DisplayLayer, type PickFilterKind, type SelectionMode, type Workspace } from '@kit/store';
 import { toBodyMode } from './select/actions';
@@ -46,7 +47,8 @@ import { DiagnosticsCard, DiagnosticsWarnings } from './DiagnosticsCard';
 import { INFO_WARNING, warningEntries, warningTips } from './featureWarnings';
 import { ViewNav } from './ViewNav';
 import { newBreakage, type DiagRoot, type Diagnosis } from './errorSummary';
-import { maxSizeOf, maxSizeText } from './diagnosticsText';
+import { composeMessage, maxSizeOf, maxSizeText, summaryLine, userReason } from './diagnosticsText';
+import { previewChecking } from './previewState';
 import { dxfToSketch, svgToSketch } from '@kit/io';
 import { importDxfIntoSketch, importErrorNotice } from './dxfSketch';
 import { importSvgIntoSketch, svgErrorNotice } from './svgSketch';
@@ -409,9 +411,9 @@ function bodyViewNow(): ReturnType<typeof viewSpec> {
   return spec;
 }
 /** The Bodies of what is on screen with their names, looks and visibility from the document (`volumes`: also the volume of each, for the list). */
-function bodyRowsFor(volumes: boolean): BodyRow[] {
-  // while a plugin's preview is on screen the bodies are the preview's, so its colours have something to attach to
-  const previewing = pluginLook ? controller.previewModel() : null;
+function bodyRowsFor(volumes: boolean, opts: { committed?: boolean } = {}): BodyRow[] {
+  // while a plugin's preview is on screen the bodies are the preview's, so its colours have something to attach to; the Bodies list is the model's own bodies (opts.committed): a preview's extra bodies are not listed or named
+  const previewing = pluginLook && !opts.committed ? controller.previewModel() : null;
   const m = previewing ?? controller.selModel();
   if (!m) return [];
   const d = controller.document();
@@ -788,8 +790,15 @@ function App() {
   const [previewHint, setPreviewHintRaw] = useState<string | null>(null);
   // the live preview's failure: its cause/consequence sort, and whether it is breakage the committed model did not have
   const [previewDiag, setPreviewDiag] = useState<{ d: Diagnosis; fresh: DiagRoot[] } | null>(null);
+  /** Guidance that is not an error (nothing picked yet, a value limited to what the model allows): the hint stays a plain note, never the alert icon. */
+  const neutralHint = (h: string): boolean => h === t('ui.editor.pickEdgesNote') || h.startsWith(t('tip.limited', { h: '\u0000' }).split('\u0000')[0]);
+  useEffect(() => { controller.refusalToastQuiet = !!editingId; return () => { controller.refusalToastQuiet = false; }; }, [editingId]);
+  const [problemPoke, setProblemPoke] = useState(0);   // a refused confirm opens the editor's problem popover
+  const [previewIsChecking, setPreviewIsChecking] = useState(previewChecking.peek());
+  useEffect(() => previewChecking.subscribe(setPreviewIsChecking), []);
   const setPreviewHint = (h: string | null) => { setPreviewHintRaw(h); if (h === null) setPreviewDiag(null); };
-  const onPreviewResult = (r: { ok: boolean; hint?: string; diagnosis?: Diagnosis | null }) => {
+  const onPreviewResult = (r: { ok: boolean; hint?: string; diagnosis?: Diagnosis | null; stale?: boolean }) => {
+    if (r.stale) return;   // a newer preview is on its way: an older answer must not replace what is shown
     setPreviewHint(r.ok ? null : (r.hint ?? null));
     if (!r.ok && r.diagnosis?.roots.length) setPreviewDiag({ d: r.diagnosis, fresh: newBreakage(r.diagnosis, controller.diagnosis()) });
   };
@@ -1731,7 +1740,7 @@ function App() {
       else if (b.left && r.file) store.notify(t('knurl.exportWarn', { count: b.left, file: r.file.name }), 'warn', { label: t('knurl.exportConvert'), run: () => { void convertCosmeticKnurls(); } });
       if (plan.shared) store.notify(t('io.folder.shared', { count: plan.shared }), 'info');
     } catch (e) {
-      showNotices([{ level: 'error', key: 'io.failed', params: { message: (e as Error).message } }]);
+      showNotices([{ level: 'error', key: 'io.failed', params: { message: userReason((e as Error).message) } }]);
     } finally { busyNote.value = null; store.busy.value = false; }
   };
 
@@ -1804,7 +1813,7 @@ function App() {
       const d = controller.document(), v = controller.viewData();
       if (d && v && d === saved) void keepSnapshot(viewCache, kernelBuild, { ...(written ?? d), name: r.partName }, v);
     }
-    else if (!r.cancelled) store.notify(t('files.saveFailed', { message: r.message ?? '' }), 'error');
+    else if (!r.cancelled) store.notify(t('files.saveFailed', { message: userReason(r.message ?? '') }), 'error');
   };
   const doSave = async (saveAs: boolean) => {
     if (tabSet.active?.parent) { store.notify(t('asm.editpart.saveBlocked'), 'warn'); return; }
@@ -1892,7 +1901,7 @@ function App() {
       let p: Awaited<ReturnType<typeof controller.importStepPreview>>;
       try { p = await controller.importStepPreview(text); } finally { busyNote.value = null; }
       if (p.ok) { viewport?.fit(); store.notify(t('files.step.preview', { name: file, products: p.products, triangles: p.triangles.toLocaleString(), seconds: p.seconds, unmeshed: p.unmeshed ? t('files.step.unmeshed', { n: p.unmeshed }) : '' }), 'warn'); offerZUp(p.view.mesh); }
-      else if (p.code !== 'cancelled') store.notify(t('files.step.failed', { name: file, message: p.message }), 'error');
+      else if (p.code !== 'cancelled') store.notify(t('files.step.failed', { name: file, message: userReason(p.message) }), 'error');
       return;
     }
     skpShown.current = null;
@@ -1902,7 +1911,7 @@ function App() {
       // view only: Repair makes the file an editable part (the STEP text held by an importStep step) and adds Repair Part after it
       reportImport(file, r.parts, true, () => void repairAsPart(file, async () => text, r.parts));
     }
-    else store.notify(t('files.step.failed', { name: file, message: r.message }), 'error');
+    else store.notify(t('files.step.failed', { name: file, message: userReason(r.message) }), 'error');
   });
   /** After an import: when a part is not a solid, a notice says what became of the parts and opens the import report. */
   const reportImport = (file: string, parts: ImportPart[], viewOnly: boolean, repair: () => void) => {
@@ -1951,7 +1960,7 @@ function App() {
       viewport?.fit(); store.notify(t('files.sldprt.done', { name: file, faces: r.faces })); offerZUp(r.view.mesh);
       reportImport(file, r.parts, true, () => void repairAsPart(file, () => controller.importedStep(name)));
     }
-    else store.notify(t('files.step.failed', { name: file, message: r.message }), 'error');
+    else store.notify(t('files.step.failed', { name: file, message: userReason(r.message) }), 'error');
   });
   /** A Fusion 360 file (.f3d, .f3z) into a new part named after the file. The kernel reads the bodies and writes them as STEP, and the part holds that as
    *  its first feature (as for a STEP file): the bodies are saved with the part, survive a switch to another tab and back, and later features can use them.
@@ -1961,7 +1970,7 @@ function App() {
     const name = partNameOf(file);
     await load(JSON.stringify(blankPart(name)), { file: null });
     const r = await controller.importF3d(bytes, name);
-    if (!r.ok) { store.notify(t('files.step.failed', { name: file, message: r.message }), 'error'); return; }
+    if (!r.ok) { store.notify(t('files.step.failed', { name: file, message: userReason(r.message) }), 'error'); return; }
     const c = r.f3d ?? { bodies: 0, solids: 0, surfaces: 0, refused: 0, report: [] as string[] };
     const surfaces = c.surfaces + c.refused;
     const said = c.solids === 0 ? t('files.f3d.surfacesOnly', { name: file, surfaces, faces: r.faces }) : surfaces > 0 ? t('files.f3d.doneMixed', { name: file, solids: c.solids, surfaces, faces: r.faces }) : t('files.f3d.done', { name: file, solids: c.solids, faces: r.faces });
@@ -1999,7 +2008,7 @@ function App() {
     const name = partNameOf(file).replace(/\.skp$/i, '');
     await load(JSON.stringify(blankPart(name)), { file: null });
     const r = await controller.importSkp(bytes, name, skpImportOpts(orient, hidden));
-    if (!r.ok) { store.notify(t('files.skp.failed', { name: file, code: r.code, message: r.message }), 'error'); return; }
+    if (!r.ok) { store.notify(t('files.skp.failed', { name: file, code: r.code, message: userReason(r.message) }), 'error'); return; }
     viewport?.fit();
     skpOrient.current = r.up;   // the last choice stays for the next file of this session
     const shown = { bytes, file, hidden };
@@ -2016,7 +2025,7 @@ function App() {
     store.notify(t('mesh.import.reading', { name: file }));
     const name = partNameOf(file).replace(/\.skp$/i, '') || 'SketchUp';
     const r = await controller.readSkp(bytes, name, { hidden, maxFaces: SKP_MESH_MAX_FACES });
-    if (!r.ok) { store.notify(t('files.skp.failed', { name: file, code: r.code, message: r.message }), 'error'); return; }
+    if (!r.ok) { store.notify(t('files.skp.failed', { name: file, code: r.code, message: userReason(r.message) }), 'error'); return; }
     try {
       const have = meshesOf(controller.document());
       const old = replaceId ? have.find((m) => m.id === replaceId) : undefined;
@@ -2050,7 +2059,7 @@ function App() {
     const name = partNameOf(file);
     await load(JSON.stringify(blankPart(name)), { file: null });
     const r = await controller.importStep(text, name);   // the read and the report (faces, parts, what is not a solid)
-    if (!r.ok) { store.notify(t('files.step.failed', { name: file, message: r.message }), 'error'); return; }
+    if (!r.ok) { store.notify(t('files.step.failed', { name: file, message: userReason(r.message) }), 'error'); return; }
     const part = await partOfStep(text, name, file, stepImportAppearance(r.parts, 'F1'));
     await load(JSON.stringify(part), { file: null });
     const bad = controller.buildErrors()[0];
@@ -2156,7 +2165,7 @@ function App() {
       r = await importSolidcraft(bytes, name, { ...scResolvers, ...scStep, signal: ctl.signal, onProgress: (done, total) => { prog.count(done, total); importing.value = { name: file, done, total, abort: () => ctl.abort(), phase: 'reading' }; } });
     } catch (e) {
       prog.end(); importing.value = null;
-      store.notify(t('files.solidcraft.failed', { name: file, message: (e as Error).message }), 'error');
+      store.notify(t('files.solidcraft.failed', { name: file, message: userReason((e as Error).message) }), 'error');
       return;
     }
     prog.end();
@@ -2352,8 +2361,10 @@ function App() {
       hasDrivers: () => (motionState.drivers.value?.length ?? 0) > 0 || (controller.document()?.features ?? []).some((f) => f.type === 'mate'),
       hasStudy: () => motionState.study() !== null && (motionState.drivers.value?.length ?? 0) > 0,
       isPlaying: () => motionState.playing.value,
+      isAutoKey: () => motionState.autoKey.value,
+      toggleAutoKey: () => motionState.setAutoKey(!motionState.autoKey.value),
       findLimits: () => { const ds = [...(motionState.drivers.value ?? [])]; void (async () => { for (const d of ds) await motionState.findLimits(d.mate); })(); },   // every driver, one after the other (it used to run for the first only)
-      newStudy: () => { setTab('Motion'); motionState.newStudy(); },
+      newStudy: () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); revealLeft(); setAsmSection('motion'); setLeftTab('Outliner'); setTab('Motion'); motionState.newStudy(); },   // a new study also shows the sliders: moving one is how you make the motion
       keyAll: () => { for (const d of motionState.drivers.value ?? []) motionState.addKey(d.mate); },
       togglePlay: () => { if (motionState.playing.value) motionState.pause(); else void motionState.play(); },
       exportClip: () => void motionState.exportClip('webm'),
@@ -2612,6 +2623,7 @@ function App() {
         const rej = controller.rejection();
         setPreviewHint(rej?.summary ?? (r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || 'edit failed'));
         if (rej) setPreviewDiag({ d: rej.diagnosis, fresh: newBreakage(rej.diagnosis, controller.diagnosis()) });
+        setProblemPoke((n) => n + 1);
         redraw((n) => n + 1);
         return;
       }
@@ -2707,6 +2719,28 @@ function App() {
     });
     return () => { viewport?.setPickIntercept(null); setSpanPicked(0); spanPts.current = []; };
   }, [pickingPath, viewport, editingId]);
+  // On the Motion tab a left-drag that starts on a part moves the mechanism: the part follows the cursor (the drivers do the moving), and Auto key keys it. A click
+  // still selects, and the middle and right buttons still orbit. The document is read through a ref: a drag edits it (Auto key), which must not end the drag.
+  const docNow = useRef(doc);
+  docNow.current = doc;
+  const hasDoc = !!doc;
+  useEffect(() => {
+    if (!viewport || tab !== 'Motion' || !hasDoc || sketching) return;
+    const vp = viewport;
+    let held: Promise<boolean> | null = null;
+    vp.setPartDragHook({
+      begin: (face, point) => {
+        const d = docNow.current;
+        const comp = face && d ? componentOfName(face, insertIds(d as never)) : null;
+        if (!comp || !(motionState.drivers.value?.length) || !motionState.isMovable(comp)) return false;   // a fixed part still orbits
+        held = motionState.beginDrag(comp, point);
+        return true;
+      },
+      move: (x, y) => { void held?.then((ok) => { if (ok) void motionState.dragMove([x, y], (p) => vp.screenOf(p)); }); },
+      end: () => { void held?.then(() => motionState.endDrag()); held = null; },
+    });
+    return () => { vp.setPartDragHook(null); motionState.endDrag(); };
+  }, [viewport, tab, hasDoc, sketching]);
   /** Make the outline sketch of the open edge flange (`new`: the default leg as a rectangle; `convert`: the imported outline as lines and arcs) on a plane in the
    *  flange's own frame, put it before the flange, point the flange at it and open the sketcher; or (`edit`) apply the draft and open the flange's sketch. */
   const flangeSketch = async (kind: 'new' | 'convert' | 'edit', sid?: string): Promise<void> => {
@@ -3055,7 +3089,11 @@ function App() {
       void controller.applySketchDraft(out.draft).then((r) => {
         setSketchHint(r.ok || r.stale ? (out.hint ? toolHint() : null) : (r.hint ? t(r.hint) : null));
         viewTick((n) => n + 1);   // the solver's answer (degrees of freedom, constraint list) arrives after the tool's own redraw
-        if (r.ok && !r.stale) { void offerReplace(before, r.status, ev.type === 'click' && !!ev.mods?.shift); settleDimensions(before, r.status); }
+        if (r.ok && !r.stale) {
+          // a dimension the sketch already fixes becomes a reference dimension and says so; the "clashes, Replace?" offer would contradict that, so it is only for Shift (replace at once) and for relations
+          const shift = ev.type === 'click' && !!ev.mods?.shift;
+          if (shift || !settleDimensions(before, r.status)) void offerReplace(before, r.status, shift);
+        }
         // a placed text or equation curve is edited in its panel: back to Select mode with the new entity picked
         if (placed && r.ok) { selectTool(null); selectEntity(placed, lastPosRef.current.x, lastPosRef.current.y); }
         // a circle dragged out by a finger: it is picked and its radius field takes the focus (the digit keypad), so an exact size can be typed
@@ -3363,15 +3401,17 @@ function App() {
   }
   /** A dimension the solver finds already fixed by others (or in conflict) is kept as a reference dimension instead of
    *  over-constraining the sketch. `before` is the ids of the constraints before the step that added it. */
-  function settleDimensions(before: Set<string>, status: import('@ck/part-model').SketchSolverStatus | undefined) {
+  function settleDimensions(before: Set<string>, status: import('@ck/part-model').SketchSolverStatus | undefined): boolean {
     const draft = controller.sketchDraft();
-    if (!draft || !status) return;
+    if (!draft || !status) return false;
     const bad = new Set([...status.conflicts, ...status.redundant]);
     const dims = draft.constraints.filter((c) => !before.has(c.id) && bad.has(c.id) && typeof c.value === 'number' && ['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'raddiff', 'arclength', 'angle'].includes(c.type));
-    if (!dims.length) return;
+    if (!dims.length) return false;
     let next: import('@kit/sketch').SketchDraft | null = draft;
     for (const c of dims) next = next ? makeDriven(next, c.id) : null;
-    if (next) applyDraft(next, () => store.notify(t('app.sketch.madeReference')));
+    if (!next) return false;
+    applyDraft(next, () => store.notify(t('app.sketch.madeReference')));
+    return true;
   }
   /** Reference <-> driving for a dimension (constraint id `k..` or reference id `r..`). */
   const toggleDriven = (id: string, driven: boolean) => {
@@ -3863,6 +3903,7 @@ function App() {
     if (u && c && c.step === 'dist') { const k = calibrated(u, c.a, c.b, mm); if (k) { changeUnderlay({ w: k.w, x: k.x, y: k.y }); store.notify(t('ul.calibrated', { mm: String(Math.round(mm * 1000) / 1000) })); } }
     setCalib(null);
   };
+  const cancelAskedRef = useRef(0);
   const cancelSketch = async (fromKey = false) => {
     if (!sketching) return;
     if (fromKey === true && !escapeCancelsSketch(controller.sketchDraft())) { setSketchHint(t('app.sketch.escapeKeeps')); return; }
@@ -3989,7 +4030,13 @@ function App() {
     name: sketching.name, plane: sketching.plane ?? sketchPlaneLabel,
     onOk: () => void confirmSketch(),
     ...(holeSketchRef.current ? {} : { onExtrude: () => void finishAnd('extrude'), onRevolve: () => void finishAnd('revolve') }),
-    onCancel: () => void cancelSketch(),
+    onCancel: () => {
+      // the red X throws the whole sketch away and Ctrl+Z cannot bring it back: with shapes in it, the first click asks and a second one within 5 s discards
+      const now = Date.now();
+      if (!escapeCancelsSketch(controller.sketchDraft()) && now - cancelAskedRef.current > 5000) { cancelAskedRef.current = now; store.notify(t('app.sketch.cancelAsk'), 'warn', undefined, { ttl: 5000 }); return; }
+      cancelAskedRef.current = 0; for (const n of store.notices.value) if (n.text === t('app.sketch.cancelAsk')) store.alerts.dismiss(n.id);   // the question is answered: its warning goes
+      void cancelSketch();
+    },
     onImportDxf: () => void importDxf(), onImportSvg: () => void importSvg(), onUnderlay: underlayTile,
     onPlugins: () => openPlugins(),
     construction: constructionMode, onConstruction: () => setConstructionMode(!constructionMode),
@@ -5265,11 +5312,16 @@ function App() {
       inject={handleInject}
       key={`${editingId}:${String(editingFeature?.type)}`}
       options={(a) => optionsFor(a, doc, thinActions)}
+      featureName={(id) => { const f = (doc?.features ?? []).find((x) => x.id === id); return f ? featureLabel(doc as never, f as never) : undefined; }}
       onChipHover={(r) => { const k = r ? refEdgeKey(r, controller.shownEdges()) : null; viewport?.setHover(k, true); }}
       edgeRuns={editingFeature?.type === 'fillet' || editingFeature?.type === 'chamfer' ? (edges) => edgeRuns(edges, beforeRef.current?.id === editingId ? beforeRef.current.edges : null, tangentChainOn()) : undefined}
       hint={openCard ? null : previewHint}
+      problems={previewDiag ? previewDiag.d.roots.map((r) => { const m = composeMessage({ ...previewDiag.d, roots: [r] }, 'preview'); return { id: r.id + ':' + r.code, cause: m.cause, action: (r === previewDiag.d.roots[0] ? (diagFixes() as { message?: string }).message : undefined) ?? m.action, details: `${r.code} \u00b7 ${r.label && r.label !== r.id ? r.label : t('diag.summary.editor.thing')}` }; }) : previewHint && !neutralHint(previewHint) ? [{ id: 'hint', cause: previewHint }] : []}
+      checking={previewIsChecking}
+      openProblems={problemPoke}
+      hintTone={previewHint && neutralHint(previewHint) ? 'neutral' : undefined}
       diag={previewDiag ? <DiagnosticsCard diagnosis={previewDiag.d} variant="editor" onSelect={selectFailed} onCancel={onCancel} {...diagFixes()} /> : null}
-      okBlocked={previewDiag?.fresh.length ? t('diag.okBlocked', { id: previewDiag.fresh[0].id }) : null}
+      okBlocked={previewDiag?.fresh.length ? t('diag.okBlocked') : null}
       shapes={editShapes}
       extra={editingFeature?.type === 'insertPart' && (editingFeature as { part?: unknown }).part && !(editingFeature as { draftNew?: boolean }).draftNew ? (
         <div class="fedit-extra">
@@ -5389,7 +5441,7 @@ function App() {
     });
   };
   const setHiddenBodies = (keys: string[]): void => setBodyField('view', keys.length ? { hiddenBodies: keys } : null);
-  const bodyRows = leftTab === 'Bodies' ? bodyRowsFor(true) : [];
+  const bodyRows = leftTab === 'Bodies' ? bodyRowsFor(true, { committed: true }) : [];
   const bodyFields = readBodyFields(doc);
   const bodiesPanel = <BodiesPanel rows={bodyRows} library={{ enabled: online.value.enabled, onEnable: () => setOnlineEnabled(true), list: () => onlineLibrary.list('wood') }}
     madeBy={(o) => { const f = (controller.document()?.features ?? []).find((x) => x.id === o.split('@')[0]) as { name?: string; type?: string } | undefined; return f ? f.name || f.type || o : null; }}
@@ -5938,6 +5990,7 @@ function App() {
       <Toast notices={store.notices.value} onDismiss={store.alerts.dismiss} />
       {alertsOpen ? <NotificationHistory history={store.alerts.history.value} onClose={() => setAlertsOpen(false)} onClear={() => { store.alerts.clearHistory(); setAlertsOpen(false); }} /> : null}
       <HelpHost context={() => helpContext()} />
+      <WhatsNewCallout />
       <div class="status-wrap">
         <HoverScope>{(hv) => (
         <StatusBar help={<HelpButton topic="guide" />} links={siteLinks()} alerts={{ total: store.alerts.history.value.length, unread: store.alerts.unread.value, unreadErrors: store.alerts.unreadErrors.value, open: alertsOpen, onToggle: toggleAlerts }} hover={hoverLabel(hv)} busy={store.busy.value}

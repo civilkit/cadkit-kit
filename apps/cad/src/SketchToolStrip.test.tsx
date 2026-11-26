@@ -8,7 +8,7 @@ import { DEFAULT_SKETCH_PREFS } from './sketchPrefs';
 import './i18n';
 
 // the Status group draws its icon row from this ribbon width up (it is the badge and one menu below it)
-beforeEach(() => { (window as unknown as { innerWidth: number }).innerWidth = 1600; });
+beforeEach(() => { (window as unknown as { innerWidth: number }).innerWidth = 2400; });
 afterEach(cleanup);
 
 const actions: Actions = {
@@ -219,7 +219,7 @@ describe('sketchRibbonGroups (the contextual Sketch tab)', () => {
   it('wide: Fully define shows its name; narrow: the badge plus one "..." menu holding the same items', async () => {
     const { SketchStatus } = await import('./SketchBar');
     const c = { ...controls(), onShowConstraints: vi.fn(), onReport: vi.fn(), onShowFree: vi.fn() };
-    const wide = render(<SketchStatus {...c} width={1801} />);
+    const wide = render(<SketchStatus {...c} width={2701} />);
     expect(wide.container.querySelector('[data-action="fully-define"]')!.textContent).toBe('Fully define');
     cleanup();
     const narrow = render(<SketchStatus {...c} width={800} />);

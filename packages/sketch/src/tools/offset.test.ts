@@ -179,3 +179,18 @@ describe('offset tool', () => {
     expect(o.state.selected).toEqual([]);
   });
 });
+
+describe('offset: after a chain is picked', () => {
+  it('says what to do next and previews the offset while the pointer moves', async () => {
+    const { offsetTool } = await import('./offset');
+    const draft = { id: 'S', plane: { kind: 'std', id: 'front' }, temp: [], points: [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 20, y: 0 }], entities: [{ id: 'e1', type: 'line', p1: 'a', p2: 'b' }], constraints: [] } as never;
+    const ev = (o: object) => ({ mods: {}, ...o }) as never;
+    const picked = offsetTool.step(offsetTool.start(), ev({ type: 'click', at: { x: 10, y: 0 }, snap: { entityId: 'e1' } }), draft, {} as never);
+    expect(picked.hint).toBe('app.sketch.hint.offsetReady');
+    const moved = offsetTool.step(picked.state, ev({ type: 'move', at: { x: 10, y: 5 } }), draft, {} as never);
+    expect(moved.hint).toBe('app.sketch.hint.offsetReady');
+    const line = moved.preview[0] as { kind: string; a: { x: number; y: number } };
+    expect(line.kind).toBe('line');
+    expect(Math.abs(line.a.y)).toBeCloseTo(5, 6);   // the offset line, 5 mm from the original
+  });
+});

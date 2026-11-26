@@ -26,7 +26,7 @@ describe('importer on the corpus (real FreeCAD documents)', () => {
         }
       }
     }
-  }, 60000);
+  }, 300_000);   // it imports the whole corpus: it ran into the 60 s limit on a loaded CI box (and locally with other jobs running)
 
   it('says which Part workbench objects it does not import', async () => {
     const r = await imp('60_part_primitives');

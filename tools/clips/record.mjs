@@ -22,7 +22,7 @@ const outDir = resolve(here, '../../apps/cad/public/whats-new/clips');
 const posterDir = resolve(here, '../../apps/cad/public/whats-new/posters');
 
 const mods = [];
-for (const f of readdirSync(here).filter((x) => /^\d\d-.*\.mjs$/.test(x)).sort()) mods.push((await import(pathToFileURL(join(here, f)))).default);
+for (const f of readdirSync(here).filter((x) => /^\d{2,3}-.*\.mjs$/.test(x)).sort()) mods.push((await import(pathToFileURL(join(here, f)))).default);
 const todo = mods.filter((m) => !only || m.id === only);
 if (!todo.length) { console.error('no clip matches'); process.exit(2); }
 

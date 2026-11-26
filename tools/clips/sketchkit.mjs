@@ -3,10 +3,10 @@ import { openDoc, kit } from './clipkit.mjs';
 import { newDoc } from '../doc_shots_defs.mjs';
 
 export const SLOT = (s) => `(document.querySelector('.slot[data-slot="${s}"] .slot-btn') || document.querySelector('.slot[data-slot="${s}"]'))`;
-export async function sketchTop(rec, ctx, name) {
+export async function sketchTop(rec, ctx, name, { extra = {} } = {}) {
   const { page } = ctx;
   await ctx.openApp();
-  await openDoc(ctx, { ...newDoc(name, []), upAxis: 'z' }, { workspace: null });
+  await openDoc(ctx, { ...newDoc(name, []), upAxis: 'z' }, { workspace: null, extra });
   await page.eval(`document.querySelector('.start-close')?.click(); 0`);
   const k = kit(rec, ctx);
   const pc = async (expr) => { const [x, y] = await rec.rect(expr); await page.mouse('mouseMoved', x, y); await k.sleep(200); await page.mouse('mousePressed', x, y); await page.mouse('mouseReleased', x, y); await k.sleep(600); };

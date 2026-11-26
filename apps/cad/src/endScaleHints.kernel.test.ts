@@ -26,7 +26,7 @@ describe('end scale refusals', { skip: !process.env.CK_WASM }, () => {
     ['through', { end: 'through' }, /set distance.*blind or mid-plane/],
     ['draft', { draft: 5 }, /both taper the sides; use either a draft angle or an end scale/],
     ['twist', { twist: 20 }, /not supported; use either a twist or an end scale/],
-    ['zero scale', { endScale: 0 }, /not a positive number; use an endScale above 0/],
+    ['zero scale', { endScale: 0 }, /not a positive number; use an end scale above 0/],
   ])('%s', async (_name, extra, want) => {
     const r = await load(extra as Record<string, unknown>);
     expect(r.ok).toBe(false);

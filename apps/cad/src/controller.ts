@@ -35,7 +35,8 @@ import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, toViewSurf
 import { withSmoothEdges, markSmoothEdges } from './smoothEdges';
 import type { BodyMesh, ViewSurface } from '@kit/viewport';
 import { openSheetEdges, type CosmeticKnurl, type InertiaFact } from '@kit/script';
-import { diagnose, summaryLine, diagnoseErrors as diagnoseErrorList, featureStatuses, type Diagnosis } from '@kit/viewdata';
+import { previewChecking } from './previewState';
+import { userReason, diagnose, summaryLine, diagnoseErrors as diagnoseErrorList, featureStatuses, type Diagnosis } from '@kit/viewdata';
 import { setDocFields, type DocPatch } from './docFields';
 import { cosmeticOnly, LABEL_BUSY_MS } from './cosmeticOps';
 import { isSheetFeature, type SheetEntry } from './sheet/model';
@@ -742,6 +743,8 @@ export class Controller {
           const diagnosis = this.diagnoseErrors(result.errors, result.hints ?? [], cand);
           const summary = summaryLine(diagnosis);
           if (summary) { text = summary; this.rejected = { diagnosis, summary, at: Date.now() }; }
+          // the open editor already shows this very refusal (red title, card): a toast saying it again is a triple-up
+          if (this.refusalToastQuiet) return result;   // only an open editor shows the refusal itself (a ball or drag move has no editor: its toast is the message)
         }
         this.store.notify(text, 'error');
         return result;
@@ -785,7 +788,15 @@ export class Controller {
 
   /** Speculative edit: shows the candidate body, leaves document and history untouched.
    *  Debounced ~150 ms; a newer preview supersedes an older one (stale:true, body dropped). */
+  /** An editor is open: it shows a refusal itself (the alert icon beside its title), so a refused edit raises no toast on top of it. Set by the shell. */
+  refusalToastQuiet = false;
+  private previewPending = 0;
+  /** A preview of the open editor's draft; `previewChecking` is on while any is in flight (the editor shows "checking", not the last answer). */
   async preview(ops: EditOp[], delayMs = 150): Promise<PreviewResult & { hint?: string; diagnosis?: Diagnosis | null; tip?: Tip }> {
+    this.previewPending++; previewChecking.value = true;
+    try { return await this.previewRun(ops, delayMs); } finally { if (--this.previewPending <= 0) { this.previewPending = 0; previewChecking.value = false; } }
+  }
+  private async previewRun(ops: EditOp[], delayMs = 150): Promise<PreviewResult & { hint?: string; diagnosis?: Diagnosis | null; tip?: Tip }> {
     if (this.realLoad) await this.whenReal();
     const seq = ++this.previewSeq;
     if (this.previewTimer) clearTimeout(this.previewTimer);
@@ -827,10 +838,8 @@ export class Controller {
     const cand = applyOpsLocal(this.sdoc().features as unknown as Array<Record<string, unknown>>, ops) ?? this.sdoc().features;
     const diagnosis = r.errors?.length ? this.diagnoseErrors(r.errors, r.hints ?? [], cand) : null;
     // one short sentence about the cause instead of every error joined (the full list is in `diagnosis`)
-    let hint = (diagnosis ? summaryLine(diagnosis) : '') || r.schemaError || 'preview failed';
+    let hint = (diagnosis ? summaryLine(diagnosis, 'preview') : '') || r.schemaError || 'preview failed';
     // the kernel's error code, so a slow failing build reads as a refusal and not as a hang
-    const code = r.errors?.[0]?.[1]?.code;
-    if (code && !hint.includes(code)) hint += ` (${code})`;
     const reply = { ...r, hint, diagnosis };
     if (!r.stale && !r.hints?.some((h) => h.code === 'trap')) this.failedPreview = { key: failKey, reply };
     return reply;
@@ -1849,7 +1858,7 @@ export class Controller {
     this.cancelledAt = 0;
     if (cancelled) return { text: t('app.notice.openCancelled'), level: 'info' };
     if (/kernel closed/i.test(m)) return { text: t('app.notice.openKernelStopped'), level: 'error' };
-    return { text: t('app.notice.openFailed', { message: m }), level: 'error' };
+    return { text: t('app.notice.openFailed', { message: userReason(e) }), level: 'error' };   // never the raw parser or kernel text
   }
   async cancel(): Promise<void> {
     this.cancelledAt = Date.now();

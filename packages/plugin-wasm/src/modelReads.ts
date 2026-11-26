@@ -37,7 +37,7 @@ function basisOf(axis: V3): [V3, V3] {
   return [u, cross(axis, u)];
 }
 
-export interface FaceInfo { area: number; centroid: number[]; plane_normal?: number[]; point: number[]; exact: boolean; cylinder?: { origin: number[]; axis: number[]; radius: number } }
+export interface FaceInfo { area: number; /** the same under the name SolidCraft's plugins read */ area_mm2: number; centroid: number[]; plane_normal?: number[]; point: number[]; exact: boolean; cylinder?: { origin: number[]; axis: number[]; radius: number } }
 
 /** One face from its triangles (nine numbers each, outward winding): area, area-weighted centre (not always on the face), the normal when it is a plane, a point that lies on it
  *  (the middle of its largest triangle) and the cylinder it is part of, when it is one. A plane and a cylinder are recognised from the tessellation (exact: true); any other face
@@ -62,15 +62,26 @@ export function faceInfo(tris: ArrayLike<number>, count: number): FaceInfo | nul
   }
   if (!(area > 0)) return null;
   const centroid = round3([cen[0] / area, cen[1] / area, cen[2] / area]);
-  const out: FaceInfo = { area: r4(area), centroid, point: round3(bigPoint), exact: false };
+  const out: FaceInfo = { area: r4(area), area_mm2: r4(area), centroid, point: round3(bigPoint), exact: false };
   const n0 = normals[0];
   if (normals.every((n) => dot(n, n0) > 1 - 1e-6)) { out.plane_normal = round3(n0); out.exact = true; return out; }
   // a cylinder: every facet normal is square to one axis (the facets are strips along it)
   let best: V3 = [0, 0, 0], bl = 0;
   for (const n of normals) { const c = cross(n0, n), l = len(c); if (l > bl) { bl = l; best = c; } }
   if (bl > 1e-3) {
-    const axis = unit(best);
-    if (normals.every((n) => Math.abs(dot(n, axis)) < 1e-4)) {
+    // the facets of a real tessellation tilt a little (a tenth of a degree is normal), so the axis is the direction the normals are most nearly square to:
+    // the weakest direction of their spread, found by power iteration on (trace - M), started from the cross product
+    let axis = unit(best);
+    const M = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    for (const n of normals) for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) M[i][j] += n[i] * n[j];
+    const tr = M[0][0] + M[1][1] + M[2][2];
+    for (let it = 0; it < 80; it++) {
+      const w: V3 = [0, 1, 2].map((i) => tr * axis[i] - (M[i][0] * axis[0] + M[i][1] * axis[1] + M[i][2] * axis[2])) as V3;
+      const l = len(w);
+      if (!(l > 0)) break;
+      axis = [w[0] / l, w[1] / l, w[2] / l];
+    }
+    if (normals.every((n) => Math.abs(dot(n, axis)) < 1e-2)) {
       const [u, v] = basisOf(axis);
       const fit = fitCircle(verts.map((p): [number, number] => [dot(p, u), dot(p, v)]));
       if (fit && fit.r > 0) {
@@ -80,6 +91,13 @@ export function faceInfo(tris: ArrayLike<number>, count: number): FaceInfo | nul
           const origin: V3 = [u[0] * fit.c[0] + v[0] * fit.c[1] + axis[0] * along, u[1] * fit.c[0] + v[1] * fit.c[1] + axis[1] * along, u[2] * fit.c[0] + v[2] * fit.c[1] + axis[2] * along];
           out.cylinder = { origin: round3(origin), axis: round3(axis), radius: r4(fit.r) };
           out.exact = true;
+          // the tessellation's area is the polygon's (a fraction of a percent short): a plugin that works out where the wall ends from it needs the true cylinder area, radius x angle x height
+          const along2 = verts.map((p) => dot(p, axis)), h = Math.max(...along2) - Math.min(...along2);
+          const ang = verts.map((p) => Math.atan2(dot(p, v) - fit.c[1], dot(p, u) - fit.c[0])).sort((x, y) => x - y);
+          let gap = ang[0] + 2 * Math.PI - ang[ang.length - 1];
+          for (let i = 1; i < ang.length; i++) gap = Math.max(gap, ang[i] - ang[i - 1]);
+          const sweep = gap > Math.PI * 0.75 ? 2 * Math.PI - gap : 2 * Math.PI;
+          out.area = r4(fit.r * sweep * h); out.area_mm2 = out.area;
         }
       }
     }
@@ -87,7 +105,7 @@ export function faceInfo(tris: ArrayLike<number>, count: number): FaceInfo | nul
   return out;
 }
 
-export interface EdgeInfo { point: number[]; length: number; curve: 'line' | 'circle' | 'curve'; centre?: number[]; axis?: number[]; radius?: number }
+export interface EdgeInfo { point: number[]; /** the same point under the name SolidInserts reads ("Invalid edges list: missing field `mid`") */ mid: number[]; length: number; curve: 'line' | 'circle' | 'curve'; centre?: number[]; axis?: number[]; radius?: number; /** the circle under the names SolidCraft's plugins read */ circle?: { center: number[]; diameter: number } }
 
 /** One edge from its polyline: the point in the middle of it (on the edge), its length, and a line or circle when the points are one (a circle comes with its centre, axis and radius). */
 export function edgeInfo(pts: number[][]): EdgeInfo | null {
@@ -95,7 +113,8 @@ export function edgeInfo(pts: number[][]): EdgeInfo | null {
   if (P.length < 2) return null;
   let length = 0;
   for (let i = 1; i < P.length; i++) length += len(sub(P[i], P[i - 1]));
-  const out: EdgeInfo = { point: round3(P[Math.floor(P.length / 2)]), length: r4(length), curve: 'curve' };
+  const middle = round3(P[Math.floor(P.length / 2)]);
+  const out: EdgeInfo = { point: middle, mid: middle, length: r4(length), curve: 'curve' };
   const chord = sub(P[P.length - 1], P[0]), cl = len(chord);
   const first = P[0];
   if (cl > 0 && P.every((p) => len(cross(sub(p, first), unit(chord))) < 1e-4 * Math.max(1, length))) { out.curve = 'line'; return out; }
@@ -111,6 +130,7 @@ export function edgeInfo(pts: number[][]): EdgeInfo | null {
         if (ok) {
           const centre: V3 = [u[0] * fit.c[0] + v[0] * fit.c[1] + axis[0] * planeAt, u[1] * fit.c[0] + v[1] * fit.c[1] + axis[1] * planeAt, u[2] * fit.c[0] + v[2] * fit.c[1] + axis[2] * planeAt];
           out.curve = 'circle'; out.centre = round3(centre); out.axis = round3(axis); out.radius = r4(fit.r);
+          out.circle = { center: out.centre, diameter: r4(2 * fit.r) };   // SolidInserts reads the rim as { circle: { center, diameter } }
         }
       }
     }
